@@ -1,0 +1,248 @@
+
+
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="{{ lang|default:'fa' }}" {% if lang == 'fa' %}dir="rtl"{% else %}dir="ltr"{% endif %}>
+<head>
+  {# ===== پایه‌های ضروری ===== #}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>
+    {% if lang == 'fa' %}
+      آرویون — توسعه‌دهندهٔ فول‌استک پایتون/جنگو
+    {% else %}
+      Arvion — Full‑stack Python/Django Developer
+    {% endif %}
+  </title>
+
+  {# ===== Meta Description (دوحالته برای SEO) ===== #}
+  <meta name="description" content="{% if lang == 'fa' %}نمونه‌کارها، پروژه‌ها، مقالات و خدمات توسعهٔ وب با پایتون/جنگو.{% else %}Portfolio, projects, articles, and web development services with Python/Django.{% endif %}">
+
+  {# ===== Canonical + hreflang برای سئو ===== #}
+  {% with current_path=request.path %}
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang={{ lang }}">
+    <link rel="alternate" hreflang="fa" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang=fa">
+    <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang=en">
+    <link rel="alternate" hreflang="x-default" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang=en">
+  {% endwith %}
+
+  {# ===== OpenGraph / Twitter ===== #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{% if lang == 'fa' %}آرویون — توسعه‌دهندهٔ فول‌استک{% else %}Arvion — Full‑stack Developer{% endif %}">
+  <meta property="og:description" content="{% if lang == 'fa' %}پروژه‌ها، مقالات و خدمات برنامه‌نویسی پایتون/جنگو.{% else %}Projects, articles, and Python/Django services.{% endif %}">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  {# <meta property="og:image" content="https://example.com/static/og-cover.jpg"> #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% if lang == 'fa' %}آرویون — توسعه‌دهندهٔ فول‌استک{% else %}Arvion — Full‑stack Developer{% endif %}">
+  <meta name="twitter:description" content="{% if lang == 'fa' %}پروژه‌ها، مقالات و خدمات برنامه‌نویسی پایتون/جنگو.{% else %}Projects, articles, and Python/Django services.{% endif %}">
+  {# <meta name="twitter:image" content="https://example.com/static/og-cover.jpg"> #}
+
+  {# ===== Structured Data (ساده) ===== #}
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Person",
+    "name": "{% if lang == 'fa' %}آروین{% else %}Arvin{% endif %}",
+    "jobTitle": "Full‑stack Developer",
+    "url": "{{ request.scheme }}://{{ request.get_host }}/",
+    "knowsAbout": ["Python", "Django", "HTMX", "SPA", "Web Performance"]
+  }
+  </script>
+
+  {# ===== کتابخانه‌ها ===== #}
+  <!-- HTMX برای رفتارهای SPA مرحله‌های بعد -->
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <!-- TailwindCSS (MVP و ریسپانسیو) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col {% if lang == 'fa' %}rtl{% endif %}">
+
+  {# ===== Header (دسکتاپ + موبایل) ===== #}
+  <header class="border-b bg-white">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex items-center justify-between py-3">
+        <!-- برند -->
+        <a href="/?lang={{ lang }}" class="font-bold text-xl">
+          {% if lang == 'fa' %}آرویون{% else %}Arvion{% endif %}
+        </a>
+
+        <!-- منوی دسکتاپ -->
+        <nav class="hidden md:flex items-center gap-5 text-sm">
+          <a href="/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}خانه{% else %}Home{% endif %}
+          </a>
+          <a href="/about/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}درباره{% else %}About{% endif %}
+          </a>
+          <a href="/blog/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}
+          </a>
+          <a href="/projects/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}
+          </a>
+          <a href="/services/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}خدمات{% else %}Services{% endif %}
+          </a>
+          <a href="/contact/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}تماس{% else %}Contact{% endif %}
+          </a>
+
+          <!-- سوییچر زبان (حفظ مسیر جاری با ?lang=) -->
+          <form method="get" action="{{ request.path }}" style="display:inline;">
+            {% for key, value in request.GET.items %}
+              {% if key != 'lang' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endif %}
+            {% endfor %}
+            <select
+              class="border rounded px-2 py-1"
+              name="lang"
+              onchange="this.form.submit()">
+              <option value="fa" {% if lang == 'fa' %}selected{% endif %}>فارسی</option>
+              <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+            </select>
+          </form>
+        </nav>
+
+        <!-- دکمه منوی موبایل (در صورت نیاز به کشویی) -->
+        <button
+          class="md:hidden border rounded px-3 py-2"
+          aria-label="Menu"
+          onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+          ☰
+        </button>
+      </div>
+
+      <!-- منوی موبایل تاشو (اختیاری) -->
+      <nav id="mobile-menu" class="md:hidden hidden pb-3 text-sm">
+        <div class="flex flex-col gap-2">
+          <a href="/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}خانه{% else %}Home{% endif %}
+          </a>
+          <a href="/about/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}درباره{% else %}About{% endif %}
+          </a>
+          <a href="/blog/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}
+          </a>
+          <a href="/projects/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}
+          </a>
+          <a href="/services/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}خدمات{% else %}Services{% endif %}
+          </a>
+          <a href="/contact/?lang={{ lang }}" class="hover:underline">
+            {% if lang == 'fa' %}تماس{% else %}Contact{% endif %}
+          </a>
+
+          <!-- سوییچر زبان موبایل -->
+          <label class="pt-2 text-gray-500">
+            {% if lang == 'fa' %}زبان:{% else %}Language:{% endif %}
+          </label>
+          <form method="get" action="{{ request.path }}">
+            {% for key, value in request.GET.items %}
+              {% if key != 'lang' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endif %}
+            {% endfor %}
+            <select
+              class="border rounded px-2 py-1"
+              name="lang"
+              onchange="this.form.submit()">
+              <option value="fa" {% if lang == 'fa' %}selected{% endif %}>فارسی</option>
+              <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+            </select>
+          </form>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  {# ===== محتوای اصلی ===== #}
+  {# نکته: padding-bottom برای خالی گذاشتن فضای نوار پایینی موبایل #}
+  <main class="flex-1 pb-16 md:pb-0">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ===== فوتر ===== #}
+  <footer id="site-footer" class="border-t bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-6 text-sm text-gray-500">
+      © <span id="y"></span>
+      {% if lang == 'fa' %}کلیهٔ حقوق محفوظ است.{% else %}All rights reserved.{% endif %}
+    </div>
+  </footer>
+
+  {# ===== نوار پایینی موبایل (Bottom Bar) — ثابت و هوشمند ===== #}
+  {# رفتار: روی موبایل ثابت می‌ماند؛ وقتی فوتر در دید است، نوار پایین با انیمیشن خارج می‌شود تا فوتر پوشانده نشود. #}
+  <nav
+    id="mobile-bottom-bar"
+    class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t
+           transition-transform duration-200 ease-out">
+    <div class="max-w-6xl mx-auto px-4 py-2">
+      <ul class="flex items-center justify-between text-sm">
+        <li><a href="/?lang={{ lang }}" class="flex flex-col items-center">
+          <span class="text-xl">🏠</span>
+          <span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span>
+        </a></li>
+        <li><a href="/blog/?lang={{ lang }}" class="flex flex-col items-center">
+          <span class="text-xl">📰</span>
+          <span>{% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}</span>
+        </a></li>
+        <li><a href="/projects/?lang={{ lang }}" class="flex flex-col items-center">
+          <span class="text-xl">🗂️</span>
+          <span>{% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}</span>
+        </a></li>
+        <li><a href="/contact/?lang={{ lang }}" class="flex flex-col items-center">
+          <span class="text-xl">✉️</span>
+          <span>{% if lang == 'fa' %}تماس{% else %}Contact{% endif %}</span>
+        </a></li>
+        <li>
+          <form method="get" action="{{ request.path }}">
+            {% for key, value in request.GET.items %}
+              {% if key != 'lang' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endif %}
+            {% endfor %}
+            <select
+              aria-label="Language"
+              class="border rounded px-2 py-1"
+              name="lang"
+              onchange="this.form.submit()">
+              <option value="fa" {% if lang == 'fa' %}selected{% endif %}>FA</option>
+              <option value="en" {% if lang == 'en' %}selected{% endif %}>EN</option>
+            </select>
+          </form>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  {# ===== اسکریپت: پنهان‌سازی نوار پایین هنگام مشاهدهٔ فوتر ===== #}
+  <script>
+    (function () {
+      const bar = document.getElementById('mobile-bottom-bar');
+      const footer = document.getElementById('site-footer');
+
+      if (!bar || !footer) return;
+
+      // اگر فوتر وارد دید شد، نوار پایین را به زیر اسکرین اسلاید می‌کنیم تا مزاحم نشود
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            bar.classList.add('translate-y-full');
+          } else {
+            bar.classList.remove('translate-y-full');
+          }
+        });
+      }, { threshold: 0.01 });
+
+      io.observe(footer);
+    })();
+  </script>
+
+  {% block extra_scripts %}{% endblock %}
+  <script>document.getElementById('y').textContent = new Date().getFullYear()</script>
+</body>
+</html>
