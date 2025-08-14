@@ -49,10 +49,4 @@ class HomeView(LanguageViewMixin, TemplateView):
 
 # ==== ویو درباره ====
 class AboutView(LanguageViewMixin, TemplateView):
-    """
-    ویوی صفحه درباره:
-      - ارث‌بری از LanguageViewMixin
-      - محتوا از مدل Page یا قالب استاتیک خوانده می‌شود
-      - می‌توان آن را بعداً به صورت داینامیک چندزبانه کرد
-    """
     template_name = "core/about.html"

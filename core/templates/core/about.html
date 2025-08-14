@@ -1,0 +1,67 @@
+{% extends "core/base.html" %}
+{% block content %}
+<div class="min-h-screen flex flex-col justify-between">
+  <main class="container mx-auto px-4 py-10">
+    {% if lang == "fa" %}
+      <h1 class="text-3xl font-bold text-center mb-8">درباره Arvion</h1>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-right">
+        <div class="space-y-4">
+          <h3 class="text-xl font-semibold">👋 درباره من</h3>
+          <p class="text-gray-700">
+            من آروین هستم، برنامه‌نویس فول‌استک با تمرکز بر Python و Django. پروژه Arvion با هدف توسعه نرم‌افزارهای مدرن و آموزشی راه‌اندازی شده است.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <h3 class="text-xl font-semibold">💻 مهارت‌ها</h3>
+          <ul class="list-disc list-inside text-gray-700">
+            <li>🐍 Python و Django (Full Stack)</li>
+            <li>🌐 ساخت SPA با ترکیب HTML/CSS/JS</li>
+            <li>📈 طراحی ریسپانسیو و بهینه برای SEO</li>
+          </ul>
+        </div>
+        <div class="space-y-4">
+          <h3 class="text-xl font-semibold">🚀 خدمات ما</h3>
+          <ul class="list-disc list-inside text-gray-700">
+            <li>🎓 برگزاری دوره‌های آموزشی خصوصی و گروهی</li>
+            <li>🛠️ پذیرش پروژه‌های برنامه‌نویسی اختصاصی</li>
+            <li>💡 مشاوره در طراحی و پیاده‌سازی وب‌سایت</li>
+          </ul>
+        </div>
+      </div>
+    {% else %}
+      <h1 class="text-3xl font-bold text-center mb-8">About Arvion</h1>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+        <div class="space-y-4">
+          <h3 class="text-xl font-semibold">👋 About Me</h3>
+          <p class="text-gray-700">
+            I’m Arvin, a full-stack developer focused on Python and Django. Arvion is my personal brand, created to deliver modern and educational web applications.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <h3 class="text-xl font-semibold">💻 Skills</h3>
+          <ul class="list-disc list-inside text-gray-700">
+            <li>🐍 Full-stack Python & Django</li>
+            <li>🌐 Building SPAs with HTML/CSS/JS</li>
+            <li>📈 SEO-friendly and responsive design</li>
+          </ul>
+        </div>
+        <div class="space-y-4">
+          <h3 class="text-xl font-semibold">🚀 Services</h3>
+          <ul class="list-disc list-inside text-gray-700">
+            <li>🎓 Private and group training courses</li>
+            <li>🛠️ Custom web development projects</li>
+            <li>💡 Consulting for software design and architecture</li>
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+  </main>
+  <div class="text-center pb-6">
+    {% if lang == "fa" %}
+      <a href="/?lang=fa" class="inline-block px-6 py-2 border border-blue-500 text-blue-500 rounded hover:bg-blue-50 transition">بازگشت به صفحه اصلی</a>
+    {% else %}
+      <a href="/?lang=en" class="inline-block px-6 py-2 border border-blue-500 text-blue-500 rounded hover:bg-blue-50 transition">Back to Home</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
