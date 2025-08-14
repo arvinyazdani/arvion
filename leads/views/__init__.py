@@ -1,1 +1,1 @@
-from .contact import LeadCreateView, LeadThanksView  # noqa
+from .contact import LeadCreateView

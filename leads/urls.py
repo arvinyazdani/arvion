@@ -10,7 +10,7 @@
 
 # ==== ایمپورت‌ها ====
 from django.urls import path
-from .views import LeadCreateView, LeadThanksView
+from .views import LeadCreateView
 
 # ==== فضای نام (namespace) ====
 app_name = "leads"
@@ -20,6 +20,5 @@ urlpatterns = [
     # صفحه فرم تماس (نمایش فرم ثبت لید)
     path("", LeadCreateView.as_view(), name="contact"),
 
-    # صفحه تشکر پس از ارسال موفق فرم
-    path("thanks/", LeadThanksView.as_view(), name="thanks"),
+   
 ]

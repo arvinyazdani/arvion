@@ -1,0 +1,90 @@
+{% extends "core/base.html" %}
+{% load widget_tweaks i18n %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-10">
+  <div class="max-w-2xl mx-auto bg-white dark:bg-neutral-900 shadow-xl rounded-xl p-8 border border-gray-200 dark:border-neutral-700">
+    <h1 class="text-3xl font-extrabold mb-8 text-center text-gray-800 dark:text-white">
+      {% if lang == 'fa' %}
+        فرم تماس با من
+      {% else %}
+        Contact Me
+      {% endif %}
+    </h1>
+
+    <form method="post" class="space-y-6" id="contact-form">
+      {% csrf_token %}
+
+      <!-- Name -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {% if lang == 'fa' %}نام{% else %}Name{% endif %}
+        </label>
+        {{ form.name|add_class:"w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" }}
+      </div>
+
+      <!-- Email or Telegram -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {% if lang == 'fa' %}ایمیل یا تلگرام{% else %}Email or Telegram{% endif %}
+        </label>
+        {{ form.email_or_telegram|add_class:"w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" }}
+      </div>
+
+      <!-- Phone -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {% if lang == 'fa' %}شماره تماس{% else %}Phone{% endif %}
+        </label>
+        {{ form.phone|add_class:"w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" }}
+      </div>
+
+      <!-- Request Type -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {% if lang == 'fa' %}نوع درخواست{% else %}Request Type{% endif %}
+        </label>
+        {{ form.request_type|add_class:"w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" }}
+      </div>
+
+      <!-- Message -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          {% if lang == 'fa' %}پیام{% else %}Message{% endif %}
+        </label>
+        {{ form.message|add_class:"w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" }}
+      </div>
+
+      <!-- Submit button desktop -->
+      <div class="hidden md:block pt-4">
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-md transition">
+          {% if lang == 'fa' %}ارسال{% else %}Send{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- Mobile submit button shown after form ends, not fixed to bottom -->
+<div class="md:hidden bg-white dark:bg-neutral-900 shadow-inner px-4 pt-4 pb-8 border-t border-gray-300 dark:border-neutral-800 z-40 mt-6">
+  <div class="max-w-2xl mx-auto">
+    <button type="submit" form="contact-form" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition">
+      {% if lang == 'fa' %}ارسال پیام{% else %}Send Message{% endif %}
+    </button>
+  </div>
+</div>
+{% if request.GET.submitted %}
+  {% if request.GET.lang == 'fa' %}
+    <script>
+      alert("پیام شما با موفقیت ارسال شد!");
+      window.location.href = "/?lang=fa";
+    </script>
+  {% else %}
+    <script>
+      alert("Your message has been successfully sent!");
+      window.location.href = "/?lang=en";
+    </script>
+  {% endif %}
+{% endif %}
+{% endblock %}

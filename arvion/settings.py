@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     # third-party apps
     'parler',
     'taggit',
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [
@@ -131,3 +132,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# استفاده از کنسول برای تست ایمیل به جای سرور SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
