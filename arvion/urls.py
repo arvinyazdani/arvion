@@ -11,6 +11,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from core.views import HomeView, AboutView  # ویوهای اصلی سایت
+from django.conf import settings
+from django.conf.urls.static import static
 
 # ==== مسیرهای اصلی ====
 urlpatterns = [
@@ -32,4 +34,8 @@ urlpatterns = [
 
     # مسیرهای اپلیکیشن تماس/فرم لید
     path('contact/', include(('leads.urls', 'leads'), namespace='leads')),  # تماس با ما/فرم لید
+
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

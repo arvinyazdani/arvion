@@ -1,0 +1,51 @@
+
+
+{% extends "core/base.html" %}
+{% load static i18n %}
+
+{% block title %}
+  {% if lang == "fa" %}
+    جزئیات بلاگ
+  {% else %}
+    Blog Detail
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-10">
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    {% if post.image %}
+      <img src="{{ post.image.url }}" alt="Post Image" class="w-full h-64 object-cover">
+    {% endif %}
+    <div class="p-6">
+      <h1 class="text-3xl font-bold text-gray-800 mb-4">
+        {% if lang == "fa" %}
+          {{ post.title_fa }}
+        {% else %}
+          {{ post.title_en }}
+        {% endif %}
+      </h1>
+      <p class="text-gray-600 mb-6">
+        {% if lang == "fa" %}
+          {{ post.summary_fa }}
+        {% else %}
+          {{ post.summary_en }}
+        {% endif %}
+      </p>
+      <div class="text-gray-800 leading-relaxed">
+        {% if lang == "fa" %}
+          {{ post.body_fa|safe }}
+        {% else %}
+          {{ post.body_en|safe }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="px-6 pb-6">
+      <a href="{% url 'blog:list' %}?lang={{ lang }}"
+         class="inline-block mt-6 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        {% if lang == "fa" %} بازگشت به لیست {% else %} Back to Blog {% endif %}
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

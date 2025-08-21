@@ -20,10 +20,18 @@ class PostListView(ListView):
         q = self.request.GET.get("q")
         if q:
             qs = qs.filter(
-                Q(translations__title__icontains=q) |
-                Q(translations__summary__icontains=q)
+                Q(title_fa__icontains=q) |
+                Q(title_en__icontains=q) |
+                Q(summary_fa__icontains=q) |
+                Q(summary_en__icontains=q)
             )
         tag = self.request.GET.get("tag")
         if tag:
             qs = qs.filter(tags__name__iexact=tag)
         return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        lang = self.request.GET.get("lang", "fa")  # پیش‌فرض: فارسی
+        context["lang"] = lang
+        return context

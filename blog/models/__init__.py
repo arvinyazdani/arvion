@@ -1,1 +1,2 @@
-from .post import Post  # noqa
+from .post import Post 
+from .queries import PostQuerySet
