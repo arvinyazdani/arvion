@@ -11,3 +11,9 @@ class ServiceListView(ListView):
 
     def get_queryset(self):
         return Service.objects.filter(is_active=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        lang = self.request.GET.get("lang", "fa")
+        context["lang"] = lang
+        return context

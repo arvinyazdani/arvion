@@ -1,0 +1,39 @@
+
+
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}
+  {% if lang == "en" %}
+    {{ service.title_en }}
+  {% else %}
+    {{ service.title_fa }}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+  <h1 class="text-3xl font-bold mb-4 text-center">
+    {% if lang == "en" %}
+      {{ service.title_en }}
+    {% else %}
+      {{ service.title_fa }}
+    {% endif %}
+  </h1>
+
+  <p class="text-gray-700 text-base leading-relaxed text-justify">
+    {% if lang == "en" %}
+      {{ service.description_en }}
+    {% else %}
+      {{ service.description_fa }}
+    {% endif %}
+  </p>
+  <div class="mt-6 text-lg font-semibold text-center text-blue-600">
+    {% if lang == "en" %}
+      Price: ${{ service.price }}
+    {% else %}
+      قیمت: {{ service.price }} تومان
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

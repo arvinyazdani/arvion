@@ -1,18 +1,16 @@
 # services/models/service.py
 from django.db import models
-from parler.models import TranslatableModel, TranslatedFields
 
-class Service(TranslatableModel):
+class Service(models.Model):
     """
-    سرویس/آموزش چندزبانه با قیمت و وضعیت فعال.
+    مدل سرویس با فیلدهای جداگانه برای زبان فارسی و انگلیسی
     """
-    translations = TranslatedFields(
-        title=models.CharField(max_length=160),
-        description=models.TextField(blank=True),
-    )
-    price = models.PositiveIntegerField(default=0)  # تومان یا هر واحد دیگر
-    is_active = models.BooleanField(default=True)
+    title_fa = models.CharField("عنوان فارسی", max_length=160)
+    title_en = models.CharField("عنوان انگلیسی", max_length=160)
+    description_fa = models.TextField("توضیحات فارسی", blank=True)
+    description_en = models.TextField("توضیحات انگلیسی", blank=True)
+    price = models.PositiveIntegerField("قیمت (تومان)", default=0)
+    is_active = models.BooleanField("فعال است؟", default=True)
 
     def __str__(self):
-        return self.safe_translation_getter("title", any_language=True) or f"Service {self.pk}"
-    
+        return self.title_fa

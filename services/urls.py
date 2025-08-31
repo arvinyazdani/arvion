@@ -8,6 +8,7 @@
 # ==== ایمپورت‌ها ====
 from django.urls import path
 from .views import ServiceListView
+from .views.detail import ServiceDetailView
 
 # ==== فضای نام (namespace) ====
 app_name = "services"
@@ -16,4 +17,6 @@ app_name = "services"
 urlpatterns = [
     # صفحه لیست تمام خدمات
     path("", ServiceListView.as_view(), name="list"),
+    # صفحه جزئیات هر خدمت
+    path("<int:pk>/", ServiceDetailView.as_view(), name="detail"),
 ]

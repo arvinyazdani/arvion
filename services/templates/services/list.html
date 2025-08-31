@@ -1,0 +1,51 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}
+  {% if lang == "en" %}
+    Our Services
+  {% else %}
+    خدمات ما
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6 text-center">
+    {% if lang == "en" %}Our Services{% else %}خدمات ما{% endif %}
+  </h1>
+
+  {% if services %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for service in services %}
+        <div class="bg-white shadow rounded-lg p-5 hover:shadow-md transition">
+          <h2 class="text-xl font-semibold mb-2">
+            <a href="{% url 'services:detail' pk=service.pk %}" class="text-blue-600 hover:underline">
+              {% if lang == "en" %}
+                {{ service.title_en }}
+              {% else %}
+                {{ service.title_fa }}
+              {% endif %}
+            </a>
+          </h2>
+          <p class="text-gray-700 text-sm leading-relaxed">
+            {% if lang == "en" %}
+              {{ service.description_en }}
+            {% else %}
+              {{ service.description_fa }}
+            {% endif %}
+          </p>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center text-gray-500">
+      {% if lang == "en" %}
+        No services found.
+      {% else %}
+        هیچ خدمتی یافت نشد.
+      {% endif %}
+    </p>
+  {% endif %}
+</div>
+{% endblock %}
