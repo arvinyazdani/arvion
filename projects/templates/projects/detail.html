@@ -1,0 +1,52 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}
+  {% if lang == "en" %}
+    {{ project.title_en }}
+  {% else %}
+    {{ project.title_fa }}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-10 max-w-3xl">
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    {% if project.image %}
+      <img src="{{ project.image.url }}" alt="Project Image" class="w-full h-64 object-cover">
+    {% endif %}
+    <div class="p-6">
+      <h1 class="text-2xl font-bold mb-4">
+        {% if lang == "en" %}
+          {{ project.title_en }}
+        {% else %}
+          {{ project.title_fa }}
+        {% endif %}
+      </h1>
+      <p class="text-gray-700 mb-6 leading-relaxed">
+        {% if lang == "en" %}
+          {{ project.description_en }}
+        {% else %}
+          {{ project.description_fa }}
+        {% endif %}
+      </p>
+      {% if project.link %}
+        <a href="{{ project.link }}" target="_blank" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+          {% if lang == "en" %}
+            View Project
+          {% else %}
+            مشاهده پروژه
+          {% endif %}
+        </a>
+      {% endif %}
+    <a href="{% url 'projects:list' %}" class="inline-block mt-6 px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition">
+      {% if lang == "en" %}
+        ← Back to List
+      {% else %}
+        ← بازگشت به لیست
+      {% endif %}
+    </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

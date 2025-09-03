@@ -27,7 +27,7 @@ urlpatterns = [
     path('blog/', include(('blog.urls', 'blog'), namespace='blog')),  # وبلاگ
 
     # مسیرهای اپلیکیشن نمونه‌کارها
-    path('projects/', include(('portfolio.urls', 'portfolio'), namespace='portfolio')),  # نمونه‌کارها
+    path('projects/', include(('projects.urls', 'projects'), namespace='projects')),  # پروژه‌ها
 
     # مسیرهای اپلیکیشن سرویس‌ها
     path('services/', include(('services.urls', 'services'), namespace='services')),  # سرویس‌ها

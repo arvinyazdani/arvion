@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'portfolio',
     'services',
     'leads',
+    'projects',
     # third-party apps
     'parler',
     'taggit',
