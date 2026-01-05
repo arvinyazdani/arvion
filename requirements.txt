@@ -4,3 +4,4 @@ django-parler==2.3
 django-taggit==5.0.1
 markdown==3.6
 Pillow==10.4.0
+django-widget-tweaks==1.5.0
