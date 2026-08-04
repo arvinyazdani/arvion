@@ -3,6 +3,8 @@ from django.test import SimpleTestCase
 
 from .management.commands.seed_assessment_banks import validate_bank
 from .question_banks.english import QUESTIONS, SECTIONS
+from .question_banks.python_django import QUESTIONS as PYTHON_QUESTIONS, SECTIONS as PYTHON_SECTIONS
+from .templatetags.assessment_extras import inline_code
 
 
 class EnglishQuestionBankTests(SimpleTestCase):
@@ -20,3 +22,21 @@ class EnglishQuestionBankTests(SimpleTestCase):
         invalid = [{"section": "only", "choices": ("a", "a", "b", "c"), "difficulty": 1}]
         with self.assertRaises(CommandError):
             validate_bank(invalid, (("only", "بخش", "Section", 1),))
+
+
+class PythonQuestionBankTests(SimpleTestCase):
+    def test_bank_has_exactly_fifty_valid_questions(self):
+        self.assertEqual(len(PYTHON_QUESTIONS), 50)
+        validate_bank(PYTHON_QUESTIONS, PYTHON_SECTIONS)
+
+    def test_every_prompt_is_bilingual(self):
+        for question in PYTHON_QUESTIONS:
+            self.assertTrue(question["prompt_fa"])
+            self.assertTrue(question["prompt_en"])
+            self.assertNotEqual(question["prompt_fa"], question["prompt_en"])
+
+    def test_inline_code_keeps_ascii_and_escapes_question_html(self):
+        rendered = str(inline_code('مقدار `<x 1>` <script>bad</script>'))
+        self.assertIn('data-ascii', rendered)
+        self.assertIn('&lt;x 1&gt;', rendered)
+        self.assertNotIn('<script>', rendered)
