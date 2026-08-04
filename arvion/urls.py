@@ -18,6 +18,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     # مسیر پنل مدیریت
     path('admin/', admin.site.urls),
+    path('account/', include(('accounts.urls', 'accounts'), namespace='accounts')),
 
     # مسیرهای اپلیکیشن core
     path('', HomeView.as_view(), name='home'),  # صفحه اصلی
