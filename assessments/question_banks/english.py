@@ -1,0 +1,68 @@
+"""Curated English placement bank. Choices are stored with the correct answer first."""
+
+SECTIONS = (
+    ("grammar", "گرامر", "Grammar", 15),
+    ("vocabulary", "واژگان", "Vocabulary", 10),
+    ("reading", "درک مطلب", "Reading", 10),
+    ("use-of-english", "کاربرد زبان", "Use of English", 10),
+    ("advanced", "ساختارهای پیشرفته", "Advanced Structures", 5),
+)
+
+
+def q(section, prompt, correct, *wrong, difficulty=3):
+    return {"section": section, "prompt": prompt, "choices": (correct,) + wrong, "difficulty": difficulty,
+            "explanation": f"The correct answer is ‘{correct}’."}
+
+
+QUESTIONS = [
+q("grammar","She ___ coffee every morning.","drinks","drink","is drink","drinking",difficulty=1),
+q("grammar","They ___ in Tehran since 2020.","have lived","lived","are living","live",difficulty=2),
+q("grammar","If it rains, we ___ at home.","will stay","stayed","would stay","stay will",difficulty=2),
+q("grammar","I ___ him yesterday.","saw","have seen","see","was see",difficulty=1),
+q("grammar","This book ___ by millions of people.","has been read","has read","is reading","was readed",difficulty=3),
+q("grammar","By next June, she ___ her degree.","will have completed","will complete","completed","has completed",difficulty=4),
+q("grammar","I wish I ___ more time.","had","have","will have","would have had",difficulty=3),
+q("grammar","Neither the manager nor the employees ___ available.","were","was","is","has been",difficulty=3),
+q("grammar","He asked me where I ___ the file.","had saved","save","have saved","will save",difficulty=4),
+q("grammar","You ___ have told me; I already knew.","needn't","mustn't","couldn't","shouldn't",difficulty=4),
+q("grammar","The woman ___ car was stolen called the police.","whose","who","which","whom",difficulty=3),
+q("grammar","Hardly ___ the meeting started when the alarm rang.","had","has","did","was",difficulty=5),
+q("grammar","If I ___ the warning, I would have acted differently.","had understood","understood","would understand","have understood",difficulty=4),
+q("grammar","Not only ___ late, but he also forgot the documents.","was he","he was","did he was","he did",difficulty=5),
+q("grammar","She suggested that he ___ a specialist.","consult","consults","consulted","will consult",difficulty=5),
+q("vocabulary","‘Rapid’ is closest in meaning to ___.","fast","quiet","careful","late",difficulty=1),
+q("vocabulary","The instructions were so ___ that everyone understood them.","clear","scarce","rough","narrow",difficulty=2),
+q("vocabulary","We need a ___ solution that can work in practice.","feasible","fragile","remote","casual",difficulty=3),
+q("vocabulary","The new policy may ___ small businesses.","affect","effect","infect","reflect",difficulty=3),
+q("vocabulary","Her explanation was ___; it covered every important detail.","comprehensive","temporary","reluctant","arbitrary",difficulty=4),
+q("vocabulary","The evidence was not sufficient to ___ the claim.","substantiate","postpone","diminish","allocate",difficulty=5),
+q("vocabulary","A person who is willing to consider new ideas is ___.","open-minded","short-sighted","self-conscious","absent-minded",difficulty=3),
+q("vocabulary","The company decided to ___ the outdated process.","phase out","bring up","look after","turn in",difficulty=4),
+q("vocabulary","His comments were ___ to the topic under discussion.","relevant","dependent","capable","identical",difficulty=3),
+q("vocabulary","The results should be interpreted with ___.","caution","permission","fortune","ambition",difficulty=4),
+q("reading","Mina cycles to work because it is faster than driving in rush hour. Why does she cycle?","It saves time.","It costs more.","She dislikes exercise.","Her car is broken.",difficulty=1),
+q("reading","The library closes at six on weekdays, but remains open until eight on Thursdays. When is it open latest?","Thursday","Monday","Saturday","Every weekday",difficulty=1),
+q("reading","Although the product sold well initially, demand declined after competitors introduced cheaper alternatives. What caused the decline?","Cheaper competing products","Poor initial sales","A lack of advertising","Higher product quality",difficulty=2),
+q("reading","Remote work can increase autonomy, yet it may also reduce informal learning between colleagues. What contrast is presented?","Independence versus informal learning","Salary versus working hours","Technology versus travel","Management versus recruitment",difficulty=3),
+q("reading","The study found a correlation between sleep and performance, but did not establish causation. What can be concluded?","The variables are related, but cause is unproven.","Sleep definitely causes success.","Performance reduces sleep.","No relationship exists.",difficulty=4),
+q("reading","The proposal is ambitious; nevertheless, its budget assumptions appear unrealistic. What is the writer's view?","The aim is impressive but the finances are doubtful.","The entire proposal is realistic.","The budget is too generous.","The aim lacks ambition.",difficulty=4),
+q("reading","Unlike earlier models, the device processes data locally, thereby reducing latency and limiting exposure of personal information. What are two benefits?","Faster response and better privacy","Lower quality and higher cost","Remote storage and advertising","Longer delays and data sharing",difficulty=4),
+q("reading","Some critics dismiss the reform as symbolic, whereas supporters argue that symbols can reshape public expectations. What do supporters believe?","Symbolic action can influence attitudes.","The reform has no meaning.","Critics support the reform.","Expectations never change.",difficulty=5),
+q("reading","The author concedes that automation displaces certain tasks but rejects the assumption that it inevitably reduces total employment. What does the author dispute?","That automation must reduce overall employment","That tasks can be automated","That employment changes over time","That technology affects work",difficulty=5),
+q("reading","Because the sample was small and self-selected, the findings should be treated as preliminary. Why is caution needed?","The sample may not represent the wider population.","The study lasted too long.","The findings were duplicated.","The population was too large.",difficulty=5),
+q("use-of-english","Could you ___ me a favour?","do","make","give","take",difficulty=1),
+q("use-of-english","I look forward to ___ from you.","hearing","hear","have heard","be heard",difficulty=2),
+q("use-of-english","The meeting was ___ because the manager was ill.","put off","put out","put up","put through",difficulty=3),
+q("use-of-english","Please let me know if you need ___ information.","further","farther","furthest","far",difficulty=3),
+q("use-of-english","She is responsible ___ managing the team.","for","to","of","with",difficulty=2),
+q("use-of-english","I'd rather you ___ that information confidential.","kept","keep","will keep","have kept",difficulty=4),
+q("use-of-english","The project was completed ___ schedule.","ahead of","in front","before of","forward of",difficulty=3),
+q("use-of-english","His argument doesn't ___ up under close examination.","hold","keep","stand","take",difficulty=4),
+q("use-of-english","We must take all relevant factors ___ account.","into","in","on","at",difficulty=4),
+q("use-of-english","The report falls ___ of explaining the root cause.","short","down","away","off",difficulty=5),
+q("advanced","Were the market to decline, the company ___ its expansion.","would reconsider","will reconsider","reconsidered","has reconsidered",difficulty=5),
+q("advanced","The data is inconclusive, ___ further research is warranted.","hence","despite","whereas","unless",difficulty=5),
+q("advanced","No sooner had she arrived ___ the discussion began.","than","when","then","that",difficulty=5),
+q("advanced","The policy, ___ well-intentioned, may create unintended costs.","albeit","therefore","provided","otherwise",difficulty=5),
+q("advanced","It is imperative that every applicant ___ the declaration.","sign","signs","signed","will sign",difficulty=5),
+]
