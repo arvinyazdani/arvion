@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from .i18n_numbers import normalize_digits, persian_digits
+
 
 class CorePagesTests(TestCase):
     def test_home_defaults_to_persian(self):
@@ -8,6 +10,12 @@ class CorePagesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
         self.assertContains(response, "ایده‌ات را")
+
+    def test_persian_and_arabic_digits_are_normalized(self):
+        self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")
+
+    def test_ascii_digits_are_rendered_as_persian(self):
+        self.assertEqual(persian_digits("2026 / 50"), "۲۰۲۶ / ۵۰")
 
     def test_language_is_kept_in_session(self):
         self.client.get(reverse("home"), {"lang": "en"})

@@ -24,6 +24,11 @@ class LeadTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Lead.objects.count(), 0)
 
+    def test_persian_phone_digits_are_accepted_and_normalized(self):
+        self.payload["phone"] = "۰۹۱۲۲۰۹۰۷۹۷"
+        self.client.post(self.url, self.payload)
+        self.assertEqual(Lead.objects.get().phone, "09122090797")
+
     def test_rate_limit_blocks_second_submission(self):
         self.client.post(self.url, self.payload)
         self.payload["email_or_telegram"] = "second@example.com"

@@ -1,4 +1,5 @@
 from django import forms
+from core.i18n_numbers import normalize_digits
 from leads.models import Lead
 
 class LeadForm(forms.ModelForm):
@@ -54,6 +55,10 @@ class LeadForm(forms.ModelForm):
         if len(message) < 12:
             raise forms.ValidationError("پیام باید حداقل ۱۲ کاراکتر باشد.")
         return message
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone")
+        return normalize_digits(phone).strip() if phone else phone
 
     class Meta:
         model = Lead
