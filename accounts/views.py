@@ -78,4 +78,6 @@ def verification_sent(request):
 @login_required
 def dashboard(request):
     lang = request.GET.get("lang") or request.user.preferred_language
-    return render(request, "accounts/dashboard.html", {"lang": lang})
+    entitlements = request.user.exam_entitlements.select_related("exam", "order")
+    orders = request.user.assessment_orders.select_related("exam")[:5]
+    return render(request, "accounts/dashboard.html", {"lang": lang, "entitlements": entitlements, "orders": orders})

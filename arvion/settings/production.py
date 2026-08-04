@@ -28,3 +28,6 @@ SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+
+if PAYMENT_GATEWAY == "sandbox":
+    raise RuntimeError("PAYMENT_GATEWAY must be configured for production")

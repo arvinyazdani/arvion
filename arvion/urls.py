@@ -19,6 +19,7 @@ urlpatterns = [
     # مسیر پنل مدیریت
     path('admin/', admin.site.urls),
     path('account/', include(('accounts.urls', 'accounts'), namespace='accounts')),
+    path('assessments/', include(('assessments.urls', 'assessments'), namespace='assessments')),
 
     # مسیرهای اپلیکیشن core
     path('', HomeView.as_view(), name='home'),  # صفحه اصلی

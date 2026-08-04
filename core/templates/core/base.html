@@ -27,6 +27,7 @@
       <nav id="site-nav" class="site-nav" aria-label="Main navigation">
         <a href="{% url 'home' %}?lang={{ lang }}">{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</a>
         <a href="{% url 'projects:list' %}?lang={{ lang }}">{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</a>
+        <a href="{% url 'assessments:list' %}?lang={{ lang }}">{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</a>
         <a href="{% url 'services:list' %}?lang={{ lang }}">{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</a>
         <a href="{% url 'blog:list' %}?lang={{ lang }}">{% if lang == 'fa' %}دیدگاه‌ها{% else %}Insights{% endif %}</a>
         <a href="{% url 'about' %}?lang={{ lang }}">{% if lang == 'fa' %}درباره{% else %}About{% endif %}</a>

@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "accounts",
+    "assessments",
     "core",
     "blog",
     "projects",
@@ -78,3 +79,5 @@ EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Arvion <noreply@rvin-tech.com>")
 CONTACT_NOTIFICATION_EMAIL = os.getenv("CONTACT_NOTIFICATION_EMAIL", "owner@rvin-tech.com")
 LEAD_RATE_LIMIT_SECONDS = int(os.getenv("LEAD_RATE_LIMIT_SECONDS", "60"))
+PAYMENT_GATEWAY = os.getenv("PAYMENT_GATEWAY", "sandbox")
+ASSESSMENT_ATTEMPTS_PER_DAY = 5
