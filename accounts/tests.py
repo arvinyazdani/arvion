@@ -5,6 +5,8 @@ from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
+from assessments.models import Exam, ExamEntitlement, Order
+
 
 User = get_user_model()
 
@@ -52,3 +54,20 @@ class AccountFlowTests(TestCase):
         response = self.client.post(reverse("accounts:register"), self.registration_payload())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(User.objects.filter(email="arvin@example.com").count(), 1)
+
+    def test_dashboard_groups_multiple_attempts_for_same_exam(self):
+        user = User.objects.create_user(
+            username="group@example.com", email="group@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="grouped-exam", title_fa="آزمون گروه‌بندی", title_en="Grouped exam",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        for _ in range(2):
+            order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")
+            ExamEntitlement.objects.create(user=user, exam=exam, order=order, attempts_remaining=1)
+        self.client.force_login(user)
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertEqual(response.content.decode().count("آزمون گروه‌بندی"), 1)
+        self.assertEqual(response.context["assessment_groups"][0]["ready"], 2)

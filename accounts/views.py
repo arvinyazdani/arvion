@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.generic import FormView
+from collections import OrderedDict
 
 from core.views.lang import LanguageViewMixin
 
@@ -78,6 +79,22 @@ def verification_sent(request):
 @login_required
 def dashboard(request):
     lang = request.GET.get("lang") or request.user.preferred_language
-    entitlements = request.user.exam_entitlements.select_related("exam", "order")
+    entitlements = request.user.exam_entitlements.select_related("exam", "order", "attempt", "attempt__result")
+    grouped = OrderedDict()
+    for entitlement in entitlements:
+        group = grouped.setdefault(entitlement.exam_id, {
+            "exam": entitlement.exam, "ready": 0, "ready_entitlement": None,
+            "in_progress": None, "completed": [],
+        })
+        attempt = getattr(entitlement, "attempt", None)
+        if attempt and attempt.status == "in_progress":
+            group["in_progress"] = attempt
+        elif attempt and attempt.status == "completed":
+            group["completed"].append(attempt)
+        elif not attempt and entitlement.attempts_remaining:
+            group["ready"] += entitlement.attempts_remaining
+            group["ready_entitlement"] = group["ready_entitlement"] or entitlement
     orders = request.user.assessment_orders.select_related("exam")[:5]
-    return render(request, "accounts/dashboard.html", {"lang": lang, "entitlements": entitlements, "orders": orders})
+    return render(request, "accounts/dashboard.html", {
+        "lang": lang, "assessment_groups": list(grouped.values()), "orders": orders,
+    })
