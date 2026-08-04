@@ -1,9 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from .models import Exam, ExamEntitlement, Order, PaymentTransaction
-from .services import verify_sandbox_payment
+from .models import (
+    Attempt, AttemptQuestion, Choice, Exam, ExamEntitlement, ExamSection,
+    ExamVersion, IntegrityEvent, Order, PaymentTransaction, Question, Skill,
+)
+from .services import ExamContentError, start_attempt, verify_sandbox_payment
 
 
 User = get_user_model()
@@ -75,3 +79,125 @@ class AssessmentCommerceTests(TestCase):
         response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
         self.assertRedirects(response, self.exam.get_absolute_url() + "?lang=fa")
         self.assertEqual(Order.objects.count(), 5)
+
+
+class AssessmentEngineTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="candidate@example.com", email="candidate@example.com",
+            password="test-password-42", is_active=True, email_verified=True,
+        )
+        self.exam = Exam.objects.create(
+            slug="engine-test", title_fa="آزمون موتور", title_en="Engine test",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+            question_count=2, duration_minutes=10,
+        )
+        self.version = ExamVersion.objects.create(
+            exam=self.exam, version=1, is_published=True, published_at=timezone.now(),
+        )
+        self.section = ExamSection.objects.create(
+            version=self.version, code="core", title_fa="پایه", title_en="Core",
+            question_count=2,
+        )
+        self.skill = Skill.objects.create(
+            exam=self.exam, code="python", title_fa="پایتون", title_en="Python",
+        )
+        self.questions = [self.make_question(index) for index in range(3)]
+        self.order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=self.exam.price_irr, status="paid",
+        )
+        self.entitlement = ExamEntitlement.objects.create(
+            user=self.user, exam=self.exam, order=self.order, attempts_remaining=1,
+        )
+
+    def make_question(self, index):
+        question = Question.objects.create(
+            version=self.version, section=self.section, skill=self.skill,
+            prompt_fa=f"سؤال {index}", prompt_en=f"Question {index}", difficulty=3,
+        )
+        for choice_index in range(4):
+            Choice.objects.create(
+                question=question, text_fa=f"گزینه {choice_index}",
+                text_en=f"Choice {choice_index}", is_correct=choice_index == 0,
+                display_order=choice_index,
+            )
+        return question
+
+    def start(self):
+        return start_attempt(self.entitlement.pk, self.user)[0]
+
+    def test_start_builds_randomized_snapshot_and_consumes_entitlement(self):
+        attempt, created = start_attempt(self.entitlement.pk, self.user)
+        self.assertTrue(created)
+        self.assertEqual(attempt.attempt_questions.count(), 2)
+        self.assertEqual(len(set(attempt.attempt_questions.values_list("question_id", flat=True))), 2)
+        self.assertTrue(all(len(row.choice_order) == 4 for row in attempt.attempt_questions.all()))
+        self.entitlement.refresh_from_db()
+        self.assertEqual(self.entitlement.attempts_remaining, 0)
+
+    def test_start_is_idempotent(self):
+        first, _ = start_attempt(self.entitlement.pk, self.user)
+        second, created = start_attempt(self.entitlement.pk, self.user)
+        self.assertFalse(created)
+        self.assertEqual(first.pk, second.pk)
+        self.entitlement.refresh_from_db()
+        self.assertEqual(self.entitlement.attempts_remaining, 0)
+
+    def test_invalid_question_pool_rolls_back(self):
+        self.section.question_count = 4
+        self.section.save()
+        with self.assertRaises(ExamContentError):
+            start_attempt(self.entitlement.pk, self.user)
+        self.assertFalse(Attempt.objects.exists())
+        self.entitlement.refresh_from_db()
+        self.assertEqual(self.entitlement.attempts_remaining, 1)
+
+    def test_attempt_page_is_private_to_owner(self):
+        attempt = self.start()
+        other = User.objects.create_user(username="other2@example.com", email="other2@example.com", password="test")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("assessments:attempt", args=[attempt.pk])).status_code, 404)
+
+    def test_answer_is_saved_and_rejects_foreign_choice(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        valid_choice = item.question.choices.first()
+        foreign_question = next(question for question in self.questions if question.pk != item.question_id)
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": valid_choice.pk})
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.selected_choice, valid_choice)
+        response = self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": foreign_question.choices.first().pk})
+        self.assertEqual(response.status_code, 404)
+
+    def test_integrity_event_is_recorded_and_score_reduced(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("assessments:integrity_event", args=[attempt.pk]), {"event_type": "tab_hidden"})
+        self.assertEqual(response.status_code, 200)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.integrity_score, 98)
+        self.assertTrue(IntegrityEvent.objects.filter(attempt=attempt, event_type="tab_hidden").exists())
+
+    def test_finish_submits_attempt(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("assessments:finish_attempt", args=[attempt.pk]))
+        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=fa")
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, "submitted")
+
+    def test_expired_attempt_cannot_accept_answers(self):
+        attempt = self.start()
+        attempt.expires_at = timezone.now()
+        attempt.save(update_fields=["expires_at"])
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
+            {"choice": item.question.choices.first().pk},
+        )
+        self.assertEqual(response.status_code, 409)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, "expired")

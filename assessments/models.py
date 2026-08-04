@@ -82,3 +82,146 @@ class ExamEntitlement(models.Model):
 
     def __str__(self):
         return f"{self.user_id} / {self.exam_id} / {self.attempts_remaining}"
+
+
+class Skill(models.Model):
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name="skills")
+    code = models.SlugField(max_length=60)
+    title_fa = models.CharField(max_length=120)
+    title_en = models.CharField(max_length=120)
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("display_order", "id")
+        constraints = [models.UniqueConstraint(fields=("exam", "code"), name="unique_exam_skill_code")]
+
+    def __str__(self):
+        return f"{self.exam.slug} / {self.code}"
+
+
+class ExamVersion(models.Model):
+    exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="versions")
+    version = models.PositiveSmallIntegerField()
+    is_published = models.BooleanField(default=False, db_index=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-version",)
+        constraints = [models.UniqueConstraint(fields=("exam", "version"), name="unique_exam_version")]
+
+    def __str__(self):
+        return f"{self.exam.slug} v{self.version}"
+
+
+class ExamSection(models.Model):
+    version = models.ForeignKey(ExamVersion, on_delete=models.CASCADE, related_name="sections")
+    code = models.SlugField(max_length=60)
+    title_fa = models.CharField(max_length=140)
+    title_en = models.CharField(max_length=140)
+    question_count = models.PositiveSmallIntegerField()
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("display_order", "id")
+        constraints = [models.UniqueConstraint(fields=("version", "code"), name="unique_version_section_code")]
+
+    def __str__(self):
+        return f"{self.version} / {self.code}"
+
+
+class Question(models.Model):
+    DIFFICULTIES = ((1, "Foundation"), (2, "Easy"), (3, "Intermediate"), (4, "Advanced"), (5, "Expert"))
+
+    version = models.ForeignKey(ExamVersion, on_delete=models.PROTECT, related_name="questions")
+    section = models.ForeignKey(ExamSection, on_delete=models.PROTECT, related_name="questions")
+    skill = models.ForeignKey(Skill, on_delete=models.PROTECT, related_name="questions")
+    prompt_fa = models.TextField()
+    prompt_en = models.TextField()
+    difficulty = models.PositiveSmallIntegerField(choices=DIFFICULTIES, default=3)
+    weight = models.DecimalField(max_digits=5, decimal_places=2, default=1)
+    explanation_fa = models.TextField(blank=True)
+    explanation_en = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("id",)
+        indexes = [models.Index(fields=("version", "section", "is_active"), name="question_pool_lookup")]
+
+    def __str__(self):
+        return self.prompt_en[:80]
+
+
+class Choice(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="choices")
+    text_fa = models.TextField()
+    text_en = models.TextField()
+    is_correct = models.BooleanField(default=False)
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("display_order", "id")
+
+    def __str__(self):
+        return self.text_en[:80]
+
+
+class Attempt(models.Model):
+    STATUSES = (
+        ("ready", "Ready"), ("in_progress", "In progress"), ("submitted", "Submitted"),
+        ("expired", "Expired"), ("scoring", "Scoring"), ("completed", "Completed"),
+        ("invalidated", "Invalidated"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="exam_attempts")
+    exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="attempts")
+    version = models.ForeignKey(ExamVersion, on_delete=models.PROTECT, related_name="attempts")
+    entitlement = models.OneToOneField(ExamEntitlement, on_delete=models.PROTECT, related_name="attempt")
+    status = models.CharField(max_length=14, choices=STATUSES, default="ready", db_index=True)
+    started_at = models.DateTimeField(blank=True, null=True)
+    expires_at = models.DateTimeField(blank=True, null=True)
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    current_position = models.PositiveSmallIntegerField(default=1)
+    integrity_score = models.PositiveSmallIntegerField(default=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=("user", "status", "created_at"), name="attempt_user_status")]
+
+    def __str__(self):
+        return f"{self.user_id} / {self.exam_id} / {self.status}"
+
+    def get_absolute_url(self):
+        return reverse("assessments:attempt", kwargs={"pk": self.pk})
+
+
+class AttemptQuestion(models.Model):
+    attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="attempt_questions")
+    question = models.ForeignKey(Question, on_delete=models.PROTECT, related_name="attempt_uses")
+    position = models.PositiveSmallIntegerField()
+    choice_order = models.JSONField(default=list)
+    selected_choice = models.ForeignKey(Choice, on_delete=models.PROTECT, blank=True, null=True, related_name="selected_in_attempts")
+    answered_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ("position",)
+        constraints = [
+            models.UniqueConstraint(fields=("attempt", "position"), name="unique_attempt_position"),
+            models.UniqueConstraint(fields=("attempt", "question"), name="unique_attempt_question"),
+        ]
+
+
+class IntegrityEvent(models.Model):
+    EVENT_TYPES = (("tab_hidden", "Tab hidden"), ("window_blur", "Window blur"), ("copy", "Copy"), ("paste", "Paste"), ("other", "Other"))
+
+    attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="integrity_events")
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at",)

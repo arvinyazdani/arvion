@@ -1,6 +1,9 @@
 from django.contrib import admin
 
-from .models import Exam, ExamEntitlement, Order, PaymentTransaction
+from .models import (
+    Attempt, Choice, Exam, ExamEntitlement, ExamSection, ExamVersion,
+    IntegrityEvent, Order, PaymentTransaction, Question, Skill,
+)
 
 
 @admin.register(Exam)
@@ -31,3 +34,49 @@ class ExamEntitlementAdmin(admin.ModelAdmin):
     list_display = ("user", "exam", "attempts_remaining", "created_at", "expires_at")
     search_fields = ("user__email", "exam__title_en")
     readonly_fields = ("user", "exam", "order", "created_at")
+
+
+class ChoiceInline(admin.TabularInline):
+    model = Choice
+    extra = 4
+
+
+@admin.register(Skill)
+class SkillAdmin(admin.ModelAdmin):
+    list_display = ("code", "exam", "title_en", "display_order")
+    list_filter = ("exam",)
+
+
+@admin.register(ExamVersion)
+class ExamVersionAdmin(admin.ModelAdmin):
+    list_display = ("exam", "version", "is_published", "published_at")
+    list_filter = ("exam", "is_published")
+
+
+@admin.register(ExamSection)
+class ExamSectionAdmin(admin.ModelAdmin):
+    list_display = ("code", "version", "question_count", "display_order")
+    list_filter = ("version__exam",)
+
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ("id", "version", "section", "skill", "difficulty", "is_active")
+    list_filter = ("version__exam", "version", "section", "difficulty", "is_active")
+    search_fields = ("prompt_fa", "prompt_en")
+    inlines = (ChoiceInline,)
+
+
+@admin.register(Attempt)
+class AttemptAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "exam", "status", "integrity_score", "started_at")
+    list_filter = ("status", "exam")
+    search_fields = ("id", "user__email")
+    readonly_fields = ("id", "user", "exam", "version", "entitlement", "created_at", "updated_at")
+
+
+@admin.register(IntegrityEvent)
+class IntegrityEventAdmin(admin.ModelAdmin):
+    list_display = ("attempt", "event_type", "created_at")
+    list_filter = ("event_type", "created_at")
+    readonly_fields = ("attempt", "event_type", "metadata", "created_at")

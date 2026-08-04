@@ -3,8 +3,8 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count
 from django.http import Http404
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -13,8 +13,8 @@ from django.views.generic import DetailView, ListView
 
 from core.views.lang import LanguageViewMixin
 
-from .models import Exam, Order
-from .services import verify_sandbox_payment
+from .models import Attempt, AttemptQuestion, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
+from .services import ExamContentError, expire_if_needed, start_attempt, verify_sandbox_payment
 
 
 class ExamListView(LanguageViewMixin, ListView):
@@ -75,4 +75,99 @@ class SandboxPayView(LoginRequiredMixin, View):
         lang = request.GET.get("lang", "fa")
         if created:
             messages.success(request, "پرداخت آزمایشی تأیید و مجوز آزمون صادر شد." if lang == "fa" else "Test payment verified and access granted.")
+        return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
+
+
+class StartAttemptView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        entitlement = get_object_or_404(ExamEntitlement, pk=pk, user=request.user)
+        lang = request.GET.get("lang", "fa")
+        if not request.user.email_verified:
+            messages.error(request, "برای شروع آزمون باید ایمیل شما تأیید شده باشد.")
+            return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
+        try:
+            attempt, _ = start_attempt(entitlement.pk, request.user)
+        except ExamContentError:
+            messages.error(request, "محتوای این آزمون هنوز آماده انتشار نیست." if lang == "fa" else "This assessment is not ready yet.")
+            return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
+        return redirect(f"{attempt.get_absolute_url()}?lang={lang}")
+
+
+class AttemptView(LanguageViewMixin, LoginRequiredMixin, DetailView):
+    model = Attempt
+    template_name = "assessments/attempt.html"
+    context_object_name = "attempt"
+
+    def get_queryset(self):
+        return Attempt.objects.filter(user=self.request.user).select_related("exam", "version")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        attempt = self.object
+        expire_if_needed(attempt)
+        if attempt.status != "in_progress":
+            context["attempt_closed"] = True
+            return context
+        try:
+            position = int(self.request.GET.get("q", attempt.current_position))
+        except (TypeError, ValueError):
+            position = attempt.current_position
+        position = max(1, min(position, attempt.exam.question_count))
+        item = get_object_or_404(
+            AttemptQuestion.objects.select_related("question", "question__section", "selected_choice"),
+            attempt=attempt,
+            position=position,
+        )
+        choices = {choice.id: choice for choice in Choice.objects.filter(question=item.question)}
+        context.update({
+            "item": item,
+            "ordered_choices": [choices[choice_id] for choice_id in item.choice_order],
+            "position": position,
+            "progress_percent": round(position / attempt.exam.question_count * 100),
+            "previous_position": position - 1 if position > 1 else None,
+            "next_position": position + 1 if position < attempt.exam.question_count else None,
+            "answered_count": attempt.attempt_questions.filter(selected_choice__isnull=False).count(),
+        })
+        if attempt.current_position != position:
+            attempt.current_position = position
+            attempt.save(update_fields=["current_position", "updated_at"])
+        return context
+
+
+class SaveAnswerView(LoginRequiredMixin, View):
+    def post(self, request, pk, item_pk):
+        attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
+        if expire_if_needed(attempt) or attempt.status != "in_progress":
+            return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
+        item = get_object_or_404(AttemptQuestion, pk=item_pk, attempt=attempt)
+        choice = get_object_or_404(Choice, pk=request.POST.get("choice"), question=item.question)
+        item.selected_choice = choice
+        item.answered_at = timezone.now()
+        item.save(update_fields=["selected_choice", "answered_at"])
+        return JsonResponse({"ok": True, "answered": attempt.attempt_questions.filter(selected_choice__isnull=False).count()})
+
+
+class IntegrityEventView(LoginRequiredMixin, View):
+    allowed_events = {"tab_hidden": 2, "window_blur": 1, "copy": 1, "paste": 1}
+
+    def post(self, request, pk):
+        attempt = get_object_or_404(Attempt, pk=pk, user=request.user, status="in_progress")
+        event_type = request.POST.get("event_type")
+        if event_type not in self.allowed_events:
+            return JsonResponse({"ok": False}, status=400)
+        IntegrityEvent.objects.create(attempt=attempt, event_type=event_type)
+        attempt.integrity_score = max(0, attempt.integrity_score - self.allowed_events[event_type])
+        attempt.save(update_fields=["integrity_score", "updated_at"])
+        return JsonResponse({"ok": True})
+
+
+class FinishAttemptView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
+        lang = request.GET.get("lang", "fa")
+        if attempt.status == "in_progress":
+            attempt.status = "submitted"
+            attempt.submitted_at = timezone.now()
+            attempt.save(update_fields=["status", "submitted_at", "updated_at"])
+            messages.success(request, "آزمون ثبت شد و آماده تصحیح است." if lang == "fa" else "Assessment submitted for scoring.")
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")

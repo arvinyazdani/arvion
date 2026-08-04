@@ -13,10 +13,10 @@
   <meta property="og:title" content="Arvion — Python & Django Studio">
   <meta property="og:description" content="Digital products engineered for clarity, speed and growth.">
   <meta name="theme-color" content="#0b1220">
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=3">
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
   <header class="site-header">
     <div class="shell nav-wrap">
