@@ -243,3 +243,4 @@ class AssessmentEngineTests(TestCase):
         certificate_response = self.client.get(reverse("assessments:certificate", args=[result.certificate.verification_code]))
         self.assertEqual(certificate_response.status_code, 200)
         self.assertContains(certificate_response, result.certificate.verification_code)
+        self.assertNotContains(certificate_response, self.user.email)
