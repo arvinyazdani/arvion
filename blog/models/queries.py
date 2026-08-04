@@ -1,6 +1,7 @@
 # blog/models/queries.py
 # QuerySet و Managerهای سفارشی برای Post
 from django.db import models
+from django.utils import timezone
 
 class PostQuerySet(models.QuerySet):
     """
@@ -8,7 +9,7 @@ class PostQuerySet(models.QuerySet):
     """
     def published(self):
         # مرتب‌سازی بر اساس تاریخ انتشار (جدیدترین اول)
-        return self.filter(is_published=True).order_by("-published_at", "-id")
+        return self.filter(is_published=True, published_at__lte=timezone.now()).order_by("-published_at", "-id")
     
     def has_image(self):
         """

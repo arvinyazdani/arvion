@@ -4,6 +4,7 @@ from django.db import models
 from django.urls import reverse
 from taggit.managers import TaggableManager
 import markdown
+import bleach
 from .queries import PostQuerySet
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
@@ -26,8 +27,8 @@ class Post(models.Model):
     summary_en = models.CharField("Summary (English)", max_length=240, blank=True, null=True)
     body_fa = models.TextField("متن کامل (فارسی)", blank=True, null=True)
     body_en = models.TextField("Full Body (English)", blank=True, null=True)
-    slug_fa = models.SlugField("نامک (فارسی)", max_length=170, allow_unicode=True, blank=True, null=True)
-    slug_en = models.SlugField("Slug (English)", max_length=170, allow_unicode=True, blank=True, null=True)
+    slug_fa = models.SlugField("نامک (فارسی)", max_length=170, allow_unicode=True, unique=True, blank=True, null=True)
+    slug_en = models.SlugField("Slug (English)", max_length=170, allow_unicode=True, unique=True, blank=True, null=True)
     hero_image = models.ImageField(
         upload_to="articles/",
         blank=True,
@@ -68,4 +69,22 @@ class Post(models.Model):
         """
         # Fallback to Persian body
         source = self.body_fa or ""
-        return markdown.markdown(source, extensions=["fenced_code"])
+        rendered = markdown.markdown(source, extensions=["fenced_code"])
+        return bleach.clean(
+            rendered,
+            tags={"p", "br", "strong", "em", "a", "ul", "ol", "li", "blockquote", "pre", "code", "h2", "h3", "h4"},
+            attributes={"a": ["href", "title", "rel"]},
+            protocols={"http", "https", "mailto"},
+            strip=True,
+        )
+
+    def body_as_html_en(self):
+        source = self.body_en or ""
+        rendered = markdown.markdown(source, extensions=["fenced_code"])
+        return bleach.clean(
+            rendered,
+            tags={"p", "br", "strong", "em", "a", "ul", "ol", "li", "blockquote", "pre", "code", "h2", "h3", "h4"},
+            attributes={"a": ["href", "title", "rel"]},
+            protocols={"http", "https", "mailto"},
+            strip=True,
+        )

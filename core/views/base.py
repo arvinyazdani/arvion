@@ -4,7 +4,7 @@
 # ==== ایمپورت‌ها ====
 from django.views.generic import TemplateView
 from blog.models import Post
-from portfolio.models import Project
+from projects.models import Project
 from .lang import LanguageViewMixin  # میکسین مدیریت زبان
 
 # ==== ویو خانه ====
@@ -25,7 +25,7 @@ class HomeView(LanguageViewMixin, TemplateView):
         # آخرین ۳ پست منتشر شده
         posts = list(Post.objects.published()[:3])
         # آخرین ۳ پروژه منتشر شده
-        projects = list(Project.objects.published()[:3])
+        projects = list(Project.objects.filter(is_active=True)[:3])
 
         # اگر مدل‌ها چندزبانه هستند (مثلاً با django-parler) این قسمت زبان را اعمال می‌کند
         for p in posts:
@@ -33,12 +33,6 @@ class HomeView(LanguageViewMixin, TemplateView):
                 p.set_current_language(self.lang)
             except AttributeError:
                 pass  # اگر مدل از parler استفاده نمی‌کند، مشکلی ایجاد نشود
-
-        for pr in projects:
-            try:
-                pr.set_current_language(self.lang)
-            except AttributeError:
-                pass
 
         # افزودن به context
         ctx["latest_posts"] = posts

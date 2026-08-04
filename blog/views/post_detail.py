@@ -3,8 +3,9 @@
 from django.views.generic import DetailView
 from django.shortcuts import get_object_or_404
 from blog.models import Post
+from core.views.lang import LanguageViewMixin
 
-class PostDetailView(DetailView):
+class PostDetailView(LanguageViewMixin, DetailView):
     """
     نمایش صفحه‌ی جزئیات یک پست با پشتیبانی از دوزبانگی.
     """
@@ -13,14 +14,7 @@ class PostDetailView(DetailView):
 
     def get_object(self):
         slug = self.kwargs.get("slug")
-        lang = self.request.GET.get("lang", "en")  # default to English if not provided
-
-        if lang == "fa":
+        if self.lang == "fa":
             return get_object_or_404(Post, slug_fa=slug, is_published=True)
         else:
             return get_object_or_404(Post, slug_en=slug, is_published=True)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["lang"] = self.request.GET.get("lang", "en")
-        return context

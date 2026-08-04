@@ -1,7 +1,11 @@
-Django==5.0.6
-django-htmx==1.17.3
-django-parler==2.3
+Django==4.2.30
 django-taggit==5.0.1
+django-parler==2.3  # required by legacy migration history only
 markdown==3.6
 Pillow==10.4.0
 django-widget-tweaks==1.5.0
+bleach==6.1.0
+dj-database-url==2.2.0
+psycopg[binary]==3.1.18
+whitenoise==6.7.0
+gunicorn==22.0.0

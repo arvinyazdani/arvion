@@ -12,7 +12,7 @@ from django.utils import timezone
 # مدل‌های محتوایی پروژه
 from core.models import Page
 from blog.models import Post
-from portfolio.models import Project
+from projects.models import Project
 from services.models import Service
 
 class Command(BaseCommand):
@@ -22,17 +22,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING("Seeding initial content..."))
 
         # 1) About Page (FA/EN)
-        about, _ = Page.objects.get_or_create(slug="about")
-        # فارسی
-        about.set_current_language("fa")
-        about.title = "درباره آروین"
-        about.body = "من آروین هستم؛ توسعه‌دهندهٔ فول‌استک با تمرکز روی Python/Django."
-        about.save()
-        # انگلیسی
-        about.set_current_language("en")
-        about.title = "About Arvin"
-        about.body = "I'm Arvin — a full‑stack developer focused on Python/Django."
-        about.save()
+        Page.objects.update_or_create(slug="about", defaults={
+            "title_fa": "درباره آروین", "title_en": "About Arvin",
+            "body_fa": "من آروین هستم؛ توسعه‌دهندهٔ فول‌استک با تمرکز روی Python/Django.",
+            "body_en": "I'm Arvin — a full-stack developer focused on Python/Django.",
+        })
 
         # 2) Blog Posts (3 نمونه)
         posts_data = [
@@ -56,21 +50,12 @@ class Command(BaseCommand):
             },
         ]
         for item in posts_data:
-            p = Post.objects.create(is_published=True, published_at=timezone.now())
-            # FA
-            p.set_current_language("fa")
-            p.title = item["fa"]["title"]
-            p.summary = item["fa"]["summary"]
-            p.body = item["fa"]["body"]
-            p.slug = item["slug_fa"]
-            p.save()
-            # EN
-            p.set_current_language("en")
-            p.title = item["en"]["title"]
-            p.summary = item["en"]["summary"]
-            p.body = item["en"]["body"]
-            p.slug = item["slug_en"]
-            p.save()
+            Post.objects.update_or_create(slug_en=item["slug_en"], defaults={
+                "title_fa": item["fa"]["title"], "title_en": item["en"]["title"],
+                "summary_fa": item["fa"]["summary"], "summary_en": item["en"]["summary"],
+                "body_fa": item["fa"]["body"], "body_en": item["en"]["body"],
+                "slug_fa": item["slug_fa"], "is_published": True, "published_at": timezone.now(),
+            })
 
         # 3) Projects (3 نمونه)
         projects_data = [
@@ -100,19 +85,11 @@ class Command(BaseCommand):
             },
         ]
         for item in projects_data:
-            pr = Project.objects.create(repo_url=item["repo"], demo_url=item["demo"], is_published=True)
-            # FA
-            pr.set_current_language("fa")
-            pr.title = item["fa"]["title"]
-            pr.description = item["fa"]["description"]
-            pr.slug = item["slug_fa"]
-            pr.save()
-            # EN
-            pr.set_current_language("en")
-            pr.title = item["en"]["title"]
-            pr.description = item["en"]["description"]
-            pr.slug = item["slug_en"]
-            pr.save()
+            Project.objects.update_or_create(slug=item["slug_en"], defaults={
+                "title_fa": item["fa"]["title"], "title_en": item["en"]["title"],
+                "description_fa": item["fa"]["description"], "description_en": item["en"]["description"],
+                "repo_url": item["repo"], "demo_url": item["demo"], "is_active": True,
+            })
 
         # 4) Services (2 نمونه)
         services_data = [
@@ -128,16 +105,9 @@ class Command(BaseCommand):
             },
         ]
         for item in services_data:
-            s = Service.objects.create(price=item["price"], is_active=True)
-            # FA
-            s.set_current_language("fa")
-            s.title = item["fa"]["title"]
-            s.description = item["fa"]["description"]
-            s.save()
-            # EN
-            s.set_current_language("en")
-            s.title = item["en"]["title"]
-            s.description = item["en"]["description"]
-            s.save()
+            Service.objects.update_or_create(title_en=item["en"]["title"], defaults={
+                "title_fa": item["fa"]["title"], "description_fa": item["fa"]["description"],
+                "description_en": item["en"]["description"], "price": item["price"], "is_active": True,
+            })
 
         self.stdout.write(self.style.SUCCESS("✅ Seed done."))

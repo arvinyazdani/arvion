@@ -3,8 +3,9 @@
 from django.views.generic import ListView
 from django.db.models import Q
 from blog.models import Post
+from core.views.lang import LanguageViewMixin
 
-class PostListView(ListView):
+class PostListView(LanguageViewMixin, ListView):
     """
     نمایش لیست پست‌ها با:
     - صفحه‌بندی
@@ -29,9 +30,3 @@ class PostListView(ListView):
         if tag:
             qs = qs.filter(tags__name__iexact=tag)
         return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        lang = self.request.GET.get("lang", "fa")  # پیش‌فرض: فارسی
-        context["lang"] = lang
-        return context

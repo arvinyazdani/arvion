@@ -1,223 +1,53 @@
-{% load i18n %}
-<!DOCTYPE html>
-<html lang="{{ lang|default:'fa' }}" {% if lang == 'fa' %}dir="rtl"{% else %}dir="ltr"{% endif %}>
+{% load static %}
+<!doctype html>
+<html lang="{{ lang|default:'fa' }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
-  {# ===== پایه‌های ضروری ===== #}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>
-    {% if lang == 'fa' %}
-      آرویون — توسعه‌دهندهٔ فول‌استک پایتون/جنگو
-    {% else %}
-      Arvion — Full‑stack Python/Django Developer
-    {% endif %}
-  </title>
-
-  {# ===== Meta Description (دوحالته برای SEO) ===== #}
-  <meta name="description" content="{% if lang == 'fa' %}نمونه‌کارها، پروژه‌ها، مقالات و خدمات توسعهٔ وب با پایتون/جنگو.{% else %}Portfolio, projects, articles, and web development services with Python/Django.{% endif %}">
-
-  {# ===== Canonical + hreflang برای سئو ===== #}
-  {% with current_path=request.path %}
-    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang={{ lang }}">
-    <link rel="alternate" hreflang="fa" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang=fa">
-    <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang=en">
-    <link rel="alternate" hreflang="x-default" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}?lang=en">
-  {% endwith %}
-
-  {# ===== OpenGraph / Twitter ===== #}
+  <title>{% block title %}{% if lang == 'fa' %}آرویون | طراحی و توسعه محصول دیجیتال{% else %}Arvion | Digital product development{% endif %}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{% if lang == 'fa' %}طراحی و توسعه وب‌اپلیکیشن‌های سریع، امن و قابل رشد با Python و Django.{% else %}Fast, secure and scalable web applications built with Python and Django.{% endif %}{% endblock %}">
+  <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?lang={{ lang }}">
+  <link rel="alternate" hreflang="fa" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?lang=fa">
+  <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?lang=en">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{% if lang == 'fa' %}آرویون — توسعه‌دهندهٔ فول‌استک{% else %}Arvion — Full‑stack Developer{% endif %}">
-  <meta property="og:description" content="{% if lang == 'fa' %}پروژه‌ها، مقالات و خدمات برنامه‌نویسی پایتون/جنگو.{% else %}Projects, articles, and Python/Django services.{% endif %}">
-  <meta property="og:url" content="{{ request.build_absolute_uri }}">
-  {# <meta property="og:image" content="https://example.com/static/og-cover.jpg"> #}
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{% if lang == 'fa' %}آرویون — توسعه‌دهندهٔ فول‌استک{% else %}Arvion — Full‑stack Developer{% endif %}">
-  <meta name="twitter:description" content="{% if lang == 'fa' %}پروژه‌ها، مقالات و خدمات برنامه‌نویسی پایتون/جنگو.{% else %}Projects, articles, and Python/Django services.{% endif %}">
-  {# <meta name="twitter:image" content="https://example.com/static/og-cover.jpg"> #}
-
-  {# ===== Structured Data (ساده) ===== #}
-  <script type="application/ld+json">
-  {
-    "@context":"https://schema.org",
-    "@type":"Person",
-    "name": "{% if lang == 'fa' %}آروین{% else %}Arvin{% endif %}",
-    "jobTitle": "Full‑stack Developer",
-    "url": "{{ request.scheme }}://{{ request.get_host }}/",
-    "knowsAbout": ["Python", "Django", "HTMX", "SPA", "Web Performance"]
-  }
-  </script>
-
-  {# ===== کتابخانه‌ها ===== #}
-  <!-- HTMX برای رفتارهای SPA مرحله‌های بعد -->
-  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-  <!-- TailwindCSS (MVP و ریسپانسیو) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
+  <meta property="og:title" content="Arvion — Python & Django Studio">
+  <meta property="og:description" content="Digital products engineered for clarity, speed and growth.">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col {% if lang == 'fa' %}rtl{% endif %}">
-
-  {# ===== Header (دسکتاپ + موبایل) ===== #}
-  <header class="border-b bg-white">
-    <div class="max-w-6xl mx-auto px-4">
-      <div class="flex items-center justify-between py-3">
-        <!-- برند -->
-        <a href="/?lang={{ lang }}" class="font-bold text-xl">
-          {% if lang == 'fa' %}آرویون{% else %}Arvion{% endif %}
-        </a>
-
-        <!-- منوی دسکتاپ -->
-        <nav class="hidden md:flex items-center gap-5 text-sm">
-          <a href="/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}خانه{% else %}Home{% endif %}
-          </a>
-          <a href="/about/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}درباره{% else %}About{% endif %}
-          </a>
-          <a href="/blog/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}
-          </a>
-          <a href="/projects/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}
-          </a>
-          <a href="/services/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}خدمات{% else %}Services{% endif %}
-          </a>
-          <a href="/contact/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}تماس{% else %}Contact{% endif %}
-          </a>
-
-          <!-- سوییچر زبان (حفظ مسیر جاری با ?lang=) -->
-          <form method="get" action="{{ request.path }}" style="display:inline;">
-            {% for key, value in request.GET.items %}
-              {% if key != 'lang' %}
-                <input type="hidden" name="{{ key }}" value="{{ value }}">
-              {% endif %}
-            {% endfor %}
-            <select
-              class="border rounded px-2 py-1"
-              name="lang"
-              onchange="this.form.submit()">
-              <option value="fa" {% if lang == 'fa' %}selected{% endif %}>فارسی</option>
-              <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
-            </select>
-          </form>
-        </nav>
-
-        <!-- دکمه منوی موبایل (در صورت نیاز به کشویی) -->
-        <button
-          class="md:hidden border rounded px-3 py-2"
-          aria-label="Menu"
-          onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
-          ☰
-        </button>
-      </div>
-
-      <!-- منوی موبایل تاشو (اختیاری) -->
-      <nav id="mobile-menu" class="md:hidden hidden pb-3 text-sm">
-        <div class="flex flex-col gap-2">
-          <a href="/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}خانه{% else %}Home{% endif %}
-          </a>
-          <a href="/about/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}درباره{% else %}About{% endif %}
-          </a>
-          <a href="/blog/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}
-          </a>
-          <a href="/projects/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}
-          </a>
-          <a href="/services/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}خدمات{% else %}Services{% endif %}
-          </a>
-          <a href="/contact/?lang={{ lang }}" class="hover:underline">
-            {% if lang == 'fa' %}تماس{% else %}Contact{% endif %}
-          </a>
-
-          <!-- سوییچر زبان موبایل -->
-          <label class="pt-2 text-gray-500">
-            {% if lang == 'fa' %}زبان:{% else %}Language:{% endif %}
-          </label>
-          <form method="get" action="{{ request.path }}">
-            {% for key, value in request.GET.items %}
-              {% if key != 'lang' %}
-                <input type="hidden" name="{{ key }}" value="{{ value }}">
-              {% endif %}
-            {% endfor %}
-            <select
-              class="border rounded px-2 py-1"
-              name="lang"
-              onchange="this.form.submit()">
-              <option value="fa" {% if lang == 'fa' %}selected{% endif %}>فارسی</option>
-              <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
-            </select>
-          </form>
-        </div>
+<body>
+  <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
+  <header class="site-header">
+    <div class="shell nav-wrap">
+      <a class="brand" href="{% url 'home' %}?lang={{ lang }}" aria-label="Arvion home">
+        <span class="brand-mark">A</span><span>ARVION</span>
+      </a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">☰</button>
+      <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+        <a href="{% url 'home' %}?lang={{ lang }}">{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</a>
+        <a href="{% url 'projects:list' %}?lang={{ lang }}">{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</a>
+        <a href="{% url 'services:list' %}?lang={{ lang }}">{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</a>
+        <a href="{% url 'blog:list' %}?lang={{ lang }}">{% if lang == 'fa' %}دیدگاه‌ها{% else %}Insights{% endif %}</a>
+        <a href="{% url 'about' %}?lang={{ lang }}">{% if lang == 'fa' %}درباره{% else %}About{% endif %}</a>
+        <a class="nav-cta" href="{% url 'leads:contact' %}?lang={{ lang }}">{% if lang == 'fa' %}شروع همکاری{% else %}Let's talk{% endif %}</a>
+        <a class="lang-link" href="{{ request.path }}?lang={% if lang == 'fa' %}en{% else %}fa{% endif %}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
       </nav>
     </div>
   </header>
-
-  {# ===== محتوای اصلی ===== #}
-  {# نکته: padding-bottom برای خالی گذاشتن فضای نوار پایینی موبایل #}
-  <main class="flex-1 pb-[80px] md:pb-0">
-    {% block content %}{% endblock %}
-  </main>
-
-  {# ===== فوتر ===== #}
-  <footer id="site-footer" class="border-t bg-white mb-[65px]">
-    <div class="max-w-6xl mx-auto px-4 py-6 text-sm text-gray-500">
-      © <span id="y"></span>
-      {% if lang == 'fa' %}کلیهٔ حقوق محفوظ است.{% else %}All rights reserved.{% endif %}
+  {% if messages %}<div class="shell messages" role="status">{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}</div>{% endif %}
+  <main id="main">{% block content %}{% endblock %}</main>
+  <footer class="site-footer">
+    <div class="shell footer-grid">
+      <div><a class="brand" href="{% url 'home' %}?lang={{ lang }}"><span class="brand-mark">A</span><span>ARVION</span></a><p>{% if lang == 'fa' %}ایده‌های خوب، مهندسی‌شده برای دنیای واقعی.{% else %}Good ideas, engineered for the real world.{% endif %}</p></div>
+      <div><span class="eyebrow">{% if lang == 'fa' %}ارتباط{% else %}Contact{% endif %}</span><a href="mailto:hello@rvin-tech.com">hello@rvin-tech.com</a></div>
+      <div class="footer-end"><span>© {% now "Y" %} Arvion</span><span>{% if lang == 'fa' %}ساخته‌شده با دقت و Django{% else %}Built with care and Django{% endif %}</span></div>
     </div>
   </footer>
-
-  {# ===== نوار پایینی موبایل (Bottom Bar) — ثابت و هوشمند ===== #}
-  {# رفتار: روی موبایل ثابت می‌ماند؛ وقتی فوتر در دید است، نوار پایین با انیمیشن خارج می‌شود تا فوتر پوشانده نشود. #}
-  <nav
-    id="mobile-bottom-bar"
-    class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t
-           transition-transform duration-300 ease-in-out will-change-transform h-[65px]">
-    <div class="max-w-6xl mx-auto px-4 py-2">
-      <ul class="flex items-center justify-between text-sm">
-        <li><a href="/?lang={{ lang }}" class="flex flex-col items-center">
-          <span class="text-xl">🏠</span>
-          <span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span>
-        </a></li>
-        <li><a href="/blog/?lang={{ lang }}" class="flex flex-col items-center">
-          <span class="text-xl">📰</span>
-          <span>{% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}</span>
-        </a></li>
-        <li><a href="/projects/?lang={{ lang }}" class="flex flex-col items-center">
-          <span class="text-xl">🗂️</span>
-          <span>{% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}</span>
-        </a></li>
-        <li><a href="/contact/?lang={{ lang }}" class="flex flex-col items-center">
-          <span class="text-xl">✉️</span>
-          <span>{% if lang == 'fa' %}تماس{% else %}Contact{% endif %}</span>
-        </a></li>
-        <li>
-          <form method="get" action="{{ request.path }}">
-            {% for key, value in request.GET.items %}
-              {% if key != 'lang' %}
-                <input type="hidden" name="{{ key }}" value="{{ value }}">
-              {% endif %}
-            {% endfor %}
-            <select
-              aria-label="Language"
-              class="border rounded px-2 py-1"
-              name="lang"
-              onchange="this.form.submit()">
-              <option value="fa" {% if lang == 'fa' %}selected{% endif %}>FA</option>
-              <option value="en" {% if lang == 'en' %}selected{% endif %}>EN</option>
-            </select>
-          </form>
-        </li>
-      </ul>
-    </div>
-  </nav>
-
+  <script>
+    const button=document.querySelector('.menu-button'), nav=document.querySelector('.site-nav');
+    button?.addEventListener('click',()=>{const open=nav.classList.toggle('is-open');button.setAttribute('aria-expanded',open)});
+  </script>
   {% block extra_scripts %}{% endblock %}
-  <script>document.getElementById('y').textContent = new Date().getFullYear()</script>
 </body>
 </html>
