@@ -1,10 +1,13 @@
 from django.core.management.base import CommandError
-from django.test import SimpleTestCase
+from django.core.management import call_command
+from django.contrib.auth import get_user_model
+from django.test import SimpleTestCase, TestCase
 
 from .management.commands.seed_assessment_banks import validate_bank
 from .question_banks.english import QUESTIONS, SECTIONS
 from .question_banks.python_django import QUESTIONS as PYTHON_QUESTIONS, SECTIONS as PYTHON_SECTIONS
 from .templatetags.assessment_extras import inline_code
+from .models import Exam
 
 
 class EnglishQuestionBankTests(SimpleTestCase):
@@ -40,3 +43,10 @@ class PythonQuestionBankTests(SimpleTestCase):
         self.assertIn('data-ascii', rendered)
         self.assertIn('&lt;x 1&gt;', rendered)
         self.assertNotIn('<script>', rendered)
+
+
+class BenchmarkCommandTests(TestCase):
+    def test_benchmark_rolls_back_all_synthetic_data(self):
+        call_command("benchmark_assessment_engine", attempts=2, verbosity=0)
+        self.assertFalse(Exam.objects.filter(slug="benchmark-50").exists())
+        self.assertFalse(get_user_model().objects.filter(email="benchmark@local.invalid").exists())
