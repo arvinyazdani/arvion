@@ -1,10 +1,15 @@
 import random
+import secrets
 from datetime import timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Attempt, AttemptQuestion, ExamEntitlement, ExamVersion, Order, PaymentTransaction, Question
+from .models import (
+    Attempt, AttemptQuestion, AttemptResult, Certificate, ExamEntitlement,
+    ExamVersion, Order, PaymentTransaction, Question, SkillResult,
+)
 
 
 class ExamContentError(Exception):
@@ -96,3 +101,82 @@ def expire_if_needed(attempt):
         attempt.save(update_fields=["status", "submitted_at", "updated_at"])
         return True
     return False
+
+
+def _level_for(exam, percentage):
+    value = float(percentage)
+    if exam.slug == "english-placement-a1-c1":
+        bands = (
+            (20, "A1", "مقدماتی", "Beginner"), (40, "A2", "پایه", "Elementary"),
+            (60, "B1", "متوسط", "Intermediate"), (75, "B2", "بالاتر از متوسط", "Upper-intermediate"),
+            (101, "C1", "پیشرفته", "Advanced"),
+        )
+    else:
+        bands = (
+            (40, "foundation", "پایه", "Foundation"), (60, "junior", "جونیور", "Junior"),
+            (75, "intermediate", "متوسط", "Intermediate"), (90, "advanced", "پیشرفته", "Advanced"),
+            (101, "expert", "متخصص", "Expert"),
+        )
+    return next((code, title_fa, title_en) for ceiling, code, title_fa, title_en in bands if value < ceiling)
+
+
+@transaction.atomic
+def score_attempt(attempt_id):
+    attempt = Attempt.objects.select_for_update().select_related("exam").get(pk=attempt_id)
+    if hasattr(attempt, "result"):
+        return attempt.result, False
+    if attempt.status not in {"submitted", "expired", "scoring"}:
+        raise ExamContentError("Attempt is not ready for scoring")
+    attempt.status = "scoring"
+    attempt.save(update_fields=["status", "updated_at"])
+    rows = list(attempt.attempt_questions.select_related("question__skill", "selected_choice"))
+    maximum = sum((row.question.weight for row in rows), Decimal("0"))
+    earned = Decimal("0")
+    correct = incorrect = unanswered = 0
+    skill_totals = {}
+    for row in rows:
+        skill = row.question.skill
+        stats = skill_totals.setdefault(skill.pk, {"skill": skill, "correct": 0, "total": 0})
+        stats["total"] += 1
+        if row.selected_choice_id is None:
+            unanswered += 1
+        elif row.selected_choice.is_correct:
+            correct += 1
+            stats["correct"] += 1
+            earned += row.question.weight
+        else:
+            incorrect += 1
+    percentage = ((earned / maximum * 100) if maximum else Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    level_code, level_fa, level_en = _level_for(attempt.exam, percentage)
+    skill_payload = []
+    strengths = []
+    weaknesses = []
+    for stats in skill_totals.values():
+        skill_percentage = (Decimal(stats["correct"]) / Decimal(stats["total"]) * 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        payload = {
+            "code": stats["skill"].code, "title_fa": stats["skill"].title_fa,
+            "title_en": stats["skill"].title_en, "percentage": float(skill_percentage),
+        }
+        skill_payload.append((stats, skill_percentage))
+        if skill_percentage >= 75:
+            strengths.append(payload)
+        elif skill_percentage < 60:
+            weaknesses.append(payload)
+    summary_fa = f"سطح شما {level_fa} با امتیاز {percentage} از ۱۰۰ است. این تحلیل بر اساس پاسخ‌های ثبت‌شده و قواعد ثابت آزمون تولید شده است."
+    summary_en = f"Your level is {level_en} with a score of {percentage} out of 100. This analysis was generated from your recorded answers using fixed assessment rules."
+    result = AttemptResult.objects.create(
+        attempt=attempt, correct_count=correct, incorrect_count=incorrect,
+        unanswered_count=unanswered, percentage=percentage, level_code=level_code,
+        level_title_fa=level_fa, level_title_en=level_en, summary_fa=summary_fa,
+        summary_en=summary_en, strengths=strengths, weaknesses=weaknesses,
+    )
+    SkillResult.objects.bulk_create([
+        SkillResult(
+            result=result, skill=stats["skill"], correct_count=stats["correct"],
+            question_count=stats["total"], percentage=skill_percentage,
+        ) for stats, skill_percentage in skill_payload
+    ])
+    Certificate.objects.create(result=result, verification_code=secrets.token_hex(6).upper())
+    attempt.status = "completed"
+    attempt.save(update_fields=["status", "updated_at"])
+    return result, True

@@ -1,8 +1,9 @@
 from django.contrib import admin
 
 from .models import (
-    Attempt, Choice, Exam, ExamEntitlement, ExamSection, ExamVersion,
-    IntegrityEvent, Order, PaymentTransaction, Question, Skill,
+    Attempt, AttemptResult, Certificate, Choice, Exam, ExamEntitlement,
+    ExamSection, ExamVersion, IntegrityEvent, Order, PaymentTransaction,
+    Question, Skill, SkillResult,
 )
 
 
@@ -80,3 +81,25 @@ class IntegrityEventAdmin(admin.ModelAdmin):
     list_display = ("attempt", "event_type", "created_at")
     list_filter = ("event_type", "created_at")
     readonly_fields = ("attempt", "event_type", "metadata", "created_at")
+
+
+class SkillResultInline(admin.TabularInline):
+    model = SkillResult
+    extra = 0
+    readonly_fields = ("skill", "correct_count", "question_count", "percentage")
+
+
+@admin.register(AttemptResult)
+class AttemptResultAdmin(admin.ModelAdmin):
+    list_display = ("attempt", "percentage", "level_code", "correct_count", "generated_at")
+    list_filter = ("level_code", "generated_at")
+    readonly_fields = ("attempt", "correct_count", "incorrect_count", "unanswered_count", "percentage", "level_code", "level_title_fa", "level_title_en", "summary_fa", "summary_en", "strengths", "weaknesses", "generated_at")
+    inlines = (SkillResultInline,)
+
+
+@admin.register(Certificate)
+class CertificateAdmin(admin.ModelAdmin):
+    list_display = ("verification_code", "result", "issued_at", "is_revoked")
+    list_filter = ("is_revoked", "issued_at")
+    search_fields = ("verification_code", "result__attempt__user__email")
+    readonly_fields = ("id", "result", "verification_code", "issued_at")

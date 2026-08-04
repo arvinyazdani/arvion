@@ -8,10 +8,9 @@
 
   if (root.lang === "fa") {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    const ignored = new Set(["SCRIPT", "STYLE", "CODE", "PRE", "TEXTAREA"]);
     let node;
     while ((node = walker.nextNode())) {
-      if (!ignored.has(node.parentElement?.tagName) && /[0-9]/.test(node.nodeValue)) {
+      if (!node.parentElement?.closest("script, style, code, pre, textarea, [data-ascii]") && /[0-9]/.test(node.nodeValue)) {
         node.nodeValue = toFa(node.nodeValue);
       }
     }

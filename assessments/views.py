@@ -13,8 +13,8 @@ from django.views.generic import DetailView, ListView
 
 from core.views.lang import LanguageViewMixin
 
-from .models import Attempt, AttemptQuestion, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
-from .services import ExamContentError, expire_if_needed, start_attempt, verify_sandbox_payment
+from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
+from .services import ExamContentError, expire_if_needed, score_attempt, start_attempt, verify_sandbox_payment
 
 
 class ExamListView(LanguageViewMixin, ListView):
@@ -169,5 +169,33 @@ class FinishAttemptView(LoginRequiredMixin, View):
             attempt.status = "submitted"
             attempt.submitted_at = timezone.now()
             attempt.save(update_fields=["status", "submitted_at", "updated_at"])
-            messages.success(request, "آزمون ثبت شد و آماده تصحیح است." if lang == "fa" else "Assessment submitted for scoring.")
+            result, _ = score_attempt(attempt.pk)
+            messages.success(request, "آزمون با موفقیت تصحیح شد." if lang == "fa" else "Your assessment has been scored.")
+            return redirect(f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={lang}")
+        if hasattr(attempt, "result"):
+            return redirect(f"{reverse('assessments:result', kwargs={'pk': attempt.result.pk})}?lang={lang}")
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
+
+
+class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
+    model = AttemptResult
+    template_name = "assessments/result.html"
+    context_object_name = "result"
+
+    def get_queryset(self):
+        return AttemptResult.objects.filter(attempt__user=self.request.user).select_related(
+            "attempt__exam", "certificate"
+        ).prefetch_related("skill_results__skill")
+
+
+class CertificateView(LanguageViewMixin, DetailView):
+    model = Certificate
+    template_name = "assessments/certificate.html"
+    context_object_name = "certificate"
+    slug_field = "verification_code"
+    slug_url_kwarg = "code"
+
+    def get_queryset(self):
+        return Certificate.objects.filter(is_revoked=False).select_related(
+            "result__attempt__user", "result__attempt__exam"
+        )

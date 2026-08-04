@@ -4,10 +4,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
-    Attempt, AttemptQuestion, Choice, Exam, ExamEntitlement, ExamSection,
-    ExamVersion, IntegrityEvent, Order, PaymentTransaction, Question, Skill,
+    Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam,
+    ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, Order,
+    PaymentTransaction, Question, Skill,
 )
-from .services import ExamContentError, start_attempt, verify_sandbox_payment
+from .services import ExamContentError, score_attempt, start_attempt, verify_sandbox_payment
 
 
 User = get_user_model()
@@ -184,9 +185,11 @@ class AssessmentEngineTests(TestCase):
         attempt = self.start()
         self.client.force_login(self.user)
         response = self.client.post(reverse("assessments:finish_attempt", args=[attempt.pk]))
-        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=fa")
+        result = AttemptResult.objects.get(attempt=attempt)
+        self.assertRedirects(response, reverse("assessments:result", args=[result.pk]) + "?lang=fa")
         attempt.refresh_from_db()
-        self.assertEqual(attempt.status, "submitted")
+        self.assertEqual(attempt.status, "completed")
+        self.assertTrue(Certificate.objects.filter(result=result).exists())
 
     def test_expired_attempt_cannot_accept_answers(self):
         attempt = self.start()
@@ -201,3 +204,42 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(response.status_code, 409)
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, "expired")
+
+    def test_deterministic_scoring_builds_skill_result(self):
+        attempt = self.start()
+        rows = list(attempt.attempt_questions.all())
+        rows[0].selected_choice = rows[0].question.choices.get(is_correct=True)
+        rows[0].save()
+        rows[1].selected_choice = rows[1].question.choices.filter(is_correct=False).first()
+        rows[1].save()
+        attempt.status = "submitted"
+        attempt.save()
+        result, created = score_attempt(attempt.pk)
+        self.assertTrue(created)
+        self.assertEqual(result.percentage, 50)
+        self.assertEqual(result.correct_count, 1)
+        self.assertEqual(result.incorrect_count, 1)
+        self.assertEqual(result.level_code, "junior")
+        self.assertEqual(result.skill_results.get().percentage, 50)
+
+    def test_scoring_is_idempotent(self):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save()
+        first, _ = score_attempt(attempt.pk)
+        second, created = score_attempt(attempt.pk)
+        self.assertFalse(created)
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(AttemptResult.objects.count(), 1)
+
+    def test_result_is_private_but_certificate_is_verifiable(self):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save()
+        result, _ = score_attempt(attempt.pk)
+        other = User.objects.create_user(username="viewer@example.com", email="viewer@example.com", password="test")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("assessments:result", args=[result.pk])).status_code, 404)
+        certificate_response = self.client.get(reverse("assessments:certificate", args=[result.certificate.verification_code]))
+        self.assertEqual(certificate_response.status_code, 200)
+        self.assertContains(certificate_response, result.certificate.verification_code)

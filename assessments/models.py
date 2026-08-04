@@ -225,3 +225,54 @@ class IntegrityEvent(models.Model):
 
     class Meta:
         ordering = ("created_at",)
+
+
+class AttemptResult(models.Model):
+    attempt = models.OneToOneField(Attempt, on_delete=models.PROTECT, related_name="result")
+    correct_count = models.PositiveSmallIntegerField(default=0)
+    incorrect_count = models.PositiveSmallIntegerField(default=0)
+    unanswered_count = models.PositiveSmallIntegerField(default=0)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    level_code = models.CharField(max_length=30)
+    level_title_fa = models.CharField(max_length=120)
+    level_title_en = models.CharField(max_length=120)
+    summary_fa = models.TextField()
+    summary_en = models.TextField()
+    strengths = models.JSONField(default=list)
+    weaknesses = models.JSONField(default=list)
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-generated_at",)
+
+    def __str__(self):
+        return f"{self.attempt_id} / {self.percentage}%"
+
+
+class SkillResult(models.Model):
+    result = models.ForeignKey(AttemptResult, on_delete=models.CASCADE, related_name="skill_results")
+    skill = models.ForeignKey(Skill, on_delete=models.PROTECT, related_name="results")
+    correct_count = models.PositiveSmallIntegerField(default=0)
+    question_count = models.PositiveSmallIntegerField(default=0)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2)
+
+    class Meta:
+        ordering = ("skill__display_order", "skill_id")
+        constraints = [models.UniqueConstraint(fields=("result", "skill"), name="unique_result_skill")]
+
+
+class Certificate(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    result = models.OneToOneField(AttemptResult, on_delete=models.PROTECT, related_name="certificate")
+    verification_code = models.CharField(max_length=24, unique=True, db_index=True)
+    issued_at = models.DateTimeField(auto_now_add=True)
+    is_revoked = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ("-issued_at",)
+
+    def __str__(self):
+        return self.verification_code
+
+    def get_absolute_url(self):
+        return reverse("assessments:certificate", kwargs={"code": self.verification_code})
