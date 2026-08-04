@@ -83,8 +83,9 @@ def start_attempt(entitlement_id, user):
     rows = []
     for position, question_id in enumerate(selected_questions, start=1):
         question = questions[question_id]
-        choice_ids = [choice.id for choice in question.choices.all()]
-        if len(choice_ids) != 4 or question.choices.filter(is_correct=True).count() != 1:
+        question_choices = list(question.choices.all())
+        choice_ids = [choice.id for choice in question_choices]
+        if len(choice_ids) != 4 or sum(choice.is_correct for choice in question_choices) != 1:
             raise ExamContentError(f"Question {question.id} must have four choices and one correct answer")
         rng.shuffle(choice_ids)
         rows.append(AttemptQuestion(attempt=attempt, question=question, position=position, choice_order=choice_ids))

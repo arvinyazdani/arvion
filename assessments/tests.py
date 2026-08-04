@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -136,6 +138,11 @@ class AssessmentEngineTests(TestCase):
         self.entitlement.refresh_from_db()
         self.assertEqual(self.entitlement.attempts_remaining, 0)
 
+    def test_start_attempt_has_bounded_query_count(self):
+        with CaptureQueriesContext(connection) as queries:
+            start_attempt(self.entitlement.pk, self.user)
+        self.assertLessEqual(len(queries), 15)
+
     def test_start_is_idempotent(self):
         first, _ = start_attempt(self.entitlement.pk, self.user)
         second, created = start_attempt(self.entitlement.pk, self.user)
@@ -244,3 +251,22 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(certificate_response.status_code, 200)
         self.assertContains(certificate_response, result.certificate.verification_code)
         self.assertNotContains(certificate_response, self.user.email)
+
+    def test_complete_candidate_journey_from_start_to_report(self):
+        self.client.force_login(self.user)
+        start_response = self.client.post(reverse("assessments:start_attempt", args=[self.entitlement.pk]))
+        attempt = Attempt.objects.get(entitlement=self.entitlement)
+        self.assertRedirects(start_response, attempt.get_absolute_url() + "?lang=fa")
+        self.assertContains(self.client.get(attempt.get_absolute_url()), "سؤال 1 / 2")
+        for item in attempt.attempt_questions.select_related("question"):
+            choice = item.question.choices.get(is_correct=True)
+            answer_response = self.client.post(
+                reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": choice.pk}
+            )
+            self.assertEqual(answer_response.status_code, 200)
+        finish_response = self.client.post(reverse("assessments:finish_attempt", args=[attempt.pk]))
+        result = AttemptResult.objects.get(attempt=attempt)
+        self.assertRedirects(finish_response, reverse("assessments:result", args=[result.pk]) + "?lang=fa")
+        report = self.client.get(reverse("assessments:result", args=[result.pk]))
+        self.assertContains(report, "100")
+        self.assertEqual(result.percentage, 100)
