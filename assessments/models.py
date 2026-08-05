@@ -44,6 +44,7 @@ class Order(models.Model):
     terms_version = models.CharField(max_length=30, blank=True)
     terms_accepted_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
+    confirmation_email_sent_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

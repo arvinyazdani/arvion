@@ -17,6 +17,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
+from .emails import send_payment_confirmation_email
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
 from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
@@ -85,6 +86,7 @@ class SandboxPayView(LoginRequiredMixin, View):
             order.terms_accepted_at = timezone.now()
             order.save(update_fields=["terms_version", "terms_accepted_at", "updated_at"])
         order, created = verify_sandbox_payment(order.pk)
+        send_payment_confirmation_email(order, request, lang)
         if created:
             messages.success(request, "پرداخت آزمایشی تأیید و مجوز آزمون صادر شد." if lang == "fa" else "Test payment verified and access granted.")
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")

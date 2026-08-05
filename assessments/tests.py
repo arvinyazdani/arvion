@@ -1,7 +1,9 @@
 from datetime import timedelta
 import random
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -96,6 +98,43 @@ class AssessmentCommerceTests(TestCase):
         self.assertTrue(order.terms_version)
         self.assertIsNotNone(order.terms_accepted_at)
         self.assertTrue(ExamEntitlement.objects.filter(order=order).exists())
+
+    @override_settings(DEBUG=True, PAYMENT_GATEWAY="sandbox")
+    def test_payment_confirmation_email_is_bilingual_and_not_duplicated(self):
+        order = Order.objects.create(user=self.user, exam=self.exam, amount_irr=self.exam.price_irr)
+        self.client.force_login(self.user)
+        url = reverse("assessments:sandbox_pay", args=[order.pk]) + "?lang=en"
+
+        first = self.client.post(url, {"accept_terms": "yes"})
+        second = self.client.post(url, {"accept_terms": "yes"})
+
+        self.assertRedirects(first, reverse("accounts:dashboard") + "?lang=en")
+        self.assertRedirects(second, reverse("accounts:dashboard") + "?lang=en")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.user.email])
+        self.assertIn("payment is confirmed", mail.outbox[0].subject)
+        self.assertIn(str(order.pk), mail.outbox[0].body)
+        self.assertIn(reverse("accounts:payment_receipt", args=[order.pk]), mail.outbox[0].body)
+        order.refresh_from_db()
+        self.assertIsNotNone(order.confirmation_email_sent_at)
+
+    @override_settings(DEBUG=True, PAYMENT_GATEWAY="sandbox")
+    @patch("assessments.emails.send_mail", side_effect=RuntimeError("SMTP unavailable"))
+    def test_email_failure_does_not_rollback_verified_payment(self, mocked_send):
+        order = Order.objects.create(user=self.user, exam=self.exam, amount_irr=self.exam.price_irr)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("assessments:sandbox_pay", args=[order.pk]) + "?lang=fa",
+            {"accept_terms": "yes"},
+        )
+
+        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=fa")
+        order.refresh_from_db()
+        self.assertEqual(order.status, "paid")
+        self.assertIsNone(order.confirmation_email_sent_at)
+        self.assertTrue(ExamEntitlement.objects.filter(order=order).exists())
+        mocked_send.assert_called_once()
 
     def test_assessment_terms_are_public_and_bilingual(self):
         english = self.client.get(reverse("assessments:terms") + "?lang=en")

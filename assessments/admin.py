@@ -20,7 +20,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "exam", "amount_irr", "status", "gateway", "created_at")
     list_filter = ("status", "gateway", "created_at")
     search_fields = ("id", "user__email", "exam__title_en")
-    readonly_fields = ("id", "user", "exam", "amount_irr", "gateway", "terms_version", "terms_accepted_at", "paid_at", "created_at", "updated_at")
+    readonly_fields = ("id", "user", "exam", "amount_irr", "gateway", "terms_version", "terms_accepted_at", "paid_at", "confirmation_email_sent_at", "created_at", "updated_at")
 
 
 @admin.register(PaymentTransaction)
