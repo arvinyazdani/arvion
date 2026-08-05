@@ -1,4 +1,5 @@
 from datetime import timedelta
+import re
 
 from django.conf import settings
 from django.contrib import messages
@@ -11,8 +12,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
-from django.views.generic import DetailView, ListView
+from django.views.generic import DetailView, ListView, TemplateView
 
+from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
@@ -349,5 +351,32 @@ class CertificateView(LanguageViewMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context["integrity_needs_review"] = (
             self.object.result.attempt.integrity_score < settings.ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD
+        )
+        return context
+
+
+class CertificateVerifyView(LanguageViewMixin, TemplateView):
+    template_name = "assessments/verify_certificate.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        raw_code = self.request.GET.get("code", "")
+        code = re.sub(r"[\s-]+", "", normalize_digits(raw_code)).upper()
+        context["submitted_code"] = code
+        if not raw_code:
+            return context
+        if not re.fullmatch(r"[0-9A-F]{12}", code):
+            context["verification_failed"] = True
+            return context
+        certificate = Certificate.objects.select_related(
+            "result__attempt__exam", "result__attempt__version", "result__attempt__user"
+        ).filter(verification_code=code).first()
+        if certificate is None or certificate.is_revoked:
+            context["verification_failed"] = True
+            context["certificate_revoked"] = bool(certificate and certificate.is_revoked)
+            return context
+        context["verified_certificate"] = certificate
+        context["integrity_needs_review"] = (
+            certificate.result.attempt.integrity_score < settings.ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD
         )
         return context

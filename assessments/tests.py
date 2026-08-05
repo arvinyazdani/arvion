@@ -396,6 +396,44 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(certificate, "MANUAL REVIEW REQUIRED")
         self.assertContains(certificate, "72%")
 
+    def test_public_verifier_accepts_formatted_persian_digit_code_without_private_email(self):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        code = result.certificate.verification_code
+        persian_digits = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+        formatted_code = f"{code[:4]}-{code[4:8]} {code[8:]}".translate(persian_digits)
+
+        response = self.client.get(
+            reverse("assessments:verify_certificate"), {"lang": "en", "code": formatted_code}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Certificate is valid and active")
+        self.assertContains(response, code)
+        self.assertNotContains(response, self.user.email)
+
+    def test_public_verifier_rejects_unknown_and_revoked_certificates(self):
+        unknown = self.client.get(
+            reverse("assessments:verify_certificate"), {"lang": "en", "code": "FFFFFFFFFFFF"}
+        )
+        self.assertContains(unknown, "No valid certificate was found")
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        result.certificate.is_revoked = True
+        result.certificate.save(update_fields=["is_revoked"])
+
+        revoked = self.client.get(
+            reverse("assessments:verify_certificate"),
+            {"lang": "en", "code": result.certificate.verification_code},
+        )
+
+        self.assertContains(revoked, "This certificate has been revoked")
+        self.assertNotContains(revoked, self.exam.title_en)
+
     def test_result_reviews_correct_incorrect_and_unanswered_answers(self):
         attempt = self.start()
         rows = list(attempt.attempt_questions.select_related("question"))
