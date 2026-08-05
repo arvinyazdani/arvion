@@ -57,18 +57,18 @@ class ExamVersionAdmin(admin.ModelAdmin):
 
 @admin.register(ExamSection)
 class ExamSectionAdmin(admin.ModelAdmin):
-    list_display = ("code", "version", "question_count", "display_order")
+    list_display = ("code", "version", "question_count", "difficulty_distribution", "display_order")
     list_filter = ("version__exam",)
 
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "version", "section", "question_type", "subskill", "difficulty",
+        "id", "version", "section", "question_type", "subskill", "content_group", "difficulty",
         "status", "exposure_count", "correct_response_count",
     )
     list_filter = ("version__exam", "version", "section", "question_type", "difficulty", "status")
-    search_fields = ("prompt_fa", "prompt_en", "subskill", "source_reference")
+    search_fields = ("prompt_fa", "prompt_en", "subskill", "content_group", "source_reference")
     readonly_fields = ("exposure_count", "correct_response_count", "created_at")
     inlines = (ChoiceInline,)
 
@@ -78,7 +78,9 @@ class AttemptAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "exam", "status", "integrity_score", "started_at")
     list_filter = ("status", "exam")
     search_fields = ("id", "user__email")
-    readonly_fields = ("id", "user", "exam", "version", "entitlement", "created_at", "updated_at")
+    readonly_fields = (
+        "id", "user", "exam", "version", "entitlement", "selection_seed", "created_at", "updated_at",
+    )
 
 
 @admin.register(IntegrityEvent)

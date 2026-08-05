@@ -1,4 +1,5 @@
 from datetime import timedelta
+import random
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -12,7 +13,10 @@ from .models import (
     ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, Order,
     PaymentTransaction, Question, Skill,
 )
-from .services import ExamContentError, score_attempt, start_attempt, verify_sandbox_payment
+from .services import (
+    ExamContentError, _choose_section_questions, score_attempt, start_attempt,
+    verify_sandbox_payment,
+)
 
 
 User = get_user_model()
@@ -134,6 +138,7 @@ class AssessmentEngineTests(TestCase):
     def test_start_builds_randomized_snapshot_and_consumes_entitlement(self):
         attempt, created = start_attempt(self.entitlement.pk, self.user)
         self.assertTrue(created)
+        self.assertEqual(len(attempt.selection_seed), 64)
         self.assertEqual(attempt.attempt_questions.count(), 2)
         self.assertEqual(len(set(attempt.attempt_questions.values_list("question_id", flat=True))), 2)
         self.assertTrue(all(len(row.choice_order) == 4 for row in attempt.attempt_questions.all()))
@@ -141,6 +146,59 @@ class AssessmentEngineTests(TestCase):
         self.assertTrue(all(len(row.choices_snapshot) == 4 for row in attempt.attempt_questions.all()))
         self.entitlement.refresh_from_db()
         self.assertEqual(self.entitlement.attempts_remaining, 0)
+
+    def test_selection_prefers_questions_not_seen_in_recent_attempts(self):
+        first_attempt = self.start()
+        first_ids = set(first_attempt.attempt_questions.values_list("question_id", flat=True))
+        unseen_id = next(question.pk for question in self.questions if question.pk not in first_ids)
+        second_order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=self.exam.price_irr, status="paid",
+        )
+        second_entitlement = ExamEntitlement.objects.create(
+            user=self.user, exam=self.exam, order=second_order, attempts_remaining=1,
+        )
+        second_attempt, _ = start_attempt(second_entitlement.pk, self.user)
+        second_ids = set(second_attempt.attempt_questions.values_list("question_id", flat=True))
+        self.assertIn(unseen_id, second_ids)
+
+    def test_blueprint_is_deterministic_and_respects_difficulty_and_content_groups(self):
+        pool = [
+            (1, 1, "foundation-a"), (2, 1, "foundation-b"),
+            (3, 3, "intermediate-a"), (4, 3, "intermediate-b"),
+            (5, 5, "expert-a"), (6, 5, "expert-b"),
+        ]
+        blueprint = {"1": 1, "3": 1, "5": 1}
+        first = _choose_section_questions(pool, 3, random.Random("audit-seed"), {1}, blueprint)
+        second = _choose_section_questions(pool, 3, random.Random("audit-seed"), {1}, blueprint)
+        self.assertEqual(first, second)
+        selected_difficulties = sorted(item[1] for item in pool if item[0] in first)
+        self.assertEqual(selected_difficulties, [1, 3, 5])
+        self.assertNotIn(1, first)
+
+    def test_one_thousand_generated_forms_remain_balanced_and_diverse(self):
+        pool = [
+            (question_id, ((question_id - 1) // 40) + 1, f"concept-{question_id}")
+            for question_id in range(1, 201)
+        ]
+        blueprint = {str(level): 10 for level in range(1, 6)}
+        recent_ids = {
+            question_id
+            for level in range(5)
+            for question_id in range(level * 40 + 1, level * 40 + 6)
+        }
+        forms = set()
+        for index in range(1000):
+            selected = _choose_section_questions(
+                pool, 50, random.Random(f"audit-{index}"), recent_ids, blueprint,
+            )
+            self.assertEqual(len(selected), 50)
+            self.assertTrue(recent_ids.isdisjoint(selected))
+            difficulties = [item[1] for item in pool if item[0] in selected]
+            self.assertEqual({level: difficulties.count(level) for level in range(1, 6)}, {
+                level: 10 for level in range(1, 6)
+            })
+            forms.add(tuple(selected))
+        self.assertEqual(len(forms), 1000)
 
     def test_snapshot_keeps_scoring_stable_after_question_bank_changes(self):
         attempt = self.start()

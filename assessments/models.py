@@ -120,6 +120,7 @@ class ExamSection(models.Model):
     title_fa = models.CharField(max_length=140)
     title_en = models.CharField(max_length=140)
     question_count = models.PositiveSmallIntegerField()
+    difficulty_distribution = models.JSONField(default=dict, blank=True)
     display_order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
@@ -148,6 +149,7 @@ class Question(models.Model):
     prompt_en = models.TextField()
     question_type = models.CharField(max_length=24, choices=TYPES, default="single_choice", db_index=True)
     subskill = models.SlugField(max_length=80, blank=True)
+    content_group = models.SlugField(max_length=100, blank=True, db_index=True)
     difficulty = models.PositiveSmallIntegerField(choices=DIFFICULTIES, default=3)
     weight = models.DecimalField(max_digits=5, decimal_places=2, default=1)
     suggested_seconds = models.PositiveSmallIntegerField(default=60)
@@ -204,6 +206,7 @@ class Attempt(models.Model):
     submitted_at = models.DateTimeField(blank=True, null=True)
     current_position = models.PositiveSmallIntegerField(default=1)
     integrity_score = models.PositiveSmallIntegerField(default=100)
+    selection_seed = models.CharField(max_length=64, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -51,12 +51,16 @@ class Command(BaseCommand):
         section_models = {}
         skill_models = {}
         for order, (code, title_fa, title_en, quota) in enumerate(sections, start=1):
+            difficulty_distribution = Counter(
+                item["difficulty"] for item in questions if item["section"] == code
+            )
             skill_models[code] = Skill.objects.create(
                 exam=exam, code=code, title_fa=title_fa, title_en=title_en, display_order=order,
             )
             section_models[code] = ExamSection.objects.create(
                 version=version, code=code, title_fa=title_fa, title_en=title_en,
-                question_count=quota, display_order=order,
+                question_count=quota, difficulty_distribution=dict(difficulty_distribution),
+                display_order=order,
             )
         for item in questions:
             prompt_en = item.get("prompt_en", item.get("prompt"))
@@ -66,6 +70,7 @@ class Command(BaseCommand):
                 prompt_fa=prompt_fa, prompt_en=prompt_en, difficulty=item["difficulty"],
                 question_type=item.get("question_type", "single_choice"),
                 subskill=item.get("subskill", item["section"]),
+                content_group=item.get("content_group", ""),
                 suggested_seconds=item.get("suggested_seconds", 60),
                 explanation_fa=item.get("explanation_fa", item.get("explanation")),
                 explanation_en=item.get("explanation_en", item.get("explanation")),
@@ -79,3 +84,4 @@ class Command(BaseCommand):
         version.published_at = timezone.now()
         version.save(update_fields=["is_published", "published_at"])
         self.stdout.write(self.style.SUCCESS(f"Published {slug} v1 with 50 validated questions."))
+from collections import Counter

@@ -4,7 +4,7 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Subquery
 from django.utils import timezone
 
 from .models import (
@@ -15,6 +15,35 @@ from .models import (
 
 class ExamContentError(Exception):
     pass
+
+
+def _choose_section_questions(pool, count, rng, recent_ids, difficulty_distribution=None):
+    """Choose an auditable, balanced set while preferring unseen content groups."""
+    distribution = {int(level): int(quota) for level, quota in (difficulty_distribution or {}).items()}
+    if distribution and sum(distribution.values()) != count:
+        raise ExamContentError("Section difficulty blueprint does not match its question quota")
+    buckets = distribution or {0: count}
+    chosen = []
+    used_groups = set()
+    for difficulty, quota in buckets.items():
+        candidates = [item for item in pool if difficulty == 0 or item[1] == difficulty]
+        unseen = [item for item in candidates if item[0] not in recent_ids]
+        repeated = [item for item in candidates if item[0] in recent_ids]
+        rng.shuffle(unseen)
+        rng.shuffle(repeated)
+        for candidate in unseen + repeated:
+            question_id, _difficulty, content_group = candidate
+            if question_id in chosen or (content_group and content_group in used_groups):
+                continue
+            chosen.append(question_id)
+            if content_group:
+                used_groups.add(content_group)
+            if sum(1 for selected in chosen if selected in {item[0] for item in candidates}) >= quota:
+                break
+        selected_for_bucket = sum(1 for selected in chosen if selected in {item[0] for item in candidates})
+        if selected_for_bucket < quota:
+            raise ExamContentError(f"Not enough eligible questions for difficulty {difficulty}")
+    return chosen
 
 
 @transaction.atomic
@@ -60,14 +89,24 @@ def start_attempt(entitlement_id, user):
     if not version:
         raise ExamContentError("No published exam version")
     selected_questions = []
-    rng = random.SystemRandom()
+    selection_seed = secrets.token_hex(32)
+    rng = random.Random(selection_seed)
+    recent_attempts = Attempt.objects.filter(
+        user=user, exam=entitlement.exam,
+    ).order_by("-created_at").values("pk")[:3]
+    recent_question_ids = set(AttemptQuestion.objects.filter(
+        attempt_id__in=Subquery(recent_attempts),
+    ).values_list("question_id", flat=True))
     for section in version.sections.all():
         pool = list(Question.objects.filter(
             version=version, section=section, is_active=True, status="active",
-        ).values_list("id", flat=True))
+        ).values_list("id", "difficulty", "content_group"))
         if len(pool) < section.question_count:
             raise ExamContentError(f"Section {section.code} does not have enough active questions")
-        section_ids = rng.sample(pool, section.question_count)
+        section_ids = _choose_section_questions(
+            pool, section.question_count, rng, recent_question_ids,
+            section.difficulty_distribution,
+        )
         rng.shuffle(section_ids)
         selected_questions.extend(section_ids)
     if len(selected_questions) != entitlement.exam.question_count:
@@ -84,6 +123,7 @@ def start_attempt(entitlement_id, user):
         version=version,
         entitlement=entitlement,
         status="in_progress",
+        selection_seed=selection_seed,
         started_at=now,
         expires_at=now + timedelta(minutes=entitlement.exam.duration_minutes),
     )
