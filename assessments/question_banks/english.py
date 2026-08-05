@@ -1,19 +1,32 @@
 """Curated English placement bank. Choices are stored with the correct answer first."""
 
-BANK_VERSION = 1
+BANK_VERSION = 2
 
 SECTIONS = (
-    ("grammar", "گرامر", "Grammar", 15),
-    ("vocabulary", "واژگان", "Vocabulary", 10),
-    ("reading", "درک مطلب", "Reading", 10),
-    ("use-of-english", "کاربرد زبان", "Use of English", 10),
-    ("advanced", "ساختارهای پیشرفته", "Advanced Structures", 5),
+    ("grammar", "گرامر", "Grammar", 32, 10),
+    ("vocabulary", "واژگان", "Vocabulary", 32, 10),
+    ("reading", "درک مطلب", "Reading", 32, 10),
+    ("use-of-english", "کاربرد زبان", "Use of English", 32, 10),
+    ("writing-objective", "مهارت‌های نوشتاری", "Writing Objective", 20, 5),
+    ("advanced", "ساختارهای پیشرفته", "Advanced Structures", 20, 5),
 )
 
 
-def q(section, prompt, correct, *wrong, difficulty=3):
-    return {"section": section, "prompt": prompt, "choices": (correct,) + wrong, "difficulty": difficulty,
-            "explanation": f"The correct answer is ‘{correct}’."}
+def q(section, prompt, correct, *wrong, difficulty=3, subskill="", question_type=None,
+      suggested_seconds=None, explanation=""):
+    explanation = explanation or f"‘{correct}’ is the only option that is grammatically and contextually appropriate."
+    wrong_explanations = tuple(
+        f"‘{choice}’ does not fit the grammar, meaning, register, or cohesion required here." for choice in wrong
+    )
+    return {
+        "section": section, "prompt": prompt, "choices": (correct,) + wrong,
+        "difficulty": difficulty, "subskill": subskill or section,
+        "question_type": question_type or ("writing_objective" if section == "writing-objective" else "single_choice"),
+        "suggested_seconds": suggested_seconds or (180 if section == "writing-objective" else 75),
+        "explanation": explanation,
+        "choice_explanations_fa": (explanation,) + wrong_explanations,
+        "choice_explanations_en": (explanation,) + wrong_explanations,
+    }
 
 
 QUESTIONS = [
@@ -68,3 +81,7 @@ q("advanced","No sooner had she arrived ___ the discussion began.","than","when"
 q("advanced","The policy, ___ well-intentioned, may create unintended costs.","albeit","therefore","provided","otherwise",difficulty=5),
 q("advanced","It is imperative that every applicant ___ the declaration.","sign","signs","signed","will sign",difficulty=5),
 ]
+
+from .english_v2_additions import ADDITIONAL_QUESTIONS  # noqa: E402
+
+QUESTIONS.extend(ADDITIONAL_QUESTIONS)

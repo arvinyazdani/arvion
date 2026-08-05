@@ -66,6 +66,10 @@ class Command(BaseCommand):
     def publish(self, slug, version_number, questions, sections, english_only):
         validate_bank(questions, sections)
         exam = Exam.objects.get(slug=slug)
+        expected_duration = 75 if slug == "english-placement-a1-c1" else 70
+        if exam.duration_minutes != expected_duration:
+            exam.duration_minutes = expected_duration
+            exam.save(update_fields=["duration_minutes", "updated_at"])
         version, created = ExamVersion.objects.get_or_create(exam=exam, version=version_number)
         if not created and version.questions.exists():
             if version.questions.count() != len(questions):

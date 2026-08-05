@@ -12,9 +12,18 @@ from .services import start_attempt
 
 
 class EnglishQuestionBankTests(SimpleTestCase):
-    def test_bank_has_exactly_fifty_valid_questions(self):
-        self.assertEqual(len(QUESTIONS), 50)
+    def test_bank_has_exactly_one_hundred_sixty_eight_valid_questions(self):
+        self.assertEqual(len(QUESTIONS), 168)
         validate_bank(QUESTIONS, SECTIONS)
+
+    def test_text_only_blueprint_selects_fifty_questions(self):
+        self.assertEqual(sum(section[4] for section in SECTIONS), 50)
+
+    def test_writing_objective_has_twenty_longer_items(self):
+        writing = [question for question in QUESTIONS if question["section"] == "writing-objective"]
+        self.assertEqual(len(writing), 20)
+        self.assertTrue(all(question["question_type"] == "writing_objective" for question in writing))
+        self.assertTrue(all(question["suggested_seconds"] >= 180 for question in writing))
 
     def test_every_question_has_one_answer_key_and_explanation(self):
         for question in QUESTIONS:
@@ -70,7 +79,7 @@ class BenchmarkCommandTests(TestCase):
 
 class PublishedPythonBankTests(TestCase):
     def test_version_two_publishes_and_builds_a_balanced_fifty_question_attempt(self):
-        Exam.objects.create(
+        english_exam = Exam.objects.create(
             slug="english-placement-a1-c1", title_fa="انگلیسی", title_en="English",
             description_fa="توضیح", description_en="Description", language_mode="en",
             question_count=50,
@@ -81,6 +90,11 @@ class PublishedPythonBankTests(TestCase):
             question_count=50,
         )
         call_command("seed_assessment_banks", verbosity=0)
+        english_exam.refresh_from_db()
+        english_version = ExamVersion.objects.get(exam=english_exam, version=2, is_published=True)
+        self.assertEqual(english_exam.duration_minutes, 75)
+        self.assertEqual(english_version.questions.count(), 168)
+        self.assertEqual(english_version.sections.get(code="writing-objective").question_count, 5)
         version = ExamVersion.objects.get(exam=python_exam, version=2, is_published=True)
         self.assertEqual(version.questions.count(), 200)
         self.assertEqual(sum(section.question_count for section in version.sections.all()), 50)
