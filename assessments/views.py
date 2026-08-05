@@ -18,7 +18,7 @@ from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
-from .services import ExamContentError, expire_if_needed, score_attempt, start_attempt, verify_sandbox_payment
+from .services import ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
 
 class ExamListView(LanguageViewMixin, ListView):
@@ -112,10 +112,16 @@ class AttemptView(LanguageViewMixin, LoginRequiredMixin, DetailView):
     def get_queryset(self):
         return Attempt.objects.filter(user=self.request.user).select_related("exam", "version")
 
+    def get(self, request, *args, **kwargs):
+        attempt = self.get_object()
+        result = finalize_expired_attempt(attempt.pk)
+        if result:
+            return redirect(f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={self.lang}")
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         attempt = self.object
-        expire_if_needed(attempt)
         if attempt.status != "in_progress":
             context["attempt_closed"] = True
             return context
@@ -153,10 +159,16 @@ class AttemptReviewView(LanguageViewMixin, LoginRequiredMixin, DetailView):
     def get_queryset(self):
         return Attempt.objects.filter(user=self.request.user).select_related("exam", "version")
 
+    def get(self, request, *args, **kwargs):
+        attempt = self.get_object()
+        result = finalize_expired_attempt(attempt.pk)
+        if result:
+            return redirect(f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={self.lang}")
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         attempt = self.object
-        expire_if_needed(attempt)
         if attempt.status != "in_progress":
             context["attempt_closed"] = True
             return context
@@ -173,8 +185,12 @@ class AttemptReviewView(LanguageViewMixin, LoginRequiredMixin, DetailView):
 class SaveAnswerView(LoginRequiredMixin, View):
     def post(self, request, pk, item_pk):
         attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
-        if expire_if_needed(attempt) or attempt.status != "in_progress":
-            return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
+        result = finalize_expired_attempt(attempt.pk)
+        if result or attempt.status != "in_progress":
+            return JsonResponse({
+                "ok": False, "reason": "attempt_closed",
+                "result_url": reverse("assessments:result", kwargs={"pk": result.pk}) if result else "",
+            }, status=409)
         item = get_object_or_404(AttemptQuestion, pk=item_pk, attempt=attempt)
         choice = get_object_or_404(Choice, pk=request.POST.get("choice"), question=item.question)
         item.selected_choice = choice
@@ -186,11 +202,12 @@ class SaveAnswerView(LoginRequiredMixin, View):
 class AudioPlayView(LoginRequiredMixin, View):
     @transaction.atomic
     def post(self, request, pk, item_pk):
+        owned_attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
+        if finalize_expired_attempt(owned_attempt.pk):
+            return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
         attempt = get_object_or_404(
             Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress",
         )
-        if expire_if_needed(attempt):
-            return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
         item = get_object_or_404(
             AttemptQuestion.objects.select_for_update().select_related("question"),
             pk=item_pk, attempt=attempt,
@@ -211,6 +228,9 @@ class IntegrityEventView(LoginRequiredMixin, View):
 
     @transaction.atomic
     def post(self, request, pk):
+        owned_attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
+        if finalize_expired_attempt(owned_attempt.pk):
+            return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
         attempt = get_object_or_404(
             Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress"
         )
@@ -235,10 +255,14 @@ class FinishAttemptView(LoginRequiredMixin, View):
     def post(self, request, pk):
         attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
         lang = request.GET.get("lang", "fa")
+        expired_result = finalize_expired_attempt(attempt.pk)
+        if expired_result:
+            return redirect(f"{reverse('assessments:result', kwargs={'pk': expired_result.pk})}?lang={lang}")
         if attempt.status == "in_progress":
             attempt.status = "submitted"
+            attempt.completion_reason = "manual"
             attempt.submitted_at = timezone.now()
-            attempt.save(update_fields=["status", "submitted_at", "updated_at"])
+            attempt.save(update_fields=["status", "completion_reason", "submitted_at", "updated_at"])
             result, _ = score_attempt(attempt.pk)
             messages.success(request, "آزمون با موفقیت تصحیح شد." if lang == "fa" else "Your assessment has been scored.")
             return redirect(f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={lang}")

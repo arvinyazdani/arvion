@@ -75,11 +75,11 @@ class QuestionAdmin(admin.ModelAdmin):
 
 @admin.register(Attempt)
 class AttemptAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "exam", "status", "integrity_score", "started_at")
+    list_display = ("id", "user", "exam", "status", "completion_reason", "integrity_score", "started_at")
     list_filter = ("status", "exam")
     search_fields = ("id", "user__email")
     readonly_fields = (
-        "id", "user", "exam", "version", "entitlement", "selection_seed", "created_at", "updated_at",
+        "id", "user", "exam", "version", "entitlement", "completion_reason", "selection_seed", "created_at", "updated_at",
     )
 
 

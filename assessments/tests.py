@@ -14,7 +14,7 @@ from .models import (
     PaymentTransaction, Question, Skill,
 )
 from .services import (
-    ExamContentError, _choose_section_questions, score_attempt, start_attempt,
+    ExamContentError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
     verify_sandbox_payment,
 )
 
@@ -343,6 +343,7 @@ class AssessmentEngineTests(TestCase):
         self.assertRedirects(response, reverse("assessments:result", args=[result.pk]) + "?lang=fa")
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, "completed")
+        self.assertEqual(attempt.completion_reason, "manual")
         self.assertTrue(Certificate.objects.filter(result=result).exists())
 
     def test_expired_attempt_cannot_accept_answers(self):
@@ -356,8 +357,35 @@ class AssessmentEngineTests(TestCase):
             {"choice": item.question.choices.first().pk},
         )
         self.assertEqual(response.status_code, 409)
+        self.assertTrue(response.json()["result_url"])
         attempt.refresh_from_db()
-        self.assertEqual(attempt.status, "expired")
+        self.assertEqual(attempt.status, "completed")
+        self.assertEqual(attempt.completion_reason, "timeout")
+        self.assertTrue(AttemptResult.objects.filter(attempt=attempt).exists())
+
+    def test_timeout_is_scored_once_and_attempt_page_redirects_to_result(self):
+        attempt = self.start()
+        first = attempt.attempt_questions.first()
+        first.selected_choice = first.question.choices.get(is_correct=True)
+        first.save(update_fields=["selected_choice"])
+        attempt.expires_at = timezone.now()
+        attempt.save(update_fields=["expires_at"])
+
+        first_result = finalize_expired_attempt(attempt.pk)
+        second_result = finalize_expired_attempt(attempt.pk)
+
+        self.assertEqual(first_result.pk, second_result.pk)
+        self.assertEqual(AttemptResult.objects.filter(attempt=attempt).count(), 1)
+        self.assertEqual(first_result.correct_count, 1)
+        self.assertEqual(first_result.unanswered_count, 1)
+        self.client.force_login(self.user)
+        response = self.client.get(attempt.get_absolute_url() + "?lang=en")
+        self.assertRedirects(
+            response, reverse("assessments:result", args=[first_result.pk]) + "?lang=en"
+        )
+        report = self.client.get(reverse("assessments:result", args=[first_result.pk]) + "?lang=en")
+        self.assertContains(report, "Assessment time expired")
+        self.assertContains(report, "saved answers were submitted and scored automatically")
 
     def test_deterministic_scoring_builds_skill_result(self):
         attempt = self.start()

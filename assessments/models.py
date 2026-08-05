@@ -197,6 +197,7 @@ class Attempt(models.Model):
         ("expired", "Expired"), ("scoring", "Scoring"), ("completed", "Completed"),
         ("invalidated", "Invalidated"),
     )
+    COMPLETION_REASONS = (("manual", "Manual submission"), ("timeout", "Time expired"))
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="exam_attempts")
@@ -204,6 +205,7 @@ class Attempt(models.Model):
     version = models.ForeignKey(ExamVersion, on_delete=models.PROTECT, related_name="attempts")
     entitlement = models.OneToOneField(ExamEntitlement, on_delete=models.PROTECT, related_name="attempt")
     status = models.CharField(max_length=14, choices=STATUSES, default="ready", db_index=True)
+    completion_reason = models.CharField(max_length=10, choices=COMPLETION_REASONS, blank=True)
     started_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
     submitted_at = models.DateTimeField(blank=True, null=True)

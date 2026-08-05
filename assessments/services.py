@@ -167,10 +167,22 @@ def start_attempt(entitlement_id, user):
 def expire_if_needed(attempt):
     if attempt.status == "in_progress" and attempt.expires_at <= timezone.now():
         attempt.status = "expired"
+        attempt.completion_reason = "timeout"
         attempt.submitted_at = timezone.now()
-        attempt.save(update_fields=["status", "submitted_at", "updated_at"])
+        attempt.save(update_fields=["status", "completion_reason", "submitted_at", "updated_at"])
         return True
     return False
+
+
+@transaction.atomic
+def finalize_expired_attempt(attempt_id):
+    attempt = Attempt.objects.select_for_update().get(pk=attempt_id)
+    expire_if_needed(attempt)
+    if hasattr(attempt, "result"):
+        return attempt.result
+    if attempt.status == "expired":
+        return score_attempt(attempt.pk)[0]
+    return None
 
 
 def _level_for(exam, percentage):
