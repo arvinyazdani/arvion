@@ -39,6 +39,15 @@ class ExamDetailView(LanguageViewMixin, DetailView):
         return Exam.objects.filter(is_active=True)
 
 
+class AssessmentTermsView(LanguageViewMixin, TemplateView):
+    template_name = "assessments/terms.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["terms_version"] = settings.ASSESSMENT_TERMS_VERSION
+        return context
+
+
 class CreateOrderView(LoginRequiredMixin, View):
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
@@ -63,8 +72,19 @@ class SandboxPayView(LoginRequiredMixin, View):
         if not settings.DEBUG or settings.PAYMENT_GATEWAY != "sandbox":
             raise Http404
         order = get_object_or_404(Order, pk=pk, user=request.user)
-        order, created = verify_sandbox_payment(order.pk)
         lang = request.GET.get("lang", "fa")
+        if request.POST.get("accept_terms") != "yes":
+            messages.error(
+                request,
+                "برای ادامه باید شرایط آزمون را بپذیرید."
+                if lang == "fa" else "You must accept the assessment terms to continue.",
+            )
+            return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
+        if order.status == "pending":
+            order.terms_version = settings.ASSESSMENT_TERMS_VERSION
+            order.terms_accepted_at = timezone.now()
+            order.save(update_fields=["terms_version", "terms_accepted_at", "updated_at"])
+        order, created = verify_sandbox_payment(order.pk)
         if created:
             messages.success(request, "پرداخت آزمایشی تأیید و مجوز آزمون صادر شد." if lang == "fa" else "Test payment verified and access granted.")
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")

@@ -3,7 +3,7 @@ import random
 
 from django.contrib.auth import get_user_model
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -14,7 +14,7 @@ from .models import (
     PaymentTransaction, Question, Skill,
 )
 from .services import (
-    AttemptLimitError, ExamContentError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
+    AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
     verify_sandbox_payment,
 )
 
@@ -59,7 +59,10 @@ class AssessmentCommerceTests(TestCase):
         self.assertRedirects(response, reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
 
     def test_verified_payment_creates_exactly_one_entitlement(self):
-        order = Order.objects.create(user=self.user, exam=self.exam, amount_irr=self.exam.price_irr)
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=self.exam.price_irr,
+            terms_version="test-v1", terms_accepted_at=timezone.now(),
+        )
         first_order, created = verify_sandbox_payment(order.pk)
         second_order, created_again = verify_sandbox_payment(order.pk)
         self.assertTrue(created)
@@ -68,6 +71,38 @@ class AssessmentCommerceTests(TestCase):
         self.assertEqual(second_order.status, "paid")
         self.assertEqual(ExamEntitlement.objects.count(), 1)
         self.assertEqual(PaymentTransaction.objects.filter(status="verified").count(), 1)
+
+    @override_settings(DEBUG=True, PAYMENT_GATEWAY="sandbox")
+    def test_payment_requires_server_recorded_terms_acceptance(self):
+        order = Order.objects.create(user=self.user, exam=self.exam, amount_irr=self.exam.price_irr)
+        with self.assertRaises(PaymentVerificationError):
+            verify_sandbox_payment(order.pk)
+        self.client.force_login(self.user)
+        url = reverse("assessments:sandbox_pay", args=[order.pk]) + "?lang=en"
+
+        rejected = self.client.post(url)
+
+        order.refresh_from_db()
+        self.assertRedirects(rejected, reverse("assessments:checkout", args=[order.pk]) + "?lang=en")
+        self.assertEqual(order.status, "pending")
+        self.assertIsNone(order.terms_accepted_at)
+        self.assertFalse(ExamEntitlement.objects.filter(order=order).exists())
+
+        accepted = self.client.post(url, {"accept_terms": "yes"})
+
+        order.refresh_from_db()
+        self.assertRedirects(accepted, reverse("accounts:dashboard") + "?lang=en")
+        self.assertEqual(order.status, "paid")
+        self.assertTrue(order.terms_version)
+        self.assertIsNotNone(order.terms_accepted_at)
+        self.assertTrue(ExamEntitlement.objects.filter(order=order).exists())
+
+    def test_assessment_terms_are_public_and_bilingual(self):
+        english = self.client.get(reverse("assessments:terms") + "?lang=en")
+        persian = self.client.get(reverse("assessments:terms") + "?lang=fa")
+        self.assertContains(english, "not official, academic")
+        self.assertContains(english, "AI-assisted")
+        self.assertContains(persian, "رسمی، دانشگاهی")
 
     def test_checkout_is_private_to_order_owner(self):
         other = User.objects.create_user(username="other@example.com", email="other@example.com", password="test", is_active=True)

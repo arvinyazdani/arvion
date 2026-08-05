@@ -41,6 +41,8 @@ class Order(models.Model):
     amount_irr = models.PositiveIntegerField()
     status = models.CharField(max_length=12, choices=STATUSES, default="pending", db_index=True)
     gateway = models.CharField(max_length=30, default="sandbox")
+    terms_version = models.CharField(max_length=30, blank=True)
+    terms_accepted_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)

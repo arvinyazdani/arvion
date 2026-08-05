@@ -23,6 +23,10 @@ class AttemptLimitError(Exception):
     pass
 
 
+class PaymentVerificationError(Exception):
+    pass
+
+
 def _choose_section_questions(pool, count, rng, recent_ids, difficulty_distribution=None):
     """Choose an auditable, balanced set while preferring unseen content groups."""
     distribution = {int(level): int(quota) for level, quota in (difficulty_distribution or {}).items()}
@@ -57,6 +61,8 @@ def verify_sandbox_payment(order_id):
     order = Order.objects.select_for_update().select_related("exam", "user").get(pk=order_id)
     if order.status == "paid":
         return order, False
+    if not order.terms_accepted_at or not order.terms_version:
+        raise PaymentVerificationError("Assessment terms must be accepted before payment")
     external_id = f"sandbox-{order.id}"
     payment, _ = PaymentTransaction.objects.get_or_create(
         external_id=external_id,
