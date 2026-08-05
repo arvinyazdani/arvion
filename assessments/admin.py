@@ -106,7 +106,7 @@ class AttemptResultAdmin(admin.ModelAdmin):
 
 @admin.register(Certificate)
 class CertificateAdmin(admin.ModelAdmin):
-    list_display = ("verification_code", "result", "issued_at", "is_revoked")
+    list_display = ("verification_code", "holder_name", "result", "issued_at", "is_revoked")
     list_filter = ("is_revoked", "issued_at")
     search_fields = ("verification_code", "result__attempt__user__email")
-    readonly_fields = ("id", "result", "verification_code", "issued_at")
+    readonly_fields = ("id", "result", "holder_name", "verification_code", "issued_at")

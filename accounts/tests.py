@@ -30,6 +30,33 @@ class AccountFlowTests(TestCase):
         self.assertEqual(user.username, user.email)
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_registration_requires_first_and_last_name(self):
+        payload = self.registration_payload()
+        payload["first_name"] = ""
+        payload["last_name"] = ""
+        response = self.client.post(reverse("accounts:register") + "?lang=en", payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response.context["form"], "first_name", "This field is required.")
+        self.assertFormError(response.context["form"], "last_name", "This field is required.")
+        self.assertFalse(User.objects.filter(email="arvin@example.com").exists())
+
+    def test_user_can_complete_certificate_identity(self):
+        user = User.objects.create_user(
+            username="legacy@example.com", email="legacy@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("accounts:profile_identity") + "?lang=en",
+            {"first_name": "  Legacy ", "last_name": " User  Name "},
+        )
+
+        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=en")
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "Legacy")
+        self.assertEqual(user.last_name, "User Name")
+
     def test_verification_activates_and_logs_user_in(self):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
         verify_url = re.search(r"http://testserver([^\s]+)", mail.outbox[0].body).group(1)

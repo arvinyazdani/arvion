@@ -258,7 +258,11 @@ def score_attempt(attempt_id):
             question_count=stats["total"], percentage=skill_percentage,
         ) for stats, skill_percentage in skill_payload
     ])
-    Certificate.objects.create(result=result, verification_code=secrets.token_hex(6).upper())
+    Certificate.objects.create(
+        result=result,
+        holder_name=attempt.user.get_full_name().strip() or "Arvion Candidate",
+        verification_code=secrets.token_hex(6).upper(),
+    )
     attempt.status = "completed"
     attempt.save(update_fields=["status", "updated_at"])
     return result, True

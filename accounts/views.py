@@ -9,12 +9,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.views.generic import FormView
+from django.views.generic import FormView, UpdateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
 
 from core.views.lang import LanguageViewMixin
 
-from .forms import EmailAuthenticationForm, RegistrationForm
+from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm
 from .models import User
 
 
@@ -52,6 +53,26 @@ class AccountLoginView(LanguageViewMixin, LoginView):
         kwargs = super().get_form_kwargs()
         kwargs["lang"] = self.lang
         return kwargs
+
+
+class ProfileIdentityView(LanguageViewMixin, LoginRequiredMixin, UpdateView):
+    template_name = "accounts/profile_identity.html"
+    form_class = ProfileIdentityForm
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["lang"] = self.lang
+        return kwargs
+
+    def get_success_url(self):
+        messages.success(
+            self.request,
+            "نام دارنده گواهی ذخیره شد." if self.lang == "fa" else "Certificate holder name saved.",
+        )
+        return f"{reverse('accounts:dashboard')}?lang={self.lang}"
 
 
 def verify_email(request, uidb64, token):

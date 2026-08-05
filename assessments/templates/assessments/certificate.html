@@ -7,7 +7,7 @@
     <div class="certificate-top"><div class="assessment-brand"><span class="assessment-brand-mark">A+</span><span>ARVION<br><small>ASSESSMENT</small></span></div><span>NON-ACCREDITED CERTIFICATE</span></div>
     <div class="certificate-body">
       <span class="eyebrow">CERTIFICATE OF ASSESSMENT</span><p>{% if lang == 'fa' %}گواهی می‌شود که{% else %}This certifies that{% endif %}</p>
-      <h1>{% if certificate.result.attempt.user.get_full_name %}{{ certificate.result.attempt.user.get_full_name }}{% elif lang == 'fa' %}داوطلب آرویون{% else %}Arvion Candidate{% endif %}</h1>
+      <h1>{{ certificate.holder_name }}</h1>
       <p>{% if lang == 'fa' %}آزمون زیر را تکمیل کرده است{% else %}has completed the following assessment{% endif %}</p>
       <h2>{% if lang == 'fa' %}{{ certificate.result.attempt.exam.title_fa }}{% else %}{{ certificate.result.attempt.exam.title_en }}{% endif %}</h2>
       <div class="certificate-score"><span><strong>{{ certificate.result.percentage|floatformat:0 }}</strong>/100</span><span><strong>{{ certificate.result.level_code|upper }}</strong>{% if lang == 'fa' %}سطح{% else %}Level{% endif %}</span><span><strong>{{ certificate.result.attempt.integrity_score }}%</strong>{% if lang == 'fa' %}سلامت آزمون{% else %}Integrity{% endif %}</span></div>

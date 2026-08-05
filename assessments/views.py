@@ -89,6 +89,13 @@ class StartAttemptView(LoginRequiredMixin, View):
         if not request.user.email_verified:
             messages.error(request, "برای شروع آزمون باید ایمیل شما تأیید شده باشد.")
             return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
+        if not request.user.first_name.strip() or not request.user.last_name.strip():
+            messages.error(
+                request,
+                "پیش از شروع، نام و نام خانوادگی دارنده گواهی را کامل کنید."
+                if lang == "fa" else "Complete the certificate holder name before starting.",
+            )
+            return redirect(f"{reverse('accounts:profile_identity')}?lang={lang}")
         try:
             attempt, _ = start_attempt(entitlement.pk, request.user)
         except ExamContentError:

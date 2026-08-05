@@ -292,6 +292,7 @@ class SkillResult(models.Model):
 class Certificate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     result = models.OneToOneField(AttemptResult, on_delete=models.PROTECT, related_name="certificate")
+    holder_name = models.CharField(max_length=300, default="")
     verification_code = models.CharField(max_length=24, unique=True, db_index=True)
     issued_at = models.DateTimeField(auto_now_add=True)
     is_revoked = models.BooleanField(default=False)

@@ -95,6 +95,7 @@ class AssessmentEngineTests(TestCase):
         self.user = User.objects.create_user(
             username="candidate@example.com", email="candidate@example.com",
             password="test-password-42", is_active=True, email_verified=True,
+            first_name="Candidate", last_name="Example",
         )
         self.exam = Exam.objects.create(
             slug="engine-test", title_fa="آزمون موتور", title_en="Engine test",
@@ -233,6 +234,18 @@ class AssessmentEngineTests(TestCase):
         self.entitlement.refresh_from_db()
         self.assertEqual(self.entitlement.attempts_remaining, 0)
 
+    def test_start_view_requires_complete_certificate_identity(self):
+        self.user.last_name = ""
+        self.user.save(update_fields=["last_name"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("assessments:start_attempt", args=[self.entitlement.pk]) + "?lang=en")
+
+        self.assertRedirects(response, reverse("accounts:profile_identity") + "?lang=en")
+        self.assertFalse(Attempt.objects.exists())
+        self.entitlement.refresh_from_db()
+        self.assertEqual(self.entitlement.attempts_remaining, 1)
+
     def test_invalid_question_pool_rolls_back(self):
         self.section.question_count = 4
         self.section.save()
@@ -355,6 +368,23 @@ class AssessmentEngineTests(TestCase):
         self.assertFalse(created)
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(AttemptResult.objects.count(), 1)
+
+    def test_certificate_holder_name_is_frozen_at_issue_time(self):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        self.assertEqual(result.certificate.holder_name, "Candidate Example")
+        self.user.first_name = "Changed"
+        self.user.last_name = "Later"
+        self.user.save(update_fields=["first_name", "last_name"])
+
+        response = self.client.get(
+            reverse("assessments:certificate", args=[result.certificate.verification_code]) + "?lang=en"
+        )
+
+        self.assertContains(response, "Candidate Example")
+        self.assertNotContains(response, "Changed Later")
 
     def test_result_is_private_but_certificate_is_verifiable(self):
         attempt = self.start()
