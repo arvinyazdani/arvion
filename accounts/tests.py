@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order
+from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order, PaymentTransaction
 
 
 User = get_user_model()
@@ -252,6 +252,56 @@ class AccountFlowTests(TestCase):
         self.assertEqual(len(first_page.context["orders"]), 10)
         self.assertEqual(len(second_page.context["orders"]), 1)
         self.assertContains(first_page, "Page 1 of 2")
+
+    def test_payment_receipt_is_private_and_shows_verified_transaction(self):
+        owner = User.objects.create_user(
+            username="receipt@example.com", email="receipt@example.com", password="test-password-42",
+            first_name="Receipt", last_name="Owner", is_active=True, email_verified=True,
+        )
+        stranger = User.objects.create_user(
+            username="receipt-stranger@example.com", email="receipt-stranger@example.com",
+            password="test-password-42", is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="receipt-exam", title_fa="آزمون رسید", title_en="Receipt assessment",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        order = Order.objects.create(
+            user=owner, exam=exam, amount_irr=500_000, status="paid", gateway="sandbox",
+            paid_at=timezone.now(), terms_version="2026-08-05", terms_accepted_at=timezone.now(),
+        )
+        PaymentTransaction.objects.create(
+            order=order, gateway="sandbox", external_id="SANDBOX-VERIFIED-001",
+            amount_irr=500_000, status="verified", verified_at=timezone.now(),
+        )
+        url = reverse("accounts:payment_receipt", args=[order.pk]) + "?lang=en"
+
+        self.client.force_login(stranger)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(owner)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Receipt Owner")
+        self.assertContains(response, "SANDBOX-VERIFIED-001")
+        self.assertContains(response, str(order.pk))
+        self.assertContains(response, "not an official tax invoice")
+
+    def test_pending_order_has_no_payment_receipt(self):
+        user = User.objects.create_user(
+            username="pending-receipt@example.com", email="pending-receipt@example.com",
+            password="test-password-42", is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="pending-receipt-exam", title_fa="در انتظار", title_en="Pending",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="pending")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("accounts:payment_receipt", args=[order.pk]))
+
+        self.assertEqual(response.status_code, 404)
 
     def test_password_reset_changes_password_and_preserves_language(self):
         user = User.objects.create_user(

@@ -13,7 +13,7 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
 from datetime import timedelta
-from django.views.generic import FormView, ListView, UpdateView
+from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
 
@@ -136,6 +136,23 @@ class AccountOrdersView(LanguageViewMixin, LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).select_related("exam")
+
+
+class AccountReceiptView(LanguageViewMixin, LoginRequiredMixin, DetailView):
+    template_name = "accounts/payment_receipt.html"
+    context_object_name = "order"
+
+    def get_queryset(self):
+        return Order.objects.filter(
+            user=self.request.user, status__in=("paid", "refunded")
+        ).select_related("exam").prefetch_related("transactions")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["transaction"] = next(
+            (item for item in self.object.transactions.all() if item.status == "verified"), None
+        )
+        return context
 
 
 def verify_email(request, uidb64, token):
