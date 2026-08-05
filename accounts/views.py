@@ -13,7 +13,7 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
 from datetime import timedelta
-from django.views.generic import FormView, UpdateView
+from django.views.generic import FormView, ListView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
 
@@ -22,6 +22,7 @@ from core.views.lang import LanguageViewMixin
 from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import User
 from .services import send_verification_email
+from assessments.models import AttemptResult
 
 
 class RegisterView(LanguageViewMixin, FormView):
@@ -115,6 +116,17 @@ class ProfileIdentityView(LanguageViewMixin, LoginRequiredMixin, UpdateView):
             "نام دارنده گواهی ذخیره شد." if self.lang == "fa" else "Certificate holder name saved.",
         )
         return f"{reverse('accounts:dashboard')}?lang={self.lang}"
+
+
+class AccountResultsView(LanguageViewMixin, LoginRequiredMixin, ListView):
+    template_name = "accounts/results_history.html"
+    context_object_name = "results"
+    paginate_by = 10
+
+    def get_queryset(self):
+        return AttemptResult.objects.filter(attempt__user=self.request.user).select_related(
+            "attempt__exam", "attempt__version", "certificate"
+        )
 
 
 def verify_email(request, uidb64, token):

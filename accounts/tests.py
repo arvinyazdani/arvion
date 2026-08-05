@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from assessments.models import Exam, ExamEntitlement, Order
+from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order
 
 
 User = get_user_model()
@@ -118,6 +118,79 @@ class AccountFlowTests(TestCase):
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertRedirects(response, f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}")
+
+    def create_result(self, user, exam, version, number):
+        order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")
+        entitlement = ExamEntitlement.objects.create(
+            user=user, exam=exam, order=order, attempts_remaining=0,
+        )
+        attempt = Attempt.objects.create(
+            user=user, exam=exam, version=version, entitlement=entitlement,
+            status="completed", completion_reason="manual", integrity_score=100 - number,
+        )
+        return AttemptResult.objects.create(
+            attempt=attempt, correct_count=40, incorrect_count=10, unanswered_count=0,
+            percentage=80, level_code="advanced", level_title_fa="پیشرفته",
+            level_title_en="Advanced", summary_fa="خلاصه", summary_en="Summary",
+        )
+
+    def test_results_history_requires_login(self):
+        response = self.client.get(reverse("accounts:results_history"))
+        self.assertRedirects(
+            response, f"{reverse('accounts:login')}?next={reverse('accounts:results_history')}"
+        )
+
+    def test_results_history_only_exposes_signed_in_users_results(self):
+        owner = User.objects.create_user(
+            username="owner@example.com", email="owner@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        stranger = User.objects.create_user(
+            username="stranger@example.com", email="stranger@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="history-exam", title_fa="آزمون مالک", title_en="Owner assessment",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        other_exam = Exam.objects.create(
+            slug="private-exam", title_fa="نتیجه خصوصی دیگری", title_en="Someone else's result",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        version = ExamVersion.objects.create(exam=exam, version=1, is_published=True)
+        other_version = ExamVersion.objects.create(exam=other_exam, version=1, is_published=True)
+        owner_result = self.create_result(owner, exam, version, 1)
+        self.create_result(stranger, other_exam, other_version, 2)
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("accounts:results_history") + "?lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["results"]), [owner_result])
+        self.assertContains(response, "آزمون مالک")
+        self.assertNotContains(response, "نتیجه خصوصی دیگری")
+        self.assertContains(response, reverse("assessments:result", args=[owner_result.pk]))
+
+    def test_results_history_is_paginated(self):
+        user = User.objects.create_user(
+            username="archive@example.com", email="archive@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="archive-exam", title_fa="آرشیو", title_en="Archive",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        version = ExamVersion.objects.create(exam=exam, version=1, is_published=True)
+        for number in range(11):
+            self.create_result(user, exam, version, number)
+        self.client.force_login(user)
+
+        first_page = self.client.get(reverse("accounts:results_history") + "?lang=en")
+        second_page = self.client.get(reverse("accounts:results_history") + "?lang=en&page=2")
+
+        self.assertEqual(len(first_page.context["results"]), 10)
+        self.assertEqual(len(second_page.context["results"]), 1)
+        self.assertContains(first_page, "Page 1 of 2")
 
     def test_password_reset_changes_password_and_preserves_language(self):
         user = User.objects.create_user(
