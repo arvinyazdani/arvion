@@ -50,6 +50,17 @@ class EmailAuthenticationForm(AuthenticationForm):
         self.fields["password"].label = "رمز عبور" if lang == "fa" else "Password"
 
 
+class ResendVerificationForm(forms.Form):
+    email = forms.EmailField()
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].label = "ایمیل" if lang == "fa" else "Email"
+
+    def clean_email(self):
+        return self.cleaned_data["email"].strip().lower()
+
+
 class ProfileIdentityForm(forms.ModelForm):
     class Meta:
         model = User

@@ -4,19 +4,21 @@ from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
+from django.utils import timezone
+from datetime import timedelta
 from django.views.generic import FormView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
 
 from core.views.lang import LanguageViewMixin
 
-from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm
+from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import User
+from .services import send_verification_email
 
 
 class RegisterView(LanguageViewMixin, FormView):
@@ -30,19 +32,28 @@ class RegisterView(LanguageViewMixin, FormView):
 
     def form_valid(self, form):
         user = form.save()
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        verify_path = reverse("accounts:verify", kwargs={"uidb64": uid, "token": token})
-        verify_url = self.request.build_absolute_uri(verify_path)
-        subject = "تأیید حساب آرویون" if self.lang == "fa" else "Verify your Arvion account"
-        message = (
-            f"برای فعال‌سازی حساب روی لینک زیر بزنید:\n{verify_url}"
-            if self.lang == "fa"
-            else f"Activate your account using this link:\n{verify_url}"
-        )
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+        send_verification_email(user, self.request, self.lang)
         self.request.session["verification_email"] = user.email
         return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}")
+
+
+class ResendVerificationView(LanguageViewMixin, FormView):
+    template_name = "accounts/resend_verification.html"
+    form_class = ResendVerificationForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["lang"] = self.lang
+        return kwargs
+
+    def form_valid(self, form):
+        email = form.cleaned_data["email"]
+        user = User.objects.filter(email__iexact=email, is_active=False, email_verified=False).first()
+        threshold = timezone.now() - timedelta(seconds=settings.EMAIL_VERIFICATION_RESEND_SECONDS)
+        if user and (user.verification_sent_at is None or user.verification_sent_at <= threshold):
+            send_verification_email(user, self.request, self.lang)
+        self.request.session["verification_email"] = email
+        return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}&resent=1")
 
 
 class AccountLoginView(LanguageViewMixin, LoginView):
@@ -94,7 +105,10 @@ def verify_email(request, uidb64, token):
 
 def verification_sent(request):
     lang = request.GET.get("lang") or request.session.get("lang", "fa")
-    return render(request, "accounts/verification_sent.html", {"lang": lang, "email": request.session.get("verification_email")})
+    return render(request, "accounts/verification_sent.html", {
+        "lang": lang, "email": request.session.get("verification_email"),
+        "resent": request.GET.get("resent") == "1",
+    })
 
 
 @login_required

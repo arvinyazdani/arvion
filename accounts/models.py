@@ -5,6 +5,8 @@ from django.db import models
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     email_verified = models.BooleanField(default=False)
+    verification_sent_at = models.DateTimeField(blank=True, null=True)
+    verification_email_count = models.PositiveSmallIntegerField(default=0)
     preferred_language = models.CharField(
         max_length=2,
         choices=(("fa", "فارسی"), ("en", "English")),

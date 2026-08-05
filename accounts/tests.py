@@ -1,9 +1,11 @@
 import re
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from assessments.models import Exam, ExamEntitlement, Order
 
@@ -29,6 +31,9 @@ class AccountFlowTests(TestCase):
         self.assertFalse(user.email_verified)
         self.assertEqual(user.username, user.email)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(user.verification_email_count, 1)
+        self.assertIsNotNone(user.verification_sent_at)
+        self.assertIn("?lang=en", mail.outbox[0].body)
 
     def test_registration_requires_first_and_last_name(self):
         payload = self.registration_payload()
@@ -71,6 +76,44 @@ class AccountFlowTests(TestCase):
         response = self.client.post(reverse("accounts:login"), {"username": "arvin@example.com", "password": "A-secure-test-password-42"})
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_unverified_user_can_request_a_fresh_link_after_cooldown(self):
+        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
+        user = User.objects.get(email="arvin@example.com")
+        user.verification_sent_at = timezone.now() - timedelta(minutes=3)
+        user.save(update_fields=["verification_sent_at"])
+        mail.outbox.clear()
+
+        response = self.client.post(
+            reverse("accounts:resend_verification") + "?lang=en", {"email": "ARVIN@example.com"}
+        )
+
+        self.assertRedirects(
+            response, reverse("accounts:verification_sent") + "?lang=en&resent=1"
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        user.refresh_from_db()
+        self.assertEqual(user.verification_email_count, 2)
+        self.assertIn("?lang=en", mail.outbox[0].body)
+
+    def test_resend_is_throttled_and_does_not_reveal_account_existence(self):
+        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
+        mail.outbox.clear()
+        existing = self.client.post(
+            reverse("accounts:resend_verification") + "?lang=en", {"email": "arvin@example.com"}
+        )
+        unknown = self.client.post(
+            reverse("accounts:resend_verification") + "?lang=en", {"email": "unknown@example.com"}
+        )
+
+        expected = reverse("accounts:verification_sent") + "?lang=en&resent=1"
+        self.assertRedirects(existing, expected)
+        self.assertRedirects(unknown, expected)
+        self.assertEqual(len(mail.outbox), 0)
+        existing_page = self.client.get(existing.url)
+        unknown_page = self.client.get(unknown.url)
+        self.assertContains(existing_page, "If an eligible unverified account exists")
+        self.assertContains(unknown_page, "If an eligible unverified account exists")
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("accounts:dashboard"))
