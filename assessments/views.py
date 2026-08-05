@@ -222,6 +222,97 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
             "attempt__exam", "certificate"
         ).prefetch_related("skill_results__skill")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        lang = context["lang"]
+        rows = self.object.attempt.attempt_questions.select_related(
+            "question__section", "question__skill", "selected_choice"
+        ).prefetch_related("question__choices")
+        review = []
+        for row in rows:
+            question = row.question_snapshot or {
+                "prompt_fa": row.question.prompt_fa,
+                "prompt_en": row.question.prompt_en,
+                "question_type": row.question.question_type,
+                "subskill": row.question.subskill,
+                "difficulty": row.question.difficulty,
+                "transcript": row.question.transcript,
+                "explanation_fa": row.question.explanation_fa,
+                "explanation_en": row.question.explanation_en,
+            }
+            choices = row.choices_snapshot or [
+                {
+                    "id": choice.pk,
+                    "text_fa": choice.text_fa,
+                    "text_en": choice.text_en,
+                    "explanation_fa": choice.explanation_fa,
+                    "explanation_en": choice.explanation_en,
+                    "is_correct": choice.is_correct,
+                }
+                for choice in row.question.choices.all()
+            ]
+            selected = next((item for item in choices if item["id"] == row.selected_choice_id), None)
+            correct = next((item for item in choices if item.get("is_correct")), None)
+            status = "unanswered" if selected is None else ("correct" if selected.get("is_correct") else "incorrect")
+            review.append({
+                "position": row.position,
+                "status": status,
+                "prompt": question.get(f"prompt_{lang}") or question.get("prompt_en", ""),
+                "selected": (selected or {}).get(f"text_{lang}", ""),
+                "correct": (correct or {}).get(f"text_{lang}", ""),
+                "explanation": question.get(f"explanation_{lang}") or question.get("explanation_en", ""),
+                "selected_explanation": (selected or {}).get(f"explanation_{lang}", ""),
+                "skill": row.question.skill.title_fa if lang == "fa" else row.question.skill.title_en,
+                "subskill": question.get("subskill", ""),
+                "difficulty": question.get("difficulty", 3),
+                "transcript": question.get("transcript", "") if question.get("question_type") == "listening" else "",
+            })
+        context["review_groups"] = [
+            (status, [item for item in review if item["status"] == status])
+            for status in ("incorrect", "unanswered", "correct")
+        ]
+        context["learning_plan"] = self._learning_plan(lang)
+        return context
+
+    def _learning_plan(self, lang):
+        actions = {
+            "python": ("تحلیل خروجی کد و حل تمرین‌های کوتاه را روزانه تمرین کن.", "Practise code tracing and short problems every day."),
+            "python-core": ("مبانی پایتون، scope، data model و مدیریت خطا را مرور کن.", "Review Python fundamentals, scope, the data model, and error handling."),
+            "django": ("چرخه request/response، فرم‌ها، middleware و class-based viewها را در یک پروژه کوچک تمرین کن.", "Build a small project around request/response, forms, middleware, and class-based views."),
+            "database": ("QuerySet، ایندکس، transaction و بهینه‌سازی query را با داده واقعی تمرین کن.", "Practise QuerySets, indexes, transactions, and query optimisation with realistic data."),
+            "security": ("تهدیدهای OWASP، مجوزدهی، CSRF و مدیریت secretها را روی یک نمونه عملی مرور کن.", "Review OWASP risks, authorisation, CSRF, and secret management in a practical example."),
+            "testing-quality": ("برای view، service و edge caseها تست واحد و یکپارچه بنویس.", "Write unit and integration tests for views, services, and edge cases."),
+            "deployment": ("تنظیمات production، PostgreSQL، static/media، logging و health check را تمرین کن.", "Practise production settings, PostgreSQL, static/media, logging, and health checks."),
+            "grammar": ("خطاهای گرامری ثبت‌شده را دسته‌بندی و با مثال‌های مشابه بازنویسی کن.", "Classify your grammar errors and rewrite comparable examples."),
+            "vocabulary": ("واژگان اشتباه را در جمله و collocation مرور کن، نه به‌صورت منفرد.", "Review missed vocabulary in sentences and collocations, not in isolation."),
+            "reading": ("هر روز یک متن سطح بالا را زمان‌دار بخوان و ادعا، لحن و استنباط را استخراج کن.", "Time one advanced text daily and identify claims, tone, and inferences."),
+            "use-of-english": ("ساخت‌های ثابت، اصلاح خطا و paraphrase را با تمرین زمان‌دار تقویت کن.", "Strengthen fixed expressions, error correction, and paraphrasing under time pressure."),
+            "listening": ("فایل را یک‌بار برای مفهوم کلی و بار دوم برای جزئیات گوش کن، سپس transcript را مقایسه کن.", "Listen once for gist and once for detail, then compare with the transcript."),
+            "writing-objective": ("سازمان‌دهی متن، register، cohesion و انتخاب دقیق عبارت را در نمونه‌های کوتاه تمرین کن.", "Practise organisation, register, cohesion, and precise phrasing in short samples."),
+            "advanced": ("روی nuance، inference و انتخاب‌های نزدیک به هم در سطح C1 تمرکز کن.", "Focus on nuance, inference, and closely competing options at C1 level."),
+        }
+        skill_rows = sorted(self.object.skill_results.all(), key=lambda item: (item.percentage, item.skill.display_order))
+        plan = []
+        for item in skill_rows[:3]:
+            pair = actions.get(item.skill.code, (
+                "پاسخ‌های اشتباه این مهارت را مرور و با تمرین هدفمند تکرار کن.",
+                "Review missed answers in this skill and repeat with targeted practice.",
+            ))
+            plan.append({
+                "title": item.skill.title_fa if lang == "fa" else item.skill.title_en,
+                "percentage": item.percentage,
+                "action": pair[0] if lang == "fa" else pair[1],
+                "priority": ("بالا" if lang == "fa" else "High") if item.percentage < 60 else ("متوسط" if lang == "fa" else "Medium"),
+            })
+        score = float(self.object.percentage)
+        if score < 60:
+            retest = "پس از ۲ تا ۳ هفته تمرین هدفمند دوباره آزمون بده." if lang == "fa" else "Retake after 2–3 weeks of targeted practice."
+        elif score < 75:
+            retest = "پس از ۱۰ تا ۱۴ روز مرور هدفمند دوباره آزمون بده." if lang == "fa" else "Retake after 10–14 days of targeted review."
+        else:
+            retest = "پس از رفع خطاهای ثبت‌شده، حدود ۷ روز دیگر دوباره آزمون بده." if lang == "fa" else "Retake in about 7 days after addressing the recorded errors."
+        return {"items": plan, "retest": retest}
+
 
 class CertificateView(LanguageViewMixin, DetailView):
     model = Certificate

@@ -90,6 +90,18 @@ class BenchmarkCommandTests(TestCase):
 
 
 class PublishedPythonBankTests(TestCase):
+    def test_seed_command_bootstraps_empty_database_and_is_idempotent(self):
+        call_command("seed_assessment_banks", verbosity=0)
+        call_command("seed_assessment_banks", verbosity=0)
+
+        self.assertEqual(Exam.objects.count(), 2)
+        english = Exam.objects.get(slug="english-placement-a1-c1")
+        python = Exam.objects.get(slug="python-django-professional")
+        self.assertEqual(english.versions.get(version=3).questions.count(), 200)
+        self.assertEqual(python.versions.get(version=2).questions.count(), 200)
+        self.assertEqual(english.versions.filter(version=3).count(), 1)
+        self.assertEqual(python.versions.filter(version=2).count(), 1)
+
     def test_version_two_publishes_and_builds_a_balanced_fifty_question_attempt(self):
         english_exam = Exam.objects.create(
             slug="english-placement-a1-c1", title_fa="انگلیسی", title_en="English",

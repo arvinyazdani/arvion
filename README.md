@@ -17,10 +17,11 @@ If port 8000 is already used, run `./run-local.sh 8001` or `python manage.py run
 Copy `.env.example` values into the hosting provider, set `DJANGO_SETTINGS_MODULE=arvion.settings.production`, then run:
 
 ```bash
-python manage.py migrate
-python manage.py collectstatic --noinput
+./deploy.sh
 gunicorn arvion.wsgi:application
 ```
+
+`deploy.sh` updates the PostgreSQL schema, publishes both validated 200-question assessment banks, and collects static files. It is safe to run again during later deployments: published bank versions are not duplicated, and user accounts, orders, attempts, and results are never seeded or deleted.
 
 Production requires PostgreSQL, real SMTP credentials and an S3-compatible bucket for uploaded media. Static assets are collected and served through WhiteNoise. The application refuses to start when required production variables are missing or when the sandbox payment gateway is selected.
 

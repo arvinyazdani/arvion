@@ -123,6 +123,7 @@ class AssessmentEngineTests(TestCase):
         question = Question.objects.create(
             version=self.version, section=self.section, skill=self.skill,
             prompt_fa=f"سؤال {index}", prompt_en=f"Question {index}", difficulty=3,
+            explanation_fa="دلیل علمی پاسخ.", explanation_en="Scientific answer rationale.",
         )
         for choice_index in range(4):
             Choice.objects.create(
@@ -367,6 +368,68 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(certificate_response.status_code, 200)
         self.assertContains(certificate_response, result.certificate.verification_code)
         self.assertNotContains(certificate_response, self.user.email)
+
+    def test_result_reviews_correct_incorrect_and_unanswered_answers(self):
+        attempt = self.start()
+        rows = list(attempt.attempt_questions.select_related("question"))
+        correct_choice = rows[0].question.choices.get(is_correct=True)
+        rows[0].selected_choice = correct_choice
+        rows[0].save(update_fields=["selected_choice"])
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:result", args=[result.pk]) + "?lang=en")
+
+        self.assertContains(response, "Complete answer review")
+        self.assertContains(response, "Your answer")
+        self.assertContains(response, correct_choice.text_en)
+        self.assertContains(response, "No answer was submitted.")
+        self.assertContains(response, "Why is this answer appropriate?")
+        self.assertContains(response, "Why is this the correct answer?")
+        self.assertContains(response, "Suggested learning plan")
+        self.assertEqual(sum(len(items) for _, items in response.context["review_groups"]), 2)
+
+    def test_result_review_uses_immutable_snapshot_after_bank_changes(self):
+        attempt = self.start()
+        row = attempt.attempt_questions.first()
+        original_prompt = row.question_snapshot["prompt_en"]
+        original_correct = next(choice["text_en"] for choice in row.choices_snapshot if choice["is_correct"])
+        row.question.prompt_en = "CHANGED BANK PROMPT"
+        row.question.save(update_fields=["prompt_en"])
+        current_correct = row.question.choices.get(is_correct=True)
+        current_correct.text_en = "CHANGED BANK ANSWER"
+        current_correct.save(update_fields=["text_en"])
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:result", args=[result.pk]) + "?lang=en")
+
+        self.assertContains(response, original_prompt)
+        self.assertContains(response, original_correct)
+        self.assertNotContains(response, "CHANGED BANK PROMPT")
+        self.assertNotContains(response, "CHANGED BANK ANSWER")
+
+    def test_listening_transcript_is_revealed_only_on_result(self):
+        Question.objects.filter(pk__in=[question.pk for question in self.questions]).update(
+            question_type="listening", audio_path="assessments/audio/clip01.wav",
+            transcript="Private transcript for post-assessment review.", max_plays=2,
+        )
+        attempt = self.start()
+        self.client.force_login(self.user)
+        attempt_page = self.client.get(attempt.get_absolute_url() + "?lang=en")
+        self.assertNotContains(attempt_page, "Private transcript for post-assessment review.")
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+
+        result_page = self.client.get(reverse("assessments:result", args=[result.pk]) + "?lang=en")
+
+        self.assertContains(result_page, "Show audio transcript")
+        self.assertContains(result_page, "Private transcript for post-assessment review.")
 
     def test_complete_candidate_journey_from_start_to_report(self):
         self.client.force_login(self.user)

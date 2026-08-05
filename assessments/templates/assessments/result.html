@@ -1,6 +1,56 @@
 {% extends "core/base.html" %}
+{% load assessment_extras %}
 {% block title %}{% if lang == 'fa' %}نتیجه آزمون{% else %}Assessment result{% endif %} | Arvion{% endblock %}
 {% block content %}
-<section class="result-hero"><div class="shell result-hero-grid"><div><span class="eyebrow" data-ascii>ASSESSMENT RESULT / {{ result.attempt.exam.slug }}</span><h1>{% if lang == 'fa' %}نتیجه‌ات آماده است.{% else %}Your result is ready.{% endif %}</h1><p>{% if lang == 'fa' %}{{ result.summary_fa }}{% else %}{{ result.summary_en }}{% endif %}</p></div><div class="score-orbit"><strong>{{ result.percentage|floatformat:0 }}</strong><span>/ 100</span><b>{% if lang == 'fa' %}{{ result.level_title_fa }}{% else %}{{ result.level_title_en }}{% endif %}</b></div></div></section>
-<section class="section"><div class="shell result-grid"><article class="result-panel skill-panel"><div class="section-head compact-head"><div><span class="eyebrow">SKILL BREAKDOWN</span><h2>{% if lang == 'fa' %}نقشه مهارت‌ها{% else %}Skill map{% endif %}</h2></div></div>{% for item in result.skill_results.all %}<div class="skill-bar"><div><strong>{% if lang == 'fa' %}{{ item.skill.title_fa }}{% else %}{{ item.skill.title_en }}{% endif %}</strong><span>{{ item.percentage|floatformat:0 }}%</span></div><div class="bar-track"><span style="width:{{ item.percentage }}%"></span></div><small>{{ item.correct_count }} / {{ item.question_count }} {% if lang == 'fa' %}پاسخ صحیح{% else %}correct{% endif %}</small></div>{% endfor %}</article><aside class="result-side"><article class="result-panel"><span class="card-number">ANSWER SUMMARY</span><div class="answer-stats"><span><strong>{{ result.correct_count }}</strong>{% if lang == 'fa' %}صحیح{% else %}Correct{% endif %}</span><span><strong>{{ result.incorrect_count }}</strong>{% if lang == 'fa' %}غلط{% else %}Incorrect{% endif %}</span><span><strong>{{ result.unanswered_count }}</strong>{% if lang == 'fa' %}بدون پاسخ{% else %}Unanswered{% endif %}</span></div></article><article class="result-panel"><span class="card-number">NEXT STEP</span><h3>{% if lang == 'fa' %}روی ضعف‌ها تمرکز کن{% else %}Focus on weak areas{% endif %}</h3>{% for skill in result.weaknesses %}<span class="insight-pill">{% if lang == 'fa' %}{{ skill.title_fa }}{% else %}{{ skill.title_en }}{% endif %} · {{ skill.percentage|floatformat:0 }}%</span>{% empty %}<p>{% if lang == 'fa' %}ضعف جدی ثبت نشد؛ تمرین ترکیبی را ادامه بده.{% else %}No major weakness detected; continue mixed practice.{% endif %}</p>{% endfor %}</article><a class="button certificate-button" href="{{ result.certificate.get_absolute_url }}?lang={{ lang }}">{% if lang == 'fa' %}مشاهده گواهی ←{% else %}View certificate →{% endif %}</a></aside></div></section>
+<section class="result-hero">
+  <div class="shell result-hero-grid">
+    <div><span class="eyebrow" data-ascii>ASSESSMENT RESULT / {{ result.attempt.exam.slug }}</span><h1>{% if lang == 'fa' %}نتیجه‌ات آماده است.{% else %}Your result is ready.{% endif %}</h1><p>{% if lang == 'fa' %}{{ result.summary_fa }}{% else %}{{ result.summary_en }}{% endif %}</p></div>
+    <div class="score-orbit"><strong>{{ result.percentage|floatformat:0 }}</strong><span>/ 100</span><b>{% if lang == 'fa' %}{{ result.level_title_fa }}{% else %}{{ result.level_title_en }}{% endif %}</b></div>
+  </div>
+</section>
+<section class="section">
+  <div class="shell result-grid">
+    <article class="result-panel skill-panel">
+      <div class="section-head compact-head"><div><span class="eyebrow">SKILL BREAKDOWN</span><h2>{% if lang == 'fa' %}نقشه مهارت‌ها{% else %}Skill map{% endif %}</h2></div></div>
+      {% for item in result.skill_results.all %}<div class="skill-bar"><div><strong>{% if lang == 'fa' %}{{ item.skill.title_fa }}{% else %}{{ item.skill.title_en }}{% endif %}</strong><span>{{ item.percentage|floatformat:0 }}%</span></div><div class="bar-track"><span style="width:{{ item.percentage }}%"></span></div><small>{{ item.correct_count }} / {{ item.question_count }} {% if lang == 'fa' %}پاسخ صحیح{% else %}correct{% endif %}</small></div>{% endfor %}
+    </article>
+    <aside class="result-side">
+      <article class="result-panel"><span class="card-number">ANSWER SUMMARY</span><div class="answer-stats"><span><strong>{{ result.correct_count }}</strong>{% if lang == 'fa' %}صحیح{% else %}Correct{% endif %}</span><span><strong>{{ result.incorrect_count }}</strong>{% if lang == 'fa' %}غلط{% else %}Incorrect{% endif %}</span><span><strong>{{ result.unanswered_count }}</strong>{% if lang == 'fa' %}بدون پاسخ{% else %}Unanswered{% endif %}</span></div></article>
+      <article class="result-panel"><span class="card-number">NEXT STEP</span><h3>{% if lang == 'fa' %}روی ضعف‌ها تمرکز کن{% else %}Focus on weak areas{% endif %}</h3>{% for skill in result.weaknesses %}<span class="insight-pill">{% if lang == 'fa' %}{{ skill.title_fa }}{% else %}{{ skill.title_en }}{% endif %} · {{ skill.percentage|floatformat:0 }}%</span>{% empty %}<p>{% if lang == 'fa' %}ضعف جدی ثبت نشد؛ تمرین ترکیبی را ادامه بده.{% else %}No major weakness detected; continue mixed practice.{% endif %}</p>{% endfor %}</article>
+      <a class="button certificate-button" href="{{ result.certificate.get_absolute_url }}?lang={{ lang }}">{% if lang == 'fa' %}مشاهده گواهی ←{% else %}View certificate →{% endif %}</a>
+    </aside>
+  </div>
+</section>
+<section class="section learning-section">
+  <div class="shell">
+    <div class="section-head"><div><span class="eyebrow">PERSONAL LEARNING PLAN</span><h2>{% if lang == 'fa' %}برنامه پیشنهادی یادگیری{% else %}Suggested learning plan{% endif %}</h2></div><p>{% if lang == 'fa' %}این پیشنهادها قانون‌محورند و بر اساس ضعیف‌ترین مهارت‌های همین آزمون ساخته شده‌اند.{% else %}These rule-based suggestions are generated from your weakest skills in this attempt.{% endif %}</p></div>
+    <div class="learning-grid">{% for item in learning_plan.items %}<article class="learning-card"><div><span>{{ forloop.counter|stringformat:"02d" }}</span><b>{{ item.priority }}</b></div><h3>{{ item.title }}</h3><strong>{{ item.percentage|floatformat:0 }}%</strong><p>{{ item.action }}</p></article>{% endfor %}</div>
+    <div class="retest-note"><strong>{% if lang == 'fa' %}زمان پیشنهادی آزمون مجدد{% else %}Recommended retake{% endif %}</strong><span>{{ learning_plan.retest }}</span></div>
+  </div>
+</section>
+<section class="section answer-review-section">
+  <div class="shell">
+    <div class="section-head"><div><span class="eyebrow">ANSWER REVIEW</span><h2>{% if lang == 'fa' %}مرور کامل پاسخ‌ها{% else %}Complete answer review{% endif %}</h2></div><p>{% if lang == 'fa' %}پاسخ خودت، پاسخ درست و دلیل علمی هر سؤال را یک‌جا ببین.{% else %}Review your answer, the correct answer, and the rationale for every question.{% endif %}</p></div>
+    <nav class="review-nav" aria-label="{% if lang == 'fa' %}فیلتر مرور پاسخ‌ها{% else %}Answer review filters{% endif %}">
+      <a href="#review-incorrect">{% if lang == 'fa' %}غلط{% else %}Incorrect{% endif %} <b>{{ result.incorrect_count }}</b></a>
+      <a href="#review-unanswered">{% if lang == 'fa' %}بدون پاسخ{% else %}Unanswered{% endif %} <b>{{ result.unanswered_count }}</b></a>
+      <a href="#review-correct">{% if lang == 'fa' %}صحیح{% else %}Correct{% endif %} <b>{{ result.correct_count }}</b></a>
+    </nav>
+    {% for status, items in review_groups %}
+      <div class="review-group" id="review-{{ status }}">
+        <h3>{% if status == 'incorrect' %}{% if lang == 'fa' %}پاسخ‌های غلط{% else %}Incorrect answers{% endif %}{% elif status == 'unanswered' %}{% if lang == 'fa' %}سؤال‌های بدون پاسخ{% else %}Unanswered questions{% endif %}{% else %}{% if lang == 'fa' %}پاسخ‌های صحیح{% else %}Correct answers{% endif %}{% endif %} <span>{{ items|length }}</span></h3>
+        {% for item in items %}<article class="review-card review-{{ item.status }}">
+          <div class="review-card-head"><span>{% if lang == 'fa' %}سؤال {{ item.position }}{% else %}Question {{ item.position }}{% endif %}</span><div><small>{{ item.skill }}{% if item.subskill %} · {{ item.subskill }}{% endif %}</small><b>{% if item.status == 'correct' %}{% if lang == 'fa' %}صحیح{% else %}Correct{% endif %}{% elif item.status == 'incorrect' %}{% if lang == 'fa' %}غلط{% else %}Incorrect{% endif %}{% else %}{% if lang == 'fa' %}بدون پاسخ{% else %}Unanswered{% endif %}{% endif %}</b></div></div>
+          <div class="review-prompt">{{ item.prompt|inline_code }}</div>
+          <div class="review-answers">
+            <div class="selected-answer"><span>{% if lang == 'fa' %}پاسخ شما{% else %}Your answer{% endif %}</span><p>{% if item.selected %}{{ item.selected|inline_code }}{% else %}<em>{% if lang == 'fa' %}پاسخی ثبت نشده است.{% else %}No answer was submitted.{% endif %}</em>{% endif %}</p></div>
+            <div class="correct-answer"><span>{% if lang == 'fa' %}پاسخ درست{% else %}Correct answer{% endif %}</span><p>{{ item.correct|inline_code }}</p></div>
+          </div>
+          {% if item.explanation %}<div class="review-rationale"><strong>{% if item.status == 'correct' %}{% if lang == 'fa' %}چرا این پاسخ مناسب است؟{% else %}Why is this answer appropriate?{% endif %}{% else %}{% if lang == 'fa' %}چرا این پاسخ درست است؟{% else %}Why is this the correct answer?{% endif %}{% endif %}</strong><p>{{ item.explanation|inline_code }}</p></div>{% endif %}
+          {% if item.transcript %}<details class="transcript"><summary>{% if lang == 'fa' %}نمایش متن فایل صوتی{% else %}Show audio transcript{% endif %}</summary><p data-ascii>{{ item.transcript }}</p></details>{% endif %}
+        </article>{% empty %}<p class="empty-review">{% if lang == 'fa' %}موردی در این بخش وجود ندارد.{% else %}Nothing to review in this section.{% endif %}</p>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}
