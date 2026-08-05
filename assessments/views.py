@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
+from django.db.models import Count
 from django.http import Http404
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -272,6 +273,24 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
             for status in ("incorrect", "unanswered", "correct")
         ]
         context["learning_plan"] = self._learning_plan(lang)
+        event_labels = {
+            "tab_hidden": ("خروج از تب", "Tab switches"),
+            "window_blur": ("خروج از پنجره", "Window focus losses"),
+            "copy": ("تلاش برای کپی", "Copy attempts"),
+            "paste": ("تلاش برای جای‌گذاری", "Paste attempts"),
+            "other": ("سایر رخدادها", "Other events"),
+        }
+        context["integrity_events"] = [
+            {
+                "code": item["event_type"], "count": item["total"],
+                "label": event_labels[item["event_type"]][0 if lang == "fa" else 1],
+            }
+            for item in self.object.attempt.integrity_events.values("event_type").annotate(total=Count("id")).order_by("event_type")
+        ]
+        context["integrity_needs_review"] = (
+            self.object.attempt.integrity_score < settings.ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD
+        )
+        context["integrity_threshold"] = settings.ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD
         return context
 
     def _learning_plan(self, lang):
@@ -323,5 +342,12 @@ class CertificateView(LanguageViewMixin, DetailView):
 
     def get_queryset(self):
         return Certificate.objects.filter(is_revoked=False).select_related(
-            "result__attempt__user", "result__attempt__exam"
+            "result__attempt__user", "result__attempt__exam", "result__attempt__version"
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["integrity_needs_review"] = (
+            self.object.result.attempt.integrity_score < settings.ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD
+        )
+        return context

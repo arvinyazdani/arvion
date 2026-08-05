@@ -364,10 +364,37 @@ class AssessmentEngineTests(TestCase):
         other = User.objects.create_user(username="viewer@example.com", email="viewer@example.com", password="test")
         self.client.force_login(other)
         self.assertEqual(self.client.get(reverse("assessments:result", args=[result.pk])).status_code, 404)
-        certificate_response = self.client.get(reverse("assessments:certificate", args=[result.certificate.verification_code]))
+        certificate_response = self.client.get(
+            reverse("assessments:certificate", args=[result.certificate.verification_code]) + "?lang=en"
+        )
         self.assertEqual(certificate_response.status_code, 200)
         self.assertContains(certificate_response, result.certificate.verification_code)
+        self.assertContains(certificate_response, "RESULT IS VERIFIABLE")
+        self.assertContains(certificate_response, "Integrity")
+        self.assertContains(certificate_response, f"Assessment version {attempt.version.version}")
         self.assertNotContains(certificate_response, self.user.email)
+
+    def test_integrity_summary_counts_events_and_flags_low_score(self):
+        attempt = self.start()
+        attempt.integrity_score = 72
+        attempt.status = "submitted"
+        attempt.save(update_fields=["integrity_score", "status"])
+        IntegrityEvent.objects.create(attempt=attempt, event_type="tab_hidden")
+        IntegrityEvent.objects.create(attempt=attempt, event_type="tab_hidden")
+        IntegrityEvent.objects.create(attempt=attempt, event_type="copy")
+        result, _ = score_attempt(attempt.pk)
+        self.client.force_login(self.user)
+
+        report = self.client.get(reverse("assessments:result", args=[result.pk]) + "?lang=en")
+        certificate = self.client.get(
+            reverse("assessments:certificate", args=[result.certificate.verification_code]) + "?lang=en"
+        )
+
+        self.assertContains(report, "Review by receiving organization")
+        self.assertContains(report, "Tab switches")
+        self.assertContains(report, "Copy attempts")
+        self.assertContains(certificate, "MANUAL REVIEW REQUIRED")
+        self.assertContains(certificate, "72%")
 
     def test_result_reviews_correct_incorrect_and_unanswered_answers(self):
         attempt = self.start()
