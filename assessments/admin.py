@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .models import (
     Attempt, AttemptResult, Certificate, Choice, Exam, ExamEntitlement,
     ExamSection, ExamVersion, IntegrityEvent, Order, PaymentTransaction,
@@ -17,10 +18,19 @@ class ExamAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "exam", "subtotal_irr", "discount_percent", "amount_irr", "status", "gateway", "created_at")
+    list_display = ("id", "user", "exam", "subtotal_display", "discount_percent", "amount_display", "status", "gateway", "created_at")
     list_filter = ("status", "gateway", "created_at")
     search_fields = ("id", "user__email", "exam__title_en")
     readonly_fields = ("id", "user", "exam", "subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "terms_version", "terms_accepted_at", "paid_at", "confirmation_email_sent_at", "created_at", "updated_at")
+    actions = (export_orders,)
+
+    @admin.display(description="Subtotal (IRR)", ordering="subtotal_irr")
+    def subtotal_display(self, obj):
+        return f"{obj.subtotal_irr:,}"
+
+    @admin.display(description="Final (IRR)", ordering="amount_irr")
+    def amount_display(self, obj):
+        return f"{obj.amount_irr:,}"
 
 
 @admin.register(PaymentTransaction)
@@ -102,6 +112,7 @@ class AttemptResultAdmin(admin.ModelAdmin):
     list_filter = ("level_code", "generated_at")
     readonly_fields = ("attempt", "correct_count", "incorrect_count", "unanswered_count", "percentage", "level_code", "level_title_fa", "level_title_en", "summary_fa", "summary_en", "strengths", "weaknesses", "generated_at", "report_email_sent_at")
     inlines = (SkillResultInline,)
+    actions = (export_results,)
 
 
 @admin.register(Certificate)
@@ -118,3 +129,4 @@ class SupportTicketAdmin(admin.ModelAdmin):
     list_filter = ("status", "category", "created_at")
     search_fields = ("user__email", "subject", "message", "order__id")
     readonly_fields = ("user", "order", "result", "category", "subject", "message", "created_at", "updated_at")
+    actions = (export_tickets, mark_tickets_in_review, mark_tickets_resolved)

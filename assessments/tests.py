@@ -15,6 +15,7 @@ from .models import (
     ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, Order,
     PaymentTransaction, Question, Skill, SupportTicket,
 )
+from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .services import (
     AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
     verify_sandbox_payment,
@@ -22,6 +23,70 @@ from .services import (
 
 
 User = get_user_model()
+
+
+class AssessmentAdminExportTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="admin-export@example.com", email="=FORMULA@example.com", password="test",
+            is_active=True,
+        )
+        self.exam = Exam.objects.create(
+            slug="admin-export", title_fa="خروجی", title_en="Export",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+
+    def test_order_csv_is_excel_compatible_selected_only_and_formula_safe(self):
+        selected = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000, discount_irr=500_000,
+            discount_percent=100, amount_irr=0, gateway="free", status="paid",
+        )
+        other = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000, amount_irr=500_000,
+            gateway="sandbox", status="paid",
+        )
+
+        response = export_orders(None, None, Order.objects.filter(pk=selected.pk))
+        content = response.content.decode("utf-8-sig")
+
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("order_id,user_email,exam,subtotal_irr", content)
+        self.assertIn("'=FORMULA@example.com", content)
+        self.assertIn(str(selected.pk), content)
+        self.assertNotIn(str(other.pk), content)
+        self.assertIn(",100,500000,0,free,paid,", content)
+
+    def test_operational_exports_omit_answers_and_ticket_messages(self):
+        result_csv = export_results(None, None, AttemptResult.objects.none()).content.decode("utf-8-sig")
+        ticket_csv = export_tickets(None, None, SupportTicket.objects.none()).content.decode("utf-8-sig")
+
+        self.assertIn("score,level,correct,incorrect,unanswered,integrity", result_csv)
+        self.assertNotIn("prompt", result_csv.lower())
+        self.assertNotIn("selected_choice", result_csv.lower())
+        self.assertNotIn("question", result_csv.lower())
+        self.assertIn("ticket_id,user_email,category,status", ticket_csv)
+        self.assertNotIn("message", ticket_csv.lower())
+
+    def test_ticket_workflow_actions_do_not_reopen_closed_tickets(self):
+        open_ticket = SupportTicket.objects.create(
+            user=self.user, category="technical", subject="Open", message="Details",
+        )
+        closed_ticket = SupportTicket.objects.create(
+            user=self.user, category="other", subject="Closed", message="Details", status="closed",
+        )
+        queryset = SupportTicket.objects.filter(pk__in=(open_ticket.pk, closed_ticket.pk))
+
+        mark_tickets_in_review(None, None, queryset)
+        open_ticket.refresh_from_db()
+        closed_ticket.refresh_from_db()
+        self.assertEqual(open_ticket.status, "in_review")
+        self.assertEqual(closed_ticket.status, "closed")
+
+        mark_tickets_resolved(None, None, queryset)
+        open_ticket.refresh_from_db()
+        closed_ticket.refresh_from_db()
+        self.assertEqual(open_ticket.status, "resolved")
+        self.assertEqual(closed_ticket.status, "closed")
 
 
 class AssessmentCommerceTests(TestCase):
