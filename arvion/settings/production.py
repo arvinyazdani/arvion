@@ -4,7 +4,12 @@ import dj_database_url
 
 from .base import *  # noqa: F403
 
-required = ["DJANGO_SECRET_KEY", "DATABASE_URL", "DJANGO_ALLOWED_HOSTS"]
+required = [
+    "DJANGO_SECRET_KEY", "DATABASE_URL", "DJANGO_ALLOWED_HOSTS",
+    "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL",
+    "AWS_STORAGE_BUCKET_NAME", "AWS_S3_ENDPOINT_URL",
+    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+]
 missing = [name for name in required if not os.getenv(name)]
 if missing:
     raise RuntimeError(f"Missing production environment variables: {', '.join(missing)}")
@@ -17,6 +22,24 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = True
+
+STORAGES = {
+    "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+AWS_S3_ENDPOINT_URL = os.environ["AWS_S3_ENDPOINT_URL"].rstrip("/")
+AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "auto")
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN", "")
+MEDIA_URL = (
+    f"https://{AWS_S3_CUSTOM_DOMAIN}/" if AWS_S3_CUSTOM_DOMAIN
+    else f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+)
 
 CSRF_TRUSTED_ORIGINS = [url.strip() for url in os.getenv("CSRF_TRUSTED_ORIGINS", "https://rvin-tech.com,https://www.rvin-tech.com").split(",")]
 SECURE_SSL_REDIRECT = True
