@@ -119,6 +119,43 @@ class AccountFlowTests(TestCase):
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertRedirects(response, f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}")
 
+    def test_password_reset_changes_password_and_preserves_language(self):
+        user = User.objects.create_user(
+            username="reset@example.com", email="reset@example.com", password="old-password-42",
+            first_name="Reset", last_name="User", is_active=True, email_verified=True,
+        )
+        request = self.client.post(
+            reverse("accounts:password_reset") + "?lang=en", {"email": user.email}
+        )
+        self.assertRedirects(request, reverse("accounts:password_reset_done") + "?lang=en")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Reset your Arvion password")
+        self.assertIn("?lang=en", mail.outbox[0].body)
+        reset_url = re.search(r"http://testserver([^\s]+)", mail.outbox[0].body).group(1)
+        confirm = self.client.get(reset_url, follow=True)
+        self.assertEqual(confirm.status_code, 200)
+        self.assertContains(confirm, "Choose a new password")
+        confirm_url = confirm.redirect_chain[-1][0]
+
+        completed = self.client.post(confirm_url, {
+            "new_password1": "A-new-secure-password-84",
+            "new_password2": "A-new-secure-password-84",
+        })
+
+        self.assertRedirects(completed, reverse("accounts:password_reset_complete") + "?lang=en")
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("A-new-secure-password-84"))
+
+    def test_password_reset_does_not_reveal_unknown_email(self):
+        response = self.client.post(
+            reverse("accounts:password_reset") + "?lang=en", {"email": "unknown@example.com"}
+        )
+
+        self.assertRedirects(response, reverse("accounts:password_reset_done") + "?lang=en")
+        self.assertEqual(len(mail.outbox), 0)
+        done = self.client.get(response.url)
+        self.assertContains(done, "If an active account exists")
+
     def test_duplicate_email_is_rejected_case_insensitively(self):
         User.objects.create_user(username="arvin@example.com", email="arvin@example.com", password="test")
         response = self.client.post(reverse("accounts:register"), self.registration_payload())

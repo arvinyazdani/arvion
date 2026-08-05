@@ -1,7 +1,10 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import (
+    LoginView, PasswordResetCompleteView, PasswordResetConfirmView,
+    PasswordResetDoneView, PasswordResetView,
+)
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.shortcuts import get_object_or_404, redirect, render
@@ -64,6 +67,34 @@ class AccountLoginView(LanguageViewMixin, LoginView):
         kwargs = super().get_form_kwargs()
         kwargs["lang"] = self.lang
         return kwargs
+
+
+class AccountPasswordResetView(LanguageViewMixin, PasswordResetView):
+    template_name = "accounts/password_reset_form.html"
+    email_template_name = "accounts/password_reset_email.txt"
+    subject_template_name = "accounts/password_reset_subject.txt"
+
+    def form_valid(self, form):
+        self.extra_email_context = {"lang": self.lang}
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return f"{reverse('accounts:password_reset_done')}?lang={self.lang}"
+
+
+class AccountPasswordResetDoneView(LanguageViewMixin, PasswordResetDoneView):
+    template_name = "accounts/password_reset_done.html"
+
+
+class AccountPasswordResetConfirmView(LanguageViewMixin, PasswordResetConfirmView):
+    template_name = "accounts/password_reset_confirm.html"
+
+    def get_success_url(self):
+        return f"{reverse('accounts:password_reset_complete')}?lang={self.lang}"
+
+
+class AccountPasswordResetCompleteView(LanguageViewMixin, PasswordResetCompleteView):
+    template_name = "accounts/password_reset_complete.html"
 
 
 class ProfileIdentityView(LanguageViewMixin, LoginRequiredMixin, UpdateView):
