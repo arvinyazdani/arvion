@@ -145,6 +145,31 @@ class AttemptView(LanguageViewMixin, LoginRequiredMixin, DetailView):
         return context
 
 
+class AttemptReviewView(LanguageViewMixin, LoginRequiredMixin, DetailView):
+    model = Attempt
+    template_name = "assessments/attempt_review.html"
+    context_object_name = "attempt"
+
+    def get_queryset(self):
+        return Attempt.objects.filter(user=self.request.user).select_related("exam", "version")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        attempt = self.object
+        expire_if_needed(attempt)
+        if attempt.status != "in_progress":
+            context["attempt_closed"] = True
+            return context
+        items = list(attempt.attempt_questions.only("position", "selected_choice_id"))
+        answered_count = sum(item.selected_choice_id is not None for item in items)
+        context.update({
+            "items": items,
+            "answered_count": answered_count,
+            "unanswered_count": len(items) - answered_count,
+        })
+        return context
+
+
 class SaveAnswerView(LoginRequiredMixin, View):
     def post(self, request, pk, item_pk):
         attempt = get_object_or_404(Attempt, pk=pk, user=request.user)

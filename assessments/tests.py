@@ -260,6 +260,23 @@ class AssessmentEngineTests(TestCase):
         other = User.objects.create_user(username="other2@example.com", email="other2@example.com", password="test")
         self.client.force_login(other)
         self.assertEqual(self.client.get(reverse("assessments:attempt", args=[attempt.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("assessments:attempt_review", args=[attempt.pk])).status_code, 404)
+
+    def test_attempt_review_shows_answered_and_unanswered_questions(self):
+        attempt = self.start()
+        first = attempt.attempt_questions.first()
+        first.selected_choice = first.question.choices.first()
+        first.save(update_fields=["selected_choice"])
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:attempt_review", args=[attempt.pk]) + "?lang=en")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["answered_count"], 1)
+        self.assertEqual(response.context["unanswered_count"], 1)
+        self.assertContains(response, "1 questions are still unanswered")
+        self.assertContains(response, "Submission cannot be undone")
+        self.assertContains(response, f"q={first.position}")
 
     def test_answer_is_saved_and_rejects_foreign_choice(self):
         attempt = self.start()
@@ -532,6 +549,7 @@ class AssessmentEngineTests(TestCase):
         attempt = Attempt.objects.get(entitlement=self.entitlement)
         self.assertRedirects(start_response, attempt.get_absolute_url() + "?lang=fa")
         self.assertContains(self.client.get(attempt.get_absolute_url()), "سؤال 1 / 2")
+        self.assertContains(self.client.get(attempt.get_absolute_url()), "مرور پاسخ‌ها")
         for item in attempt.attempt_questions.select_related("question"):
             choice = item.question.choices.get(is_correct=True)
             answer_response = self.client.post(
