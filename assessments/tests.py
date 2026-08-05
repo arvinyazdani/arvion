@@ -14,7 +14,7 @@ from .models import (
     PaymentTransaction, Question, Skill,
 )
 from .services import (
-    ExamContentError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
+    AttemptLimitError, ExamContentError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
     verify_sandbox_payment,
 )
 
@@ -81,13 +81,15 @@ class AssessmentCommerceTests(TestCase):
         self.client.force_login(self.user)
         self.assertEqual(self.client.post(reverse("assessments:create_order", args=[self.exam.slug])).status_code, 404)
 
-    def test_daily_order_limit_is_enforced(self):
+    def test_pending_order_is_reused_instead_of_creating_duplicates(self):
         self.client.force_login(self.user)
-        for _ in range(5):
-            Order.objects.create(user=self.user, exam=self.exam, amount_irr=self.exam.price_irr)
-        response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
-        self.assertRedirects(response, self.exam.get_absolute_url() + "?lang=fa")
-        self.assertEqual(Order.objects.count(), 5)
+        pending = Order.objects.create(user=self.user, exam=self.exam, amount_irr=self.exam.price_irr)
+        first = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+        second = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+        expected = reverse("assessments:checkout", args=[pending.pk]) + "?lang=fa"
+        self.assertRedirects(first, expected)
+        self.assertRedirects(second, expected)
+        self.assertEqual(Order.objects.count(), 1)
 
 
 class AssessmentEngineTests(TestCase):
@@ -224,7 +226,9 @@ class AssessmentEngineTests(TestCase):
     def test_start_attempt_has_bounded_query_count(self):
         with CaptureQueriesContext(connection) as queries:
             start_attempt(self.entitlement.pk, self.user)
-        self.assertLessEqual(len(queries), 15)
+        # The user-row lock and rolling-window count make the daily limit safe
+        # across concurrent starts while keeping the workflow bounded.
+        self.assertLessEqual(len(queries), 16)
 
     def test_start_is_idempotent(self):
         first, _ = start_attempt(self.entitlement.pk, self.user)
@@ -233,6 +237,45 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(first.pk, second.pk)
         self.entitlement.refresh_from_db()
         self.assertEqual(self.entitlement.attempts_remaining, 0)
+
+    def test_daily_limit_counts_started_attempts_and_preserves_paid_entitlement(self):
+        now = timezone.now()
+        for index in range(5):
+            order = Order.objects.create(
+                user=self.user, exam=self.exam, amount_irr=self.exam.price_irr, status="paid",
+            )
+            entitlement = ExamEntitlement.objects.create(
+                user=self.user, exam=self.exam, order=order, attempts_remaining=0,
+            )
+            Attempt.objects.create(
+                user=self.user, exam=self.exam, version=self.version, entitlement=entitlement,
+                status="completed", started_at=now - timedelta(hours=index),
+                expires_at=now + timedelta(minutes=10),
+            )
+
+        with self.assertRaises(AttemptLimitError):
+            self.start()
+
+        self.entitlement.refresh_from_db()
+        self.assertEqual(self.entitlement.attempts_remaining, 1)
+        self.assertFalse(Attempt.objects.filter(entitlement=self.entitlement).exists())
+
+    def test_attempt_older_than_24_hours_does_not_consume_daily_limit(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=self.exam.price_irr, status="paid",
+        )
+        old_entitlement = ExamEntitlement.objects.create(
+            user=self.user, exam=self.exam, order=order, attempts_remaining=0,
+        )
+        Attempt.objects.create(
+            user=self.user, exam=self.exam, version=self.version, entitlement=old_entitlement,
+            status="completed", started_at=timezone.now() - timedelta(hours=25),
+            expires_at=timezone.now() - timedelta(hours=24),
+        )
+
+        attempt = self.start()
+
+        self.assertEqual(attempt.entitlement, self.entitlement)
 
     def test_start_view_requires_complete_certificate_identity(self):
         self.user.last_name = ""

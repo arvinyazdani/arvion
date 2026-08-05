@@ -48,6 +48,12 @@ class Order(models.Model):
     class Meta:
         ordering = ("-created_at",)
         indexes = [models.Index(fields=("user", "exam", "created_at"), name="order_user_exam_created")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "exam"), condition=models.Q(status="pending"),
+                name="unique_pending_order_per_user_exam",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user_id} / {self.exam_id} / {self.status}"

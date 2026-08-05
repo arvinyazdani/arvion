@@ -3,6 +3,8 @@ import secrets
 from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F, Subquery
 from django.utils import timezone
@@ -14,6 +16,10 @@ from .models import (
 
 
 class ExamContentError(Exception):
+    pass
+
+
+class AttemptLimitError(Exception):
     pass
 
 
@@ -85,6 +91,13 @@ def start_attempt(entitlement_id, user):
         return entitlement.attempt, False
     if entitlement.attempts_remaining < 1:
         raise ExamContentError("No attempts remaining")
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    since = timezone.now() - timedelta(hours=24)
+    recent_count = Attempt.objects.filter(
+        user_id=user.pk, exam=entitlement.exam, started_at__gte=since,
+    ).count()
+    if recent_count >= settings.ASSESSMENT_ATTEMPTS_PER_DAY:
+        raise AttemptLimitError("Daily assessment attempt limit reached")
     version = ExamVersion.objects.filter(exam=entitlement.exam, is_published=True).order_by("-version").first()
     if not version:
         raise ExamContentError("No published exam version")

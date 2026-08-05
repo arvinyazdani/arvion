@@ -18,7 +18,7 @@ from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
-from .services import ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
+from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
 
 class ExamListView(LanguageViewMixin, ListView):
@@ -42,21 +42,9 @@ class ExamDetailView(LanguageViewMixin, DetailView):
 class CreateOrderView(LoginRequiredMixin, View):
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
-        since = timezone.now() - timedelta(hours=24)
-        recent_count = Order.objects.filter(
-            user=request.user,
-            exam=exam,
-            created_at__gte=since,
-            status__in=("pending", "paid"),
-        ).count()
-        if recent_count >= settings.ASSESSMENT_ATTEMPTS_PER_DAY:
-            messages.error(request, "سقف خرید روزانه این آزمون تکمیل شده است.")
-            return redirect(f"{exam.get_absolute_url()}?lang={request.GET.get('lang', 'fa')}")
-        order = Order.objects.create(
-            user=request.user,
-            exam=exam,
-            amount_irr=exam.price_irr,
-            gateway=settings.PAYMENT_GATEWAY,
+        order, _ = Order.objects.get_or_create(
+            user=request.user, exam=exam, status="pending",
+            defaults={"amount_irr": exam.price_irr, "gateway": settings.PAYMENT_GATEWAY},
         )
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={request.GET.get('lang', 'fa')}")
 
@@ -98,6 +86,13 @@ class StartAttemptView(LoginRequiredMixin, View):
             return redirect(f"{reverse('accounts:profile_identity')}?lang={lang}")
         try:
             attempt, _ = start_attempt(entitlement.pk, request.user)
+        except AttemptLimitError:
+            messages.error(
+                request,
+                f"سقف {settings.ASSESSMENT_ATTEMPTS_PER_DAY} بار شروع این آزمون در ۲۴ ساعت تکمیل شده است."
+                if lang == "fa" else f"The limit of {settings.ASSESSMENT_ATTEMPTS_PER_DAY} starts for this assessment within 24 hours has been reached.",
+            )
+            return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
         except ExamContentError:
             messages.error(request, "محتوای این آزمون هنوز آماده انتشار نیست." if lang == "fa" else "This assessment is not ready yet.")
             return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
