@@ -1,6 +1,7 @@
 from .base import *  # noqa: F403
 
 DEBUG = True
+ASSESSMENT_FREE_CHECKOUT = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 DATABASES = {
     "default": {

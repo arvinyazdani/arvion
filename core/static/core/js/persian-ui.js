@@ -6,6 +6,16 @@
     .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
     .replace(/٫/g, ".").replace(/٬/g, ",");
 
+  document.querySelectorAll("strong, dd, .price").forEach(element => {
+    if (element.closest("[data-ascii]")) return;
+    element.childNodes.forEach(node => {
+      if (node.nodeType !== Node.TEXT_NODE) return;
+      node.nodeValue = node.nodeValue.replace(/\b\d{4,}(?=\s*(?:ریال|IRR))/g, value =>
+        Number(value).toLocaleString("en-US")
+      );
+    });
+  });
+
   if (root.lang === "fa") {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let node;

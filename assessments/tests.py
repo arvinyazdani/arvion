@@ -53,12 +53,42 @@ class AssessmentCommerceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response.url)
 
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False)
     def test_order_price_is_copied_from_exam_on_server(self):
         self.client.force_login(self.user)
         response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]), {"amount_irr": 1})
         order = Order.objects.get()
         self.assertEqual(order.amount_irr, 500_000)
         self.assertRedirects(response, reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
+
+    @override_settings(DEBUG=True, PAYMENT_GATEWAY="sandbox", ASSESSMENT_FREE_CHECKOUT=True)
+    def test_local_free_checkout_records_full_discount_and_grants_access(self):
+        self.client.force_login(self.user)
+        created = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]) + "?lang=fa")
+        order = Order.objects.get()
+
+        self.assertEqual(order.subtotal_irr, 500_000)
+        self.assertEqual(order.discount_irr, 500_000)
+        self.assertEqual(order.discount_percent, 100)
+        self.assertEqual(order.amount_irr, 0)
+        self.assertEqual(order.gateway, "free")
+        checkout = self.client.get(created.url)
+        self.assertContains(checkout, "500,000")
+        self.assertContains(checkout, "100٪")
+        self.assertContains(checkout, "بدون اتصال به درگاه")
+
+        confirmed = self.client.post(
+            reverse("assessments:sandbox_pay", args=[order.pk]) + "?lang=fa",
+            {"accept_terms": "yes"},
+        )
+
+        self.assertRedirects(confirmed, reverse("accounts:dashboard") + "?lang=fa")
+        order.refresh_from_db()
+        self.assertEqual(order.status, "paid")
+        self.assertTrue(ExamEntitlement.objects.filter(order=order, attempts_remaining=1).exists())
+        payment = PaymentTransaction.objects.get(order=order)
+        self.assertEqual(payment.gateway, "free")
+        self.assertEqual(payment.amount_irr, 0)
 
     def test_verified_payment_creates_exactly_one_entitlement(self):
         order = Order.objects.create(

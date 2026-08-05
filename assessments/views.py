@@ -96,10 +96,26 @@ class SupportTicketListView(LanguageViewMixin, LoginRequiredMixin, ListView):
 class CreateOrderView(LoginRequiredMixin, View):
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
+        is_free = settings.ASSESSMENT_FREE_CHECKOUT
         order, _ = Order.objects.get_or_create(
             user=request.user, exam=exam, status="pending",
-            defaults={"amount_irr": exam.price_irr, "gateway": settings.PAYMENT_GATEWAY},
+            defaults={
+                "subtotal_irr": exam.price_irr,
+                "discount_irr": exam.price_irr if is_free else 0,
+                "discount_percent": 100 if is_free else 0,
+                "amount_irr": 0 if is_free else exam.price_irr,
+                "gateway": "free" if is_free else settings.PAYMENT_GATEWAY,
+            },
         )
+        if is_free and order.status == "pending" and (
+            order.amount_irr or order.discount_percent != 100 or order.subtotal_irr != exam.price_irr
+        ):
+            order.subtotal_irr = exam.price_irr
+            order.discount_irr = exam.price_irr
+            order.discount_percent = 100
+            order.amount_irr = 0
+            order.gateway = "free"
+            order.save(update_fields=["subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "updated_at"])
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={request.GET.get('lang', 'fa')}")
 
 
@@ -132,7 +148,14 @@ class SandboxPayView(LoginRequiredMixin, View):
         order, created = verify_sandbox_payment(order.pk)
         send_payment_confirmation_email(order, request, lang)
         if created:
-            messages.success(request, "پرداخت آزمایشی تأیید و مجوز آزمون صادر شد." if lang == "fa" else "Test payment verified and access granted.")
+            if order.gateway == "free":
+                messages.success(
+                    request,
+                    "تخفیف ۱۰۰٪ اعمال و دسترسی آزمون فعال شد."
+                    if lang == "fa" else "The 100% discount was applied and assessment access is active.",
+                )
+            else:
+                messages.success(request, "پرداخت آزمایشی تأیید و مجوز آزمون صادر شد." if lang == "fa" else "Test payment verified and access granted.")
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
 
 

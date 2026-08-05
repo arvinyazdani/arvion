@@ -22,7 +22,8 @@ def send_payment_confirmation_email(order, request, lang):
         subject = "تأیید پرداخت آزمون آرویون"
         message = (
             f"پرداخت شما برای «{exam_title}» تأیید شد.\n"
-            f"مبلغ: {order.amount_irr} ریال\n"
+            f"مبلغ نهایی: {order.amount_irr:,} ریال\n"
+            f"تخفیف: {order.discount_percent}٪\n"
             f"شناسه سفارش: {order.pk}\n\n"
             f"مشاهده و چاپ رسید:\n{receipt_url}\n\n"
             "این رسید فاکتور رسمی یا مالیاتی نیست."
@@ -31,7 +32,8 @@ def send_payment_confirmation_email(order, request, lang):
         subject = "Your Arvion assessment payment is confirmed"
         message = (
             f"Your payment for “{exam_title}” has been confirmed.\n"
-            f"Amount: {order.amount_irr} IRR\n"
+            f"Final amount: {order.amount_irr:,} IRR\n"
+            f"Discount: {order.discount_percent}%\n"
             f"Order ID: {order.pk}\n\n"
             f"View and print your receipt:\n{receipt_url}\n\n"
             "This receipt is not an official tax invoice."

@@ -46,6 +46,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "core.context_processors.assessment_flags",
     ]},
 }]
 WSGI_APPLICATION = "arvion.wsgi.application"
@@ -84,6 +85,7 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Arvion <noreply@rvin-tech.
 CONTACT_NOTIFICATION_EMAIL = os.getenv("CONTACT_NOTIFICATION_EMAIL", "owner@rvin-tech.com")
 LEAD_RATE_LIMIT_SECONDS = int(os.getenv("LEAD_RATE_LIMIT_SECONDS", "60"))
 PAYMENT_GATEWAY = os.getenv("PAYMENT_GATEWAY", "sandbox")
+ASSESSMENT_FREE_CHECKOUT = os.getenv("ASSESSMENT_FREE_CHECKOUT", "0") == "1"
 ASSESSMENT_ATTEMPTS_PER_DAY = int(os.getenv("ASSESSMENT_ATTEMPTS_PER_DAY", "5"))
 ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD = int(os.getenv("ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD", "80"))
 ASSESSMENT_TERMS_VERSION = os.getenv("ASSESSMENT_TERMS_VERSION", "2026-08-05")

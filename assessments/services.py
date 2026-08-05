@@ -63,10 +63,11 @@ def verify_sandbox_payment(order_id):
         return order, False
     if not order.terms_accepted_at or not order.terms_version:
         raise PaymentVerificationError("Assessment terms must be accepted before payment")
-    external_id = f"sandbox-{order.id}"
+    gateway = "free" if settings.ASSESSMENT_FREE_CHECKOUT and order.amount_irr == 0 else "sandbox"
+    external_id = f"{gateway}-{order.id}"
     payment, _ = PaymentTransaction.objects.get_or_create(
         external_id=external_id,
-        defaults={"order": order, "gateway": "sandbox", "amount_irr": order.amount_irr},
+        defaults={"order": order, "gateway": gateway, "amount_irr": order.amount_irr},
     )
     if payment.amount_irr != order.amount_irr:
         order.status = "failed"
@@ -78,7 +79,7 @@ def verify_sandbox_payment(order_id):
     now = timezone.now()
     payment.status = "verified"
     payment.verified_at = now
-    payment.raw_response = {"sandbox": True, "verified": True}
+    payment.raw_response = {"sandbox": gateway == "sandbox", "free_checkout": gateway == "free", "verified": True}
     payment.save(update_fields=["status", "verified_at", "raw_response"])
     order.status = "paid"
     order.paid_at = now

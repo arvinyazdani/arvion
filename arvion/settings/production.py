@@ -4,6 +4,8 @@ import dj_database_url
 
 from .base import *  # noqa: F403
 
+ASSESSMENT_FREE_CHECKOUT = False
+
 required = [
     "DJANGO_SECRET_KEY", "DATABASE_URL", "DJANGO_ALLOWED_HOSTS",
     "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL",
