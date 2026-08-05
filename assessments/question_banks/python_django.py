@@ -1,18 +1,34 @@
 """Bilingual professional Python/Django bank; correct choice is stored first."""
 
+BANK_VERSION = 2
+
 SECTIONS = (
-    ("python-core", "هسته پایتون", "Python Core", 15),
-    ("problem-solving", "حل مسئله و تست", "Problem Solving & Testing", 10),
-    ("django", "توسعه جنگو", "Django Development", 15),
-    ("database", "دیتابیس", "Database", 5),
-    ("security-deployment", "امنیت و استقرار", "Security & Deployment", 5),
+    ("python-core", "هسته پایتون", "Python Core", 40, 10),
+    ("problem-solving", "حل مسئله و تحلیل کد", "Problem Solving & Code Analysis", 30, 8),
+    ("testing-quality", "تست و کیفیت کد", "Testing & Code Quality", 25, 6),
+    ("django", "توسعه و معماری جنگو", "Django Development & Architecture", 40, 10),
+    ("database", "پایگاه داده و ORM", "Database & ORM", 25, 6),
+    ("security", "امنیت وب", "Web Security", 20, 5),
+    ("deployment", "استقرار و عملیات", "Deployment & Operations", 20, 5),
 )
 
 
-def q(section, fa, en, correct, *wrong, difficulty=3):
+def q(section, fa, en, correct, *wrong, difficulty=3, subskill="", question_type=None,
+      suggested_seconds=75, explanation_fa="", explanation_en=""):
+    explanation_fa = explanation_fa or f"«{correct}» با رفتار تعریف‌شده این مفهوم سازگار است."
+    explanation_en = explanation_en or f"‘{correct}’ matches the defined behavior of this concept."
     return {"section": section, "prompt_fa": fa, "prompt_en": en,
             "choices": (correct,) + wrong, "difficulty": difficulty,
-            "explanation_fa": f"پاسخ صحیح: {correct}", "explanation_en": f"Correct answer: {correct}"}
+            "subskill": subskill or section,
+            "question_type": question_type or ("code_analysis" if "`" in en else "single_choice"),
+            "suggested_seconds": suggested_seconds,
+            "explanation_fa": explanation_fa, "explanation_en": explanation_en,
+            "choice_explanations_fa": (explanation_fa,) + tuple(
+                f"«{choice}» در این سناریو رفتار یا مفهوم مورد سؤال را تأمین نمی‌کند." for choice in wrong
+            ),
+            "choice_explanations_en": (explanation_en,) + tuple(
+                f"‘{choice}’ does not provide the behavior or concept required in this scenario." for choice in wrong
+            )}
 
 
 QUESTIONS = [
@@ -32,15 +48,15 @@ q("python-core","چرا default mutable در آرگومان تابع خطرنا�
 q("python-core","در async Python، `await` چه می‌کند؟","What does `await` do in async Python?","Suspends the coroutine until an awaitable completes","Starts a new OS process","Blocks every thread","Converts code to sync",difficulty=4),
 q("python-core","هدف type hint چیست؟","What is the purpose of a type hint?","Static analysis and clearer contracts","Runtime encryption","Automatic validation in all cases","Faster SQL",difficulty=2),
 q("problem-solving","برای جلوگیری از جست‌وجوی تکراری membership از چه ساختاری استفاده می‌کنید؟","Which structure avoids repeated linear membership searches?","set","list","tuple","string",difficulty=2),
-q("problem-solving","بهترین تست برای یک تابع pure چیست؟","What is the best basic test for a pure function?","Assert outputs for representative inputs","Inspect server logs only","Test CSS layout","Mock every value",difficulty=2),
-q("problem-solving","اصل Arrange-Act-Assert مربوط به چیست؟","What does Arrange-Act-Assert structure?","A test case","A database index","A deployment pipeline","A class hierarchy",difficulty=2),
-q("problem-solving","برای تست exception در pytest از چه استفاده می‌شود؟","How do you test an exception with pytest?","pytest.raises","pytest.warns only","assert False","try without assert",difficulty=3),
+q("testing-quality","بهترین تست برای یک تابع pure چیست؟","What is the best basic test for a pure function?","Assert outputs for representative inputs","Inspect server logs only","Test CSS layout","Mock every value",difficulty=2),
+q("testing-quality","اصل Arrange-Act-Assert مربوط به چیست؟","What does Arrange-Act-Assert structure?","A test case","A database index","A deployment pipeline","A class hierarchy",difficulty=2),
+q("testing-quality","برای تست exception در pytest از چه استفاده می‌شود؟","How do you test an exception with pytest?","pytest.raises","pytest.warns only","assert False","try without assert",difficulty=3),
 q("problem-solving","مزیت dependency injection چیست؟","What is a benefit of dependency injection?","Easier isolation and testing","More global state","Tighter coupling","No interfaces",difficulty=4),
 q("problem-solving","برای پردازش n آیتم یک‌بار، پیچیدگی مطلوب چیست؟","For one pass over n items, what is the expected complexity?","O(n)","O(n²)","O(2ⁿ)","O(n!)",difficulty=2),
 q("problem-solving","چه زمانی binary search معتبر است؟","When is binary search valid?","When data is sorted","For any linked list","Only for strings","When values are unique only",difficulty=2),
-q("problem-solving","یک تست regression چه هدفی دارد؟","What is the purpose of a regression test?","Prevent a fixed bug from returning","Measure network speed","Generate migrations","Format code",difficulty=3),
-q("problem-solving","property-based testing چه چیزی تولید می‌کند؟","What does property-based testing generate?","Many inputs to check invariants","Production passwords","Database schemas","HTML templates",difficulty=4),
-q("problem-solving","برای خطای intermittent اولین اقدام مناسب چیست؟","What is a good first step for an intermittent failure?","Capture reproducible inputs and context","Ignore it","Add an infinite retry","Disable tests",difficulty=4),
+q("testing-quality","یک تست regression چه هدفی دارد؟","What is the purpose of a regression test?","Prevent a fixed bug from returning","Measure network speed","Generate migrations","Format code",difficulty=3),
+q("testing-quality","property-based testing چه چیزی تولید می‌کند؟","What does property-based testing generate?","Many inputs to check invariants","Production passwords","Database schemas","HTML templates",difficulty=4),
+q("testing-quality","برای خطای intermittent اولین اقدام مناسب چیست؟","What is a good first step for an intermittent failure?","Capture reproducible inputs and context","Ignore it","Add an infinite retry","Disable tests",difficulty=4),
 q("django","Model در معماری Django عمدتاً مسئول چیست؟","What is a Django model primarily responsible for?","Data structure and persistence","CSS rendering","DNS configuration","Browser routing",difficulty=1),
 q("django","برای URL نام‌دار از چه تابعی استفاده می‌شود؟","What resolves a named Django URL?","reverse","redirect only","render","resolve_static",difficulty=1),
 q("django","کاربرد `select_related` چیست؟","What is `select_related` used for?","Joining single-valued relations","Loading CSS","Creating migrations","Hashing passwords",difficulty=3),
@@ -61,9 +77,13 @@ q("database","unique constraint کجا باید enforce شود؟","Where should 
 q("database","مشکل lost update با چه چیزی کاهش می‌یابد؟","What helps prevent a lost update?","Row locking or atomic updates","Template caching","Gzip","Static typing",difficulty=4),
 q("database","normalization چه هدفی دارد؟","What is a goal of normalization?","Reduce redundant inconsistent data","Increase duplicate values","Remove all relations","Avoid constraints",difficulty=3),
 q("database","برای بررسی query کند از چه استفاده می‌شود؟","What helps investigate a slow query?","EXPLAIN / query plan","HTML validator","DNS lookup","Password hasher",difficulty=3),
-q("security-deployment","CSRF protection برای چه حمله‌ای است؟","What does CSRF protection defend against?","Forged state-changing requests","SQL joins","Slow CSS","Disk failure",difficulty=2),
-q("security-deployment","چرا `DEBUG=False` در production لازم است؟","Why should production use `DEBUG=False`?","Avoid exposing sensitive debug details","Enable migrations","Create users","Compile Python",difficulty=2),
-q("security-deployment","secret key باید کجا باشد؟","Where should a production secret key live?","A protected environment/secret manager","Committed to Git","A public template","Client-side JavaScript",difficulty=2),
-q("security-deployment","static و user media چه تفاوتی دارند؟","What is the distinction between static files and user media?","Application assets vs user uploads","Both are Python code","Both belong in Git","There is no difference",difficulty=3),
-q("security-deployment","health check مناسب چه چیزی را نشان می‌دهد؟","What should a useful health check indicate?","Whether the service can handle required dependencies","User passwords","Full stack traces publicly","Marketing content",difficulty=4),
+q("security","CSRF protection برای چه حمله‌ای است؟","What does CSRF protection defend against?","Forged state-changing requests","SQL joins","Slow CSS","Disk failure",difficulty=2),
+q("deployment","چرا `DEBUG=False` در production لازم است؟","Why should production use `DEBUG=False`?","Avoid exposing sensitive debug details","Enable migrations","Create users","Compile Python",difficulty=2),
+q("security","secret key باید کجا باشد؟","Where should a production secret key live?","A protected environment/secret manager","Committed to Git","A public template","Client-side JavaScript",difficulty=2),
+q("deployment","static و user media چه تفاوتی دارند؟","What is the distinction between static files and user media?","Application assets vs user uploads","Both are Python code","Both belong in Git","There is no difference",difficulty=3),
+q("deployment","health check مناسب چه چیزی را نشان می‌دهد؟","What should a useful health check indicate?","Whether the service can handle required dependencies","User passwords","Full stack traces publicly","Marketing content",difficulty=4),
 ]
+
+from .python_django_v2_additions import ADDITIONAL_QUESTIONS  # noqa: E402
+
+QUESTIONS.extend(ADDITIONAL_QUESTIONS)

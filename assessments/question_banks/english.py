@@ -1,5 +1,7 @@
 """Curated English placement bank. Choices are stored with the correct answer first."""
 
+BANK_VERSION = 1
+
 SECTIONS = (
     ("grammar", "گرامر", "Grammar", 15),
     ("vocabulary", "واژگان", "Vocabulary", 10),
