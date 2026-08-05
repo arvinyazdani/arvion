@@ -153,6 +153,9 @@ class Question(models.Model):
     difficulty = models.PositiveSmallIntegerField(choices=DIFFICULTIES, default=3)
     weight = models.DecimalField(max_digits=5, decimal_places=2, default=1)
     suggested_seconds = models.PositiveSmallIntegerField(default=60)
+    audio_path = models.CharField(max_length=255, blank=True)
+    transcript = models.TextField(blank=True)
+    max_plays = models.PositiveSmallIntegerField(default=0)
     explanation_fa = models.TextField(blank=True)
     explanation_en = models.TextField(blank=True)
     source_reference = models.CharField(max_length=255, blank=True)
@@ -230,6 +233,7 @@ class AttemptQuestion(models.Model):
     choices_snapshot = models.JSONField(default=list)
     selected_choice = models.ForeignKey(Choice, on_delete=models.PROTECT, blank=True, null=True, related_name="selected_in_attempts")
     answered_at = models.DateTimeField(blank=True, null=True)
+    audio_play_count = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ("position",)

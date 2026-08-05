@@ -148,6 +148,28 @@ class SaveAnswerView(LoginRequiredMixin, View):
         return JsonResponse({"ok": True, "answered": attempt.attempt_questions.filter(selected_choice__isnull=False).count()})
 
 
+class AudioPlayView(LoginRequiredMixin, View):
+    @transaction.atomic
+    def post(self, request, pk, item_pk):
+        attempt = get_object_or_404(
+            Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress",
+        )
+        if expire_if_needed(attempt):
+            return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
+        item = get_object_or_404(
+            AttemptQuestion.objects.select_for_update().select_related("question"),
+            pk=item_pk, attempt=attempt,
+        )
+        max_plays = int(item.question_snapshot.get("max_plays", item.question.max_plays))
+        if not item.question_snapshot.get("audio_path", item.question.audio_path) or max_plays < 1:
+            return JsonResponse({"ok": False, "reason": "not_audio_question"}, status=400)
+        if item.audio_play_count >= max_plays:
+            return JsonResponse({"ok": False, "reason": "play_limit", "remaining": 0}, status=429)
+        item.audio_play_count += 1
+        item.save(update_fields=["audio_play_count"])
+        return JsonResponse({"ok": True, "remaining": max_plays - item.audio_play_count})
+
+
 class IntegrityEventView(LoginRequiredMixin, View):
     allowed_events = {"tab_hidden": 2, "window_blur": 1, "copy": 1, "paste": 1}
     deduction_limits = {"tab_hidden": 5, "window_blur": 5, "copy": 3, "paste": 3}

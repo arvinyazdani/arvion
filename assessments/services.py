@@ -140,6 +140,8 @@ def start_attempt(entitlement_id, user):
             "question_type": question.question_type, "subskill": question.subskill,
             "difficulty": question.difficulty, "weight": str(question.weight),
             "suggested_seconds": question.suggested_seconds,
+            "audio_path": question.audio_path, "transcript": question.transcript,
+            "max_plays": question.max_plays,
             "explanation_fa": question.explanation_fa, "explanation_en": question.explanation_en,
             "section_code": question.section.code, "skill_code": question.skill.code,
         }

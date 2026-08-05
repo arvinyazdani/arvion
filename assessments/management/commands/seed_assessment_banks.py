@@ -105,6 +105,8 @@ class Command(BaseCommand):
                 subskill=item.get("subskill", item["section"]),
                 content_group=item.get("content_group", ""),
                 suggested_seconds=item.get("suggested_seconds", 60),
+                audio_path=item.get("audio_path", ""), transcript=item.get("transcript", ""),
+                max_plays=item.get("max_plays", 0),
                 explanation_fa=item.get("explanation_fa", item.get("explanation")),
                 explanation_en=item.get("explanation_en", item.get("explanation")),
             )

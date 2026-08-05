@@ -260,6 +260,24 @@ class AssessmentEngineTests(TestCase):
         response = self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": foreign_question.choices.first().pk})
         self.assertEqual(response.status_code, 404)
 
+    def test_listening_play_count_is_limited_to_two(self):
+        Question.objects.filter(pk__in=[question.pk for question in self.questions]).update(
+            question_type="listening", audio_path="assessments/audio/clip01.wav",
+            transcript="Test transcript", max_plays=2,
+        )
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        url = reverse("assessments:audio_play", args=[attempt.pk, item.pk])
+        self.assertEqual(self.client.post(url).status_code, 200)
+        second = self.client.post(url)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["remaining"], 0)
+        third = self.client.post(url)
+        self.assertEqual(third.status_code, 429)
+        item.refresh_from_db()
+        self.assertEqual(item.audio_play_count, 2)
+
     def test_integrity_event_is_recorded_and_score_reduced(self):
         attempt = self.start()
         self.client.force_login(self.user)

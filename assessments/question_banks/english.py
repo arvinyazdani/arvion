@@ -1,12 +1,13 @@
 """Curated English placement bank. Choices are stored with the correct answer first."""
 
-BANK_VERSION = 2
+BANK_VERSION = 3
 
 SECTIONS = (
-    ("grammar", "گرامر", "Grammar", 32, 10),
-    ("vocabulary", "واژگان", "Vocabulary", 32, 10),
-    ("reading", "درک مطلب", "Reading", 32, 10),
-    ("use-of-english", "کاربرد زبان", "Use of English", 32, 10),
+    ("grammar", "گرامر", "Grammar", 32, 8),
+    ("vocabulary", "واژگان", "Vocabulary", 32, 8),
+    ("reading", "درک مطلب", "Reading", 32, 8),
+    ("use-of-english", "کاربرد زبان", "Use of English", 32, 8),
+    ("listening", "مهارت شنیداری", "Listening", 32, 8),
     ("writing-objective", "مهارت‌های نوشتاری", "Writing Objective", 20, 5),
     ("advanced", "ساختارهای پیشرفته", "Advanced Structures", 20, 5),
 )
@@ -83,5 +84,7 @@ q("advanced","It is imperative that every applicant ___ the declaration.","sign"
 ]
 
 from .english_v2_additions import ADDITIONAL_QUESTIONS  # noqa: E402
+from .english_listening import QUESTIONS as LISTENING_QUESTIONS  # noqa: E402
 
 QUESTIONS.extend(ADDITIONAL_QUESTIONS)
+QUESTIONS.extend(LISTENING_QUESTIONS)

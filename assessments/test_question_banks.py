@@ -12,11 +12,11 @@ from .services import start_attempt
 
 
 class EnglishQuestionBankTests(SimpleTestCase):
-    def test_bank_has_exactly_one_hundred_sixty_eight_valid_questions(self):
-        self.assertEqual(len(QUESTIONS), 168)
+    def test_bank_has_exactly_two_hundred_valid_questions(self):
+        self.assertEqual(len(QUESTIONS), 200)
         validate_bank(QUESTIONS, SECTIONS)
 
-    def test_text_only_blueprint_selects_fifty_questions(self):
+    def test_final_blueprint_selects_fifty_questions(self):
         self.assertEqual(sum(section[4] for section in SECTIONS), 50)
 
     def test_writing_objective_has_twenty_longer_items(self):
@@ -24,6 +24,18 @@ class EnglishQuestionBankTests(SimpleTestCase):
         self.assertEqual(len(writing), 20)
         self.assertTrue(all(question["question_type"] == "writing_objective" for question in writing))
         self.assertTrue(all(question["suggested_seconds"] >= 180 for question in writing))
+
+    def test_listening_has_thirty_two_items_and_real_audio_assets(self):
+        listening = [question for question in QUESTIONS if question["section"] == "listening"]
+        self.assertEqual(len(listening), 32)
+        self.assertEqual(len({question["audio_path"] for question in listening}), 12)
+        for question in listening:
+            self.assertEqual(question["question_type"], "listening")
+            self.assertEqual(question["max_plays"], 2)
+            self.assertTrue(question["transcript"])
+            audio_file = Path(settings.BASE_DIR) / "core" / "static" / question["audio_path"]
+            self.assertTrue(audio_file.exists())
+            self.assertGreater(audio_file.stat().st_size, 10_000)
 
     def test_every_question_has_one_answer_key_and_explanation(self):
         for question in QUESTIONS:
@@ -91,10 +103,11 @@ class PublishedPythonBankTests(TestCase):
         )
         call_command("seed_assessment_banks", verbosity=0)
         english_exam.refresh_from_db()
-        english_version = ExamVersion.objects.get(exam=english_exam, version=2, is_published=True)
+        english_version = ExamVersion.objects.get(exam=english_exam, version=3, is_published=True)
         self.assertEqual(english_exam.duration_minutes, 75)
-        self.assertEqual(english_version.questions.count(), 168)
+        self.assertEqual(english_version.questions.count(), 200)
         self.assertEqual(english_version.sections.get(code="writing-objective").question_count, 5)
+        self.assertEqual(english_version.sections.get(code="listening").question_count, 8)
         version = ExamVersion.objects.get(exam=python_exam, version=2, is_published=True)
         self.assertEqual(version.questions.count(), 200)
         self.assertEqual(sum(section.question_count for section in version.sections.all()), 50)
@@ -115,3 +128,6 @@ class PublishedPythonBankTests(TestCase):
             for difficulty in rows.values_list("question__difficulty", flat=True):
                 actual[str(difficulty)] = actual.get(str(difficulty), 0) + 1
             self.assertEqual(actual, section.difficulty_distribution)
+from pathlib import Path
+
+from django.conf import settings
