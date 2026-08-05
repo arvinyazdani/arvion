@@ -192,6 +192,67 @@ class AccountFlowTests(TestCase):
         self.assertEqual(len(second_page.context["results"]), 1)
         self.assertContains(first_page, "Page 1 of 2")
 
+    def test_orders_history_requires_login(self):
+        response = self.client.get(reverse("accounts:orders_history"))
+        self.assertRedirects(
+            response, f"{reverse('accounts:login')}?next={reverse('accounts:orders_history')}"
+        )
+
+    def test_orders_history_only_exposes_signed_in_users_orders(self):
+        owner = User.objects.create_user(
+            username="buyer@example.com", email="buyer@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        stranger = User.objects.create_user(
+            username="other-buyer@example.com", email="other-buyer@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        owner_exam = Exam.objects.create(
+            slug="buyer-exam", title_fa="خرید مالک", title_en="Buyer's assessment",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        private_exam = Exam.objects.create(
+            slug="other-buyer-exam", title_fa="خرید خصوصی دیگری", title_en="Another private purchase",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        owner_order = Order.objects.create(
+            user=owner, exam=owner_exam, amount_irr=500_000, status="paid", gateway="sandbox",
+            paid_at=timezone.now(), terms_version="2026-08-05", terms_accepted_at=timezone.now(),
+        )
+        Order.objects.create(
+            user=stranger, exam=private_exam, amount_irr=900_000, status="paid",
+        )
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("accounts:orders_history") + "?lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["orders"]), [owner_order])
+        self.assertContains(response, "خرید مالک")
+        self.assertContains(response, "500000")
+        self.assertContains(response, "2026-08-05")
+        self.assertNotContains(response, "خرید خصوصی دیگری")
+
+    def test_orders_history_is_paginated(self):
+        user = User.objects.create_user(
+            username="orders@example.com", email="orders@example.com", password="test-password-42",
+            is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="orders-exam", title_fa="خریدها", title_en="Purchases",
+            description_fa="توضیح", description_en="Description", language_mode="bilingual",
+        )
+        for _ in range(11):
+            Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")
+        self.client.force_login(user)
+
+        first_page = self.client.get(reverse("accounts:orders_history") + "?lang=en")
+        second_page = self.client.get(reverse("accounts:orders_history") + "?lang=en&page=2")
+
+        self.assertEqual(len(first_page.context["orders"]), 10)
+        self.assertEqual(len(second_page.context["orders"]), 1)
+        self.assertContains(first_page, "Page 1 of 2")
+
     def test_password_reset_changes_password_and_preserves_language(self):
         user = User.objects.create_user(
             username="reset@example.com", email="reset@example.com", password="old-password-42",

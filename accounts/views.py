@@ -22,7 +22,7 @@ from core.views.lang import LanguageViewMixin
 from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import User
 from .services import send_verification_email
-from assessments.models import AttemptResult
+from assessments.models import AttemptResult, Order
 
 
 class RegisterView(LanguageViewMixin, FormView):
@@ -129,6 +129,15 @@ class AccountResultsView(LanguageViewMixin, LoginRequiredMixin, ListView):
         )
 
 
+class AccountOrdersView(LanguageViewMixin, LoginRequiredMixin, ListView):
+    template_name = "accounts/orders_history.html"
+    context_object_name = "orders"
+    paginate_by = 10
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).select_related("exam")
+
+
 def verify_email(request, uidb64, token):
     lang = request.GET.get("lang") or request.session.get("lang", "fa")
     try:
@@ -172,7 +181,6 @@ def dashboard(request):
         elif not attempt and entitlement.attempts_remaining:
             group["ready"] += entitlement.attempts_remaining
             group["ready_entitlement"] = group["ready_entitlement"] or entitlement
-    orders = request.user.assessment_orders.select_related("exam")[:5]
     return render(request, "accounts/dashboard.html", {
-        "lang": lang, "assessment_groups": list(grouped.values()), "orders": orders,
+        "lang": lang, "assessment_groups": list(grouped.values()),
     })

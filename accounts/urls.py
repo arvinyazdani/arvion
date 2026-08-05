@@ -1,7 +1,7 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 
-from .views import AccountLoginView, AccountPasswordResetCompleteView, AccountPasswordResetConfirmView, AccountPasswordResetDoneView, AccountPasswordResetView, AccountResultsView, ProfileIdentityView, RegisterView, ResendVerificationView, dashboard, verification_sent, verify_email
+from .views import AccountLoginView, AccountOrdersView, AccountPasswordResetCompleteView, AccountPasswordResetConfirmView, AccountPasswordResetDoneView, AccountPasswordResetView, AccountResultsView, ProfileIdentityView, RegisterView, ResendVerificationView, dashboard, verification_sent, verify_email
 
 app_name = "accounts"
 
@@ -18,5 +18,6 @@ urlpatterns = [
     path("verify/<uidb64>/<token>/", verify_email, name="verify"),
     path("dashboard/", dashboard, name="dashboard"),
     path("results/", AccountResultsView.as_view(), name="results_history"),
+    path("orders/", AccountOrdersView.as_view(), name="orders_history"),
     path("profile/identity/", ProfileIdentityView.as_view(), name="profile_identity"),
 ]
