@@ -17,7 +17,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
-from .emails import send_payment_confirmation_email
+from .emails import send_payment_confirmation_email, send_result_ready_email
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
 from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
@@ -301,6 +301,7 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         lang = context["lang"]
+        send_result_ready_email(self.object, self.request, lang)
         rows = self.object.attempt.attempt_questions.select_related(
             "question__section", "question__skill", "selected_choice"
         ).prefetch_related("question__choices")

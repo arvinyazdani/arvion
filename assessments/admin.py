@@ -100,7 +100,7 @@ class SkillResultInline(admin.TabularInline):
 class AttemptResultAdmin(admin.ModelAdmin):
     list_display = ("attempt", "percentage", "level_code", "correct_count", "generated_at")
     list_filter = ("level_code", "generated_at")
-    readonly_fields = ("attempt", "correct_count", "incorrect_count", "unanswered_count", "percentage", "level_code", "level_title_fa", "level_title_en", "summary_fa", "summary_en", "strengths", "weaknesses", "generated_at")
+    readonly_fields = ("attempt", "correct_count", "incorrect_count", "unanswered_count", "percentage", "level_code", "level_title_fa", "level_title_en", "summary_fa", "summary_en", "strengths", "weaknesses", "generated_at", "report_email_sent_at")
     inlines = (SkillResultInline,)
 
 

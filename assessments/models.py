@@ -280,6 +280,7 @@ class AttemptResult(models.Model):
     strengths = models.JSONField(default=list)
     weaknesses = models.JSONField(default=list)
     generated_at = models.DateTimeField(auto_now_add=True)
+    report_email_sent_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ("-generated_at",)

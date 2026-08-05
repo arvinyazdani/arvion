@@ -297,6 +297,44 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(result.correct_count, 1)
         self.assertEqual(result.percentage, 50)
 
+    def test_result_ready_email_contains_private_report_and_certificate_once(self):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.completion_reason = "manual"
+        attempt.save(update_fields=["status", "completion_reason"])
+        result, _ = score_attempt(attempt.pk)
+        self.client.force_login(self.user)
+        url = reverse("assessments:result", args=[result.pk]) + "?lang=en"
+
+        first = self.client.get(url)
+        second = self.client.get(url)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("result is ready", mail.outbox[0].subject)
+        self.assertIn(url, mail.outbox[0].body)
+        self.assertIn(result.certificate.get_absolute_url(), mail.outbox[0].body)
+        self.assertIn("not official or academic", mail.outbox[0].body)
+        result.refresh_from_db()
+        self.assertIsNotNone(result.report_email_sent_at)
+        self.assertContains(second, "Report and certificate links were emailed")
+
+    @patch("assessments.emails.send_mail", side_effect=RuntimeError("SMTP unavailable"))
+    def test_result_page_survives_email_failure_and_can_retry(self, mocked_send):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:result", args=[result.pk]) + "?lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        result.refresh_from_db()
+        self.assertIsNone(result.report_email_sent_at)
+        mocked_send.assert_called_once()
+
     def test_start_attempt_has_bounded_query_count(self):
         with CaptureQueriesContext(connection) as queries:
             start_attempt(self.entitlement.pk, self.user)

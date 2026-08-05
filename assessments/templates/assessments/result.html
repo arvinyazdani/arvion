@@ -5,7 +5,7 @@
 {% if result.attempt.completion_reason == 'timeout' %}<div class="timeout-result-notice"><div class="shell"><strong>{% if lang == 'fa' %}زمان آزمون به پایان رسید{% else %}Assessment time expired{% endif %}</strong><span>{% if lang == 'fa' %}پاسخ‌های ذخیره‌شده به‌صورت خودکار ثبت و تصحیح شدند.{% else %}Your saved answers were submitted and scored automatically.{% endif %}</span></div></div>{% endif %}
 <section class="result-hero">
   <div class="shell result-hero-grid">
-    <div><span class="eyebrow" data-ascii>ASSESSMENT RESULT / {{ result.attempt.exam.slug }}</span><h1>{% if lang == 'fa' %}نتیجه‌ات آماده است.{% else %}Your result is ready.{% endif %}</h1><p>{% if lang == 'fa' %}{{ result.summary_fa }}{% else %}{{ result.summary_en }}{% endif %}</p></div>
+    <div><span class="eyebrow" data-ascii>ASSESSMENT RESULT / {{ result.attempt.exam.slug }}</span><h1>{% if lang == 'fa' %}نتیجه‌ات آماده است.{% else %}Your result is ready.{% endif %}</h1><p>{% if lang == 'fa' %}{{ result.summary_fa }}{% else %}{{ result.summary_en }}{% endif %}</p>{% if result.report_email_sent_at %}<span class="result-email-status">✓ {% if lang == 'fa' %}لینک گزارش و گواهی به ایمیل شما ارسال شد.{% else %}Report and certificate links were emailed to you.{% endif %}</span>{% endif %}</div>
     <div class="score-orbit"><strong>{{ result.percentage|floatformat:0 }}</strong><span>/ 100</span><b>{% if lang == 'fa' %}{{ result.level_title_fa }}{% else %}{{ result.level_title_en }}{% endif %}</b></div>
   </div>
 </section>
