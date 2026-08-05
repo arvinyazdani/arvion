@@ -317,3 +317,27 @@ class Certificate(models.Model):
 
     def get_absolute_url(self):
         return reverse("assessments:certificate", kwargs={"code": self.verification_code})
+
+
+class SupportTicket(models.Model):
+    CATEGORIES = (
+        ("payment", "Payment"), ("result_review", "Result review"),
+        ("certificate", "Certificate"), ("technical", "Technical"), ("other", "Other"),
+    )
+    STATUSES = (("open", "Open"), ("in_review", "In review"), ("resolved", "Resolved"), ("closed", "Closed"))
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="assessment_tickets")
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, blank=True, null=True, related_name="support_tickets")
+    result = models.ForeignKey(AttemptResult, on_delete=models.PROTECT, blank=True, null=True, related_name="support_tickets")
+    category = models.CharField(max_length=20, choices=CATEGORIES)
+    subject = models.CharField(max_length=180)
+    message = models.TextField()
+    status = models.CharField(max_length=12, choices=STATUSES, default="open", db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"#{self.pk} {self.user_id} / {self.category}"

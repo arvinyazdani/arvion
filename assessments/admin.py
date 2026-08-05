@@ -3,7 +3,7 @@ from django.contrib import admin
 from .models import (
     Attempt, AttemptResult, Certificate, Choice, Exam, ExamEntitlement,
     ExamSection, ExamVersion, IntegrityEvent, Order, PaymentTransaction,
-    Question, Skill, SkillResult,
+    Question, Skill, SkillResult, SupportTicket,
 )
 
 
@@ -110,3 +110,11 @@ class CertificateAdmin(admin.ModelAdmin):
     list_filter = ("is_revoked", "issued_at")
     search_fields = ("verification_code", "result__attempt__user__email")
     readonly_fields = ("id", "result", "holder_name", "verification_code", "issued_at")
+
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "category", "subject", "status", "created_at")
+    list_filter = ("status", "category", "created_at")
+    search_fields = ("user__email", "subject", "message", "order__id")
+    readonly_fields = ("user", "order", "result", "category", "subject", "message", "created_at", "updated_at")

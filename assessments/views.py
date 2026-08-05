@@ -1,9 +1,11 @@
 from datetime import timedelta
+import logging
 import re
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
@@ -13,13 +15,18 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
+from django.views.generic.edit import FormView
 
 from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
-from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order
+from .forms import SupportTicketForm
+from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order, SupportTicket
 from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
+
+
+logger = logging.getLogger(__name__)
 
 
 class ExamListView(LanguageViewMixin, ListView):
@@ -47,6 +54,43 @@ class AssessmentTermsView(LanguageViewMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["terms_version"] = settings.ASSESSMENT_TERMS_VERSION
         return context
+
+
+class SupportTicketCreateView(LanguageViewMixin, LoginRequiredMixin, FormView):
+    template_name = "assessments/support_form.html"
+    form_class = SupportTicketForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"user": self.request.user, "lang": self.lang})
+        return kwargs
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update({key: self.request.GET.get(key) for key in ("order", "result") if self.request.GET.get(key)})
+        return initial
+
+    def form_valid(self, form):
+        ticket = form.save(commit=False)
+        ticket.user = self.request.user
+        ticket.save()
+        subject = f"[Arvion Support #{ticket.pk}] {ticket.subject}"
+        body = f"User: {ticket.user.email}\nCategory: {ticket.category}\nOrder: {ticket.order_id or '-'}\nResult: {ticket.result_id or '-'}\n\n{ticket.message}"
+        try:
+            send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [settings.CONTACT_NOTIFICATION_EMAIL])
+        except Exception:
+            logger.exception("Support notification email failed for ticket %s", ticket.pk)
+        messages.success(self.request, "درخواست پشتیبانی ثبت شد." if self.lang == "fa" else "Your support request was submitted.")
+        return redirect(f"{reverse('assessments:support_history')}?lang={self.lang}")
+
+
+class SupportTicketListView(LanguageViewMixin, LoginRequiredMixin, ListView):
+    template_name = "assessments/support_history.html"
+    context_object_name = "tickets"
+    paginate_by = 10
+
+    def get_queryset(self):
+        return SupportTicket.objects.filter(user=self.request.user).select_related("order__exam", "result__attempt__exam")
 
 
 class CreateOrderView(LoginRequiredMixin, View):

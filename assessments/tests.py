@@ -13,7 +13,7 @@ from django.utils import timezone
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam,
     ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, Order,
-    PaymentTransaction, Question, Skill,
+    PaymentTransaction, Question, Skill, SupportTicket,
 )
 from .services import (
     AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
@@ -164,6 +164,72 @@ class AssessmentCommerceTests(TestCase):
         self.assertRedirects(first, expected)
         self.assertRedirects(second, expected)
         self.assertEqual(Order.objects.count(), 1)
+
+    def test_support_requires_login(self):
+        response = self.client.get(reverse("assessments:support_create"))
+        self.assertIn(reverse("accounts:login"), response.url)
+
+    def test_support_ticket_accepts_owned_order_and_notifies_staff(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=self.exam.price_irr, status="paid",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("assessments:support_create") + "?lang=en", {
+            "category": "payment", "order": order.pk, "result": "",
+            "subject": "Payment receipt question", "message": "Please review this payment record in detail.",
+            "website": "",
+        })
+
+        self.assertRedirects(response, reverse("assessments:support_history") + "?lang=en")
+        ticket = SupportTicket.objects.get()
+        self.assertEqual(ticket.user, self.user)
+        self.assertEqual(ticket.order, order)
+        self.assertEqual(ticket.status, "open")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(f"Support #{ticket.pk}", mail.outbox[0].subject)
+
+    def test_support_rejects_foreign_reference_and_honeypot(self):
+        other = User.objects.create_user(
+            username="ticket-other@example.com", email="ticket-other@example.com",
+            password="test", is_active=True,
+        )
+        foreign_order = Order.objects.create(
+            user=other, exam=self.exam, amount_irr=self.exam.price_irr, status="paid",
+        )
+        self.client.force_login(self.user)
+        url = reverse("assessments:support_create") + "?lang=en"
+        payload = {
+            "category": "payment", "order": foreign_order.pk, "result": "",
+            "subject": "Foreign reference", "message": "This should never be attached to another user.",
+            "website": "",
+        }
+
+        foreign = self.client.post(url, payload)
+        payload.update({"order": "", "website": "https://spam.example"})
+        spam = self.client.post(url, payload)
+
+        self.assertEqual(foreign.status_code, 200)
+        self.assertEqual(spam.status_code, 200)
+        self.assertEqual(SupportTicket.objects.count(), 0)
+
+    def test_support_history_is_private(self):
+        other = User.objects.create_user(
+            username="private-ticket@example.com", email="private-ticket@example.com",
+            password="test", is_active=True,
+        )
+        SupportTicket.objects.create(
+            user=self.user, category="technical", subject="Owner ticket", message="Owner details",
+        )
+        SupportTicket.objects.create(
+            user=other, category="technical", subject="Private stranger ticket", message="Private details",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:support_history") + "?lang=en")
+
+        self.assertContains(response, "Owner ticket")
+        self.assertNotContains(response, "Private stranger ticket")
 
 
 class AssessmentEngineTests(TestCase):
