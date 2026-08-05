@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from .models import (
@@ -61,7 +62,9 @@ def start_attempt(entitlement_id, user):
     selected_questions = []
     rng = random.SystemRandom()
     for section in version.sections.all():
-        pool = list(Question.objects.filter(version=version, section=section, is_active=True).values_list("id", flat=True))
+        pool = list(Question.objects.filter(
+            version=version, section=section, is_active=True, status="active",
+        ).values_list("id", flat=True))
         if len(pool) < section.question_count:
             raise ExamContentError(f"Section {section.code} does not have enough active questions")
         section_ids = rng.sample(pool, section.question_count)
@@ -69,7 +72,11 @@ def start_attempt(entitlement_id, user):
         selected_questions.extend(section_ids)
     if len(selected_questions) != entitlement.exam.question_count:
         raise ExamContentError("Published section quotas do not match the exam question count")
-    questions = {q.id: q for q in Question.objects.filter(id__in=selected_questions).prefetch_related("choices")}
+    questions = {
+        q.id: q for q in Question.objects.filter(id__in=selected_questions)
+        .select_related("section", "skill")
+        .prefetch_related("choices")
+    }
     now = timezone.now()
     attempt = Attempt.objects.create(
         user=user,
@@ -88,8 +95,28 @@ def start_attempt(entitlement_id, user):
         if len(choice_ids) != 4 or sum(choice.is_correct for choice in question_choices) != 1:
             raise ExamContentError(f"Question {question.id} must have four choices and one correct answer")
         rng.shuffle(choice_ids)
-        rows.append(AttemptQuestion(attempt=attempt, question=question, position=position, choice_order=choice_ids))
+        question_snapshot = {
+            "prompt_fa": question.prompt_fa, "prompt_en": question.prompt_en,
+            "question_type": question.question_type, "subskill": question.subskill,
+            "difficulty": question.difficulty, "weight": str(question.weight),
+            "suggested_seconds": question.suggested_seconds,
+            "explanation_fa": question.explanation_fa, "explanation_en": question.explanation_en,
+            "section_code": question.section.code, "skill_code": question.skill.code,
+        }
+        choices_snapshot = [
+            {
+                "id": choice.id, "text_fa": choice.text_fa, "text_en": choice.text_en,
+                "explanation_fa": choice.explanation_fa, "explanation_en": choice.explanation_en,
+                "is_correct": choice.is_correct,
+            }
+            for choice in question_choices
+        ]
+        rows.append(AttemptQuestion(
+            attempt=attempt, question=question, position=position, choice_order=choice_ids,
+            question_snapshot=question_snapshot, choices_snapshot=choices_snapshot,
+        ))
     AttemptQuestion.objects.bulk_create(rows)
+    Question.objects.filter(id__in=selected_questions).update(exposure_count=F("exposure_count") + 1)
     entitlement.attempts_remaining -= 1
     entitlement.save(update_fields=["attempts_remaining"])
     return attempt, True
@@ -131,7 +158,10 @@ def score_attempt(attempt_id):
     attempt.status = "scoring"
     attempt.save(update_fields=["status", "updated_at"])
     rows = list(attempt.attempt_questions.select_related("question__skill", "selected_choice"))
-    maximum = sum((row.question.weight for row in rows), Decimal("0"))
+    maximum = sum(
+        (Decimal(row.question_snapshot.get("weight", str(row.question.weight))) for row in rows),
+        Decimal("0"),
+    )
     earned = Decimal("0")
     correct = incorrect = unanswered = 0
     skill_totals = {}
@@ -141,11 +171,20 @@ def score_attempt(attempt_id):
         stats["total"] += 1
         if row.selected_choice_id is None:
             unanswered += 1
-        elif row.selected_choice.is_correct:
+        else:
+            snapshot_choice = next(
+                (choice for choice in row.choices_snapshot if choice["id"] == row.selected_choice_id),
+                None,
+            )
+            is_correct = snapshot_choice["is_correct"] if snapshot_choice else row.selected_choice.is_correct
+        if row.selected_choice_id is not None and is_correct:
             correct += 1
             stats["correct"] += 1
-            earned += row.question.weight
-        else:
+            earned += Decimal(row.question_snapshot.get("weight", str(row.question.weight)))
+            Question.objects.filter(pk=row.question_id).update(
+                correct_response_count=F("correct_response_count") + 1,
+            )
+        elif row.selected_choice_id is not None:
             incorrect += 1
     percentage = ((earned / maximum * 100) if maximum else Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     level_code, level_fa, level_en = _level_for(attempt.exam, percentage)

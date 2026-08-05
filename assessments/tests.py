@@ -137,8 +137,29 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(attempt.attempt_questions.count(), 2)
         self.assertEqual(len(set(attempt.attempt_questions.values_list("question_id", flat=True))), 2)
         self.assertTrue(all(len(row.choice_order) == 4 for row in attempt.attempt_questions.all()))
+        self.assertTrue(all(row.question_snapshot for row in attempt.attempt_questions.all()))
+        self.assertTrue(all(len(row.choices_snapshot) == 4 for row in attempt.attempt_questions.all()))
         self.entitlement.refresh_from_db()
         self.assertEqual(self.entitlement.attempts_remaining, 0)
+
+    def test_snapshot_keeps_scoring_stable_after_question_bank_changes(self):
+        attempt = self.start()
+        row = attempt.attempt_questions.first()
+        original_correct = row.question.choices.get(is_correct=True)
+        replacement = row.question.choices.filter(is_correct=False).first()
+        row.selected_choice = original_correct
+        row.save(update_fields=["selected_choice"])
+        original_correct.is_correct = False
+        original_correct.save(update_fields=["is_correct"])
+        replacement.is_correct = True
+        replacement.save(update_fields=["is_correct"])
+        row.question.weight = 5
+        row.question.save(update_fields=["weight"])
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        self.assertEqual(result.correct_count, 1)
+        self.assertEqual(result.percentage, 50)
 
     def test_start_attempt_has_bounded_query_count(self):
         with CaptureQueriesContext(connection) as queries:

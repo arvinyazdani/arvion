@@ -132,16 +132,33 @@ class ExamSection(models.Model):
 
 class Question(models.Model):
     DIFFICULTIES = ((1, "Foundation"), (2, "Easy"), (3, "Intermediate"), (4, "Advanced"), (5, "Expert"))
+    TYPES = (
+        ("single_choice", "Single choice"),
+        ("code_analysis", "Code analysis"),
+        ("reading", "Reading"),
+        ("listening", "Listening"),
+        ("writing_objective", "Writing objective"),
+    )
+    STATUSES = (("draft", "Draft"), ("reviewed", "Reviewed"), ("active", "Active"), ("retired", "Retired"))
 
     version = models.ForeignKey(ExamVersion, on_delete=models.PROTECT, related_name="questions")
     section = models.ForeignKey(ExamSection, on_delete=models.PROTECT, related_name="questions")
     skill = models.ForeignKey(Skill, on_delete=models.PROTECT, related_name="questions")
     prompt_fa = models.TextField()
     prompt_en = models.TextField()
+    question_type = models.CharField(max_length=24, choices=TYPES, default="single_choice", db_index=True)
+    subskill = models.SlugField(max_length=80, blank=True)
     difficulty = models.PositiveSmallIntegerField(choices=DIFFICULTIES, default=3)
     weight = models.DecimalField(max_digits=5, decimal_places=2, default=1)
+    suggested_seconds = models.PositiveSmallIntegerField(default=60)
     explanation_fa = models.TextField(blank=True)
     explanation_en = models.TextField(blank=True)
+    source_reference = models.CharField(max_length=255, blank=True)
+    review_notes = models.TextField(blank=True)
+    status = models.CharField(max_length=12, choices=STATUSES, default="active", db_index=True)
+    exposure_count = models.PositiveIntegerField(default=0, editable=False)
+    correct_response_count = models.PositiveIntegerField(default=0, editable=False)
+    last_reviewed_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -157,6 +174,8 @@ class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="choices")
     text_fa = models.TextField()
     text_en = models.TextField()
+    explanation_fa = models.TextField(blank=True)
+    explanation_en = models.TextField(blank=True)
     is_correct = models.BooleanField(default=False)
     display_order = models.PositiveSmallIntegerField(default=0)
 
@@ -204,6 +223,8 @@ class AttemptQuestion(models.Model):
     question = models.ForeignKey(Question, on_delete=models.PROTECT, related_name="attempt_uses")
     position = models.PositiveSmallIntegerField()
     choice_order = models.JSONField(default=list)
+    question_snapshot = models.JSONField(default=dict)
+    choices_snapshot = models.JSONField(default=list)
     selected_choice = models.ForeignKey(Choice, on_delete=models.PROTECT, blank=True, null=True, related_name="selected_in_attempts")
     answered_at = models.DateTimeField(blank=True, null=True)
 

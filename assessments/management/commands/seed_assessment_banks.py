@@ -11,10 +11,19 @@ def validate_bank(questions, sections):
     quotas = {code: quota for code, _fa, _en, quota in sections}
     counts = {code: 0 for code in quotas}
     for index, item in enumerate(questions, start=1):
+        prompt_en = item.get("prompt_en", item.get("prompt", "")).strip()
+        prompt_fa = item.get("prompt_fa", prompt_en).strip()
+        if not prompt_en or not prompt_fa:
+            raise CommandError(f"Question {index} must have complete prompts")
         if item["section"] not in quotas:
             raise CommandError(f"Question {index} has an unknown section")
-        if len(item["choices"]) != 4 or len(set(item["choices"])) != 4:
+        choices = item.get("choices", ())
+        if len(choices) != 4 or len(set(choices)) != 4 or any(not choice.strip() for choice in choices):
             raise CommandError(f"Question {index} must have four unique choices")
+        explanation_fa = item.get("explanation_fa", item.get("explanation", "")).strip()
+        explanation_en = item.get("explanation_en", item.get("explanation", "")).strip()
+        if not explanation_fa or not explanation_en:
+            raise CommandError(f"Question {index} must have bilingual explanations")
         if not 1 <= item["difficulty"] <= 5:
             raise CommandError(f"Question {index} has an invalid difficulty")
         counts[item["section"]] += 1
@@ -55,6 +64,9 @@ class Command(BaseCommand):
             question = Question.objects.create(
                 version=version, section=section_models[item["section"]], skill=skill_models[item["section"]],
                 prompt_fa=prompt_fa, prompt_en=prompt_en, difficulty=item["difficulty"],
+                question_type=item.get("question_type", "single_choice"),
+                subskill=item.get("subskill", item["section"]),
+                suggested_seconds=item.get("suggested_seconds", 60),
                 explanation_fa=item.get("explanation_fa", item.get("explanation")),
                 explanation_en=item.get("explanation_en", item.get("explanation")),
             )

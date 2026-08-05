@@ -40,6 +40,7 @@ class ExamEntitlementAdmin(admin.ModelAdmin):
 class ChoiceInline(admin.TabularInline):
     model = Choice
     extra = 4
+    fields = ("text_fa", "text_en", "is_correct", "explanation_fa", "explanation_en", "display_order")
 
 
 @admin.register(Skill)
@@ -62,9 +63,13 @@ class ExamSectionAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ("id", "version", "section", "skill", "difficulty", "is_active")
-    list_filter = ("version__exam", "version", "section", "difficulty", "is_active")
-    search_fields = ("prompt_fa", "prompt_en")
+    list_display = (
+        "id", "version", "section", "question_type", "subskill", "difficulty",
+        "status", "exposure_count", "correct_response_count",
+    )
+    list_filter = ("version__exam", "version", "section", "question_type", "difficulty", "status")
+    search_fields = ("prompt_fa", "prompt_en", "subskill", "source_reference")
+    readonly_fields = ("exposure_count", "correct_response_count", "created_at")
     inlines = (ChoiceInline,)
 
 
