@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase
@@ -187,6 +189,23 @@ class AssessmentEngineTests(TestCase):
         attempt.refresh_from_db()
         self.assertEqual(attempt.integrity_score, 98)
         self.assertTrue(IntegrityEvent.objects.filter(attempt=attempt, event_type="tab_hidden").exists())
+
+    def test_integrity_events_are_deduplicated_and_deduction_is_capped(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        url = reverse("assessments:integrity_event", args=[attempt.pk])
+        first = self.client.post(url, {"event_type": "tab_hidden"})
+        duplicate = self.client.post(url, {"event_type": "tab_hidden"})
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(duplicate.json()["deduplicated"])
+        self.assertEqual(IntegrityEvent.objects.filter(attempt=attempt).count(), 1)
+        for _ in range(9):
+            IntegrityEvent.objects.filter(attempt=attempt).update(
+                created_at=timezone.now() - timedelta(seconds=20)
+            )
+            self.client.post(url, {"event_type": "tab_hidden"})
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.integrity_score, 90)
 
     def test_finish_submits_attempt(self):
         attempt = self.start()

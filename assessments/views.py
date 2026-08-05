@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.http import Http404
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -149,16 +150,28 @@ class SaveAnswerView(LoginRequiredMixin, View):
 
 class IntegrityEventView(LoginRequiredMixin, View):
     allowed_events = {"tab_hidden": 2, "window_blur": 1, "copy": 1, "paste": 1}
+    deduction_limits = {"tab_hidden": 5, "window_blur": 5, "copy": 3, "paste": 3}
 
+    @transaction.atomic
     def post(self, request, pk):
-        attempt = get_object_or_404(Attempt, pk=pk, user=request.user, status="in_progress")
+        attempt = get_object_or_404(
+            Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress"
+        )
         event_type = request.POST.get("event_type")
         if event_type not in self.allowed_events:
             return JsonResponse({"ok": False}, status=400)
+        recent = IntegrityEvent.objects.filter(
+            attempt=attempt, event_type=event_type,
+            created_at__gte=timezone.now() - timedelta(seconds=10),
+        ).exists()
+        if recent:
+            return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
+        prior_count = IntegrityEvent.objects.filter(attempt=attempt, event_type=event_type).count()
         IntegrityEvent.objects.create(attempt=attempt, event_type=event_type)
-        attempt.integrity_score = max(0, attempt.integrity_score - self.allowed_events[event_type])
-        attempt.save(update_fields=["integrity_score", "updated_at"])
-        return JsonResponse({"ok": True})
+        if prior_count < self.deduction_limits[event_type]:
+            attempt.integrity_score = max(0, attempt.integrity_score - self.allowed_events[event_type])
+            attempt.save(update_fields=["integrity_score", "updated_at"])
+        return JsonResponse({"ok": True, "integrity_score": attempt.integrity_score})
 
 
 class FinishAttemptView(LoginRequiredMixin, View):
