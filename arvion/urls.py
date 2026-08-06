@@ -11,11 +11,13 @@
 from django.contrib import admin
 from django.urls import path, include
 from core.views import HomeView, AboutView  # ویوهای اصلی سایت
+from core.health import HealthCheckView
 from django.conf import settings
 from django.conf.urls.static import static
 
 # ==== مسیرهای اصلی ====
 urlpatterns = [
+    path('health/', HealthCheckView.as_view(), name='health'),
     # مسیر پنل مدیریت
     path('admin/', admin.site.urls),
     path('account/', include(('accounts.urls', 'accounts'), namespace='accounts')),

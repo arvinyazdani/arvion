@@ -8,7 +8,8 @@ ASSESSMENT_FREE_CHECKOUT = False
 
 required = [
     "DJANGO_SECRET_KEY", "DATABASE_URL", "DJANGO_ALLOWED_HOSTS",
-    "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL",
+    "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "CONTACT_NOTIFICATION_EMAIL",
+    "PAYMENT_GATEWAY",
     "AWS_STORAGE_BUCKET_NAME", "AWS_S3_ENDPOINT_URL",
     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
 ]
@@ -17,6 +18,10 @@ if missing:
     raise RuntimeError(f"Missing production environment variables: {', '.join(missing)}")
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+if len(SECRET_KEY) < 50 or SECRET_KEY.startswith("replace-"):
+    raise RuntimeError("DJANGO_SECRET_KEY must be a unique random value of at least 50 characters")
+if not os.environ["DATABASE_URL"].lower().startswith(("postgresql://", "postgres://")):
+    raise RuntimeError("DATABASE_URL must use PostgreSQL in production")
 DATABASES = {"default": dj_database_url.config(conn_max_age=600, conn_health_checks=True, ssl_require=True)}
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.postmarkapp.com")
@@ -54,5 +59,5 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
-if PAYMENT_GATEWAY == "sandbox":
-    raise RuntimeError("PAYMENT_GATEWAY must be configured for production")
+if PAYMENT_GATEWAY in {"sandbox", "free"}:
+    raise RuntimeError("PAYMENT_GATEWAY must be a real production provider")

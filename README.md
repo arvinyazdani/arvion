@@ -25,6 +25,25 @@ gunicorn arvion.wsgi:application
 
 Production requires PostgreSQL, real SMTP credentials and an S3-compatible bucket for uploaded media. Static assets are collected and served through WhiteNoise. The application refuses to start when required production variables are missing or when the sandbox payment gateway is selected.
 
+Before each release, run the non-destructive acceptance gate locally:
+
+```bash
+./release-check.sh
+```
+
+After deployment, configure the platform health probe to request `GET /health/`. A healthy instance returns HTTP 200 with `{"status":"ok"}`; loss of database connectivity returns HTTP 503 without exposing internal errors.
+
+Deployment checklist:
+
+- provision PostgreSQL with backups and a TLS connection URL;
+- create a unique random `DJANGO_SECRET_KEY` of at least 50 characters;
+- configure the public hosts and HTTPS CSRF origins;
+- connect real SMTP and verify the sender domain;
+- create the private S3-compatible media bucket and its public/custom media domain;
+- connect and test a real payment provider callback before accepting paid orders;
+- run `./deploy.sh`, start Gunicorn, and verify `/health/`;
+- test registration, email verification, payment, one complete assessment, result email, certificate and support from the public domain.
+
 ## Assessment benchmark
 
 The benchmark creates complete 50-question attempts, scores them and rolls every synthetic record back:
