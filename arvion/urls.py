@@ -7,6 +7,7 @@ from django.http import HttpResponse, HttpResponsePermanentRedirect
 from django.urls import include, path
 
 from core.health import HealthCheckView
+from core.admin_dashboard import operations_dashboard
 from core.sitemaps import sitemaps
 from core.views import (
     AboutView, CompanyInfoView, HomeView, PrivacyView,
@@ -33,6 +34,7 @@ def robots_txt(request):
 urlpatterns = [
     path("", default_language, name="language_root"),
     path("health/", HealthCheckView.as_view(), name="health"),
+    path("admin/operations/", operations_dashboard, name="admin_operations"),
     path("admin/", admin.site.urls),
     path("robots.txt", robots_txt, name="robots"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),

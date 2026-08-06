@@ -23,6 +23,14 @@ gunicorn arvion.wsgi:application
 
 `deploy.sh` updates the PostgreSQL schema, publishes both validated 200-question assessment banks, and collects static files. It is safe to run again during later deployments: published bank versions are not duplicated, and user accounts, orders, attempts, and results are never seeded or deleted.
 
+The deployment also creates four least-privilege admin roles: `sales`, `assessments`, `support`, and `content`. Create the staff member as a normal user, then assign exactly one operational role without granting superuser access:
+
+```bash
+python manage.py setup_staff_roles --email staff@example.com --role sales
+```
+
+Use a superuser only for the company owner. Re-running the command is safe and preserves unrelated custom groups.
+
 Production requires PostgreSQL, real SMTP credentials and an S3-compatible bucket for uploaded media. Static assets are collected and served through WhiteNoise. The application refuses to start when required production variables are missing or when the sandbox payment gateway is selected.
 
 Before each release, run the non-destructive acceptance gate locally:

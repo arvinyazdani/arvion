@@ -23,7 +23,7 @@ def _csv_response(filename, headers, rows):
     return response
 
 
-@admin.action(description="Export selected orders as safe CSV")
+@admin.action(description="Export selected orders as safe CSV", permissions=["view"])
 def export_orders(modeladmin, request, queryset):
     rows = queryset.select_related("user", "exam").order_by("created_at").values_list(
         "id", "user__email", "exam__slug", "subtotal_irr", "discount_percent",
@@ -36,7 +36,7 @@ def export_orders(modeladmin, request, queryset):
     )
 
 
-@admin.action(description="Export selected results as safe CSV")
+@admin.action(description="Export selected results as safe CSV", permissions=["view"])
 def export_results(modeladmin, request, queryset):
     rows = queryset.select_related("attempt__user", "attempt__exam", "attempt__version").order_by("generated_at").values_list(
         "id", "attempt__user__email", "attempt__exam__slug", "attempt__version__version",
@@ -50,7 +50,7 @@ def export_results(modeladmin, request, queryset):
     )
 
 
-@admin.action(description="Export selected support tickets as safe CSV")
+@admin.action(description="Export selected support tickets as safe CSV", permissions=["view"])
 def export_tickets(modeladmin, request, queryset):
     rows = queryset.select_related("user").order_by("created_at").values_list(
         "id", "user__email", "category", "status", "order_id", "result_id", "subject", "created_at", "updated_at",

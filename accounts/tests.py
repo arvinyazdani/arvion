@@ -1,8 +1,11 @@
 import re
+from io import StringIO
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.management import call_command
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -11,6 +14,76 @@ from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, Ex
 
 
 User = get_user_model()
+
+
+class StaffRoleTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("setup_staff_roles", stdout=StringIO())
+
+    def make_staff(self, role):
+        user = User.objects.create_user(
+            username=f"{role}@example.com", email=f"{role}@example.com",
+            password="safe-staff-password-42", is_active=True,
+        )
+        call_command(
+            "setup_staff_roles", email=user.email, role=role, stdout=StringIO()
+        )
+        user.refresh_from_db()
+        return user
+
+    def test_setup_command_is_idempotent_and_creates_four_roles(self):
+        call_command("setup_staff_roles", stdout=StringIO())
+        self.assertEqual(
+            set(Group.objects.filter(name__startswith="rvion_").values_list("name", flat=True)),
+            {"rvion_sales", "rvion_assessments", "rvion_support", "rvion_content"},
+        )
+
+    def test_roles_follow_least_privilege_boundaries(self):
+        sales = self.make_staff("sales")
+        self.assertTrue(sales.has_perm("leads.view_lead"))
+        self.assertTrue(sales.has_perm("leads.change_lead"))
+        self.assertFalse(sales.has_perm("leads.delete_lead"))
+        self.assertFalse(sales.has_perm("blog.view_post"))
+
+        support = self.make_staff("support")
+        self.assertTrue(support.has_perm("assessments.change_supportticket"))
+        self.assertTrue(support.has_perm("assessments.view_order"))
+        self.assertFalse(support.has_perm("assessments.change_order"))
+
+        assessment = self.make_staff("assessments")
+        self.assertTrue(assessment.has_perm("assessments.change_question"))
+        self.assertTrue(assessment.has_perm("assessments.view_paymenttransaction"))
+        self.assertFalse(assessment.has_perm("accounts.view_user"))
+
+        content = self.make_staff("content")
+        self.assertTrue(content.has_perm("blog.change_post"))
+        self.assertTrue(content.has_perm("services.change_service"))
+        self.assertFalse(content.has_perm("blog.delete_post"))
+        self.assertFalse(content.has_perm("leads.view_lead"))
+
+    def test_sales_dashboard_and_admin_hide_other_departments(self):
+        sales = self.make_staff("sales")
+        self.client.force_login(sales)
+
+        dashboard = self.client.get(reverse("admin_operations"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertContains(dashboard, "درخواست‌های جدید")
+        self.assertNotContains(dashboard, "پیش‌نویس محتوا")
+        self.assertNotContains(dashboard, "سفارش‌های معلق")
+        self.assertEqual(self.client.get(reverse("admin:leads_lead_changelist")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("admin:blog_post_changelist")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("admin:accounts_user_changelist")).status_code, 403)
+
+    def test_non_staff_cannot_open_operations_dashboard(self):
+        user = User.objects.create_user(
+            username="customer@example.com", email="customer@example.com",
+            password="customer-password-42", is_active=True,
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("admin_operations"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("admin:login"), response.url)
 
 
 class AccountFlowTests(TestCase):
