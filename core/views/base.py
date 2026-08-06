@@ -44,3 +44,19 @@ class HomeView(LanguageViewMixin, TemplateView):
 # ==== ویو درباره ====
 class AboutView(LanguageViewMixin, TemplateView):
     template_name = "core/about.html"
+
+
+class CompanyInfoView(LanguageViewMixin, TemplateView):
+    template_name = "core/company_info.html"
+
+
+class PrivacyView(LanguageViewMixin, TemplateView):
+    template_name = "core/privacy.html"
+
+
+class ServiceTermsView(LanguageViewMixin, TemplateView):
+    template_name = "core/service_terms.html"
+
+
+class RefundPolicyView(LanguageViewMixin, TemplateView):
+    template_name = "core/refund_policy.html"

@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% block title %}{% if lang == 'fa' %}تاریخچه نتایج | آرویون{% else %}Results history | Arvion{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}تاریخچه نتایج | رویون{% else %}Results history | Rvion{% endif %}{% endblock %}
 {% block content %}
 <section class="page-hero results-history-hero"><div class="shell"><a class="back-link" href="{% url 'accounts:dashboard' %}?lang={{ lang }}">{% if lang == 'fa' %}→ بازگشت به حساب من{% else %}← Back to my account{% endif %}</a><span class="eyebrow">ASSESSMENT ARCHIVE</span><h1>{% if lang == 'fa' %}تاریخچه نتایج{% else %}Results history{% endif %}</h1><p class="lead">{% if lang == 'fa' %}همه گزارش‌ها، نمره‌ها و گواهی‌های تو در یک آرشیو امن و مرتب.{% else %}Every report, score and certificate in one secure, organised archive.{% endif %}</p></div></section>
 <section class="section"><div class="shell results-history-list">

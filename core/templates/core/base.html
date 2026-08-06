@@ -4,13 +4,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}{% if lang == 'fa' %}آرویون | طراحی و توسعه محصول دیجیتال{% else %}Arvion | Digital product development{% endif %}{% endblock %}</title>
+  <title>{% block title %}{% if lang == 'fa' %}رویون | طراحی و توسعه محصول دیجیتال{% else %}Rvion | Digital product development{% endif %}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{% if lang == 'fa' %}طراحی و توسعه وب‌اپلیکیشن‌های سریع، امن و قابل رشد با Python و Django.{% else %}Fast, secure and scalable web applications built with Python and Django.{% endif %}{% endblock %}">
   <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?lang={{ lang }}">
   <link rel="alternate" hreflang="fa" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?lang=fa">
   <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?lang=en">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Arvion — Python & Django Studio">
+  <meta property="og:title" content="Rvion — Intelligent Trade & Digital Platforms">
   <meta property="og:description" content="Digital products engineered for clarity, speed and growth.">
   <meta name="theme-color" content="#0b1220">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=17">
@@ -21,8 +21,8 @@
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
   <header class="site-header">
     <div class="shell nav-wrap">
-      <a class="brand" href="{% url 'home' %}?lang={{ lang }}" aria-label="Arvion home">
-        <span class="brand-mark">A</span><span>ARVION</span>
+      <a class="brand" href="{% url 'home' %}?lang={{ lang }}" aria-label="Rvion home">
+        <span class="brand-mark">R</span><span>RVION</span>
       </a>
       <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">☰</button>
       <nav id="site-nav" class="site-nav" aria-label="Main navigation">
@@ -46,9 +46,9 @@
   <main id="main">{% block content %}{% endblock %}</main>
   <footer class="site-footer">
     <div class="shell footer-grid">
-      <div><a class="brand" href="{% url 'home' %}?lang={{ lang }}"><span class="brand-mark">A</span><span>ARVION</span></a><p>{% if lang == 'fa' %}ایده‌های خوب، مهندسی‌شده برای دنیای واقعی.{% else %}Good ideas, engineered for the real world.{% endif %}</p></div>
-      <div><span class="eyebrow">{% if lang == 'fa' %}ارتباط{% else %}Contact{% endif %}</span><a href="mailto:hello@rvin-tech.com">hello@rvin-tech.com</a></div>
-      <div class="footer-end"><span>© {% now "Y" %} Arvion</span><span>{% if lang == 'fa' %}ساخته‌شده با دقت و Django{% else %}Built with care and Django{% endif %}</span></div>
+      <div><a class="brand" href="{% url 'home' %}?lang={{ lang }}"><span class="brand-mark">R</span><span>RVION</span></a><p>{% if lang == 'fa' %}{{ company.legal_name_fa }}؛ فناوری و تجارت برای دنیای واقعی.{% else %}{{ company.legal_name_en }}; technology and trade for the real world.{% endif %}</p><a class="footer-legal-link" href="{% url 'company_info' %}?lang={{ lang }}">{% if lang == 'fa' %}ثبت {{ company.registration_number }} · شناسه ملی {{ company.national_id }}{% else %}Registration {{ company.registration_number }} · National ID {{ company.national_id }}{% endif %}</a></div>
+      <div><span class="eyebrow">{% if lang == 'fa' %}ارتباط رسمی{% else %}Official contact{% endif %}</span><a href="tel:+989333021100">{{ company.phone }}</a><a href="mailto:hello@rvin-tech.com">hello@rvin-tech.com</a><span>{% if lang == 'fa' %}{{ company.support_hours_fa }}{% else %}{{ company.support_hours_en }}{% endif %}</span></div>
+      <div class="footer-end"><span>© {% now "Y" %} Rvion</span><a href="{% url 'privacy' %}?lang={{ lang }}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}?lang={{ lang }}">{% if lang == 'fa' %}شرایط خدمات{% else %}Service terms{% endif %}</a><a href="{% url 'refund_policy' %}?lang={{ lang }}">{% if lang == 'fa' %}لغو و بازپرداخت{% else %}Cancellation{% endif %}</a></div>
     </div>
   </footer>
   <script>

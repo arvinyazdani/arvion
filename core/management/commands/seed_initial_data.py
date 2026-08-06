@@ -17,7 +17,7 @@ from services.models import Service
 from assessments.models import Exam
 
 class Command(BaseCommand):
-    help = "Create initial bilingual demo content for Arvion"
+    help = "Create initial bilingual demo content for Rvion"
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.MIGRATE_HEADING("Seeding initial content..."))
@@ -32,8 +32,8 @@ class Command(BaseCommand):
         # 2) Blog Posts (3 نمونه)
         posts_data = [
             {
-                "fa": {"title": "شروع Arvion", "summary": "معرفی کوتاه پروژه شخصی.", "body": "سلام دنیا!"},
-                "en": {"title": "Starting Arvion", "summary": "A short intro to the personal site.", "body": "Hello world!"},
+                "fa": {"title": "شروع Rvion", "summary": "معرفی کوتاه پروژه شخصی.", "body": "سلام دنیا!"},
+                "en": {"title": "Starting Rvion", "summary": "A short intro to the personal site.", "body": "Hello world!"},
                 "slug_fa": "شروع-arvion",
                 "slug_en": "starting-arvion",
             },

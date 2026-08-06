@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% block title %}{% if lang == 'fa' %}تاریخچه خریدها | آرویون{% else %}Purchase history | Arvion{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}تاریخچه خریدها | رویون{% else %}Purchase history | Rvion{% endif %}{% endblock %}
 {% block content %}
 <section class="page-hero orders-history-hero"><div class="shell"><a class="back-link" href="{% url 'accounts:dashboard' %}?lang={{ lang }}">{% if lang == 'fa' %}→ بازگشت به حساب من{% else %}← Back to my account{% endif %}</a><span class="eyebrow">PAYMENT ARCHIVE</span><h1>{% if lang == 'fa' %}خریدها و رسیدها{% else %}Purchases & receipts{% endif %}</h1><p class="lead">{% if lang == 'fa' %}وضعیت همه سفارش‌های آزمون و جزئیات ثبت‌شده هر پرداخت را اینجا ببین.{% else %}Review every assessment order and its recorded payment details here.{% endif %}</p></div></section>
 <section class="section"><div class="shell order-history-list">

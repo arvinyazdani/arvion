@@ -12,7 +12,7 @@ def send_verification_email(user, request, lang):
     token = default_token_generator.make_token(user)
     verify_path = reverse("accounts:verify", kwargs={"uidb64": uid, "token": token})
     verify_url = request.build_absolute_uri(f"{verify_path}?lang={lang}")
-    subject = "تأیید حساب آرویون" if lang == "fa" else "Verify your Arvion account"
+    subject = "تأیید حساب رویون" if lang == "fa" else "Verify your Rvion account"
     message = (
         f"برای فعال‌سازی حساب روی لینک زیر بزنید:\n{verify_url}"
         if lang == "fa" else f"Activate your account using this link:\n{verify_url}"

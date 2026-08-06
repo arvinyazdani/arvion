@@ -7,4 +7,4 @@ python manage.py migrate --noinput
 python manage.py seed_assessment_banks
 python manage.py collectstatic --noinput
 
-echo "Arvion database and static assets are ready."
+echo "Rvion database and static assets are ready."

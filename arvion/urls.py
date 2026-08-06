@@ -10,7 +10,7 @@
 # ==== ایمپورت‌ها ====
 from django.contrib import admin
 from django.urls import path, include
-from core.views import HomeView, AboutView  # ویوهای اصلی سایت
+from core.views import AboutView, CompanyInfoView, HomeView, PrivacyView, RefundPolicyView, ServiceTermsView
 from core.health import HealthCheckView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -26,6 +26,10 @@ urlpatterns = [
     # مسیرهای اپلیکیشن core
     path('', HomeView.as_view(), name='home'),  # صفحه اصلی
     path('about/', AboutView.as_view(), name='about'),  # درباره ما
+    path('company/', CompanyInfoView.as_view(), name='company_info'),
+    path('privacy/', PrivacyView.as_view(), name='privacy'),
+    path('service-terms/', ServiceTermsView.as_view(), name='service_terms'),
+    path('refund-policy/', RefundPolicyView.as_view(), name='refund_policy'),
 
     # مسیرهای اپلیکیشن وبلاگ
     path('blog/', include(('blog.urls', 'blog'), namespace='blog')),  # وبلاگ

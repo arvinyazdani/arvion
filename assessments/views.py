@@ -85,7 +85,7 @@ class SupportTicketCreateView(LanguageViewMixin, LoginRequiredMixin, FormView):
         ticket = form.save(commit=False)
         ticket.user = self.request.user
         ticket.save()
-        subject = f"[Arvion Support #{ticket.pk}] {ticket.subject}"
+        subject = f"[Rvion Support #{ticket.pk}] {ticket.subject}"
         body = f"User: {ticket.user.email}\nCategory: {ticket.category}\nOrder: {ticket.order_id or '-'}\nResult: {ticket.result_id or '-'}\n\n{ticket.message}"
         try:
             send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [settings.CONTACT_NOTIFICATION_EMAIL])

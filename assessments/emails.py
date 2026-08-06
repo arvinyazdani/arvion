@@ -19,7 +19,7 @@ def send_payment_confirmation_email(order, request, lang):
     receipt_url = request.build_absolute_uri(f"{receipt_path}?lang={lang}")
     exam_title = order.exam.title_fa if lang == "fa" else order.exam.title_en
     if lang == "fa":
-        subject = "تأیید پرداخت آزمون آرویون"
+        subject = "تأیید پرداخت آزمون رویون"
         message = (
             f"پرداخت شما برای «{exam_title}» تأیید شد.\n"
             f"مبلغ نهایی: {order.amount_irr:,} ریال\n"
@@ -29,7 +29,7 @@ def send_payment_confirmation_email(order, request, lang):
             "این رسید فاکتور رسمی یا مالیاتی نیست."
         )
     else:
-        subject = "Your Arvion assessment payment is confirmed"
+        subject = "Your Rvion assessment payment is confirmed"
         message = (
             f"Your payment for “{exam_title}” has been confirmed.\n"
             f"Final amount: {order.amount_irr:,} IRR\n"
@@ -62,7 +62,7 @@ def send_result_ready_email(result, request, lang):
     exam_title = result.attempt.exam.title_fa if lang == "fa" else result.attempt.exam.title_en
     level = result.level_title_fa if lang == "fa" else result.level_title_en
     if lang == "fa":
-        subject = "نتیجه آزمون آرویون آماده است"
+        subject = "نتیجه آزمون رویون آماده است"
         message = (
             f"نتیجه «{exam_title}» آماده است.\n"
             f"نمره: {result.percentage} از ۱۰۰\nسطح: {level}\n\n"
@@ -71,7 +71,7 @@ def send_result_ready_email(result, request, lang):
             "این نتیجه و گواهی رسمی یا دانشگاهی نیستند."
         )
     else:
-        subject = "Your Arvion assessment result is ready"
+        subject = "Your Rvion assessment result is ready"
         message = (
             f"Your result for “{exam_title}” is ready.\n"
             f"Score: {result.percentage} out of 100\nLevel: {level}\n\n"

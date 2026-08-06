@@ -1,10 +1,10 @@
 {% extends "core/base.html" %}
-{% block title %}{% if lang == 'fa' %}گواهی آزمون{% else %}Assessment certificate{% endif %} | Arvion{% endblock %}
+{% block title %}{% if lang == 'fa' %}گواهی آزمون{% else %}Assessment certificate{% endif %} | Rvion{% endblock %}
 {% block body_class %}certificate-page{% endblock %}
 {% block content %}
 <section class="certificate-wrap">
   <article class="certificate {% if integrity_needs_review %}certificate-review{% endif %}">
-    <div class="certificate-top"><div class="assessment-brand"><span class="assessment-brand-mark">A+</span><span>ARVION<br><small>ASSESSMENT</small></span></div><span>NON-ACCREDITED CERTIFICATE</span></div>
+    <div class="certificate-top"><div class="assessment-brand"><span class="assessment-brand-mark">R+</span><span>RVION<br><small>ASSESSMENT</small></span></div><span>NON-ACCREDITED CERTIFICATE</span></div>
     <div class="certificate-body">
       <span class="eyebrow">CERTIFICATE OF ASSESSMENT</span><p>{% if lang == 'fa' %}گواهی می‌شود که{% else %}This certifies that{% endif %}</p>
       <h1>{{ certificate.holder_name }}</h1>

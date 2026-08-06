@@ -32,7 +32,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             return self.form_invalid(form)
         lead = form.save()
         send_mail(
-            subject="New Lead — Arvion",
+            subject="New Lead — Rvion",
             message=(
                 f"Name: {lead.name}\n"
                 f"Email/Telegram: {lead.email_or_telegram}\n"

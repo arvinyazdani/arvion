@@ -313,7 +313,7 @@ class AccountFlowTests(TestCase):
         )
         self.assertRedirects(request, reverse("accounts:password_reset_done") + "?lang=en")
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].subject, "Reset your Arvion password")
+        self.assertEqual(mail.outbox[0].subject, "Reset your Rvion password")
         self.assertIn("?lang=en", mail.outbox[0].body)
         reset_url = re.search(r"http://testserver([^\s]+)", mail.outbox[0].body).group(1)
         confirm = self.client.get(reset_url, follow=True)

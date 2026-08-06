@@ -326,7 +326,7 @@ def score_attempt(attempt_id):
     ])
     Certificate.objects.create(
         result=result,
-        holder_name=attempt.user.get_full_name().strip() or "Arvion Candidate",
+        holder_name=attempt.user.get_full_name().strip() or "Rvion Candidate",
         verification_code=secrets.token_hex(6).upper(),
     )
     attempt.status = "completed"

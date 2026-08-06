@@ -1,6 +1,6 @@
 {% extends "core/base.html" %}
 {% load assessment_extras %}
-{% block title %}{% if lang == 'fa' %}نتیجه آزمون{% else %}Assessment result{% endif %} | Arvion{% endblock %}
+{% block title %}{% if lang == 'fa' %}نتیجه آزمون{% else %}Assessment result{% endif %} | Rvion{% endblock %}
 {% block content %}
 {% if result.attempt.completion_reason == 'timeout' %}<div class="timeout-result-notice"><div class="shell"><strong>{% if lang == 'fa' %}زمان آزمون به پایان رسید{% else %}Assessment time expired{% endif %}</strong><span>{% if lang == 'fa' %}پاسخ‌های ذخیره‌شده به‌صورت خودکار ثبت و تصحیح شدند.{% else %}Your saved answers were submitted and scored automatically.{% endif %}</span></div></div>{% endif %}
 <section class="result-hero">
