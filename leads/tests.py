@@ -10,13 +10,22 @@ class LeadTests(TestCase):
     def setUp(self):
         cache.clear()
         self.url = reverse("leads:contact") + "?lang=fa"
-        self.payload = {"name": "آروین", "email_or_telegram": "test@example.com", "phone": "", "request_type": "project", "message": "این یک پیام تست معتبر است.", "website": ""}
+        self.payload = {
+            "name": "آروین یزدانی", "business_name": "کسب‌وکار تست", "email_or_telegram": "test@example.com",
+            "phone": "", "request_type": "webapp", "service": "", "website_url": "",
+            "budget_range": "50_150", "timeline": "one_three", "preferred_contact": "email",
+            "message": "این یک پیام تست معتبر برای ساخت پلتفرم است.", "privacy_accept": "on", "website": "",
+        }
 
     def test_valid_submission_creates_lead_and_email(self):
         response = self.client.post(self.url, self.payload)
-        self.assertRedirects(response, "/contact/?lang=fa&submitted=1")
+        lead = Lead.objects.get()
+        self.assertRedirects(response, reverse("leads:thanks", args=[lead.tracking_code]) + "?lang=fa")
         self.assertEqual(Lead.objects.count(), 1)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(lead.status, "new")
+        self.assertIsNotNone(lead.privacy_accepted_at)
+        self.assertIn(lead.tracking_code, mail.outbox[0].subject)
 
     def test_honeypot_rejects_bot(self):
         self.payload["website"] = "https://spam.example"
@@ -35,3 +44,30 @@ class LeadTests(TestCase):
         response = self.client.post(self.url, self.payload)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Lead.objects.count(), 1)
+
+    def test_privacy_consent_is_required(self):
+        self.payload.pop("privacy_accept")
+        response = self.client.post(self.url, self.payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Lead.objects.count(), 0)
+
+    def test_phone_is_required_when_phone_contact_is_selected(self):
+        self.payload["preferred_contact"] = "phone"
+        response = self.client.post(self.url, self.payload)
+        self.assertContains(response, "برای تماس تلفنی، شماره تماس لازم است")
+        self.assertEqual(Lead.objects.count(), 0)
+
+    def test_service_query_prefills_enquiry_and_confirmation_hides_personal_data(self):
+        from services.models import Service
+
+        service = Service.objects.get(slug="corporate-website-design")
+        page = self.client.get(self.url + f"&service={service.slug}")
+        self.assertEqual(page.context["form"].initial["service"], service)
+        self.assertEqual(page.context["form"].initial["request_type"], "website")
+        self.payload["service"] = service.pk
+        submitted = self.client.post(self.url, self.payload)
+        lead = Lead.objects.get()
+        confirmation = self.client.get(submitted.url)
+        self.assertContains(confirmation, lead.tracking_code)
+        self.assertContains(confirmation, service.title_fa)
+        self.assertNotContains(confirmation, lead.email_or_telegram)

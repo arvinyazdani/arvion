@@ -18,5 +18,5 @@ urlpatterns = [
     # صفحه لیست تمام خدمات
     path("", ServiceListView.as_view(), name="list"),
     # صفحه جزئیات هر خدمت
-    path("<int:pk>/", ServiceDetailView.as_view(), name="detail"),
+    path("<slug:slug>/", ServiceDetailView.as_view(), name="detail"),
 ]

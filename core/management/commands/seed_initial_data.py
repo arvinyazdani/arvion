@@ -92,23 +92,34 @@ class Command(BaseCommand):
                 "repo_url": item["repo"], "demo_url": item["demo"], "is_active": True,
             })
 
-        # 4) Services (2 نمونه)
+        # 4) Public service catalogue (full sales copy is installed by migration)
         services_data = [
             {
-                "fa": {"title": "آموزش خصوصی Django", "description": "جلسات ۹۰ دقیقه‌ای آنلاین."},
-                "en": {"title": "Private Django Training", "description": "90‑minute online sessions."},
-                "price": 750000,
+                "slug": "digital-product-consulting", "fa": "مشاوره محصول و پلتفرم آنلاین",
+                "en": "Digital product and platform consulting", "order": 1,
             },
             {
-                "fa": {"title": "پیاده‌سازی وب‌اپ", "description": "طراحی و ساخت MVP با Django."},
-                "en": {"title": "Web App Implementation", "description": "Design & build MVP with Django."},
-                "price": 0,
+                "slug": "corporate-website-design", "fa": "طراحی و توسعه وب‌سایت شرکتی",
+                "en": "Corporate website design and development", "order": 2,
+            },
+            {
+                "slug": "custom-web-application", "fa": "ساخت وب‌اپلیکیشن و MVP اختصاصی",
+                "en": "Custom web application and MVP", "order": 3,
+            },
+            {
+                "slug": "ecommerce-platform", "fa": "فروشگاه و پلتفرم تجارت آنلاین",
+                "en": "E-commerce platform", "order": 4,
+            },
+            {
+                "slug": "maintenance-and-growth", "fa": "پشتیبانی، بهینه‌سازی و توسعه",
+                "en": "Maintenance, optimization and growth", "order": 5,
             },
         ]
         for item in services_data:
-            Service.objects.update_or_create(title_en=item["en"]["title"], defaults={
-                "title_fa": item["fa"]["title"], "description_fa": item["fa"]["description"],
-                "description_en": item["en"]["description"], "price": item["price"], "is_active": True,
+            Service.objects.get_or_create(slug=item["slug"], defaults={
+                "title_fa": item["fa"], "title_en": item["en"],
+                "short_description_fa": item["fa"], "short_description_en": item["en"],
+                "display_order": item["order"], "is_active": True,
             })
 
         # 5) Assessment products
