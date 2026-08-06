@@ -1,0 +1,16 @@
+{
+  "name": "Rvion — Intelligent Trade Development",
+  "short_name": "Rvion",
+  "start_url": "/fa/",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#0b1220",
+  "icons": [
+    {
+      "src": "/static/core/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

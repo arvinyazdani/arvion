@@ -19,8 +19,13 @@
   <meta property="og:url" content="{{ canonical_url }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#0b1220">
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=17">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Rvion">
+  <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
+  <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=18">
   <script src="{% static 'core/js/persian-ui.js' %}?v=3" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=1" defer></script>
   {% block extra_head %}{% endblock %}
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","email":"hello@rvin-tech.com","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
 </head>
@@ -31,7 +36,7 @@
       <a class="brand" href="{% url 'home' %}" aria-label="Rvion home">
         <span class="brand-mark">R</span><span>RVION</span>
       </a>
-      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">☰</button>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-open-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-close-label="{% if lang == 'fa' %}بستن منو{% else %}Close menu{% endif %}"><span></span><span></span><span></span></button>
       <nav id="site-nav" class="site-nav" aria-label="Main navigation">
         <a href="{% url 'home' %}">{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</a>
         <a href="{% url 'projects:list' %}">{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</a>
@@ -47,10 +52,18 @@
         <a class="nav-cta" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Let's talk{% endif %}</a>
         <a class="lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
       </nav>
+      <button class="nav-scrim" type="button" tabindex="-1" aria-hidden="true"></button>
     </div>
   </header>
   {% if messages %}<div class="shell messages" role="status">{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}</div>{% endif %}
   <main id="main">{% block content %}{% endblock %}</main>
+  <nav class="mobile-tabbar" aria-label="{% if lang == 'fa' %}دسترسی سریع{% else %}Quick navigation{% endif %}">
+    <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><b>R</b><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
+    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><b>◇</b><span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span></a>
+    <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><b>✓</b><span>{% if lang == 'fa' %}آزمون{% else %}Tests{% endif %}</span></a>
+    <a href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><b>↗</b><span>{% if lang == 'fa' %}همکاری{% else %}Contact{% endif %}</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><b>●</b><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>
+  </nav>
   <footer class="site-footer">
     <div class="shell footer-grid">
       <div><a class="brand" href="{% url 'home' %}"><span class="brand-mark">R</span><span>RVION</span></a><p>{% if lang == 'fa' %}{{ company.legal_name_fa }}؛ فناوری و تجارت برای دنیای واقعی.{% else %}{{ company.legal_name_en }}; technology and trade for the real world.{% endif %}</p><a class="footer-legal-link" href="{% url 'company_info' %}">{% if lang == 'fa' %}ثبت {{ company.registration_number }} · شناسه ملی {{ company.national_id }}{% else %}Registration {{ company.registration_number }} · National ID {{ company.national_id }}{% endif %}</a></div>
@@ -58,10 +71,6 @@
       <div class="footer-end"><span>© {% now "Y" %} Rvion</span><a href="{% url 'privacy' %}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}">{% if lang == 'fa' %}شرایط خدمات{% else %}Service terms{% endif %}</a><a href="{% url 'refund_policy' %}">{% if lang == 'fa' %}لغو و بازپرداخت{% else %}Cancellation{% endif %}</a></div>
     </div>
   </footer>
-  <script>
-    const button=document.querySelector('.menu-button'), nav=document.querySelector('.site-nav');
-    button?.addEventListener('click',()=>{const open=nav.classList.toggle('is-open');button.setAttribute('aria-expanded',open)});
-  </script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

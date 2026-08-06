@@ -10,6 +10,18 @@ from .models import CompanyProfile
 
 
 class CorePagesTests(TestCase):
+    def test_mobile_shell_has_accessible_menu_and_quick_navigation(self):
+        response = self.client.get("/fa/")
+        self.assertContains(response, 'aria-controls="site-nav"', html=False)
+        self.assertContains(response, 'aria-expanded="false"', html=False)
+        self.assertContains(response, 'data-close-label="بستن منو"', html=False)
+        self.assertContains(response, 'class="mobile-tabbar"', html=False)
+        self.assertContains(response, 'aria-label="دسترسی سریع"', html=False)
+        self.assertContains(response, 'aria-current="page"', html=False)
+        self.assertContains(response, "core/js/site-shell.js")
+        self.assertContains(response, "core/manifest.webmanifest")
+        self.assertContains(response, "core/favicon.svg")
+
     def test_language_prefixed_urls_and_root_redirect(self):
         with translation.override("fa"):
             self.assertEqual(reverse("home"), "/fa/")
