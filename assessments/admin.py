@@ -35,9 +35,13 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(admin.ModelAdmin):
-    list_display = ("external_id", "order", "amount_irr", "status", "verified_at")
+    list_display = ("external_id", "order", "amount_display", "status", "verified_at")
     list_filter = ("status", "gateway")
     readonly_fields = ("order", "external_id", "amount_irr", "raw_response", "created_at", "verified_at")
+
+    @admin.display(description="Amount (IRR)", ordering="amount_irr")
+    def amount_display(self, obj):
+        return f"{obj.amount_irr:,}"
 
 
 @admin.register(ExamEntitlement)

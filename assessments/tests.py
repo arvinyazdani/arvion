@@ -18,7 +18,7 @@ from .models import (
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .services import (
     AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
-    verify_sandbox_payment,
+    verify_gateway_payment, verify_sandbox_payment,
 )
 
 
@@ -168,6 +168,58 @@ class AssessmentCommerceTests(TestCase):
         self.assertEqual(second_order.status, "paid")
         self.assertEqual(ExamEntitlement.objects.count(), 1)
         self.assertEqual(PaymentTransaction.objects.filter(status="verified").count(), 1)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False)
+    def test_gateway_verification_rejects_wrong_amount_gateway_and_replay(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=self.exam.price_irr, gateway="provider",
+            terms_version="test-v1", terms_accepted_at=timezone.now(),
+        )
+        for kwargs in (
+            {"gateway": "other", "external_id": "ref-wrong-gateway", "amount_irr": 500_000},
+            {"gateway": "provider", "external_id": "ref-wrong-amount", "amount_irr": 499_999},
+        ):
+            with self.assertRaises(PaymentVerificationError):
+                verify_gateway_payment(order.pk, **kwargs)
+        order.refresh_from_db()
+        self.assertEqual(order.status, "pending")
+        self.assertFalse(PaymentTransaction.objects.exists())
+
+        verify_gateway_payment(
+            order.pk, gateway="provider", external_id="provider-ref-1", amount_irr=500_000,
+        )
+        second_order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=500_000, gateway="provider",
+            terms_version="test-v1", terms_accepted_at=timezone.now(), status="cancelled",
+        )
+        second_order.status = "pending"
+        second_order.save(update_fields=["status"])
+        with self.assertRaises(PaymentVerificationError):
+            verify_gateway_payment(
+                second_order.pk, gateway="provider", external_id="provider-ref-1", amount_irr=500_000,
+            )
+        self.assertEqual(ExamEntitlement.objects.count(), 1)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False)
+    def test_gateway_response_is_sanitized_and_callback_is_idempotent(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, amount_irr=500_000, gateway="provider",
+            terms_version="test-v1", terms_accepted_at=timezone.now(),
+        )
+        first, created = verify_gateway_payment(
+            order.pk, gateway="provider", external_id="provider-ref-safe", amount_irr=500_000,
+            response={"status_code": 100, "tracking": "ok", "token": "secret-value", "nested": {"private": True}},
+        )
+        second, created_again = verify_gateway_payment(
+            order.pk, gateway="provider", external_id="provider-ref-safe", amount_irr=500_000,
+        )
+        payment = PaymentTransaction.objects.get(external_id="provider-ref-safe")
+
+        self.assertTrue(created)
+        self.assertFalse(created_again)
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(payment.raw_response, {"status_code": 100, "tracking": "ok", "verified": True})
+        self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
 
     @override_settings(DEBUG=True, PAYMENT_GATEWAY="sandbox")
     def test_payment_requires_server_recorded_terms_acceptance(self):

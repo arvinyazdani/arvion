@@ -27,6 +27,23 @@ class PaymentVerificationError(Exception):
     pass
 
 
+SENSITIVE_GATEWAY_FIELDS = {
+    "authorization", "card_number", "card_pan", "cvv", "password", "secret", "token",
+}
+
+
+def _safe_gateway_response(payload):
+    """Keep useful audit metadata without persisting credentials or full card data."""
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        str(key)[:80]: value
+        for key, value in payload.items()
+        if str(key).lower() not in SENSITIVE_GATEWAY_FIELDS
+        and isinstance(value, (str, int, float, bool, type(None)))
+    }
+
+
 def _choose_section_questions(pool, count, rng, recent_ids, difficulty_distribution=None):
     """Choose an auditable, balanced set while preferring unseen content groups."""
     distribution = {int(level): int(quota) for level, quota in (difficulty_distribution or {}).items()}
@@ -57,29 +74,34 @@ def _choose_section_questions(pool, count, rng, recent_ids, difficulty_distribut
 
 
 @transaction.atomic
-def verify_sandbox_payment(order_id):
+def verify_gateway_payment(order_id, *, gateway, external_id, amount_irr, response=None):
+    """Verify a provider-confirmed payment exactly once and grant one entitlement."""
     order = Order.objects.select_for_update().select_related("exam", "user").get(pk=order_id)
+    gateway = str(gateway).strip().lower()
+    external_id = str(external_id).strip()
+    if not gateway or gateway != order.gateway:
+        raise PaymentVerificationError("Payment gateway does not match the order")
+    if not external_id or len(external_id) > 120:
+        raise PaymentVerificationError("Invalid gateway transaction identifier")
+    if amount_irr != order.amount_irr:
+        raise PaymentVerificationError("Verified amount does not match the order")
     if order.status == "paid":
+        payment = PaymentTransaction.objects.filter(external_id=external_id).first()
+        if not payment or payment.order_id != order.id or payment.gateway != gateway or payment.amount_irr != amount_irr:
+            raise PaymentVerificationError("Paid order does not match this transaction")
         return order, False
     if not order.terms_accepted_at or not order.terms_version:
         raise PaymentVerificationError("Assessment terms must be accepted before payment")
-    gateway = "free" if settings.ASSESSMENT_FREE_CHECKOUT and order.amount_irr == 0 else "sandbox"
-    external_id = f"{gateway}-{order.id}"
-    payment, _ = PaymentTransaction.objects.get_or_create(
-        external_id=external_id,
-        defaults={"order": order, "gateway": gateway, "amount_irr": order.amount_irr},
+    existing = PaymentTransaction.objects.select_for_update().filter(external_id=external_id).first()
+    if existing and (existing.order_id != order.id or existing.gateway != gateway or existing.amount_irr != amount_irr):
+        raise PaymentVerificationError("Gateway transaction is already linked to another payment")
+    payment = existing or PaymentTransaction.objects.create(
+        external_id=external_id, order=order, gateway=gateway, amount_irr=amount_irr,
     )
-    if payment.amount_irr != order.amount_irr:
-        order.status = "failed"
-        order.save(update_fields=["status", "updated_at"])
-        payment.status = "failed"
-        payment.raw_response = {"reason": "amount_mismatch"}
-        payment.save(update_fields=["status", "raw_response"])
-        return order, False
     now = timezone.now()
     payment.status = "verified"
     payment.verified_at = now
-    payment.raw_response = {"sandbox": gateway == "sandbox", "free_checkout": gateway == "free", "verified": True}
+    payment.raw_response = {**_safe_gateway_response(response), "verified": True}
     payment.save(update_fields=["status", "verified_at", "raw_response"])
     order.status = "paid"
     order.paid_at = now
@@ -89,6 +111,18 @@ def verify_sandbox_payment(order_id):
         defaults={"user": order.user, "exam": order.exam, "attempts_remaining": 1},
     )
     return order, True
+
+
+def verify_sandbox_payment(order_id):
+    order = Order.objects.get(pk=order_id)
+    gateway = "free" if settings.ASSESSMENT_FREE_CHECKOUT and order.amount_irr == 0 else "sandbox"
+    return verify_gateway_payment(
+        order.id,
+        gateway=gateway,
+        external_id=f"{gateway}-{order.id}",
+        amount_irr=order.amount_irr,
+        response={"sandbox": gateway == "sandbox", "free_checkout": gateway == "free"},
+    )
 
 
 @transaction.atomic

@@ -32,3 +32,20 @@ The benchmark creates complete 50-question attempts, scores them and rolls every
 ```bash
 python manage.py benchmark_assessment_engine --attempts 1000
 ```
+## Payment gateway integration contract
+
+Local development uses the 100% discount checkout and production always disables it. To connect a real provider, set `PAYMENT_GATEWAY` to a stable lowercase provider name and implement provider-specific initiation and callback views. The callback must verify the transaction directly with the provider before calling:
+
+```python
+verify_gateway_payment(
+    order_id,
+    gateway="provider-name",
+    external_id=provider_transaction_id,
+    amount_irr=provider_verified_amount,
+    response=safe_provider_metadata,
+)
+```
+
+Never trust an amount, status, or transaction ID sent only by the browser. The service locks the order, requires prior acceptance of the assessment terms, checks the configured gateway and exact IRR amount, rejects cross-order transaction replay, strips common secrets from audit metadata, and creates at most one entitlement. Provider credentials must stay in environment variables and must never be passed in `response`.
+
+Production refuses the `sandbox` gateway. Before deployment, add the selected provider's SDK/client, signed callback validation, server-to-server verification, callback URL, credentials, and provider-specific automated tests.
