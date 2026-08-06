@@ -3,12 +3,37 @@ from unittest.mock import patch
 from django.db import connection
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import translation
 
 from .i18n_numbers import normalize_digits, persian_digits
 from .models import CompanyProfile
 
 
 class CorePagesTests(TestCase):
+    def test_language_prefixed_urls_and_root_redirect(self):
+        with translation.override("fa"):
+            self.assertEqual(reverse("home"), "/fa/")
+        with translation.override("en"):
+            self.assertEqual(reverse("services:list"), "/en/services/")
+        response = self.client.get("/")
+        self.assertRedirects(response, "/fa/", status_code=301, fetch_redirect_response=False)
+
+    def test_seo_metadata_uses_production_canonical_and_alternates(self):
+        response = self.client.get("/en/services/")
+        self.assertContains(response, '<link rel="canonical" href="https://rvin-tech.com/en/services/">', html=True)
+        self.assertContains(response, 'hreflang="fa" href="https://rvin-tech.com/fa/services/"', html=False)
+        self.assertContains(response, 'hreflang="x-default"', html=False)
+        self.assertContains(response, '"@type":"Organization"', html=False)
+        self.assertNotContains(response, "?lang=")
+
+    def test_robots_and_bilingual_sitemap_are_public(self):
+        robots = self.client.get(reverse("robots"))
+        self.assertContains(robots, "Sitemap: https://rvin-tech.com/sitemap.xml")
+        self.assertContains(robots, "Disallow: /admin/")
+        sitemap = self.client.get(reverse("sitemap"))
+        self.assertContains(sitemap, "https://testserver/fa/services/")
+        self.assertContains(sitemap, "https://testserver/en/services/")
+
     def test_company_identity_is_seeded_once(self):
         company = CompanyProfile.objects.get()
         self.assertEqual(company.legal_name_fa, "آروین توسعه تجارت هوشمند")
@@ -66,9 +91,8 @@ class CorePagesTests(TestCase):
     def test_ascii_digits_are_rendered_as_persian(self):
         self.assertEqual(persian_digits("2026 / 50"), "۲۰۲۶ / ۵۰")
 
-    def test_language_is_kept_in_session(self):
-        self.client.get(reverse("home"), {"lang": "en"})
-        response = self.client.get(reverse("about"))
+    def test_language_is_selected_by_url_prefix(self):
+        response = self.client.get("/en/about/")
         self.assertEqual(response.context["lang"], "en")
         self.assertContains(response, "Technology for")
 

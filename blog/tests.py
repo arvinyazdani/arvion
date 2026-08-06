@@ -14,7 +14,7 @@ class BlogTests(TestCase):
         )
 
     def test_list_and_bilingual_detail(self):
-        self.assertContains(self.client.get(reverse("blog:list")), "مقاله تست")
+        self.assertContains(self.client.get("/fa/blog/"), "مقاله تست")
         response = self.client.get(reverse("blog:detail", args=["test-article"]), {"lang": "en"})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Test article")

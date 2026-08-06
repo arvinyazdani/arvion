@@ -14,6 +14,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",
     "accounts",
     "assessments",
     "core",
@@ -47,6 +48,7 @@ TEMPLATES = [{
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
         "core.context_processors.assessment_flags",
+        "core.context_processors.seo_context",
     ]},
 }]
 WSGI_APPLICATION = "arvion.wsgi.application"
@@ -61,6 +63,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "fa"
 LANGUAGES = [("fa", "فارسی"), ("en", "English")]
+SITE_URL = os.getenv("SITE_URL", "https://rvin-tech.com").rstrip("/")
 TIME_ZONE = "Asia/Tehran"
 USE_I18N = True
 USE_TZ = True

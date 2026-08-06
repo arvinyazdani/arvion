@@ -109,7 +109,7 @@ class AssessmentCommerceTests(TestCase):
         )
 
     def test_catalog_is_public(self):
-        response = self.client.get(reverse("assessments:list"))
+        response = self.client.get("/fa/assessments/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "آزمون پایتون")
 
@@ -261,7 +261,8 @@ class AssessmentCommerceTests(TestCase):
         self.assertEqual(mail.outbox[0].to, [self.user.email])
         self.assertIn("payment is confirmed", mail.outbox[0].subject)
         self.assertIn(str(order.pk), mail.outbox[0].body)
-        self.assertIn(reverse("accounts:payment_receipt", args=[order.pk]), mail.outbox[0].body)
+        self.assertIn(f"/en/account/orders/{order.pk}/receipt/", mail.outbox[0].body)
+        self.assertNotIn("?lang=", mail.outbox[0].body)
         order.refresh_from_db()
         self.assertIsNotNone(order.confirmation_email_sent_at)
 
@@ -547,8 +548,12 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("result is ready", mail.outbox[0].subject)
-        self.assertIn(url, mail.outbox[0].body)
-        self.assertIn(result.certificate.get_absolute_url(), mail.outbox[0].body)
+        self.assertIn(f"/en/assessments/result/{result.pk}/", mail.outbox[0].body)
+        self.assertNotIn("?lang=", mail.outbox[0].body)
+        self.assertIn(
+            f"/en/assessments/certificate/{result.certificate.verification_code}/",
+            mail.outbox[0].body,
+        )
         self.assertIn("not official or academic", mail.outbox[0].body)
         result.refresh_from_db()
         self.assertIsNotNone(result.report_email_sent_at)

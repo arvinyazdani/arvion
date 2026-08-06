@@ -1,7 +1,7 @@
 {% load i18n static %}
 <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
   
-  <a href="{% if lang == 'fa' %}{% url 'blog:detail' post.slug_fa %}?lang=fa{% else %}{% url 'blog:detail' post.slug_en %}?lang=en{% endif %}">
+  <a href="{% if lang == 'fa' %}{% url 'blog:detail' post.slug_fa %}{% else %}{% url 'blog:detail' post.slug_en %}{% endif %}">
     {% if post.hero_image %}
       <img src="{{ post.hero_image.url }}" alt="Post image" class="w-full h-64 object-contain bg-gray-800 dark:bg-gray-800">
     {% else %}

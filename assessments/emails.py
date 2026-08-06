@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from .models import AttemptResult, Order
 
@@ -11,12 +11,17 @@ from .models import AttemptResult, Order
 logger = logging.getLogger(__name__)
 
 
+def localized_reverse(lang, name, **kwargs):
+    with translation.override(lang):
+        return reverse(name, **kwargs)
+
+
 def send_payment_confirmation_email(order, request, lang):
     """Send a retry-safe payment confirmation without blocking a completed payment."""
     if order.status != "paid" or order.confirmation_email_sent_at:
         return False
-    receipt_path = reverse("accounts:payment_receipt", kwargs={"pk": order.pk})
-    receipt_url = request.build_absolute_uri(f"{receipt_path}?lang={lang}")
+    receipt_path = localized_reverse(lang, "accounts:payment_receipt", kwargs={"pk": order.pk})
+    receipt_url = request.build_absolute_uri(receipt_path)
     exam_title = order.exam.title_fa if lang == "fa" else order.exam.title_en
     if lang == "fa":
         subject = "تأیید پرداخت آزمون رویون"
@@ -56,9 +61,12 @@ def send_result_ready_email(result, request, lang):
     """Email report links once while keeping result delivery independent from SMTP."""
     if result.report_email_sent_at:
         return False
-    report_path = reverse("assessments:result", kwargs={"pk": result.pk})
-    report_url = request.build_absolute_uri(f"{report_path}?lang={lang}")
-    certificate_url = request.build_absolute_uri(f"{result.certificate.get_absolute_url()}?lang={lang}")
+    report_path = localized_reverse(lang, "assessments:result", kwargs={"pk": result.pk})
+    certificate_path = localized_reverse(
+        lang, "assessments:certificate", kwargs={"code": result.certificate.verification_code}
+    )
+    report_url = request.build_absolute_uri(report_path)
+    certificate_url = request.build_absolute_uri(certificate_path)
     exam_title = result.attempt.exam.title_fa if lang == "fa" else result.attempt.exam.title_en
     level = result.level_title_fa if lang == "fa" else result.level_title_en
     if lang == "fa":

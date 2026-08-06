@@ -7,10 +7,8 @@ class LanguageViewMixin(View):
     """
     میکسین مدیریت زبان برای ویوها
 
-    این میکسین وظیفه دارد زبان فعلی سایت را بر اساس اولویت‌های زیر تعیین کند:
-      1. بررسی پارامتر GET به نام lang (مثلاً ?lang=fa یا ?lang=en)
-      2. اگر نبود، استفاده از مقدار ذخیره شده در سشن کاربر
-      3. اگر هیچ‌کدام نبود، استفاده از زبان پیش‌فرض (fa)
+    زبان اصلی از پیشوند URL می‌آید. پارامتر قدیمی lang فقط برای
+    سازگاری لینک‌های قبلی پشتیبانی می‌شود و سپس سشن/فارسی fallback هستند.
 
     همچنین زبان انتخاب شده را در سشن ذخیره می‌کند تا درخواست‌های بعدی
     هم به همان زبان باشند.
@@ -26,8 +24,8 @@ class LanguageViewMixin(View):
         متد dispatch قبل از هر متد دیگری اجرا می‌شود
         و زبان را تشخیص داده و فعال می‌کند.
         """
-        # 1) گرفتن زبان از GET
-        lang = request.GET.get('lang')
+        # URL prefix is canonical; GET remains compatible with old links.
+        lang = request.GET.get('lang') or getattr(request, "LANGUAGE_CODE", None)
 
         # 2) اگر نبود از سشن
         if not lang:

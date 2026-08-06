@@ -3,7 +3,7 @@
 {% block body_class %}payment-receipt-page{% endblock %}
 {% block content %}
 <section class="section receipt-section"><div class="shell receipt-shell">
-  <nav class="receipt-page-actions"><a class="back-link" href="{% url 'accounts:orders_history' %}?lang={{ lang }}">{% if lang == 'fa' %}→ بازگشت به خریدها{% else %}← Back to purchases{% endif %}</a><button class="button" type="button" onclick="window.print()">{% if lang == 'fa' %}چاپ یا ذخیره PDF{% else %}Print or save PDF{% endif %}</button></nav>
+  <nav class="receipt-page-actions"><a class="back-link" href="{% url 'accounts:orders_history' %}">{% if lang == 'fa' %}→ بازگشت به خریدها{% else %}← Back to purchases{% endif %}</a><button class="button" type="button" onclick="window.print()">{% if lang == 'fa' %}چاپ یا ذخیره PDF{% else %}Print or save PDF{% endif %}</button></nav>
   <article class="payment-receipt">
     <header><div class="receipt-brand"><span class="brand-mark">R</span><div><strong>RVION</strong><small>Arvin Tose'e Tejarat Hooshmand</small></div></div><div class="receipt-heading"><span>{% if lang == 'fa' %}رسید پرداخت{% else %}PAYMENT RECEIPT{% endif %}</span><strong data-ascii>#{{ order.pk|stringformat:"s"|slice:":8"|upper }}</strong></div></header>
     <div class="receipt-state {% if order.status == 'refunded' %}refunded{% endif %}"><span>✓</span><div><strong>{% if order.status == 'refunded' %}{% if lang == 'fa' %}پرداخت بازپرداخت شده است{% else %}Payment refunded{% endif %}{% else %}{% if lang == 'fa' %}پرداخت تأیید شده است{% else %}Payment confirmed{% endif %}{% endif %}</strong><small>{% if lang == 'fa' %}این وضعیت از رکورد ثبت‌شده سمت سرور خوانده شده است.{% else %}This status is read from the server-side payment record.{% endif %}</small></div></div>
