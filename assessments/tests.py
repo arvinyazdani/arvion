@@ -378,6 +378,27 @@ class AssessmentCommerceTests(TestCase):
         self.assertContains(response, "Owner ticket")
         self.assertNotContains(response, "Private stranger ticket")
 
+    @override_settings(ASSESSMENT_SUPPORT_TICKETS_PER_HOUR=2)
+    def test_authenticated_support_spam_is_hourly_limited(self):
+        SupportTicket.objects.bulk_create([
+            SupportTicket(
+                user=self.user, category="technical", subject=f"Existing {index}",
+                message="A previously submitted support request.",
+            )
+            for index in range(2)
+        ])
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("assessments:support_create") + "?lang=en", {
+            "category": "technical", "order": "", "result": "",
+            "subject": "Too many requests", "message": "This request must be throttled safely.",
+            "website": "",
+        })
+
+        self.assertRedirects(response, reverse("assessments:support_history") + "?lang=en")
+        self.assertEqual(SupportTicket.objects.count(), 2)
+        self.assertEqual(len(mail.outbox), 0)
+
 
 class AssessmentEngineTests(TestCase):
     def setUp(self):

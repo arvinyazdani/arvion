@@ -71,6 +71,17 @@ class SupportTicketCreateView(LanguageViewMixin, LoginRequiredMixin, FormView):
         return initial
 
     def form_valid(self, form):
+        recent_count = SupportTicket.objects.filter(
+            user=self.request.user,
+            created_at__gte=timezone.now() - timedelta(hours=1),
+        ).count()
+        if recent_count >= settings.ASSESSMENT_SUPPORT_TICKETS_PER_HOUR:
+            messages.error(
+                self.request,
+                "تعداد درخواست‌های پشتیبانی شما در این ساعت به سقف مجاز رسیده است."
+                if self.lang == "fa" else "You have reached the hourly support request limit.",
+            )
+            return redirect(f"{reverse('assessments:support_history')}?lang={self.lang}")
         ticket = form.save(commit=False)
         ticket.user = self.request.user
         ticket.save()
@@ -267,15 +278,20 @@ class AttemptReviewView(LanguageViewMixin, LoginRequiredMixin, DetailView):
 
 
 class SaveAnswerView(LoginRequiredMixin, View):
+    @transaction.atomic
     def post(self, request, pk, item_pk):
-        attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
+        attempt = get_object_or_404(
+            Attempt.objects.select_for_update(), pk=pk, user=request.user,
+        )
         result = finalize_expired_attempt(attempt.pk)
         if result or attempt.status != "in_progress":
             return JsonResponse({
                 "ok": False, "reason": "attempt_closed",
                 "result_url": reverse("assessments:result", kwargs={"pk": result.pk}) if result else "",
             }, status=409)
-        item = get_object_or_404(AttemptQuestion, pk=item_pk, attempt=attempt)
+        item = get_object_or_404(
+            AttemptQuestion.objects.select_for_update(), pk=item_pk, attempt=attempt,
+        )
         choice = get_object_or_404(Choice, pk=request.POST.get("choice"), question=item.question)
         item.selected_choice = choice
         item.answered_at = timezone.now()

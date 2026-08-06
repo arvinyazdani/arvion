@@ -55,7 +55,7 @@ class Command(BaseCommand):
                 lap = perf_counter()
                 order = Order.objects.create(user=user, exam=exam, amount_irr=exam.price_irr, status="paid", gateway="benchmark")
                 entitlement = ExamEntitlement.objects.create(user=user, exam=exam, order=order)
-                attempt, _ = start_attempt(entitlement.pk, user)
+                attempt, _ = start_attempt(entitlement.pk, user, enforce_daily_limit=False)
                 attempt.status = "submitted"
                 attempt.submitted_at = timezone.now()
                 attempt.save(update_fields=["status", "submitted_at", "updated_at"])

@@ -126,7 +126,7 @@ def verify_sandbox_payment(order_id):
 
 
 @transaction.atomic
-def start_attempt(entitlement_id, user):
+def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
     entitlement = ExamEntitlement.objects.select_for_update().select_related("exam").get(pk=entitlement_id, user=user)
     if hasattr(entitlement, "attempt"):
         return entitlement.attempt, False
@@ -137,7 +137,7 @@ def start_attempt(entitlement_id, user):
     recent_count = Attempt.objects.filter(
         user_id=user.pk, exam=entitlement.exam, started_at__gte=since,
     ).count()
-    if recent_count >= settings.ASSESSMENT_ATTEMPTS_PER_DAY:
+    if enforce_daily_limit and recent_count >= settings.ASSESSMENT_ATTEMPTS_PER_DAY:
         raise AttemptLimitError("Daily assessment attempt limit reached")
     version = ExamVersion.objects.filter(exam=entitlement.exam, is_published=True).order_by("-version").first()
     if not version:
