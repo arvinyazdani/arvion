@@ -38,11 +38,12 @@ sudo -u "$APP_USER" env APP_DIR="$APP_DIR" ENV_FILE="$ENV_FILE" "$APP_DIR/ops/re
 systemctl daemon-reload
 systemctl enable --now arvion.service arvion-traffic-cleanup.timer nginx
 nginx -t
+systemctl reload nginx
 set -a
 source "$ENV_FILE"
 set +a
 HEALTH_HOST="${DJANGO_ALLOWED_HOSTS%%,*}"
-curl --fail --silent --show-error --retry 10 --retry-delay 2 \
+curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 \
   --header "Host: $HEALTH_HOST" --header "X-Forwarded-Proto: https" \
   http://127.0.0.1:8000/health/ >/dev/null
 echo "Arvion is running. Configure Arvan DNS/CDN and TLS, then verify the public /health/ endpoint."

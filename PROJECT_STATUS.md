@@ -175,6 +175,8 @@ Rvion یک پلتفرم دوزبانه فارسی/انگلیسی مبتنی بر
 - گیت کامل انتشار پس از این سه قابلیت موفق بود: ۱۴۳ تست، بدون migration drift یا dependency ناسازگار، ممیزی سخت‌گیرانه ۴۰۰ سؤال، collectstatic و benchmark صد workflow.
 - حالت bootstrap اولیه بدون credential بیرونی اضافه شد: PostgreSQL و media روی همان ابرک اجرا می‌شوند و ایمیل موقتاً در journal سرور ثبت می‌شود. فعال‌سازی SMTP و Object Storage واقعی همچنان به کلید صادرشده از ارائه‌دهنده نیاز دارد.
 - فایل User Data دارای رمزها و یادداشت credential عمداً در `.gitignore` قرار گرفتند و نباید به مخزن عمومی push شوند.
+- نخستین استقرار واقعی روی ابرک Ubuntu آروان انجام شد: PostgreSQL 16، migrationها، پنج نقش کارکنان، ۴۰۰ سؤال، static، Gunicorn، Nginx، timer پاک‌سازی و superuser عملیاتی ساخته شدند.
+- race راه‌اندازی اولیه Gunicorn با `--retry-connrefused` و نیاز به reload شدن Nginx پس از جایگزینی config در bootstrap اصلاح شد.
 
 - نام و مستندات API درگاه پرداخت باید پس از انتخاب سرویس‌دهنده مشخص شود.
 - دامنه، ارائه‌دهنده PostgreSQL/S3/SMTP و مقصد استقرار هنوز در مخزن تعیین نشده‌اند.
