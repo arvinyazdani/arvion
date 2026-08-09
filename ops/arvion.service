@@ -1,0 +1,20 @@
+[Unit]
+Description=Arvion Django application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=arvion
+Group=arvion
+WorkingDirectory=/srv/arvion
+EnvironmentFile=/srv/arvion/.env.production
+ExecStart=/srv/arvion/.venv/bin/gunicorn arvion.wsgi:application --bind 127.0.0.1:8000 --workers 3 --threads 2 --timeout 60 --access-logfile - --error-logfile -
+Restart=always
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=full
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

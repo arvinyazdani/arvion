@@ -1,0 +1,10 @@
+[Unit]
+Description=Clean expired Arvion traffic identifiers
+
+[Service]
+Type=oneshot
+User=arvion
+Group=arvion
+WorkingDirectory=/srv/arvion
+EnvironmentFile=/srv/arvion/.env.production
+ExecStart=/srv/arvion/.venv/bin/python manage.py cleanup_traffic_data

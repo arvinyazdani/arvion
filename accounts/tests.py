@@ -33,11 +33,11 @@ class StaffRoleTests(TestCase):
         user.refresh_from_db()
         return user
 
-    def test_setup_command_is_idempotent_and_creates_four_roles(self):
+    def test_setup_command_is_idempotent_and_creates_expected_roles(self):
         call_command("setup_staff_roles", stdout=StringIO())
         self.assertEqual(
             set(Group.objects.filter(name__startswith="rvion_").values_list("name", flat=True)),
-            {"rvion_sales", "rvion_assessments", "rvion_support", "rvion_content"},
+            {"rvion_sales", "rvion_assessments", "rvion_support", "rvion_content", "rvion_analytics"},
         )
 
     def test_roles_follow_least_privilege_boundaries(self):
