@@ -21,8 +21,8 @@ from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
-from .forms import SupportTicketForm
-from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, Order, SupportTicket
+from .forms import ManualPaymentSubmissionForm, SupportTicketForm
+from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket
 from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
 
@@ -137,6 +137,51 @@ class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).select_related("exam")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            "manual_payment_form": ManualPaymentSubmissionForm(lang=self.lang),
+            "card_payment_number": settings.CARD_PAYMENT_NUMBER,
+            "card_payment_holder": settings.CARD_PAYMENT_HOLDER,
+        })
+        return context
+
+
+class ManualPaymentSubmitView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        lang = request.GET.get("lang", "fa")
+        order = get_object_or_404(Order, pk=pk, user=request.user, status="pending", gateway="card_transfer")
+        form = ManualPaymentSubmissionForm(request.POST, lang=lang)
+        if not form.is_valid():
+            messages.error(request, "اطلاعات پرداخت را اصلاح کنید." if lang == "fa" else "Please correct the payment details.")
+            view = CheckoutView()
+            view.setup(request, pk=pk)
+            view.object = order
+            view.lang = lang
+            context = view.get_context_data(object=order)
+            context["manual_payment_form"] = form
+            return view.render_to_response(context)
+        if hasattr(order, "manual_payment"):
+            messages.info(request, "اطلاعات پرداخت این سفارش قبلاً ثبت شده است." if lang == "fa" else "Payment details were already submitted.")
+            return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
+        order.terms_version = settings.ASSESSMENT_TERMS_VERSION
+        order.terms_accepted_at = timezone.now()
+        order.save(update_fields=["terms_version", "terms_accepted_at", "updated_at"])
+        submission = form.save(commit=False)
+        submission.order = order
+        submission.paid_at = form.cleaned_data["paid_at"]
+        submission.save()
+        try:
+            send_mail(
+                f"[Rvion] پرداخت کارت‌به‌کارت جدید {str(order.pk)[:8]}",
+                f"سفارش: {order.pk}\nکاربر: {order.user.email}\nمبلغ: {order.amount_irr:,} ریال\nپیگیری: {submission.reference_number}\nزمان اعلامی: {submission.paid_at}\n\nبرای بررسی وارد داشبورد مدیریت شوید.",
+                settings.DEFAULT_FROM_EMAIL, [settings.CONTACT_NOTIFICATION_EMAIL],
+            )
+        except Exception:
+            logger.exception("Manual payment notification failed for order %s", order.pk)
+        messages.success(request, "اطلاعات واریز ثبت شد و پس از تأیید ادمین دسترسی فعال می‌شود." if lang == "fa" else "Payment details were submitted. Access will be enabled after admin approval.")
+        return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
 
 
 class SandboxPayView(LoginRequiredMixin, View):

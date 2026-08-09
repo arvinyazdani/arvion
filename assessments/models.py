@@ -81,6 +81,31 @@ class PaymentTransaction(models.Model):
         ordering = ("-created_at",)
 
 
+class ManualPaymentSubmission(models.Model):
+    STATUSES = (("pending", "Pending review"), ("approved", "Approved"), ("rejected", "Rejected"))
+
+    order = models.OneToOneField(Order, on_delete=models.PROTECT, related_name="manual_payment")
+    payer_name = models.CharField(max_length=150)
+    reference_number = models.CharField(max_length=80, unique=True)
+    paid_at = models.DateTimeField()
+    note = models.TextField(blank=True, max_length=500)
+    status = models.CharField(max_length=12, choices=STATUSES, default="pending", db_index=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="reviewed_manual_payments",
+        blank=True, null=True,
+    )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    review_note = models.TextField(blank=True, max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.reference_number} / {self.status}"
+
+
 class ExamEntitlement(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="exam_entitlements")
     exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="entitlements")

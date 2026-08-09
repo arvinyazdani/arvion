@@ -13,7 +13,7 @@ from django.utils import timezone
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam,
     ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, Order,
-    PaymentTransaction, Question, Skill, SupportTicket,
+    ManualPaymentSubmission, PaymentTransaction, Question, Skill, SupportTicket,
 )
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .services import (
@@ -117,6 +117,46 @@ class AssessmentCommerceTests(TestCase):
         response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response.url)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_card_transfer_waits_for_admin_then_grants_access(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+        order = Order.objects.get()
+        now = timezone.localtime()
+        response = self.client.post(reverse("assessments:manual_payment_submit", args=[order.pk]) + "?lang=fa", {
+            "payer_name": "خریدار آزمون", "reference_number": "۱۲۳۴۵۶۷۸",
+            "payment_date": now.date().isoformat(), "payment_time": now.strftime("%H:%M"),
+            "note": "", "accept_terms": "on",
+        })
+        self.assertRedirects(response, reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
+        submission = ManualPaymentSubmission.objects.get(order=order)
+        self.assertEqual(submission.reference_number, "12345678")
+        self.assertEqual(submission.status, "pending")
+        self.assertFalse(ExamEntitlement.objects.filter(order=order).exists())
+        admin_user = User.objects.create_superuser("owner@example.com", "owner@example.com", "secret")
+        self.client.force_login(admin_user)
+        self.client.post(reverse("admin:assessments_manualpaymentsubmission_changelist"), {
+            "action": "approve_manual_payments", "_selected_action": [submission.pk],
+        })
+        submission.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(submission.status, "approved")
+        self.assertEqual(order.status, "paid")
+        self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_card_transfer_rejects_future_payment_time(self):
+        order = Order.objects.create(user=self.user, exam=self.exam, subtotal_irr=500_000, amount_irr=500_000, gateway="card_transfer")
+        self.client.force_login(self.user)
+        future = timezone.localtime() + timedelta(days=1)
+        response = self.client.post(reverse("assessments:manual_payment_submit", args=[order.pk]), {
+            "payer_name": "Buyer", "reference_number": "987654", "payment_date": future.date(),
+            "payment_time": future.strftime("%H:%M"), "accept_terms": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ManualPaymentSubmission.objects.exists())
+        self.assertFalse(ExamEntitlement.objects.exists())
 
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False)
     def test_order_price_is_copied_from_exam_on_server(self):

@@ -66,4 +66,4 @@ CSRF_COOKIE_SAMESITE = "Lax"
 X_FRAME_OPTIONS = "DENY"
 
 if PAYMENT_GATEWAY in {"sandbox", "free"}:
-    raise RuntimeError("PAYMENT_GATEWAY must be a real production provider")
+    raise RuntimeError("PAYMENT_GATEWAY must be card_transfer or a real production provider")

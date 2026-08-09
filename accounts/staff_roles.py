@@ -26,6 +26,7 @@ STAFF_ROLES = {
             "assessments.examentitlement": {"view"},
             "assessments.order": {"view"},
             "assessments.paymenttransaction": {"view"},
+            "assessments.manualpaymentsubmission": {"view", "change"},
         },
     },
     "support": {

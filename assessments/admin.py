@@ -1,11 +1,54 @@
-from django.contrib import admin
+from django.conf import settings
+from django.contrib import admin, messages
+from django.core.mail import send_mail
+from django.db import transaction
+from django.utils import timezone
 
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .models import (
     Attempt, AttemptResult, Certificate, Choice, Exam, ExamEntitlement,
-    ExamSection, ExamVersion, IntegrityEvent, Order, PaymentTransaction,
+    ExamSection, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction,
     Question, Skill, SkillResult, SupportTicket,
 )
+from .services import PaymentVerificationError, verify_gateway_payment
+
+
+@admin.action(description="تأیید پرداخت‌های انتخاب‌شده و فعال‌سازی دسترسی")
+def approve_manual_payments(modeladmin, request, queryset):
+    approved = 0
+    for submission in queryset.filter(status="pending").select_related("order__user", "order__exam"):
+        try:
+            with transaction.atomic():
+                locked = ManualPaymentSubmission.objects.select_for_update().select_related("order__user", "order__exam").get(pk=submission.pk)
+                if locked.status != "pending":
+                    continue
+                order, created = verify_gateway_payment(
+                    locked.order_id, gateway="card_transfer", external_id=f"card-{locked.reference_number}",
+                    amount_irr=locked.order.amount_irr,
+                    response={"manual_review": True, "reference": locked.reference_number},
+                )
+                locked.status = "approved"
+                locked.reviewed_by = request.user
+                locked.reviewed_at = timezone.now()
+                locked.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+            if created:
+                send_mail(
+                    "پرداخت شما تأیید و دسترسی آزمون فعال شد",
+                    f"پرداخت سفارش {order.pk} تأیید شد. اکنون از حساب کاربری خود می‌توانید آزمون را شروع کنید:\n{settings.SITE_URL}/fa/account/",
+                    settings.DEFAULT_FROM_EMAIL, [order.user.email], fail_silently=True,
+                )
+            approved += 1
+        except PaymentVerificationError as exc:
+            modeladmin.message_user(request, f"سفارش {submission.order_id}: {exc}", level=messages.ERROR)
+    modeladmin.message_user(request, f"{approved} پرداخت تأیید شد.", level=messages.SUCCESS)
+
+
+@admin.action(description="رد کردن پرداخت‌های انتخاب‌شده")
+def reject_manual_payments(modeladmin, request, queryset):
+    updated = queryset.filter(status="pending").update(
+        status="rejected", reviewed_by=request.user, reviewed_at=timezone.now(), updated_at=timezone.now(),
+    )
+    modeladmin.message_user(request, f"{updated} پرداخت رد شد.", level=messages.WARNING)
 
 
 @admin.register(Exam)
@@ -42,6 +85,15 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     @admin.display(description="Amount (IRR)", ordering="amount_irr")
     def amount_display(self, obj):
         return f"{obj.amount_irr:,}"
+
+
+@admin.register(ManualPaymentSubmission)
+class ManualPaymentSubmissionAdmin(admin.ModelAdmin):
+    list_display = ("reference_number", "order", "payer_name", "paid_at", "status", "created_at")
+    list_filter = ("status", "paid_at", "created_at")
+    search_fields = ("reference_number", "payer_name", "order__id", "order__user__email")
+    readonly_fields = ("order", "payer_name", "reference_number", "paid_at", "note", "status", "reviewed_by", "reviewed_at", "created_at", "updated_at")
+    actions = (approve_manual_payments, reject_manual_payments)
 
 
 @admin.register(ExamEntitlement)

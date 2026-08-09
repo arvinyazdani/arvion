@@ -2,7 +2,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.urls import reverse
 
-from assessments.models import Attempt, Order, SupportTicket
+from assessments.models import Attempt, ManualPaymentSubmission, Order, SupportTicket
 from blog.models import Post
 from leads.models import Lead
 from crm_orders.models import CrmOrder
@@ -26,6 +26,8 @@ def operations_dashboard(request):
         cards.append(_card("سفارش‌های CRM", CrmOrder.objects.filter(status="new").count(), "نیازمند تحلیل اولیه", reverse("admin:crm_orders_crmorder_changelist") + "?status__exact=new", "attention"))
     if user.has_perm("assessments.view_order"):
         cards.append(_card("سفارش‌های معلق", Order.objects.filter(status="pending").count(), "در انتظار تعیین وضعیت", reverse("admin:assessments_order_changelist") + "?status__exact=pending", "attention"))
+    if user.has_perm("assessments.view_manualpaymentsubmission"):
+        cards.append(_card("واریزهای نیازمند تأیید", ManualPaymentSubmission.objects.filter(status="pending").count(), "بررسی بانکی و فعال‌سازی دسترسی", reverse("admin:assessments_manualpaymentsubmission_changelist") + "?status__exact=pending", "attention"))
     if user.has_perm("assessments.view_attempt"):
         cards.append(_card("آزمون‌های در حال اجرا", Attempt.objects.filter(status="in_progress").count(), "جلسه‌های فعال کاربران", reverse("admin:assessments_attempt_changelist") + "?status__exact=in_progress"))
     if user.has_perm("assessments.view_supportticket"):
