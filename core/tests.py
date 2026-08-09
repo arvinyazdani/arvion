@@ -46,6 +46,14 @@ class CorePagesTests(TestCase):
         self.assertContains(sitemap, "https://testserver/fa/services/")
         self.assertContains(sitemap, "https://testserver/en/services/")
 
+    def test_application_shell_exposes_accessible_landmarks_and_controls(self):
+        response = self.client.get(reverse("home") + "?lang=fa")
+        self.assertContains(response, 'class="skip-link"')
+        self.assertContains(response, '<main id="main" tabindex="-1">')
+        self.assertContains(response, 'aria-label="پیمایش اصلی"')
+        self.assertContains(response, 'aria-controls="site-nav"')
+        self.assertContains(response, 'aria-expanded="false"')
+
     def test_company_identity_is_seeded_once(self):
         company = CompanyProfile.objects.get()
         self.assertEqual(company.legal_name_fa, "آروین توسعه تجارت هوشمند")

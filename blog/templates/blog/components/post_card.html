@@ -3,9 +3,9 @@
   
   <a href="{% if lang == 'fa' %}{% url 'blog:detail' post.slug_fa %}{% else %}{% url 'blog:detail' post.slug_en %}{% endif %}">
     {% if post.hero_image %}
-      <img src="{{ post.hero_image.url }}" alt="Post image" class="w-full h-64 object-contain bg-gray-800 dark:bg-gray-800">
+      <img src="{{ post.hero_image.url }}" alt="{% if lang == 'fa' %}تصویر مقاله {{ post.title_fa }}{% else %}Cover for {{ post.title_en }}{% endif %}" class="w-full h-64 object-contain bg-gray-800 dark:bg-gray-800">
     {% else %}
-      <img src="{% static 'img/default_post.jpg' %}" alt="Default image" class="w-full h-64 object-contain bg-gray-800 dark:bg-gray-800">
+      <img src="{% static 'img/default_post.jpg' %}" alt="" class="w-full h-64 object-contain bg-gray-800 dark:bg-gray-800">
     {% endif %}
     <div class="p-4">
       <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-2">

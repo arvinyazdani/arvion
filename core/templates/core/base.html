@@ -33,11 +33,11 @@
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
   <header class="site-header">
     <div class="shell nav-wrap">
-      <a class="brand" href="{% url 'home' %}" aria-label="Rvion home">
+      <a class="brand" href="{% url 'home' %}" aria-label="{% if lang == 'fa' %}صفحه اصلی رویون{% else %}Rvion home{% endif %}">
         <span class="brand-mark">R</span><span>RVION</span>
       </a>
       <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-open-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-close-label="{% if lang == 'fa' %}بستن منو{% else %}Close menu{% endif %}"><span></span><span></span><span></span></button>
-      <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+      <nav id="site-nav" class="site-nav" aria-label="{% if lang == 'fa' %}پیمایش اصلی{% else %}Main navigation{% endif %}">
         <a href="{% url 'home' %}">{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</a>
         <a href="{% url 'projects:list' %}">{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</a>
         <a href="{% url 'assessments:list' %}">{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</a>
@@ -56,13 +56,13 @@
     </div>
   </header>
   {% if messages %}<div class="shell messages" role="status">{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}</div>{% endif %}
-  <main id="main">{% block content %}{% endblock %}</main>
+  <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
   <nav class="mobile-tabbar" aria-label="{% if lang == 'fa' %}دسترسی سریع{% else %}Quick navigation{% endif %}">
-    <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><b>R</b><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
-    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><b>◇</b><span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span></a>
-    <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><b>✓</b><span>{% if lang == 'fa' %}آزمون{% else %}Tests{% endif %}</span></a>
-    <a href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><b>↗</b><span>{% if lang == 'fa' %}همکاری{% else %}Contact{% endif %}</span></a>
-    <a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><b>●</b><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>
+    <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><b aria-hidden="true">R</b><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
+    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><b aria-hidden="true">◇</b><span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span></a>
+    <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><b aria-hidden="true">✓</b><span>{% if lang == 'fa' %}آزمون{% else %}Tests{% endif %}</span></a>
+    <a href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><b aria-hidden="true">↗</b><span>{% if lang == 'fa' %}همکاری{% else %}Contact{% endif %}</span></a>
+    <a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><b aria-hidden="true">●</b><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>
   </nav>
   <footer class="site-footer">
     <div class="shell footer-grid">

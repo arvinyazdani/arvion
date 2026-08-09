@@ -30,6 +30,18 @@
       close();
       button.focus();
     }
+    if (event.key === "Tab" && nav.classList.contains("is-open")) {
+      const focusable = [button, ...nav.querySelectorAll("a")];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   });
   window.addEventListener("resize", () => {
     if (window.innerWidth > 820) close();
