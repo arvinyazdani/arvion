@@ -1,5 +1,7 @@
 """Additional reviewed items for the 200-question Python/Django v2 bank."""
 
+from .technical_rationales import technical_rationale
+
 EXPERT_SUBSKILLS = {
     "descriptors", "inheritance", "asyncio", "distributed-systems", "concurrency",
     "mutation-testing", "contract-testing", "transactions", "orm-performance",
@@ -13,8 +15,7 @@ def build(section, specs):
     for fa, en, correct, wrong1, wrong2, wrong3, difficulty, subskill in specs:
         if difficulty == 4 and subskill in EXPERT_SUBSKILLS:
             difficulty = 5
-        explanation_fa = f"«{correct}» پاسخ درست است و دقیقاً با قواعد {subskill} در این سناریو سازگار است."
-        explanation_en = f"‘{correct}’ is correct and matches the {subskill} rules required by this scenario."
+        explanation_fa, explanation_en = technical_rationale(section, subskill, fa, en, correct)
         wrong = (wrong1, wrong2, wrong3)
         questions.append({
             "section": section, "prompt_fa": fa, "prompt_en": en,

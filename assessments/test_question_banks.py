@@ -5,7 +5,7 @@ from django.test import SimpleTestCase, TestCase
 
 from .management.commands.seed_assessment_banks import validate_bank
 from .question_banks.english import BANK_VERSION as ENGLISH_BANK_VERSION, QUESTIONS, SECTIONS
-from .question_banks.python_django import QUESTIONS as PYTHON_QUESTIONS, SECTIONS as PYTHON_SECTIONS
+from .question_banks.python_django import BANK_VERSION as PYTHON_BANK_VERSION, QUESTIONS as PYTHON_QUESTIONS, SECTIONS as PYTHON_SECTIONS
 from .templatetags.assessment_extras import inline_code
 from .models import Exam, ExamEntitlement, ExamVersion, Order
 from .services import start_attempt
@@ -102,6 +102,12 @@ class QuestionBankEditorialAuditTests(SimpleTestCase):
             self.assertEqual(report["issues"], [])
             self.assertGreaterEqual(report["subskill_count"], 20)
 
+    def test_current_banks_have_no_automated_editorial_warnings(self):
+        for questions, sections in (
+            (QUESTIONS, SECTIONS), (PYTHON_QUESTIONS, PYTHON_SECTIONS),
+        ):
+            self.assertEqual(audit_bank(questions, sections)["warnings"], [])
+
 
 class BenchmarkCommandTests(TestCase):
     def test_benchmark_rolls_back_all_synthetic_data(self):
@@ -119,11 +125,11 @@ class PublishedPythonBankTests(TestCase):
         english = Exam.objects.get(slug="english-placement-a1-c1")
         python = Exam.objects.get(slug="python-django-professional")
         self.assertEqual(english.versions.get(version=ENGLISH_BANK_VERSION).questions.count(), 200)
-        self.assertEqual(python.versions.get(version=2).questions.count(), 200)
+        self.assertEqual(python.versions.get(version=PYTHON_BANK_VERSION).questions.count(), 200)
         self.assertEqual(english.versions.filter(version=ENGLISH_BANK_VERSION).count(), 1)
-        self.assertEqual(python.versions.filter(version=2).count(), 1)
+        self.assertEqual(python.versions.filter(version=PYTHON_BANK_VERSION).count(), 1)
 
-    def test_version_two_publishes_and_builds_a_balanced_fifty_question_attempt(self):
+    def test_current_versions_publish_and_build_a_balanced_fifty_question_attempt(self):
         english_exam = Exam.objects.create(
             slug="english-placement-a1-c1", title_fa="انگلیسی", title_en="English",
             description_fa="توضیح", description_en="Description", language_mode="en",
@@ -141,7 +147,7 @@ class PublishedPythonBankTests(TestCase):
         self.assertEqual(english_version.questions.count(), 200)
         self.assertEqual(english_version.sections.get(code="writing-objective").question_count, 5)
         self.assertEqual(english_version.sections.get(code="listening").question_count, 8)
-        version = ExamVersion.objects.get(exam=python_exam, version=2, is_published=True)
+        version = ExamVersion.objects.get(exam=python_exam, version=PYTHON_BANK_VERSION, is_published=True)
         self.assertEqual(version.questions.count(), 200)
         self.assertEqual(sum(section.question_count for section in version.sections.all()), 50)
         user = get_user_model().objects.create_user(

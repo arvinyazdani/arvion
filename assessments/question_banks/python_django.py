@@ -1,6 +1,8 @@
 """Bilingual professional Python/Django bank; correct choice is stored first."""
 
-BANK_VERSION = 2
+from .technical_rationales import technical_rationale
+
+BANK_VERSION = 3
 
 SECTIONS = (
     ("python-core", "هسته پایتون", "Python Core", 40, 10),
@@ -15,11 +17,13 @@ SECTIONS = (
 
 def q(section, fa, en, correct, *wrong, difficulty=3, subskill="", question_type=None,
       suggested_seconds=75, explanation_fa="", explanation_en=""):
-    explanation_fa = explanation_fa or f"«{correct}» با رفتار تعریف‌شده این مفهوم سازگار است."
-    explanation_en = explanation_en or f"‘{correct}’ matches the defined behavior of this concept."
+    subskill = subskill or section
+    generated_fa, generated_en = technical_rationale(section, subskill, fa, en, correct)
+    explanation_fa = explanation_fa or generated_fa
+    explanation_en = explanation_en or generated_en
     return {"section": section, "prompt_fa": fa, "prompt_en": en,
             "choices": (correct,) + wrong, "difficulty": difficulty,
-            "subskill": subskill or section,
+            "subskill": subskill,
             "question_type": question_type or ("code_analysis" if "`" in en else "single_choice"),
             "suggested_seconds": suggested_seconds,
             "explanation_fa": explanation_fa, "explanation_en": explanation_en,

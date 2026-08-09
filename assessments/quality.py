@@ -40,6 +40,12 @@ def audit_bank(questions, sections):
         )).casefold()
         if any(marker.casefold() in explanation for marker in GENERIC_EXPLANATION_MARKERS):
             warnings.append(f"Q{index}: rationale is generic and needs subject-matter editing")
+        if normalized(question.get("prompt_fa")) != normalized(question.get("prompt_en")):
+            if len(explanation.strip()) < 120:
+                warnings.append(f"Q{index}: bilingual technical rationale is too short to be instructional")
+            correct = normalized((question.get("choices") or ("",))[0])
+            if correct and correct not in normalized(explanation):
+                warnings.append(f"Q{index}: technical rationale does not identify the keyed answer")
         for language in ("fa", "en"):
             key = f"choice_explanations_{language}"
             values = question.get(key, ())
