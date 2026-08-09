@@ -16,6 +16,8 @@ media/
 # Virtual environment
 venv/
 .env
+.server-secrets.txt
+ops/arvan-user-data-private.sh
 .venv/
 
 # IDEs

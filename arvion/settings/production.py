@@ -8,11 +8,15 @@ ASSESSMENT_FREE_CHECKOUT = False
 
 required = [
     "DJANGO_SECRET_KEY", "DATABASE_URL", "DJANGO_ALLOWED_HOSTS",
-    "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "CONTACT_NOTIFICATION_EMAIL",
+    "DEFAULT_FROM_EMAIL", "CONTACT_NOTIFICATION_EMAIL",
     "PAYMENT_GATEWAY",
-    "AWS_STORAGE_BUCKET_NAME", "AWS_S3_ENDPOINT_URL",
-    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
 ]
+USE_S3_STORAGE = os.getenv("USE_S3_STORAGE", "1") == "1"
+USE_SMTP_EMAIL = os.getenv("USE_SMTP_EMAIL", "1") == "1"
+if USE_SMTP_EMAIL:
+    required += ["EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD"]
+if USE_S3_STORAGE:
+    required += ["AWS_STORAGE_BUCKET_NAME", "AWS_S3_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
 missing = [name for name in required if not os.getenv(name)]
 if missing:
     raise RuntimeError(f"Missing production environment variables: {', '.join(missing)}")
@@ -23,7 +27,10 @@ if len(SECRET_KEY) < 50 or SECRET_KEY.startswith("replace-"):
 if not os.environ["DATABASE_URL"].lower().startswith(("postgresql://", "postgres://")):
     raise RuntimeError("DATABASE_URL must use PostgreSQL in production")
 DATABASES = {"default": dj_database_url.config(conn_max_age=600, conn_health_checks=True, ssl_require=True)}
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if USE_SMTP_EMAIL else "django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.postmarkapp.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
@@ -31,23 +38,24 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
-STORAGES = {
-    "default": {"BACKEND": "storages.backends.s3.S3Storage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-}
-AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
-AWS_S3_ENDPOINT_URL = os.environ["AWS_S3_ENDPOINT_URL"].rstrip("/")
-AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
-AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "auto")
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = None
-AWS_QUERYSTRING_AUTH = False
-AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN", "")
-MEDIA_URL = (
-    f"https://{AWS_S3_CUSTOM_DOMAIN}/" if AWS_S3_CUSTOM_DOMAIN
-    else f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
-)
+if USE_S3_STORAGE:
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
+    AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+    AWS_S3_ENDPOINT_URL = os.environ["AWS_S3_ENDPOINT_URL"].rstrip("/")
+    AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+    AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "auto")
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN", "")
+    MEDIA_URL = (
+        f"https://{AWS_S3_CUSTOM_DOMAIN}/" if AWS_S3_CUSTOM_DOMAIN
+        else f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+    )
 
 CSRF_TRUSTED_ORIGINS = [url.strip() for url in os.getenv("CSRF_TRUSTED_ORIGINS", "https://rvin-tech.com,https://www.rvin-tech.com").split(",")]
 SECURE_SSL_REDIRECT = True
