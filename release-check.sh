@@ -12,7 +12,7 @@ fi
 "$RVION_PYTHON" manage.py makemigrations --check --dry-run
 "$RVION_PYTHON" -m pip check
 "$RVION_PYTHON" manage.py test
-"$RVION_PYTHON" manage.py audit_question_banks
+"$RVION_PYTHON" manage.py audit_question_banks --strict-editorial
 "$RVION_PYTHON" manage.py collectstatic --noinput --dry-run --verbosity 0
 "$RVION_PYTHON" manage.py benchmark_assessment_engine --attempts 100
 

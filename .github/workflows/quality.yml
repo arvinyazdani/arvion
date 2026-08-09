@@ -36,5 +36,4 @@ jobs:
       - name: Test application
         run: python manage.py test --parallel 2
       - name: Audit assessment sources
-        run: python manage.py audit_question_banks
-
+        run: python manage.py audit_question_banks --strict-editorial
