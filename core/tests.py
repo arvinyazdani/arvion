@@ -21,6 +21,7 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "core/js/site-shell.js")
         self.assertContains(response, "core/manifest.webmanifest")
         self.assertContains(response, "core/favicon.svg")
+        self.assertRedirects(self.client.get("/favicon.ico"), "/static/core/favicon.svg", status_code=301, fetch_redirect_response=False)
 
     def test_language_prefixed_urls_and_root_redirect(self):
         with translation.override("fa"):

@@ -39,6 +39,8 @@ Before each release, run the non-destructive acceptance gate locally:
 ./release-check.sh
 ```
 
+Project architecture, delivery history and current blockers are maintained in `PROJECT_STATUS.md`. Use `FINAL_RELEASE_CHECKLIST.md` for the staging and go-live handoff, `QUESTION_BANK_AUDIT.md` for assessment quality boundaries and `CRM_DISCOVERY_GUIDE.md` for the enterprise CRM intake rationale.
+
 After deployment, configure the platform health probe to request `GET /health/`. A healthy instance returns HTTP 200 with `{"status":"ok"}`; loss of database connectivity returns HTTP 503 without exposing internal errors.
 
 Deployment checklist:

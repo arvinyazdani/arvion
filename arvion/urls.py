@@ -31,12 +31,17 @@ def robots_txt(request):
     return HttpResponse(content, content_type="text/plain")
 
 
+def favicon(request):
+    return HttpResponsePermanentRedirect("/static/core/favicon.svg")
+
+
 urlpatterns = [
     path("", default_language, name="language_root"),
     path("health/", HealthCheckView.as_view(), name="health"),
     path("admin/operations/", operations_dashboard, name="admin_operations"),
     path("admin/", admin.site.urls),
     path("robots.txt", robots_txt, name="robots"),
+    path("favicon.ico", favicon, name="favicon"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
 ]
 

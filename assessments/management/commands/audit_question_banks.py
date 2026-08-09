@@ -11,6 +11,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--strict-editorial", action="store_true")
+        parser.add_argument("--verbose-warnings", action="store_true")
 
     def handle(self, *args, **options):
         total_warnings = 0
@@ -27,8 +28,12 @@ class Command(BaseCommand):
                 f"{name}: {report['question_count']} questions; "
                 f"{report['subskill_count']} subskills; {len(report['warnings'])} editorial warnings"
             )
-            for warning in report["warnings"]:
+            visible_warnings = report["warnings"] if options["verbose_warnings"] else report["warnings"][:5]
+            for warning in visible_warnings:
                 self.stdout.write(self.style.WARNING(f"  {warning}"))
+            hidden = len(report["warnings"]) - len(visible_warnings)
+            if hidden:
+                self.stdout.write(self.style.WARNING(f"  ... {hidden} more; use --verbose-warnings for the full list"))
         if options["strict_editorial"] and total_warnings:
             raise CommandError(f"Question banks have {total_warnings} unresolved editorial warnings")
         self.stdout.write(self.style.SUCCESS("Question-bank structural audit passed."))
