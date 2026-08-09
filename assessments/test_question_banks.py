@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 
 from .management.commands.seed_assessment_banks import validate_bank
-from .question_banks.english import QUESTIONS, SECTIONS
+from .question_banks.english import BANK_VERSION as ENGLISH_BANK_VERSION, QUESTIONS, SECTIONS
 from .question_banks.python_django import QUESTIONS as PYTHON_QUESTIONS, SECTIONS as PYTHON_SECTIONS
 from .templatetags.assessment_extras import inline_code
 from .models import Exam, ExamEntitlement, ExamVersion, Order
@@ -118,9 +118,9 @@ class PublishedPythonBankTests(TestCase):
         self.assertEqual(Exam.objects.count(), 2)
         english = Exam.objects.get(slug="english-placement-a1-c1")
         python = Exam.objects.get(slug="python-django-professional")
-        self.assertEqual(english.versions.get(version=3).questions.count(), 200)
+        self.assertEqual(english.versions.get(version=ENGLISH_BANK_VERSION).questions.count(), 200)
         self.assertEqual(python.versions.get(version=2).questions.count(), 200)
-        self.assertEqual(english.versions.filter(version=3).count(), 1)
+        self.assertEqual(english.versions.filter(version=ENGLISH_BANK_VERSION).count(), 1)
         self.assertEqual(python.versions.filter(version=2).count(), 1)
 
     def test_version_two_publishes_and_builds_a_balanced_fifty_question_attempt(self):
@@ -136,7 +136,7 @@ class PublishedPythonBankTests(TestCase):
         )
         call_command("seed_assessment_banks", verbosity=0)
         english_exam.refresh_from_db()
-        english_version = ExamVersion.objects.get(exam=english_exam, version=3, is_published=True)
+        english_version = ExamVersion.objects.get(exam=english_exam, version=ENGLISH_BANK_VERSION, is_published=True)
         self.assertEqual(english_exam.duration_minutes, 75)
         self.assertEqual(english_version.questions.count(), 200)
         self.assertEqual(english_version.sections.get(code="writing-objective").question_count, 5)

@@ -1,6 +1,6 @@
 """Curated English placement bank. Choices are stored with the correct answer first."""
 
-BANK_VERSION = 3
+BANK_VERSION = 4
 
 SECTIONS = (
     ("grammar", "گرامر", "Grammar", 32, 8),
@@ -82,6 +82,69 @@ q("advanced","No sooner had she arrived ___ the discussion began.","than","when"
 q("advanced","The policy, ___ well-intentioned, may create unintended costs.","albeit","therefore","provided","otherwise",difficulty=5),
 q("advanced","It is imperative that every applicant ___ the declaration.","sign","signs","signed","will sign",difficulty=5),
 ]
+
+# Human-authored rationales for the original 50-item core. Keeping these
+# separate makes their alignment reviewable and prevents silent fallback to a
+# generic “only option” explanation when a new core item is added.
+CORE_RATIONALES = (
+    "With the third-person singular subject ‘she’, the present-simple verb takes -s: ‘drinks’.",
+    "‘Since 2020’ marks a starting point continuing to the present, so the present perfect ‘have lived’ is required.",
+    "A real future result in a first conditional uses present simple after ‘if’ and ‘will’ in the result clause.",
+    "‘Yesterday’ is a finished past-time marker, so the irregular past form ‘saw’ is correct.",
+    "The book receives the action and the reading has present relevance, requiring present perfect passive ‘has been read’.",
+    "‘By next June’ sets a future deadline before which completion will occur, so future perfect is appropriate.",
+    "‘I wish’ about a present situation uses past simple to express an unreal present: ‘had more time’.",
+    "With ‘neither … nor’, agreement follows the nearer plural noun ‘employees’, giving ‘were’.",
+    "The saving happened before the past act of asking, so reported speech uses past perfect ‘had saved’.",
+    "‘Needn’t have’ means the action was unnecessary; the second clause explains that telling was not needed.",
+    "‘Whose’ is the possessive relative pronoun connecting the woman to her car.",
+    "A clause beginning with ‘Hardly’ uses inversion and past perfect: ‘Hardly had the meeting started …’.",
+    "This unreal past condition needs past perfect in the if-clause: ‘If I had understood …’.",
+    "‘Not only’ at the start triggers subject–auxiliary inversion, producing ‘was he late’.",
+    "After verbs of recommendation such as ‘suggest’, formal English uses the mandative base form ‘consult’.",
+    "‘Rapid’ describes high speed, making ‘fast’ its closest synonym here.",
+    "If everyone understood the instructions, they were ‘clear’; the other choices do not express comprehensibility.",
+    "A solution that can work in practice is ‘feasible’, meaning practical and achievable.",
+    "‘Affect’ is the verb meaning influence; ‘effect’ is usually a noun in this context.",
+    "‘Comprehensive’ means covering all important aspects, exactly matching the detail in the second clause.",
+    "To ‘substantiate’ a claim is to support it with evidence, which is what insufficient evidence cannot do.",
+    "‘Open-minded’ specifically describes willingness to consider unfamiliar ideas.",
+    "To ‘phase out’ a process is to discontinue it gradually, fitting the removal of an outdated practice.",
+    "Comments connected to the topic are ‘relevant’; the remaining adjectives require different complements or meanings.",
+    "‘Interpret with caution’ is the conventional collocation when results may have limitations.",
+    "The passage directly compares cycling with rush-hour driving and says cycling is faster, so it saves time.",
+    "Thursday is the only stated day with an 8 p.m. closing time; weekdays otherwise close at six.",
+    "Demand fell after competitors offered cheaper alternatives, identifying price competition as the cause.",
+    "The sentence contrasts greater autonomy with reduced informal learning: independence is gained while peer learning may fall.",
+    "Correlation shows an association between sleep and performance, but the passage explicitly says causation was not established.",
+    "‘Ambitious’ is positive about the aim, while ‘nevertheless’ introduces doubt about the budget assumptions.",
+    "Local processing reduces latency and limits personal-data exposure, corresponding to faster response and better privacy.",
+    "Supporters argue that symbols reshape public expectations, meaning symbolic action can influence attitudes.",
+    "The author accepts task displacement but rejects inevitability of lower total employment; that inevitability is the disputed claim.",
+    "A small self-selected sample may differ systematically from the wider population, limiting generalization.",
+    "English uses the fixed expression ‘do someone a favour’, not ‘make’ or ‘take’ a favour.",
+    "‘Look forward to’ contains the preposition ‘to’, so it is followed by a gerund: ‘hearing’.",
+    "‘Put off’ means postpone, which fits delaying a meeting because the manager was ill.",
+    "‘Further information’ means additional information; ‘farther’ normally refers to physical distance.",
+    "The adjective ‘responsible’ takes the preposition ‘for’ before a noun or gerund.",
+    "‘I’d rather you …’ uses a past form for a present or future preference, hence ‘kept’.",
+    "‘Ahead of schedule’ is the standard phrase for completion earlier than planned.",
+    "An argument that ‘holds up’ remains valid under examination; ‘doesn’t hold up’ means it fails scrutiny.",
+    "The fixed phrase is ‘take something into account’, meaning consider it in a decision.",
+    "‘Fall short of’ means fail to reach a required standard, here failing to explain the root cause.",
+    "The inverted conditional ‘Were the market to decline’ is hypothetical and pairs with ‘would reconsider’.",
+    "‘Hence’ signals a result: because the data is inconclusive, further research is warranted.",
+    "The correlative construction is ‘no sooner … than’, with inversion after ‘no sooner’.",
+    "‘Albeit’ means although and introduces the concession that the policy is well-intentioned.",
+    "After ‘It is imperative that’, formal mandative usage takes the base verb ‘sign’.",
+)
+
+if len(CORE_RATIONALES) != len(QUESTIONS):
+    raise RuntimeError("Every core English question must have a reviewed rationale")
+for question, rationale in zip(QUESTIONS, CORE_RATIONALES):
+    question["explanation"] = rationale
+    question["choice_explanations_fa"] = (rationale,) + question["choice_explanations_fa"][1:]
+    question["choice_explanations_en"] = (rationale,) + question["choice_explanations_en"][1:]
 
 from .english_v2_additions import ADDITIONAL_QUESTIONS  # noqa: E402
 from .english_listening import QUESTIONS as LISTENING_QUESTIONS  # noqa: E402
