@@ -11,6 +11,7 @@ fi
 "$RVION_PYTHON" manage.py check
 "$RVION_PYTHON" manage.py makemigrations --check --dry-run
 "$RVION_PYTHON" manage.py test
+"$RVION_PYTHON" manage.py audit_question_banks
 "$RVION_PYTHON" manage.py benchmark_assessment_engine --attempts 100
 
 echo "Rvion release checks passed."

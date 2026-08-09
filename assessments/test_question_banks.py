@@ -9,6 +9,7 @@ from .question_banks.python_django import QUESTIONS as PYTHON_QUESTIONS, SECTION
 from .templatetags.assessment_extras import inline_code
 from .models import Exam, ExamEntitlement, ExamVersion, Order
 from .services import start_attempt
+from .quality import audit_bank
 
 
 class EnglishQuestionBankTests(SimpleTestCase):
@@ -80,6 +81,26 @@ class PythonQuestionBankTests(SimpleTestCase):
         self.assertIn('data-ascii', rendered)
         self.assertIn('&lt;x 1&gt;', rendered)
         self.assertNotIn('<script>', rendered)
+
+
+class QuestionBankEditorialAuditTests(SimpleTestCase):
+    def test_audit_reports_normalized_choice_collisions(self):
+        questions = [{
+            "prompt": "A sufficiently long prompt for comparison?",
+            "section": "grammar", "difficulty": 2,
+            "choices": ("Yes", " yes ", "No", "Maybe"),
+            "explanation": "Specific rationale.",
+        }]
+        report = audit_bank(questions, (("grammar", "گرامر", "Grammar", 1, 1),))
+        self.assertTrue(any("choices collide" in issue for issue in report["issues"]))
+
+    def test_current_banks_have_no_structural_audit_issues(self):
+        for questions, sections in (
+            (QUESTIONS, SECTIONS), (PYTHON_QUESTIONS, PYTHON_SECTIONS),
+        ):
+            report = audit_bank(questions, sections)
+            self.assertEqual(report["issues"], [])
+            self.assertGreaterEqual(report["subskill_count"], 20)
 
 
 class BenchmarkCommandTests(TestCase):
