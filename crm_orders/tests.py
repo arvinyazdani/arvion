@@ -12,21 +12,32 @@ from .models import CrmOrder
 
 def valid_payload():
     return {
-        "organization_name": "سازمان نمونه", "industry": "توزیع و فروش", "organization_size": "51_200",
+        "organization_name": "سازمان نمونه", "industry": "توزیع و فروش", "organization_size": "31_100",
         "website": "https://example.com", "contact_name": "علی احمدی", "job_title": "مدیر تحول دیجیتال",
         "work_email": "ali@example.com", "phone": "۰۹۱۲۱۲۳۴۵۶۷",
         "primary_goals": ["sales", "service"], "departments": ["sales", "support", "management"],
-        "crm_user_count": "31_100", "current_process": "اطلاعات مشتری بین فایل‌های اکسل و تماس‌های تیم توزیع شده است.",
+        "customer_types": ["people", "businesses"], "lead_sources": ["digital", "referral"],
+        "crm_user_count": "16_30", "current_data_sources": ["excel", "business_software"],
+        "current_process": "اطلاعات مشتری بین فایل‌های اکسل و تماس‌های تیم توزیع شده است.",
         "main_pain_points": "پیگیری‌ها فراموش می‌شوند، گزارش دقیق نداریم و سابقه مشتری پراکنده است.",
         "success_metrics": "کاهش زمان پاسخ و افزایش نرخ تبدیل فرصت به قرارداد.",
         "required_capabilities": ["customer_360", "pipeline", "tasks", "reports"],
+        "customer_data_fields": ["identity", "source", "interactions", "contracts"],
+        "assignment_model": "yes", "reminder_types": ["call", "meeting", "contract"],
+        "notification_channels": ["in_app", "email"], "correspondence_features": [],
+        "ai_use_cases": ["consult"], "reporting_priorities": ["sales", "performance"],
+        "system_roles": ["executive", "sales_manager", "sales", "support"],
         "critical_workflows": "سرنخ وارد می‌شود، ارزیابی و تخصیص می‌گیرد، پیشنهاد صادر و سپس قرارداد ثبت می‌شود.",
         "reports_needed": "نرخ تبدیل، زمان پاسخ، ارزش pipeline و عملکرد کارشناسان.",
         "permission_requirements": "کارشناس فقط مشتریان خود و مدیر همه تیم را ببیند.",
-        "current_tools": "Excel و نرم‌افزار حسابداری", "required_integrations": "وب‌سایت و حسابداری",
+        "current_tools": "Excel و نرم‌افزار حسابداری", "devices": ["desktop", "mobile"],
+        "mobile_requirement": "responsive", "integration_types": ["website", "accounting"],
+        "required_integrations": "وب‌سایت و حسابداری", "migration_types": ["excel"],
         "migration_sources": "سه فایل Excel و دفترچه مشتریان", "approximate_record_count": "25000",
-        "hosting_preference": "unsure", "security_requirements": "ثبت تاریخچه تغییرات و دسترسی نقش‌محور.",
-        "budget_range": "150_500", "expected_timeline": "2_4",
+        "hosting_preference": "unsure", "audit_requirement": "all",
+        "security_requirements": "ثبت تاریخچه تغییرات و دسترسی نقش‌محور.",
+        "delivery_strategy": "phased", "requested_services": ["process", "design_delivery", "training_docs", "support_growth"],
+        "budget_range": "250_500", "expected_timeline": "2_4",
         "decision_process": "مدیرعامل و مدیر فروش پس از دریافت پیشنهاد فنی و مالی تصمیم می‌گیرند.",
         "additional_notes": "اجرای مرحله‌ای ترجیح داده می‌شود.", "privacy_accept": "on", "company_fax": "",
     }
@@ -49,6 +60,8 @@ class CrmOrderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, order.tracking_code)
         self.assertEqual(order.primary_goals, ["sales", "service"])
+        self.assertEqual(order.customer_types, ["people", "businesses"])
+        self.assertEqual(order.integration_types, ["website", "accounting"])
         self.assertEqual(order.phone, "09121234567")
         self.assertIsNotNone(order.privacy_accepted_at)
         self.assertEqual(len(mail.outbox), 1)
@@ -67,6 +80,21 @@ class CrmOrderTests(TestCase):
         form = CrmOrderForm(payload)
         self.assertFalse(form.is_valid())
         self.assertIn("company_fax", form.errors)
+
+    def test_mutually_exclusive_none_options_are_rejected(self):
+        payload = valid_payload()
+        payload["migration_types"] = ["none", "excel"]
+        form = CrmOrderForm(payload)
+        self.assertFalse(form.is_valid())
+        self.assertIn("migration_types", form.errors)
+
+    def test_correspondence_and_ai_are_optional_discovery_inputs(self):
+        payload = valid_payload()
+        payload["required_capabilities"] = ["customer_360", "correspondence"]
+        payload["correspondence_features"] = ["incoming", "numbering_routing", "deadline_approval"]
+        payload["ai_use_cases"] = ["writing", "summary"]
+        form = CrmOrderForm(payload)
+        self.assertTrue(form.is_valid(), form.errors.as_json())
 
     def test_sales_role_receives_crm_order_permissions(self):
         call_command("setup_staff_roles", verbosity=0)

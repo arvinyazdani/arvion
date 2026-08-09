@@ -18,8 +18,8 @@ class CrmOrderAdmin(admin.ModelAdmin):
     fieldsets = (
         ("پیگیری", {"fields": ("tracking_code", "status", "created_at", "internal_notes")}),
         ("سازمان و تماس", {"fields": ("organization_name", "industry", "organization_size", "website", "contact_name", "job_title", "work_email", "phone")}),
-        ("نیاز کسب‌وکار", {"fields": ("primary_goals", "departments", "crm_user_count", "current_process", "main_pain_points", "success_metrics")}),
-        ("دامنه محصول", {"fields": ("required_capabilities", "critical_workflows", "reports_needed", "permission_requirements")}),
-        ("فناوری و داده", {"fields": ("current_tools", "required_integrations", "migration_sources", "approximate_record_count", "hosting_preference", "security_requirements")}),
-        ("تصمیم پروژه", {"fields": ("budget_range", "expected_timeline", "decision_process", "additional_notes", "privacy_accepted_at")}),
+        ("نیاز کسب‌وکار", {"fields": ("primary_goals", "departments", "customer_types", "lead_sources", "crm_user_count", "current_data_sources", "current_tools", "current_process", "main_pain_points", "success_metrics")}),
+        ("دامنه محصول", {"fields": ("required_capabilities", "customer_data_fields", "assignment_model", "reminder_types", "notification_channels", "critical_workflows", "correspondence_features", "ai_use_cases", "reporting_priorities", "reports_needed", "system_roles", "permission_requirements")}),
+        ("فناوری و داده", {"fields": ("devices", "mobile_requirement", "integration_types", "required_integrations", "migration_types", "migration_sources", "approximate_record_count", "hosting_preference", "audit_requirement", "security_requirements")}),
+        ("تصمیم پروژه", {"fields": ("delivery_strategy", "budget_range", "expected_timeline", "requested_services", "decision_process", "additional_notes", "privacy_accepted_at")}),
     )

@@ -6,6 +6,7 @@
   const previous = form.querySelector("[data-previous]");
   const next = form.querySelector("[data-next]");
   const submit = form.querySelector("[data-submit]");
+  const correspondenceOptions = form.querySelector("[data-correspondence-options]");
   let current = Math.max(0, steps.findIndex(step => step.querySelector(".errorlist")));
 
   const show = (index, moveFocus = true) => {
@@ -30,6 +31,14 @@
     return true;
   };
   steps.forEach(step => step.querySelector("h2")?.setAttribute("tabindex", "-1"));
+  const syncConditionalFields = () => {
+    if (!correspondenceOptions) return;
+    const enabled = !!form.querySelector('input[name="required_capabilities"][value="correspondence"]:checked');
+    correspondenceOptions.hidden = !enabled;
+    correspondenceOptions.querySelectorAll("input").forEach(input => input.disabled = !enabled);
+  };
+  form.querySelectorAll('input[name="required_capabilities"]').forEach(input => input.addEventListener("change", syncConditionalFields));
+  syncConditionalFields();
   next.addEventListener("click", () => validate() && show(current + 1));
   previous.addEventListener("click", () => show(current - 1));
   show(current, false);
