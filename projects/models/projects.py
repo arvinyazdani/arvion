@@ -1,6 +1,8 @@
 from django.db import models
 from django.urls import reverse
 from taggit.managers import TaggableManager
+from blog.models.post import validate_image_size
+from django.core.validators import FileExtensionValidator
 
 class Project(models.Model):
     title_fa = models.CharField("عنوان فارسی", max_length=200, help_text="عنوان پروژه به فارسی")
@@ -9,7 +11,10 @@ class Project(models.Model):
     description_fa = models.TextField("توضیح فارسی", blank=True, help_text="توضیحات تکمیلی به فارسی")
     description_en = models.TextField("توضیح انگلیسی", blank=True, help_text="Detailed description in English")
 
-    image = models.ImageField("تصویر", upload_to="projects/images/", blank=True, null=True)
+    image = models.ImageField(
+        "تصویر", upload_to="projects/images/", blank=True, null=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "webp"]), validate_image_size],
+    )
     demo_url = models.URLField("لینک دمو", blank=True)
     repo_url = models.URLField("مخزن کد", blank=True)
     technologies = TaggableManager("تکنولوژی‌ها", blank=True)

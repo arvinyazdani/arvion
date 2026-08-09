@@ -4,9 +4,10 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.core.management import call_command
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -87,6 +88,9 @@ class StaffRoleTests(TestCase):
 
 
 class AccountFlowTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
     def registration_payload(self):
         return {
             "first_name": "Arvin",
@@ -149,6 +153,37 @@ class AccountFlowTests(TestCase):
         response = self.client.post(reverse("accounts:login"), {"username": "arvin@example.com", "password": "A-secure-test-password-42"})
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    @override_settings(AUTH_LOGIN_ATTEMPTS=2, AUTH_LOGIN_WINDOW_SECONDS=60)
+    def test_login_is_temporarily_blocked_after_repeated_failures(self):
+        user = User.objects.create_user(
+            username="verified@example.com", email="verified@example.com",
+            password="A-secure-test-password-42", is_active=True, email_verified=True,
+        )
+        url = reverse("accounts:login") + "?lang=en"
+        for _ in range(2):
+            response = self.client.post(url, {"username": user.email, "password": "wrong-password"})
+            self.assertEqual(response.status_code, 200)
+
+        blocked = self.client.post(url, {"username": user.email, "password": "A-secure-test-password-42"})
+
+        self.assertEqual(blocked.status_code, 200)
+        self.assertContains(blocked, "Too many sign-in attempts")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    @override_settings(AUTH_LOGIN_ATTEMPTS=3, AUTH_LOGIN_WINDOW_SECONDS=60)
+    def test_successful_login_clears_failure_counter(self):
+        user = User.objects.create_user(
+            username="success@example.com", email="success@example.com",
+            password="A-secure-test-password-42", is_active=True, email_verified=True,
+        )
+        url = reverse("accounts:login") + "?lang=en"
+        self.client.post(url, {"username": user.email, "password": "wrong-password"})
+
+        response = self.client.post(url, {"username": user.email, "password": "A-secure-test-password-42"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("_auth_user_id", self.client.session)
 
     def test_unverified_user_can_request_a_fresh_link_after_cooldown(self):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())

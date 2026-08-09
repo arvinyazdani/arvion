@@ -22,6 +22,7 @@ from core.views.lang import LanguageViewMixin
 from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import User
 from .services import send_verification_email
+from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
 
 
@@ -52,6 +53,13 @@ class ResendVerificationView(LanguageViewMixin, FormView):
 
     def form_valid(self, form):
         email = form.cleaned_data["email"]
+        throttle = AttemptThrottle(
+            "verification", self.request, email,
+            settings.AUTH_EMAIL_REQUESTS, settings.AUTH_EMAIL_WINDOW_SECONDS,
+        )
+        if throttle.blocked():
+            return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}&resent=1")
+        throttle.failure()
         user = User.objects.filter(email__iexact=email, is_active=False, email_verified=False).first()
         threshold = timezone.now() - timedelta(seconds=settings.EMAIL_VERIFICATION_RESEND_SECONDS)
         if user and (user.verification_sent_at is None or user.verification_sent_at <= threshold):
@@ -69,6 +77,27 @@ class AccountLoginView(LanguageViewMixin, LoginView):
         kwargs["lang"] = self.lang
         return kwargs
 
+    def _throttle(self):
+        return AttemptThrottle(
+            "login", self.request, self.request.POST.get("username", ""),
+            settings.AUTH_LOGIN_ATTEMPTS, settings.AUTH_LOGIN_WINDOW_SECONDS,
+        )
+
+    def post(self, request, *args, **kwargs):
+        if self._throttle().blocked():
+            form = self.get_form()
+            form.add_error(None, "تلاش‌های ورود بیش از حد مجاز است؛ کمی بعد دوباره امتحان کنید." if self.lang == "fa" else "Too many sign-in attempts. Please try again later.")
+            return self.form_invalid(form)
+        return super().post(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        self._throttle().failure()
+        return super().form_invalid(form)
+
+    def form_valid(self, form):
+        self._throttle().success()
+        return super().form_valid(form)
+
 
 class AccountPasswordResetView(LanguageViewMixin, PasswordResetView):
     template_name = "accounts/password_reset_form.html"
@@ -76,6 +105,14 @@ class AccountPasswordResetView(LanguageViewMixin, PasswordResetView):
     subject_template_name = "accounts/password_reset_subject.txt"
 
     def form_valid(self, form):
+        email = form.cleaned_data.get("email", "")
+        throttle = AttemptThrottle(
+            "password-reset", self.request, email,
+            settings.AUTH_EMAIL_REQUESTS, settings.AUTH_EMAIL_WINDOW_SECONDS,
+        )
+        if throttle.blocked():
+            return redirect(self.get_success_url())
+        throttle.failure()
         self.extra_email_context = {"lang": self.lang}
         return super().form_valid(form)
 
