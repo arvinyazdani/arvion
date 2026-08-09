@@ -21,10 +21,12 @@ fi
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-dev build-essential libpq-dev nginx
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
+usermod -aG "$APP_USER" www-data
 python3 -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/pip" install --upgrade pip
 "$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+chmod 750 "$APP_DIR"
 chmod 600 "$ENV_FILE"
 
 install -m 0644 "$APP_DIR/ops/arvion.service" /etc/systemd/system/arvion.service
@@ -35,6 +37,8 @@ ln -sfn /etc/nginx/sites-available/arvion /etc/nginx/sites-enabled/arvion
 rm -f /etc/nginx/sites-enabled/default
 
 sudo -u "$APP_USER" env APP_DIR="$APP_DIR" ENV_FILE="$ENV_FILE" "$APP_DIR/ops/release.sh"
+find "$APP_DIR/staticfiles" -type d -exec chmod 755 {} +
+find "$APP_DIR/staticfiles" -type f -exec chmod 644 {} +
 systemctl daemon-reload
 systemctl enable --now arvion.service arvion-traffic-cleanup.timer nginx
 nginx -t
