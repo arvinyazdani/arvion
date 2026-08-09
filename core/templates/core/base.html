@@ -50,6 +50,7 @@
           <a href="{% url 'accounts:login' %}">{% if lang == 'fa' %}ورود{% else %}Sign in{% endif %}</a>
         {% endif %}
         <a class="nav-cta" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Let's talk{% endif %}</a>
+        <a href="{% url 'crm_orders:create' %}">{% if lang == 'fa' %}سفارش CRM{% else %}CRM discovery{% endif %}</a>
         <a class="lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
       </nav>
       <button class="nav-scrim" type="button" tabindex="-1" aria-hidden="true"></button>

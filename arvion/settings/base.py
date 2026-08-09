@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "projects",
     "services",
     "leads",
+    "crm_orders",
     "taggit",
     "widget_tweaks",
 ]

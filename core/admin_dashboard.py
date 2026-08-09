@@ -5,6 +5,7 @@ from django.urls import reverse
 from assessments.models import Attempt, Order, SupportTicket
 from blog.models import Post
 from leads.models import Lead
+from crm_orders.models import CrmOrder
 
 
 def _card(title, value, description, url, tone="neutral"):
@@ -21,6 +22,8 @@ def operations_dashboard(request):
             _card("درخواست‌های جدید", Lead.objects.filter(status="new").count(), "نیازمند اولین تماس", reverse("admin:leads_lead_changelist") + "?status__exact=new", "attention"),
             _card("فرصت‌های فعال", Lead.objects.filter(status__in=("contacted", "qualified", "proposal")).count(), "در مسیر مذاکره و پیشنهاد", reverse("admin:leads_lead_changelist"), "positive"),
         ))
+    if user.has_perm("crm_orders.view_crmorder"):
+        cards.append(_card("سفارش‌های CRM", CrmOrder.objects.filter(status="new").count(), "نیازمند تحلیل اولیه", reverse("admin:crm_orders_crmorder_changelist") + "?status__exact=new", "attention"))
     if user.has_perm("assessments.view_order"):
         cards.append(_card("سفارش‌های معلق", Order.objects.filter(status="pending").count(), "در انتظار تعیین وضعیت", reverse("admin:assessments_order_changelist") + "?status__exact=pending", "attention"))
     if user.has_perm("assessments.view_attempt"):

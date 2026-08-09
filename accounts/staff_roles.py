@@ -5,6 +5,7 @@ STAFF_ROLES = {
         "label_fa": "فروش و درخواست‌ها",
         "permissions": {
             "leads.lead": {"view", "change"},
+            "crm_orders.crmorder": {"view", "change"},
             "services.service": {"view"},
         },
     },

@@ -53,6 +53,7 @@ urlpatterns += i18n_patterns(
     path("projects/", include(("projects.urls", "projects"), namespace="projects")),
     path("services/", include(("services.urls", "services"), namespace="services")),
     path("contact/", include(("leads.urls", "leads"), namespace="leads")),
+    path("crm-order/", include(("crm_orders.urls", "crm_orders"), namespace="crm_orders")),
     prefix_default_language=True,
 )
 
