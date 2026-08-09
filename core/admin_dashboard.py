@@ -6,6 +6,9 @@ from assessments.models import Attempt, ManualPaymentSubmission, Order, SupportT
 from blog.models import Post
 from leads.models import Lead
 from crm_orders.models import CrmOrder
+from traffic.models import ActiveVisitor, TrafficDay
+from django.utils import timezone
+from datetime import timedelta
 
 
 def _card(title, value, description, url, tone="neutral"):
@@ -34,7 +37,18 @@ def operations_dashboard(request):
         cards.append(_card("تیکت‌های باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("admin:assessments_supportticket_changelist"), "attention"))
     if user.has_perm("blog.view_post"):
         cards.append(_card("پیش‌نویس محتوا", Post.objects.filter(is_published=False).count(), "مقاله‌های منتشرنشده", reverse("admin:blog_post_changelist") + "?is_published__exact=0"))
+    traffic_history = []
+    if user.has_perm("traffic.view_trafficday"):
+        today = timezone.localdate()
+        today_metric = TrafficDay.objects.filter(date=today).first()
+        cards.extend((
+            _card("بازدید امروز", today_metric.page_views if today_metric else 0, "تعداد نمایش صفحات عمومی", reverse("admin:traffic_trafficday_changelist")),
+            _card("بازدیدکننده یکتای امروز", today_metric.unique_visitors if today_metric else 0, "بر پایه نشست ناشناس", reverse("admin:traffic_trafficday_changelist"), "positive"),
+            _card("آنلاین در ۵ دقیقه", ActiveVisitor.objects.filter(last_seen__gte=timezone.now() - timedelta(minutes=5)).count(), "بازدیدکنندگان فعال اخیر", reverse("admin:traffic_activevisitor_changelist"), "positive"),
+        ))
+        traffic_history = list(TrafficDay.objects.order_by("-date")[:14])
     return render(request, "admin/operations_dashboard.html", {
         "cards": cards,
         "title": "داشبورد عملیات",
+        "traffic_history": traffic_history,
     })

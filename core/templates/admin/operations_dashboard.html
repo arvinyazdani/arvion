@@ -8,4 +8,5 @@
 </style>
 <section class="operations-hero"><span class="operations-eyebrow">RVION OPERATIONS</span><h1>نمای کاری امروز</h1><p>این صفحه فقط اطلاعات بخش‌هایی را نشان می‌دهد که برای حساب شما مجاز شده‌اند. برای جزئیات روی هر کارت بزنید.</p></section>
 {% if cards %}<section class="operations-grid">{% for card in cards %}<a class="operations-card {{ card.tone }}" href="{{ card.url }}"><h2>{{ card.title }}</h2><strong>{{ card.value }}</strong><p>{{ card.description }}</p></a>{% endfor %}</section>{% else %}<div class="operations-empty">هنوز دسترسی عملیاتی برای این حساب تعریف نشده است. با مدیر اصلی تماس بگیرید.</div>{% endif %}
+{% if traffic_history %}<section style="margin-top:28px;background:#fff;border:1px solid #dfe3ea;border-radius:18px;padding:22px;overflow:auto"><h2>روند ۱۴ روز اخیر</h2><table style="width:100%;border-collapse:collapse"><thead><tr><th>تاریخ</th><th>نمایش صفحه</th><th>بازدیدکننده یکتا</th></tr></thead><tbody>{% for day in traffic_history %}<tr><td>{{ day.date }}</td><td>{{ day.page_views }}</td><td>{{ day.unique_visitors }}</td></tr>{% endfor %}</tbody></table></section>{% endif %}
 {% endblock %}

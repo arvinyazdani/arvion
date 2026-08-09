@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "services",
     "leads",
     "crm_orders",
+    "traffic",
     "taggit",
     "widget_tweaks",
 ]
@@ -35,6 +36,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "traffic.middleware.TrafficAnalyticsMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

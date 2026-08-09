@@ -47,6 +47,13 @@ STAFF_ROLES = {
             "core.page": {"view", "add", "change"},
         },
     },
+    "analytics": {
+        "label_fa": "گزارش بازدید",
+        "permissions": {
+            "traffic.trafficday": {"view"},
+            "traffic.activevisitor": {"view"},
+        },
+    },
 }
 
 
