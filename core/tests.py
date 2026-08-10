@@ -85,8 +85,10 @@ class CorePagesTests(TestCase):
     def test_global_brand_and_legal_footer_use_rvion(self):
         response = self.client.get(reverse("home") + "?lang=fa")
         self.assertContains(response, ">RVION<", html=False)
+        self.assertContains(response, "آرویون | طراحی و توسعه محصول دیجیتال")
         self.assertContains(response, "شناسه ملی 14015444540")
         self.assertNotContains(response, ">ARVION<", html=False)
+        self.assertNotContains(response, ">رویون<", html=False)
 
     def test_company_page_does_not_claim_an_unissued_trust_seal(self):
         response = self.client.get(reverse("company_info") + "?lang=fa")

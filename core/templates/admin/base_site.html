@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}{% load static %}
-{% block title %}{{ title }} | مدیریت رویون{% endblock %}
-{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}"><b>R</b><span>مدیریت رویون</span></a></div>{% endblock %}
+{% block title %}{{ title }} | مدیریت آرویون{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}"><b>R</b><span>مدیریت آرویون</span></a></div>{% endblock %}
 {% block nav-global %}{% if user.is_staff %}<a class="operations-link" href="{% url 'admin_operations' %}">نمای عملیات و آمار</a>{% endif %}{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=1"><script src="{% static 'core/js/admin-persian.js' %}?v=1" defer></script>{% endblock %}

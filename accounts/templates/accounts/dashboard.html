@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% block title %}{% if lang == 'fa' %}حساب من | رویون{% else %}My account | Rvion{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}حساب من | آرویون{% else %}My account | Rvion{% endif %}{% endblock %}
 {% block content %}
 <section class="page-hero dashboard-hero"><div class="shell"><span class="eyebrow">RVION ACCOUNT / VERIFIED</span><h1>{% if lang == 'fa' %}سلام {{ request.user.first_name|default:request.user.email }}.{% else %}Hello, {{ request.user.first_name|default:request.user.email }}.{% endif %}</h1><p class="lead">{% if lang == 'fa' %}مرکز آزمون‌ها، گزارش‌ها و گواهی‌های حرفه‌ای تو.{% else %}Your home for assessments, reports and professional certificates.{% endif %}</p></div></section>
 <section class="section"><div class="shell dashboard-grid"><article class="dashboard-card featured"><span class="card-number">ASSESSMENTS</span><h2>{% if lang == 'fa' %}آزمون‌های من{% else %}My assessments{% endif %}</h2>

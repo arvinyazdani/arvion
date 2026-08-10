@@ -4,10 +4,12 @@ from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from .forms import CrmOrderForm
 from .models import CrmOrder
+from .text_export import render_crm_order_text
 
 
 def valid_payload():
@@ -65,6 +67,35 @@ class CrmOrderTests(TestCase):
         self.assertEqual(order.phone, "09121234567")
         self.assertIsNotNone(order.privacy_accepted_at)
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_complete_text_report_translates_structured_answers(self):
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        report = render_crm_order_text(order)
+        self.assertIn("گزارش کامل نیازسنجی CRM آرویون", report)
+        self.assertIn("هدف‌های اصلی CRM: مدیریت فرآیند فروش، خدمات، پشتیبانی و شکایت", report)
+        self.assertIn("اتصال‌های موردنیاز: وب‌سایت، حسابداری، انبار یا ERP", report)
+        self.assertIn("سه فایل Excel و دفترچه مشتریان", report)
+        self.assertNotIn("['sales', 'service']", report)
+
+    def test_admin_can_download_single_crm_text_report(self):
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        admin_user = User.objects.create_superuser(
+            username="owner@example.com", email="owner@example.com", password="safe-admin-password-42"
+        )
+        self.client.force_login(admin_user)
+        response = self.client.get(reverse("admin:crm_orders_crmorder_download_text", args=(order.pk,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        self.assertIn(f'filename="crm-{order.tracking_code}.txt"', response["Content-Disposition"])
+        self.assertIn(order.organization_name, response.content.decode("utf-8-sig"))
 
     def test_short_architecture_answers_are_rejected_server_side(self):
         payload = valid_payload()

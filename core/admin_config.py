@@ -110,7 +110,7 @@ def _persian_app_list(site, request, app_label=None):
     return grouped
 
 
-admin.site.site_header = "مدیریت رویون"
-admin.site.site_title = "پنل مدیریت رویون"
+admin.site.site_header = "مدیریت آرویون"
+admin.site.site_title = "پنل مدیریت آرویون"
 admin.site.index_title = "مدیریت سریع عملیات"
 admin.site.get_app_list = MethodType(_persian_app_list, admin.site)
