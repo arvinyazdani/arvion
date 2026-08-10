@@ -5,9 +5,9 @@ from .models import CompanyProfile, Page
 @admin.register(CompanyProfile)
 class CompanyProfileAdmin(admin.ModelAdmin):
     fieldsets = (
-        ("Identity", {"fields": ("brand_name", "legal_name_fa", "legal_name_en", "company_type_fa", "registration_number", "national_id", "established_date_fa")}),
-        ("Management", {"fields": ("chief_executive_fa", "chief_executive_en")}),
-        ("Contact", {"fields": ("phone", "postal_code", "address_fa", "address_en", "domain", "support_hours_fa", "support_hours_en")}),
+        ("هویت شرکت", {"fields": ("brand_name", "legal_name_fa", "legal_name_en", "company_type_fa", "registration_number", "national_id", "established_date_fa")}),
+        ("مدیریت", {"fields": ("chief_executive_fa", "chief_executive_en")}),
+        ("راه‌های ارتباطی", {"fields": ("phone", "postal_code", "address_fa", "address_en", "domain", "support_hours_fa", "support_hours_en")}),
     )
 
     def has_add_permission(self, request):
@@ -26,4 +26,4 @@ class PageAdmin(admin.ModelAdmin):
 
     def get_title(self, obj):
         return obj.title_fa or obj.title_en
-    get_title.short_description = "Title"
+    get_title.short_description = "عنوان"

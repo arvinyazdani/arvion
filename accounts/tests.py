@@ -86,6 +86,26 @@ class StaffRoleTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("admin:login"), response.url)
 
+    def test_superuser_sees_persian_task_groups_and_can_assign_ready_role(self):
+        admin_user = User.objects.create_superuser(
+            username="owner@example.com", email="owner@example.com", password="owner-safe-password-42"
+        )
+        colleague = User.objects.create_user(
+            username="staff@example.com", email="staff@example.com", password="staff-safe-password-42",
+            is_active=True,
+        )
+        self.client.force_login(admin_user)
+        index = self.client.get(reverse("admin:index"))
+        self.assertContains(index, "کاربران و دسترسی‌ها")
+        self.assertContains(index, "پرداخت، آزمون و پشتیبانی")
+        response = self.client.post(reverse("admin:accounts_user_changelist"), {
+            "action": "assign_assessment_role", "_selected_action": [colleague.pk], "index": "0",
+        }, follow=True)
+        self.assertContains(response, "نقش «آزمون و پرداخت»")
+        colleague.refresh_from_db()
+        self.assertTrue(colleague.is_staff)
+        self.assertTrue(colleague.groups.filter(name="rvion_assessments").exists())
+
 
 class AccountFlowTests(TestCase):
     def setUp(self):

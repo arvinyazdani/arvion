@@ -67,11 +67,11 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "user", "exam", "subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "terms_version", "terms_accepted_at", "paid_at", "confirmation_email_sent_at", "created_at", "updated_at")
     actions = (export_orders,)
 
-    @admin.display(description="Subtotal (IRR)", ordering="subtotal_irr")
+    @admin.display(description="مبلغ اولیه (ریال)", ordering="subtotal_irr")
     def subtotal_display(self, obj):
         return f"{obj.subtotal_irr:,}"
 
-    @admin.display(description="Final (IRR)", ordering="amount_irr")
+    @admin.display(description="مبلغ نهایی (ریال)", ordering="amount_irr")
     def amount_display(self, obj):
         return f"{obj.amount_irr:,}"
 
@@ -82,7 +82,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_filter = ("status", "gateway")
     readonly_fields = ("order", "external_id", "amount_irr", "raw_response", "created_at", "verified_at")
 
-    @admin.display(description="Amount (IRR)", ordering="amount_irr")
+    @admin.display(description="مبلغ (ریال)", ordering="amount_irr")
     def amount_display(self, obj):
         return f"{obj.amount_irr:,}"
 
@@ -94,6 +94,7 @@ class ManualPaymentSubmissionAdmin(admin.ModelAdmin):
     search_fields = ("reference_number", "payer_name", "order__id", "order__user__email")
     readonly_fields = ("order", "payer_name", "reference_number", "paid_at", "note", "status", "reviewed_by", "reviewed_at", "created_at", "updated_at")
     actions = (approve_manual_payments, reject_manual_payments)
+    change_list_template = "admin/assessments/manualpaymentsubmission/change_list.html"
 
 
 @admin.register(ExamEntitlement)
