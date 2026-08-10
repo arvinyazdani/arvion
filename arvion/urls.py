@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.http import HttpResponse, HttpResponsePermanentRedirect
 from django.urls import include, path
+from django.views.generic import TemplateView
 
 from core.health import HealthCheckView
 from core.admin_dashboard import operations_dashboard
@@ -42,6 +43,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("robots.txt", robots_txt, name="robots"),
     path("favicon.ico", favicon, name="favicon"),
+    path("service-worker.js", TemplateView.as_view(template_name="core/service-worker.js", content_type="application/javascript"), name="service_worker"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
 ]
 

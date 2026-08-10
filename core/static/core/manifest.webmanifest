@@ -3,14 +3,16 @@
   "short_name": "Rvion",
   "start_url": "/fa/",
   "display": "standalone",
-  "background_color": "#f4f1ea",
-  "theme_color": "#0b1220",
+  "description": "طراحی CRM، وب‌سایت و سامانه اختصاصی رویون",
+  "background_color": "#ff6b35",
+  "theme_color": "#ff6b35",
+  "scope": "/",
   "icons": [
     {
-      "src": "/static/core/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/static/core/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"
+    },
+    {
+      "src": "/static/core/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"
     }
   ]
 }

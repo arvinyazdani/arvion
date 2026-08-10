@@ -37,6 +37,7 @@ class HomeView(LanguageViewMixin, TemplateView):
         # افزودن به context
         ctx["latest_posts"] = posts
         ctx["latest_projects"] = projects
+        ctx["published_project_count"] = Project.objects.filter(is_active=True).count()
 
         return ctx
 

@@ -7,6 +7,7 @@ from django.utils import translation
 
 from .i18n_numbers import normalize_digits, persian_digits
 from .models import CompanyProfile
+from projects.models import Project
 
 
 class CorePagesTests(TestCase):
@@ -21,6 +22,8 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "core/js/site-shell.js")
         self.assertContains(response, "core/manifest.webmanifest")
         self.assertContains(response, "core/favicon.svg")
+        self.assertContains(response, "core/icons/icon-192.png")
+        self.assertContains(response, 'data-install-app', html=False)
         self.assertRedirects(self.client.get("/favicon.ico"), "/static/core/favicon.svg", status_code=301, fetch_redirect_response=False)
 
     def test_language_prefixed_urls_and_root_redirect(self):
@@ -37,6 +40,8 @@ class CorePagesTests(TestCase):
         self.assertContains(response, 'hreflang="fa" href="https://rvin-tech.com/fa/services/"', html=False)
         self.assertContains(response, 'hreflang="x-default"', html=False)
         self.assertContains(response, '"@type":"Organization"', html=False)
+        self.assertContains(response, 'property="og:image"', html=False)
+        self.assertContains(response, "rvion-share-v1.png")
         self.assertNotContains(response, "?lang=")
 
     def test_robots_and_bilingual_sitemap_are_public(self):
@@ -105,6 +110,21 @@ class CorePagesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
         self.assertContains(response, "فرآیند کسب‌وکارت")
+        self.assertContains(response, "چه کاری انجام می‌دهیم")
+        self.assertContains(response, "هویت حقوقی و اطلاعات قابل استعلام")
+        self.assertNotContains(response, "۲۴ پروژه")
+
+    def test_home_only_displays_real_published_project_count(self):
+        Project.objects.create(title_fa="نمونه واقعی", title_en="Real case", slug="real-case", is_active=True)
+        response = self.client.get(reverse("home"))
+        self.assertContains(response, "پروژه منتشرشده و قابل مشاهده")
+        self.assertEqual(response.context["published_project_count"], Project.objects.filter(is_active=True).count())
+
+    def test_service_worker_is_served_from_root_for_full_app_scope(self):
+        response = self.client.get(reverse("service_worker"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/javascript")
+        self.assertContains(response, 'const CACHE = "rvion-shell-v1"')
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")
