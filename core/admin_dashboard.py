@@ -6,6 +6,7 @@ from assessments.models import Attempt, ManualPaymentSubmission, Order, SupportT
 from blog.models import Post
 from leads.models import Lead
 from crm_orders.models import CrmOrder
+from clinic_orders.models import ClinicOrder
 from accounts.models import User
 from traffic.models import ActiveVisitor, TrafficDay
 from django.utils import timezone
@@ -30,6 +31,8 @@ def operations_dashboard(request):
         ))
     if user.has_perm("crm_orders.view_crmorder"):
         cards.append(_card("سفارش‌های CRM", CrmOrder.objects.filter(status="new").count(), "نیازمند تحلیل اولیه", reverse("admin:crm_orders_crmorder_changelist") + "?status__exact=new", "attention"))
+    if user.has_perm("clinic_orders.view_clinicorder"):
+        cards.append(_card("درخواست‌های سایت کلینیک", ClinicOrder.objects.filter(status="new").count(), "نیازمند تحلیل نوبت، محتوا و فناوری", reverse("admin:clinic_orders_clinicorder_changelist") + "?status__exact=new", "attention"))
     if user.has_perm("assessments.view_order"):
         cards.append(_card("سفارش‌های معلق", Order.objects.filter(status="pending").count(), "در انتظار تعیین وضعیت", reverse("admin:assessments_order_changelist") + "?status__exact=pending", "attention"))
     if user.has_perm("assessments.view_manualpaymentsubmission"):

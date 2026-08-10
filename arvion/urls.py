@@ -62,6 +62,7 @@ urlpatterns += i18n_patterns(
     path("services/", include(("services.urls", "services"), namespace="services")),
     path("contact/", include(("leads.urls", "leads"), namespace="leads")),
     path("crm-order/", include(("crm_orders.urls", "crm_orders"), namespace="crm_orders")),
+    path("clinic-order/", include(("clinic_orders.urls", "clinic_orders"), namespace="clinic_orders")),
     prefix_default_language=True,
 )
 

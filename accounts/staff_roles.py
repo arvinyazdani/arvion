@@ -6,6 +6,7 @@ STAFF_ROLES = {
         "permissions": {
             "leads.lead": {"view", "change"},
             "crm_orders.crmorder": {"view", "change"},
+            "clinic_orders.clinicorder": {"view", "change"},
             "services.service": {"view"},
         },
     },

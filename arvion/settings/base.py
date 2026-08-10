@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "services",
     "leads",
     "crm_orders",
+    "clinic_orders",
     "traffic",
     "taggit",
     "widget_tweaks",

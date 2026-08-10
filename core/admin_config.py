@@ -68,7 +68,7 @@ FIELD_NAMES = {
 MODEL_NAMES_BY_CLASS = {key.lower().replace(" ", ""): value for key, value in MODEL_NAMES.items()}
 
 for app_config in apps.get_app_configs():
-    if app_config.label not in {"accounts", "assessments", "core", "blog", "projects", "services", "leads", "crm_orders", "traffic"}:
+    if app_config.label not in {"accounts", "assessments", "core", "blog", "projects", "services", "leads", "crm_orders", "clinic_orders", "traffic"}:
         continue
     for model in app_config.get_models():
         translated_model = MODEL_NAMES_BY_CLASS.get(model.__name__.lower())
@@ -82,7 +82,7 @@ for app_config in apps.get_app_configs():
 CATEGORIES = (
     ("کاربران و دسترسی‌ها", {"accounts", "auth"}),
     ("پرداخت، آزمون و پشتیبانی", {"assessments"}),
-    ("فروش، سفارش و CRM", {"leads", "crm_orders"}),
+    ("فروش و سفارش پروژه", {"leads", "crm_orders", "clinic_orders"}),
     ("محتوا و معرفی خدمات", {"services", "projects", "blog", "core"}),
     ("آمار و پایش", {"traffic"}),
 )
