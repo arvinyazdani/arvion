@@ -14,6 +14,8 @@ from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
 from datetime import timedelta
 from django.views.generic import DetailView, FormView, ListView, UpdateView
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
 
@@ -26,6 +28,7 @@ from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
 
 
+@method_decorator(never_cache, name="dispatch")
 class RegisterView(LanguageViewMixin, FormView):
     template_name = "accounts/register.html"
     form_class = RegistrationForm
@@ -77,6 +80,7 @@ class ResendVerificationView(LanguageViewMixin, FormView):
         return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}&resent=1")
 
 
+@method_decorator(never_cache, name="dispatch")
 class AccountLoginView(LanguageViewMixin, LoginView):
     template_name = "accounts/login.html"
     authentication_form = EmailAuthenticationForm

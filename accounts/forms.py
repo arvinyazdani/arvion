@@ -28,7 +28,16 @@ class RegistrationForm(UserCreationForm):
         return " ".join(self.cleaned_data["last_name"].split())
 
     def clean_email(self):
-        return self.cleaned_data["email"].strip().lower()
+        email = self.cleaned_data["email"].strip().lower()
+        domain = email.rsplit("@", 1)[-1]
+        if domain == "gmail.con":
+            message = (
+                "پسوند ایمیل اشتباه است؛ منظورتان gmail.com است؟"
+                if self.lang == "fa" else
+                "The email domain looks mistyped; did you mean gmail.com?"
+            )
+            raise forms.ValidationError(message, code="mistyped_email_domain")
+        return email
 
     def save(self, commit=True):
         user = super().save(commit=False)

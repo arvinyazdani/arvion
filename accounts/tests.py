@@ -7,7 +7,7 @@ from django.core import mail
 from django.core.cache import cache
 from django.core.management import call_command
 from django.contrib.auth.models import Group
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -156,6 +156,32 @@ class AccountFlowTests(TestCase):
         self.assertFormError(response.context["form"], "first_name", "This field is required.")
         self.assertFormError(response.context["form"], "last_name", "This field is required.")
         self.assertFalse(User.objects.filter(email="arvin@example.com").exists())
+
+    def test_registration_rejects_common_gmail_domain_typo(self):
+        payload = self.registration_payload()
+        payload["email"] = "ali@gmail.con"
+        response = self.client.post("/fa/account/register/", payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form"].errors["email"],
+            ["پسوند ایمیل اشتباه است؛ منظورتان gmail.com است؟"],
+        )
+        self.assertFalse(User.objects.filter(email="ali@gmail.con").exists())
+
+    def test_auth_forms_are_not_cached(self):
+        for name in ("accounts:register", "accounts:login"):
+            response = self.client.get(reverse(name))
+            self.assertIn("no-cache", response.headers["Cache-Control"])
+
+    def test_expired_csrf_returns_actionable_persian_page(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        response = csrf_client.post(
+            "/fa/account/login/",
+            {"username": "user@example.com", "password": "irrelevant"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "صفحه ورود نیاز به تازه‌سازی دارد", status_code=403)
+        self.assertEqual(response.headers["Cache-Control"], "no-store, no-cache, must-revalidate, max-age=0")
 
     def test_user_can_complete_certificate_identity(self):
         user = User.objects.create_user(

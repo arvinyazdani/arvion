@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}{% if lang == 'fa' %}نشست منقضی شد | آرویون{% else %}Session expired | Rvion{% endif %}{% endblock %}
+{% block content %}
+<section class="account-section"><div class="shell narrow"><div class="status-card">
+  <span class="status-icon">↻</span>
+  <span class="eyebrow">SECURE SESSION</span>
+  <h1>{% if lang == 'fa' %}صفحه ورود نیاز به تازه‌سازی دارد{% else %}This sign-in page needs a refresh{% endif %}</h1>
+  <p>{% if lang == 'fa' %}برای امنیت حساب، اعتبار این فرم تمام شده است. اطلاعات شما ثبت نشده؛ صفحه تازه ورود را باز کنید و دوباره تلاش کنید.{% else %}For account security, this form has expired. Nothing was submitted; open a fresh sign-in page and try again.{% endif %}</p>
+  <div class="actions">
+    <a class="button" href="/{% if lang == 'fa' %}fa{% else %}en{% endif %}/account/login/">{% if lang == 'fa' %}باز کردن ورود تازه ←{% else %}Open fresh sign in →{% endif %}</a>
+    <a class="button secondary" href="/{% if lang == 'fa' %}fa{% else %}en{% endif %}/">{% if lang == 'fa' %}بازگشت به خانه{% else %}Back to home{% endif %}</a>
+  </div>
+</div></div></section>
+{% endblock %}
