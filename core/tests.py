@@ -24,7 +24,11 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "core/manifest.webmanifest")
         self.assertContains(response, "core/favicon.svg")
         self.assertContains(response, "core/icons/icon-192.png")
-        self.assertContains(response, 'data-install-app', html=False)
+        self.assertContains(response, 'data-install-guide', html=False)
+        self.assertContains(response, 'data-install-panel="ios"', html=False)
+        self.assertContains(response, 'data-install-panel="android"', html=False)
+        self.assertContains(response, 'data-install-panel="desktop"', html=False)
+        self.assertContains(response, 'data-app-welcome', html=False)
         self.assertRedirects(self.client.get("/favicon.ico"), "/static/core/favicon.svg", status_code=301, fetch_redirect_response=False)
 
     def test_language_prefixed_urls_and_root_redirect(self):

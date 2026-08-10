@@ -30,13 +30,19 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'core/icons/icon-192.png' %}">
   <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=20">
+  <script>try{if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=21">
   <script src="{% static 'core/js/persian-ui.js' %}?v=3" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=3" defer></script>
   {% block extra_head %}{% endblock %}
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","email":"hello@rvin-tech.com","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <div class="app-welcome" data-app-welcome aria-hidden="true">
+    <div class="welcome-orbit orbit-one"></div><div class="welcome-orbit orbit-two"></div>
+    <div class="welcome-brand"><span class="welcome-mark">R</span><strong>RVION</strong><small>{% if lang == 'fa' %}فناوری برای دنیای واقعی{% else %}Technology for the real world{% endif %}</small></div>
+    <div class="welcome-progress"><span></span></div>
+  </div>
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
   <header class="site-header">
     <div class="shell nav-wrap">
@@ -79,6 +85,25 @@
       <div class="footer-end"><span>© {% now "Y" %} Rvion</span><a href="{% url 'privacy' %}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}">{% if lang == 'fa' %}شرایط خدمات{% else %}Service terms{% endif %}</a><a href="{% url 'refund_policy' %}">{% if lang == 'fa' %}لغو و بازپرداخت{% else %}Cancellation{% endif %}</a></div>
     </div>
   </footer>
+  <div class="install-dialog" data-install-dialog hidden>
+    <button class="install-backdrop" type="button" data-install-close tabindex="-1" aria-label="{% if lang == 'fa' %}بستن راهنما{% else %}Close guide{% endif %}"></button>
+    <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title">
+      <button class="install-close" type="button" data-install-close aria-label="{% if lang == 'fa' %}بستن{% else %}Close{% endif %}">×</button>
+      <header class="install-head"><span class="install-logo">R</span><div><span class="install-kicker" data-device-label>RVION WEB APP</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p>{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
+      <div class="install-panel" data-install-panel="ios" hidden>
+        <ol><li><b>۱</b><span>{% if lang == 'fa' %}در نوار Safari روی دکمه <strong>اشتراک‌گذاری</strong> بزنید.<i class="share-symbol" aria-hidden="true">↑</i>{% else %}Tap Safari's <strong>Share</strong> button.<i class="share-symbol" aria-hidden="true">↑</i>{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}گزینه <strong>Add to Home Screen / افزودن به صفحه اصلی</strong> را انتخاب کنید.{% else %}Choose <strong>Add to Home Screen</strong>.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}بالای صفحه روی <strong>Add / افزودن</strong> بزنید.{% else %}Confirm with <strong>Add</strong>.{% endif %}</span></li></ol>
+        <p class="install-browser-note" data-ios-browser-note hidden>{% if lang == 'fa' %}برای افزودن روی آیفون، ابتدا این صفحه را در Safari باز کنید.{% else %}Open this page in Safari first to add it on iPhone.{% endif %}</p>
+      </div>
+      <div class="install-panel" data-install-panel="android" hidden>
+        <ol><li><b>۱</b><span>{% if lang == 'fa' %}روی دکمه «نصب آرویون» در پایین بزنید.{% else %}Tap “Install Rvion” below.{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}در پیام مرورگر، نصب را تأیید کنید.{% else %}Confirm installation in your browser.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}آیکن آرویون به صفحه برنامه‌های شما اضافه می‌شود.{% else %}Rvion will appear with your other apps.{% endif %}</span></li></ol>
+      </div>
+      <div class="install-panel" data-install-panel="desktop" hidden>
+        <ol><li><b>۱</b><span data-desktop-step>{% if lang == 'fa' %}در نوار آدرس مرورگر روی آیکن نصب بزنید یا منوی مرورگر را باز کنید.{% else %}Use the install icon in the address bar or open the browser menu.{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}گزینه <strong>Install Rvion / نصب آرویون</strong> را انتخاب کنید.{% else %}Choose <strong>Install Rvion</strong>.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}پس از نصب، آرویون در پنجره مستقل اجرا می‌شود.{% else %}Rvion will then open in its own window.{% endif %}</span></li></ol>
+      </div>
+      <div class="install-actions"><button class="button install-confirm" type="button" data-install-confirm hidden>{% if lang == 'fa' %}نصب آرویون روی دستگاه{% else %}Install Rvion{% endif %}</button><button class="button secondary" type="button" data-install-close>{% if lang == 'fa' %}بعداً انجام می‌دهم{% else %}Maybe later{% endif %}</button></div>
+      <small class="install-foot">{% if lang == 'fa' %}فضای بسیار کمی می‌گیرد و هر زمان بخواهید قابل حذف است.{% else %}Uses very little space and can be removed at any time.{% endif %}</small>
+    </section>
+  </div>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>
