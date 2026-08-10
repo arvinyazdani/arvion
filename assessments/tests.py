@@ -150,6 +150,37 @@ class AssessmentCommerceTests(TestCase):
         self.assertEqual(order.status, "paid")
         self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
 
+        self.client.force_login(self.user)
+        status = self.client.get(reverse("assessments:manual_payment_status", args=[order.pk]) + "?lang=fa")
+        self.assertEqual(status.status_code, 200)
+        self.assertEqual(status.json()["state"], "approved")
+        self.assertTrue(status.json()["ready"])
+        self.assertEqual(status.json()["redirect_url"], reverse("accounts:dashboard") + "?lang=fa")
+        self.assertEqual(status["Cache-Control"], "no-store, private")
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_manual_payment_status_is_private_and_checkout_polls_for_approval(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000,
+            amount_irr=500_000, gateway="card_transfer",
+        )
+        ManualPaymentSubmission.objects.create(
+            order=order, payer_name="Buyer", reference_number="12345678",
+            paid_at=timezone.now(),
+        )
+        self.client.force_login(self.user)
+        checkout = self.client.get(reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
+        self.assertContains(checkout, "این صفحه خودکار وضعیت را بررسی می‌کند")
+        self.assertContains(checkout, reverse("assessments:manual_payment_status", args=[order.pk]))
+        status = self.client.get(reverse("assessments:manual_payment_status", args=[order.pk]))
+        self.assertEqual(status.json()["state"], "pending")
+        self.assertFalse(status.json()["ready"])
+
+        stranger = User.objects.create_user("stranger@example.com", password="test-password-42")
+        self.client.force_login(stranger)
+        forbidden = self.client.get(reverse("assessments:manual_payment_status", args=[order.pk]))
+        self.assertEqual(forbidden.status_code, 404)
+
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
     def test_card_transfer_rejects_future_payment_time(self):
         order = Order.objects.create(user=self.user, exam=self.exam, subtotal_irr=500_000, amount_irr=500_000, gateway="card_transfer")

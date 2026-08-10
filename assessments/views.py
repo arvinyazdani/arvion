@@ -184,6 +184,31 @@ class ManualPaymentSubmitView(LoginRequiredMixin, View):
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
 
 
+class ManualPaymentStatusView(LoginRequiredMixin, View):
+    """Return the signed-in customer's card-transfer review state."""
+
+    def get(self, request, pk):
+        order = get_object_or_404(
+            Order.objects.select_related("manual_payment"),
+            pk=pk, user=request.user, gateway="card_transfer",
+        )
+        submission = getattr(order, "manual_payment", None)
+        if order.status == "paid":
+            state = "approved"
+        elif submission and submission.status == "rejected":
+            state = "rejected"
+        else:
+            state = "pending"
+        response = JsonResponse({
+            "state": state,
+            "ready": state == "approved",
+            "redirect_url": f"{reverse('accounts:dashboard')}?lang={request.GET.get('lang', 'fa')}"
+            if state == "approved" else "",
+        })
+        response["Cache-Control"] = "no-store, private"
+        return response
+
+
 class SandboxPayView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if not settings.DEBUG or settings.PAYMENT_GATEWAY != "sandbox":
