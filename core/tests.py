@@ -104,7 +104,7 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
-        self.assertContains(response, "ایده‌ات را")
+        self.assertContains(response, "فرآیند کسب‌وکارت")
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")

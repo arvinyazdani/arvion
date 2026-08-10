@@ -37,9 +37,15 @@ class RegisterView(LanguageViewMixin, FormView):
 
     def form_valid(self, form):
         user = form.save()
-        send_verification_email(user, self.request, self.lang)
+        if not settings.MANUAL_ACCOUNT_APPROVAL:
+            send_verification_email(user, self.request, self.lang)
         self.request.session["verification_email"] = user.email
         return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["manual_approval"] = settings.MANUAL_ACCOUNT_APPROVAL
+        return context
 
 
 class ResendVerificationView(LanguageViewMixin, FormView):
@@ -53,6 +59,9 @@ class ResendVerificationView(LanguageViewMixin, FormView):
 
     def form_valid(self, form):
         email = form.cleaned_data["email"]
+        if settings.MANUAL_ACCOUNT_APPROVAL:
+            self.request.session["verification_email"] = email
+            return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}")
         throttle = AttemptThrottle(
             "verification", self.request, email,
             settings.AUTH_EMAIL_REQUESTS, settings.AUTH_EMAIL_WINDOW_SECONDS,
@@ -214,6 +223,7 @@ def verification_sent(request):
     return render(request, "accounts/verification_sent.html", {
         "lang": lang, "email": request.session.get("verification_email"),
         "resent": request.GET.get("resent") == "1",
+        "manual_approval": settings.MANUAL_ACCOUNT_APPROVAL,
     })
 
 

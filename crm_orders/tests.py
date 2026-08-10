@@ -73,6 +73,14 @@ class CrmOrderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response.context["form"], "critical_workflows", "لطفاً حداقل ۲۰ کاراکتر توضیح دهید.")
         self.assertFalse(CrmOrder.objects.exists())
+        self.assertContains(response, "فرم هنوز ثبت نشده است")
+        self.assertContains(response, 'data-error-step="3"', html=False)
+
+    def test_browser_receives_same_minimum_length_as_server(self):
+        response = self.client.get(reverse("crm_orders:create"))
+        for field_name in ("current_process", "main_pain_points", "critical_workflows", "decision_process"):
+            self.assertContains(response, f'name="{field_name}"', html=False)
+        self.assertEqual(response.context["form"].fields["current_process"].widget.attrs["minlength"], 20)
 
     def test_honeypot_rejects_bot_submission(self):
         payload = valid_payload()

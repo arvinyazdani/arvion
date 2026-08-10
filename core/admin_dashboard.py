@@ -6,6 +6,7 @@ from assessments.models import Attempt, ManualPaymentSubmission, Order, SupportT
 from blog.models import Post
 from leads.models import Lead
 from crm_orders.models import CrmOrder
+from accounts.models import User
 from traffic.models import ActiveVisitor, TrafficDay
 from django.utils import timezone
 from datetime import timedelta
@@ -20,6 +21,8 @@ def operations_dashboard(request):
     """A permission-aware overview; staff never receive counts they cannot access."""
     cards = []
     user = request.user
+    if user.has_perm("accounts.change_user"):
+        cards.append(_card("حساب‌های در انتظار تأیید", User.objects.filter(is_active=False).count(), "تطبیق اطلاعات و فعال‌سازی دستی", reverse("admin:accounts_user_changelist") + "?is_active__exact=0", "attention"))
     if user.has_perm("leads.view_lead"):
         cards.extend((
             _card("درخواست‌های جدید", Lead.objects.filter(status="new").count(), "نیازمند اولین تماس", reverse("admin:leads_lead_changelist") + "?status__exact=new", "attention"),

@@ -112,6 +112,16 @@ class AccountFlowTests(TestCase):
         self.assertIsNotNone(user.verification_sent_at)
         self.assertIn("?lang=en", mail.outbox[0].body)
 
+    @override_settings(MANUAL_ACCOUNT_APPROVAL=True)
+    def test_manual_approval_registration_needs_no_email(self):
+        response = self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload(), follow=True)
+        user = User.objects.get(email="arvin@example.com")
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.email_verified)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertContains(response, "administrator will review and activate")
+        self.assertNotContains(response, "Resend")
+
     def test_registration_requires_first_and_last_name(self):
         payload = self.registration_payload()
         payload["first_name"] = ""

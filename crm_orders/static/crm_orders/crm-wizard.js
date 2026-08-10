@@ -7,7 +7,10 @@
   const next = form.querySelector("[data-next]");
   const submit = form.querySelector("[data-submit]");
   const correspondenceOptions = form.querySelector("[data-correspondence-options]");
-  let current = Math.max(0, steps.findIndex(step => step.querySelector(".errorlist")));
+  const requestedErrorStep = Number.parseInt(form.dataset.errorStep || "", 10);
+  let current = Number.isInteger(requestedErrorStep)
+    ? Math.max(0, requestedErrorStep - 1)
+    : Math.max(0, steps.findIndex(step => step.querySelector(".errorlist")));
 
   const show = (index, moveFocus = true) => {
     current = Math.max(0, Math.min(index, steps.length - 1));
@@ -42,4 +45,5 @@
   next.addEventListener("click", () => validate() && show(current + 1));
   previous.addEventListener("click", () => show(current - 1));
   show(current, false);
+  if (form.dataset.errorStep) form.querySelector(".crm-error-summary")?.focus();
 })();

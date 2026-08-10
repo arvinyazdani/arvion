@@ -61,17 +61,17 @@ class CrmOrderForm(forms.ModelForm):
             "customer_data_fields", "reminder_types", "reporting_priorities", "system_roles", "devices",
         )
         widgets = {
-            "current_process": forms.Textarea(attrs={"rows": 4}),
-            "main_pain_points": forms.Textarea(attrs={"rows": 4}),
+            "current_process": forms.Textarea(attrs={"rows": 4, "minlength": 20}),
+            "main_pain_points": forms.Textarea(attrs={"rows": 4, "minlength": 20}),
             "success_metrics": forms.Textarea(attrs={"rows": 3}),
-            "critical_workflows": forms.Textarea(attrs={"rows": 5}),
+            "critical_workflows": forms.Textarea(attrs={"rows": 5, "minlength": 20}),
             "reports_needed": forms.Textarea(attrs={"rows": 3}),
             "permission_requirements": forms.Textarea(attrs={"rows": 3}),
             "current_tools": forms.Textarea(attrs={"rows": 2}),
             "required_integrations": forms.Textarea(attrs={"rows": 3}),
             "migration_sources": forms.Textarea(attrs={"rows": 3}),
             "security_requirements": forms.Textarea(attrs={"rows": 3}),
-            "decision_process": forms.Textarea(attrs={"rows": 3}),
+            "decision_process": forms.Textarea(attrs={"rows": 3, "minlength": 20}),
             "additional_notes": forms.Textarea(attrs={"rows": 3}),
         }
 
@@ -112,6 +112,8 @@ class CrmOrderForm(forms.ModelForm):
         self.fields["required_integrations"].help_text = "نام محصول، نسخه یا API مشخص را در صورت اطلاع بنویسید."
         self.fields["migration_sources"].help_text = "نام فایل یا نرم‌افزار و وضعیت کیفیت داده را بنویسید."
         self.fields["ai_use_cases"].help_text = "انتخاب AI به معنی پیشنهاد قطعی آن نیست؛ هزینه، محرمانگی و دقت در جلسه بررسی می‌شود."
+        for name in ("current_process", "main_pain_points", "critical_workflows", "decision_process"):
+            self.fields[name].help_text = "حداقل ۲۰ کاراکتر؛ یک توضیح کوتاه و واقعی کافی است."
 
     def clean_company_fax(self):
         if self.cleaned_data.get("company_fax"):
