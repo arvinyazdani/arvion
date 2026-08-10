@@ -106,6 +106,11 @@ class StaffRoleTests(TestCase):
         self.assertTrue(colleague.is_staff)
         self.assertTrue(colleague.groups.filter(name="rvion_assessments").exists())
 
+    def test_admin_is_forced_to_persian_even_with_english_browser(self):
+        response = self.client.get(reverse("admin:login"), HTTP_ACCEPT_LANGUAGE="en-US,en;q=0.9")
+        self.assertEqual(response.wsgi_request.LANGUAGE_CODE, "fa")
+        self.assertContains(response, "نام کاربری")
+
 
 class AccountFlowTests(TestCase):
     def setUp(self):

@@ -49,9 +49,14 @@ def operations_dashboard(request):
             _card("بازدیدکننده یکتای امروز", today_metric.unique_visitors if today_metric else 0, "بر پایه نشست ناشناس", reverse("admin:traffic_trafficday_changelist"), "positive"),
             _card("آنلاین در ۵ دقیقه", ActiveVisitor.objects.filter(last_seen__gte=timezone.now() - timedelta(minutes=5)).count(), "بازدیدکنندگان فعال اخیر", reverse("admin:traffic_activevisitor_changelist"), "positive"),
         ))
-        traffic_history = list(TrafficDay.objects.order_by("-date")[:14])
+        traffic_history = list(reversed(TrafficDay.objects.order_by("-date")[:14]))
+    chart_data = [
+        {"date": item.date.strftime("%m/%d"), "views": item.page_views, "visitors": item.unique_visitors}
+        for item in traffic_history
+    ]
     return render(request, "admin/operations_dashboard.html", {
         "cards": cards,
         "title": "داشبورد عملیات",
         "traffic_history": traffic_history,
+        "chart_data": chart_data,
     })
