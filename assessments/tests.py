@@ -9,6 +9,7 @@ from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from core.jalali import format_jalali
 
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam,
@@ -124,9 +125,13 @@ class AssessmentCommerceTests(TestCase):
         self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
         order = Order.objects.get()
         now = timezone.localtime()
+        checkout = self.client.get(reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
+        self.assertContains(checkout, 'class="jalali-date-select"', html=False)
+        self.assertContains(checkout, "امروز —")
+        self.assertNotContains(checkout, 'name="payment_date" type="date"', html=False)
         response = self.client.post(reverse("assessments:manual_payment_submit", args=[order.pk]) + "?lang=fa", {
             "payer_name": "خریدار آزمون", "reference_number": "۱۲۳۴۵۶۷۸",
-            "payment_date": now.date().isoformat(), "payment_time": now.strftime("%H:%M"),
+            "payment_date": format_jalali(now.date()), "payment_time": now.strftime("%H:%M"),
             "note": "", "accept_terms": "on",
         })
         self.assertRedirects(response, reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")

@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import translation
 
 from .i18n_numbers import normalize_digits, persian_digits
+from .jalali import format_jalali, gregorian_to_jalali, jalali_to_gregorian
 from .models import CompanyProfile
 from projects.models import Project
 
@@ -130,6 +131,13 @@ class CorePagesTests(TestCase):
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")
+
+    def test_jalali_payment_date_conversion_is_reversible(self):
+        from datetime import date
+        gregorian = date(2026, 8, 10)
+        self.assertEqual(gregorian_to_jalali(gregorian), (1405, 5, 19))
+        self.assertEqual(format_jalali(gregorian, persian_digits=True, month_name=True), "۱۹ مرداد ۱۴۰۵")
+        self.assertEqual(jalali_to_gregorian(1405, 5, 19), gregorian)
 
     def test_ascii_digits_are_rendered_as_persian(self):
         self.assertEqual(persian_digits("2026 / 50"), "۲۰۲۶ / ۵۰")
