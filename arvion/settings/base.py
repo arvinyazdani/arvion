@@ -67,7 +67,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "fa"
 LANGUAGES = [("fa", "فارسی"), ("en", "English")]
-SITE_URL = os.getenv("SITE_URL", "https://rvin-tech.com").rstrip("/")
+SITE_URL = os.getenv("SITE_URL", "https://rvionai.com").rstrip("/")
 TIME_ZONE = "Asia/Tehran"
 USE_I18N = True
 USE_TZ = True

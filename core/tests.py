@@ -41,8 +41,8 @@ class CorePagesTests(TestCase):
 
     def test_seo_metadata_uses_production_canonical_and_alternates(self):
         response = self.client.get("/en/services/")
-        self.assertContains(response, '<link rel="canonical" href="https://rvin-tech.com/en/services/">', html=True)
-        self.assertContains(response, 'hreflang="fa" href="https://rvin-tech.com/fa/services/"', html=False)
+        self.assertContains(response, '<link rel="canonical" href="https://rvionai.com/en/services/">', html=True)
+        self.assertContains(response, 'hreflang="fa" href="https://rvionai.com/fa/services/"', html=False)
         self.assertContains(response, 'hreflang="x-default"', html=False)
         self.assertContains(response, '"@type":"Organization"', html=False)
         self.assertContains(response, 'property="og:image"', html=False)
@@ -51,7 +51,7 @@ class CorePagesTests(TestCase):
 
     def test_robots_and_bilingual_sitemap_are_public(self):
         robots = self.client.get(reverse("robots"))
-        self.assertContains(robots, "Sitemap: https://rvin-tech.com/sitemap.xml")
+        self.assertContains(robots, "Sitemap: https://rvionai.com/sitemap.xml")
         self.assertContains(robots, "Disallow: /admin/")
         sitemap = self.client.get(reverse("sitemap"))
         self.assertContains(sitemap, "https://testserver/fa/services/")
@@ -137,7 +137,7 @@ class CorePagesTests(TestCase):
         self.assertContains(english, "Every customer interaction")
         self.assertContains(english, "Customer management")
         self.assertNotContains(persian, "<form", html=False)
-        self.assertNotRegex(persian.content.decode(), r'href=["\']https?://(?!testserver|rvin-tech\.com)')
+        self.assertNotRegex(persian.content.decode(), r'href=["\']https?://(?!testserver|rvionai\.com)')
         self.assertContains(persian, 'href="/fa/crm-order/"', html=False)
 
         home = self.client.get("/fa/")

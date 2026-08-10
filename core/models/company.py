@@ -16,7 +16,7 @@ class CompanyProfile(models.Model):
     postal_code = models.CharField(max_length=20)
     address_fa = models.TextField()
     address_en = models.TextField()
-    domain = models.CharField(max_length=120, default="rvin-tech.com")
+    domain = models.CharField(max_length=120, default="rvionai.com")
     support_hours_fa = models.CharField(max_length=180)
     support_hours_en = models.CharField(max_length=180)
     updated_at = models.DateTimeField(auto_now=True)
