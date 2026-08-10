@@ -73,6 +73,21 @@ class ClinicOrderForm(forms.ModelForm):
             self.fields[name].widget.attrs["minlength"] = 20
             self.fields[name].help_text = "حداقل ۲۰ کاراکتر؛ فرآیند یا قاعده واقعی را کوتاه توضیح دهید."
         self.fields["record_scope"].help_text = "این پرسش‌نامه محل ثبت اطلاعات واقعی بیمار نیست؛ فقط دامنه سامانه را مشخص کنید."
+        placeholders = {
+            "specialties": "مثلاً روان‌شناسی کودک، مشاوره خانواده و کارگاه والدین",
+            "current_process": "از اولین تماس یا پیام مراجعه‌کننده تا رزرو، پرداخت و حضور را توضیح دهید…",
+            "main_pain_points": "مثلاً تماس زیاد پذیرش، نوبت‌های فراموش‌شده یا پرداخت نامشخص…",
+            "success_metrics": "مثلاً کاهش ۴۰٪ تماس‌های نوبت و افزایش نوبت‌های قطعی…",
+            "appointment_rules": "مدت هر خدمت، فاصله بین نوبت‌ها، ظرفیت و روزهای تعطیل…",
+            "cancellation_refund_rules": "مهلت لغو، جریمه عدم مراجعه و شرایط بازپرداخت…",
+            "publishing_workflow": "چه کسی تولید می‌کند، چه کسی تأیید می‌کند و چه کسی منتشر می‌کند؟",
+            "security_requirements": "سطح دسترسی، رضایت‌نامه، ثبت فعالیت و مدت نگهداری داده…",
+            "decision_process": "افراد تصمیم‌گیر و مراحل تأیید فنی و مالی…",
+        }
+        for name, placeholder in placeholders.items():
+            self.fields[name].widget.attrs["placeholder"] = placeholder
+        self.fields["work_email"].widget.attrs["autocomplete"] = "email"
+        self.fields["phone"].widget.attrs.update({"autocomplete": "tel", "inputmode": "tel"})
 
     def clean_company_fax(self):
         if self.cleaned_data.get("company_fax"):

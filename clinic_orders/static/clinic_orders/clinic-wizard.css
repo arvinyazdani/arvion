@@ -1,0 +1,60 @@
+.clinic-order-page{--clinic-green:#087a5b;--clinic-soft:#eaf7f2}
+.clinic-hero{padding:58px 0 62px;background:radial-gradient(circle at 12% 15%,rgba(184,242,230,.11),transparent 31%),var(--ink)}
+.clinic-hero .crm-hero-grid{grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:54px}
+.clinic-hero h1{max-width:850px;font-size:clamp(3rem,5vw,4.8rem);letter-spacing:-.045em}
+.clinic-hero p{max-width:760px;margin:20px 0 0;font-size:1rem;line-height:1.9}
+.clinic-hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.clinic-hero-meta span{padding:7px 11px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06);color:#d8dee9;font-size:.76rem;font-weight:800}
+.clinic-order-page .crm-layout{grid-template-columns:210px minmax(0,850px);gap:32px}
+.clinic-order-page .crm-wizard{position:relative;padding:36px 40px}
+.clinic-order-page .crm-step header{margin-bottom:25px}
+.clinic-order-page .crm-step header>span{display:inline-flex;padding:5px 9px;border-radius:999px;background:#fff0e9}
+.clinic-order-page .crm-options{margin:0 0 25px}
+.clinic-order-page .crm-options>label:first-child{font-size:.96rem}
+.clinic-order-page .crm-options>div{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.clinic-order-page .crm-options>div label{position:relative;min-height:54px;padding:11px 13px;background:#fff;transition:border-color .16s,background .16s,transform .16s}
+.clinic-order-page .crm-options>div label:hover{border-color:#8090a8;transform:translateY(-1px)}
+.clinic-order-page .crm-options>div label:has(input:checked){border-color:var(--clinic-green);background:var(--clinic-soft);box-shadow:inset 0 0 0 1px var(--clinic-green);color:#05543f;font-weight:800}
+.clinic-order-page .crm-options input{accent-color:var(--clinic-green);width:18px;height:18px;flex:0 0 auto}
+.clinic-order-page .field>small{display:block;margin-top:7px;color:#667085;font-size:.75rem}
+.clinic-order-page .required-mark{color:#b42318}
+.clinic-order-page textarea::placeholder,.clinic-order-page input::placeholder{color:#929baa;opacity:1}
+.clinic-order-page .crm-actions{position:sticky;z-index:5;bottom:0;margin:30px -12px -12px;padding:18px 12px 12px;background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 18px)}
+.clinic-order-page .crm-actions .button{min-height:48px}
+.clinic-order-page .clinic-submit{background:var(--clinic-green);border-color:var(--clinic-green)}
+.clinic-order-page .crm-save-note{padding:11px 13px;border-radius:12px;background:#fff8e8;color:#765a12}
+.clinic-order-page .crm-save-note b{color:#5d4300}
+
+@media(max-width:900px){
+  .clinic-hero{padding:42px 0 46px}
+  .clinic-hero .crm-hero-grid{grid-template-columns:1fr;gap:24px}
+  .clinic-hero aside{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;padding:20px}
+  .clinic-hero aside strong{grid-column:1/-1}
+  .clinic-order-page .crm-progress{position:sticky;z-index:12;top:76px;margin-inline:-20px;padding:10px 20px;background:rgba(244,241,234,.94);backdrop-filter:blur(12px)}
+  .clinic-order-page .crm-progress ol{min-width:600px}
+}
+
+@media(max-width:560px){
+  .clinic-hero{padding:27px 0 30px}
+  .clinic-hero .eyebrow{margin-bottom:9px;font-size:.65rem}
+  .clinic-hero h1{font-size:2.15rem;line-height:1.18;letter-spacing:-.035em}
+  .clinic-hero p{margin-top:13px;font-size:.87rem;line-height:1.75}
+  .clinic-hero-meta{margin-top:15px}
+  .clinic-hero-meta span{padding:5px 8px;font-size:.66rem}
+  .clinic-hero aside{display:none}
+  .clinic-order-page .section{padding:22px 0 50px}
+  .clinic-order-page .crm-layout{gap:12px}
+  .clinic-order-page .crm-progress{top:62px;margin-inline:-20px;padding:8px 20px}
+  .clinic-order-page .crm-progress ol{display:flex;min-width:max-content;gap:6px}
+  .clinic-order-page .crm-progress li{display:flex;min-width:auto;padding:8px 10px;border:1px solid var(--line);background:#fff;font-size:.72rem}
+  .clinic-order-page .crm-progress li:not([aria-current=step]) span{display:none}
+  .clinic-order-page .crm-progress li[aria-current=step]{padding-inline:13px}
+  .clinic-order-page .crm-wizard{padding:22px 17px;border-radius:20px}
+  .clinic-order-page .crm-step header{margin-bottom:21px;padding-bottom:16px}
+  .clinic-order-page .crm-step h2{font-size:1.45rem}
+  .clinic-order-page .crm-step header p{font-size:.82rem;line-height:1.65}
+  .clinic-order-page .crm-options>div{grid-template-columns:1fr}
+  .clinic-order-page .crm-options>div label{min-height:50px;font-size:.82rem}
+  .clinic-order-page .crm-actions{gap:8px;margin-inline:-6px;padding-inline:6px}
+  .clinic-order-page .crm-actions .button{padding:11px 13px;font-size:.83rem}
+}

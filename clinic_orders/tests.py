@@ -31,8 +31,11 @@ class ClinicOrderTests(TestCase):
     def test_wizard_is_public_and_has_five_accessible_steps(self):
         response = self.client.get(reverse("clinic_orders:create"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "DJANGO CLINIC PLATFORM DISCOVERY")
+        self.assertContains(response, "CLINIC WEBSITE DISCOVERY")
         self.assertContains(response, 'data-clinic-wizard', html=False)
+        self.assertContains(response, "بعدی: هدف و فرآیند")
+        self.assertContains(response, "clinic-wizard.css")
+        self.assertContains(response, "crm-options")
         self.assertContains(response, 'aria-label="مراحل نیازسنجی کلینیک"', html=False)
         self.assertEqual(response.content.decode().count("data-step-indicator="), 5)
 
