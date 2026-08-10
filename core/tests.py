@@ -46,8 +46,17 @@ class CorePagesTests(TestCase):
         self.assertContains(response, 'hreflang="x-default"', html=False)
         self.assertContains(response, '"@type":"Organization"', html=False)
         self.assertContains(response, 'property="og:image"', html=False)
-        self.assertContains(response, "rvion-share-v1.png")
+        self.assertContains(response, "rvion-whatsapp-share-v2.png")
+        self.assertContains(response, 'property="og:image:url"', html=False)
+        self.assertContains(response, "https://wa.me/?text=")
         self.assertNotContains(response, "?lang=")
+
+    def test_public_pages_offer_whatsapp_share_but_private_pages_do_not(self):
+        public_response = self.client.get("/fa/")
+        self.assertContains(public_response, "اشتراک در واتساپ")
+        self.assertContains(public_response, "rvionai.com/fa/")
+        private_response = self.client.get("/fa/account/login/")
+        self.assertNotContains(private_response, 'class="whatsapp-share"', html=False)
 
     def test_robots_and_bilingual_sitemap_are_public(self):
         robots = self.client.get(reverse("robots"))

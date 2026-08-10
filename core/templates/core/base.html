@@ -15,15 +15,18 @@
   <meta property="og:site_name" content="Rvion">
   <meta property="og:locale" content="{% if lang == 'fa' %}fa_IR{% else %}en_US{% endif %}">
   <meta property="og:title" content="{% block og_title %}{% if lang == 'fa' %}آرویون — طراحی و توسعه پلتفرم آنلاین{% else %}Rvion — Online platform design and development{% endif %}{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}{% if lang == 'fa' %}فناوری و تجارت برای دنیای واقعی{% else %}Technology and trade for the real world{% endif %}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{% if lang == 'fa' %}طراحی CRM سازمانی، وب‌سایت و سامانه‌های هوشمند؛ از نیازسنجی تا توسعه و پشتیبانی.{% else %}Enterprise CRM, websites and intelligent platforms—from discovery to development and support.{% endif %}{% endblock %}">
   <meta property="og:url" content="{{ canonical_url }}">
-  <meta property="og:image" content="{{ site_url }}{% static 'core/images/rvion-share-v1.png' %}">
-  <meta property="og:image:secure_url" content="{{ site_url }}{% static 'core/images/rvion-share-v1.png' %}">
+  <meta property="og:image" content="{{ site_url }}{% static 'core/images/rvion-whatsapp-share-v2.png' %}">
+  <meta property="og:image:url" content="{{ site_url }}{% static 'core/images/rvion-whatsapp-share-v2.png' %}">
+  <meta property="og:image:secure_url" content="{{ site_url }}{% static 'core/images/rvion-whatsapp-share-v2.png' %}">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Rvion — طراحی CRM، وب‌سایت و سامانه اختصاصی">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="{{ site_url }}{% static 'core/images/rvion-share-v1.png' %}">
+  <meta name="twitter:title" content="{% if lang == 'fa' %}آرویون — CRM، وب و هوش مصنوعی{% else %}Rvion — CRM, Web & AI{% endif %}">
+  <meta name="twitter:description" content="{% if lang == 'fa' %}طراحی و توسعه راهکارهای دیجیتال برای کسب‌وکارها{% else %}Digital solutions designed and built for businesses{% endif %}">
+  <meta name="twitter:image" content="{{ site_url }}{% static 'core/images/rvion-whatsapp-share-v2.png' %}">
   <meta name="theme-color" content="#0b1220">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Rvion">
@@ -82,7 +85,7 @@
   <footer class="site-footer">
     <div class="shell footer-grid">
       <div><a class="brand" href="{% url 'home' %}"><span class="brand-mark">R</span><span>RVION</span></a><p>{% if lang == 'fa' %}{{ company.legal_name_fa }}؛ فناوری و تجارت برای دنیای واقعی.{% else %}{{ company.legal_name_en }}; technology and trade for the real world.{% endif %}</p><a class="footer-legal-link" href="{% url 'company_info' %}">{% if lang == 'fa' %}ثبت {{ company.registration_number }} · شناسه ملی {{ company.national_id }}{% else %}Registration {{ company.registration_number }} · National ID {{ company.national_id }}{% endif %}</a></div>
-      <div><span class="eyebrow">{% if lang == 'fa' %}ارتباط رسمی{% else %}Official contact{% endif %}</span><a href="tel:+989333021100">{{ company.phone }}</a><a href="mailto:hello@rvin-tech.com">hello@rvin-tech.com</a><span>{% if lang == 'fa' %}{{ company.support_hours_fa }}{% else %}{{ company.support_hours_en }}{% endif %}</span></div>
+      <div><span class="eyebrow">{% if lang == 'fa' %}ارتباط رسمی{% else %}Official contact{% endif %}</span><a href="tel:+989333021100">{{ company.phone }}</a><a href="mailto:hello@rvin-tech.com">hello@rvin-tech.com</a><span>{% if lang == 'fa' %}{{ company.support_hours_fa }}{% else %}{{ company.support_hours_en }}{% endif %}</span>{% if show_whatsapp_share %}<a class="whatsapp-share" href="{{ whatsapp_share_url }}" target="_blank" rel="noopener noreferrer" aria-label="{% if lang == 'fa' %}اشتراک این صفحه در واتساپ{% else %}Share this page on WhatsApp{% endif %}"><b aria-hidden="true">↗</b>{% if lang == 'fa' %}اشتراک در واتساپ{% else %}Share on WhatsApp{% endif %}</a>{% endif %}</div>
       <div class="footer-end"><span>© {% now "Y" %} Rvion</span><a href="{% url 'privacy' %}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}">{% if lang == 'fa' %}شرایط خدمات{% else %}Service terms{% endif %}</a><a href="{% url 'refund_policy' %}">{% if lang == 'fa' %}لغو و بازپرداخت{% else %}Cancellation{% endif %}</a></div>
     </div>
   </footer>
