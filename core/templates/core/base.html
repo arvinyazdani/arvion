@@ -31,7 +31,7 @@
   <link rel="apple-touch-icon" href="{% static 'core/icons/icon-192.png' %}">
   <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
   <script>try{if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=22">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=23">
   <script src="{% static 'core/js/persian-ui.js' %}?v=3" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=3" defer></script>
   {% block extra_head %}{% endblock %}
@@ -64,6 +64,7 @@
         {% endif %}
         <a class="nav-cta" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Let's talk{% endif %}</a>
         <a href="{% url 'crm_orders:create' %}">{% if lang == 'fa' %}سفارش CRM{% else %}CRM discovery{% endif %}</a>
+        <a href="{% url 'crm_product' %}">{% if lang == 'fa' %}معرفی CRM{% else %}CRM overview{% endif %}</a>
         <a class="lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
       </nav>
       <button class="nav-scrim" type="button" tabindex="-1" aria-hidden="true"></button>

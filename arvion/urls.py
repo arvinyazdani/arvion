@@ -11,7 +11,7 @@ from core.health import HealthCheckView
 from core.admin_dashboard import operations_dashboard
 from core.sitemaps import sitemaps
 from core.views import (
-    AboutView, CompanyInfoView, HomeView, PrivacyView,
+    AboutView, CompanyInfoView, CRMProductView, HomeView, PrivacyView,
     RefundPolicyView, ServiceTermsView,
 )
 
@@ -53,6 +53,7 @@ urlpatterns += i18n_patterns(
     path("", HomeView.as_view(), name="home"),
     path("about/", AboutView.as_view(), name="about"),
     path("company/", CompanyInfoView.as_view(), name="company_info"),
+    path("crm/", CRMProductView.as_view(), name="crm_product"),
     path("privacy/", PrivacyView.as_view(), name="privacy"),
     path("service-terms/", ServiceTermsView.as_view(), name="service_terms"),
     path("refund-policy/", RefundPolicyView.as_view(), name="refund_policy"),

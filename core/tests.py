@@ -127,6 +127,23 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "پروژه منتشرشده و قابل مشاهده")
         self.assertEqual(response.context["published_project_count"], Project.objects.filter(is_active=True).count())
 
+    def test_crm_product_overview_is_read_only_bilingual_and_internally_linked(self):
+        persian = self.client.get("/fa/crm/")
+        english = self.client.get("/en/crm/")
+
+        self.assertContains(persian, "همه ارتباطات مشتری؛ از اولین تماس تا فروش و پشتیبانی")
+        self.assertContains(persian, "مدیریت مشتریان")
+        self.assertContains(persian, "PostgreSQL تحت مالکیت مشتری")
+        self.assertContains(english, "Every customer interaction")
+        self.assertContains(english, "Customer management")
+        self.assertNotContains(persian, "<form", html=False)
+        self.assertNotRegex(persian.content.decode(), r'href=["\']https?://(?!testserver|rvin-tech\.com)')
+        self.assertContains(persian, 'href="/fa/crm-order/"', html=False)
+
+        home = self.client.get("/fa/")
+        self.assertContains(home, "معرفی اپ CRM")
+        self.assertContains(home, 'href="/fa/crm/"', html=False)
+
     def test_service_worker_is_served_from_root_for_full_app_scope(self):
         response = self.client.get(reverse("service_worker"))
         self.assertEqual(response.status_code, 200)

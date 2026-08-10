@@ -18,7 +18,7 @@ class StaticSitemap(LocalizedSitemap):
     changefreq = "monthly"
 
     def items(self):
-        names = ("home", "about", "company_info", "services:list", "projects:list", "blog:list", "assessments:list", "leads:contact", "privacy", "service_terms", "refund_policy")
+        names = ("home", "about", "company_info", "crm_product", "services:list", "projects:list", "blog:list", "assessments:list", "leads:contact", "privacy", "service_terms", "refund_policy")
         return [(language, name) for language in self.languages() for name in names]
 
     def location(self, item):
