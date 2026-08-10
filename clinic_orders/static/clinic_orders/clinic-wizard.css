@@ -58,5 +58,6 @@
   .clinic-order-page .crm-options>div{grid-template-columns:1fr}
   .clinic-order-page .crm-options>div label{min-height:50px;font-size:.82rem}
   .clinic-order-page .crm-actions{gap:8px;margin-inline:-6px;padding-inline:6px}
+  .clinic-order-page .crm-actions{bottom:70px}
   .clinic-order-page .crm-actions .button{padding:11px 13px;font-size:.83rem}
 }
