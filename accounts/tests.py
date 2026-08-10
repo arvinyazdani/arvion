@@ -262,6 +262,35 @@ class AccountFlowTests(TestCase):
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertRedirects(response, f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}")
 
+    def test_dashboard_language_follows_url_prefix_not_saved_preference(self):
+        user = User.objects.create_user(
+            username="language@example.com", email="language@example.com",
+            password="test-password-42", is_active=True, email_verified=True,
+            preferred_language="fa",
+        )
+        self.client.force_login(user)
+
+        english = self.client.get("/en/account/dashboard/")
+
+        self.assertEqual(english.status_code, 200)
+        self.assertEqual(english.context["lang"], "en")
+        self.assertContains(english, "Hello, language@example.com")
+        self.assertContains(english, 'href="/fa/account/dashboard/"', html=False)
+        self.assertContains(english, "Purchase history & receipts")
+        self.assertNotContains(english, "خرید و پشتیبانی")
+
+    def test_dashboard_has_mobile_safe_account_structure(self):
+        user = User.objects.create_user(
+            username="very-long-customer-address@example.com",
+            email="very-long-customer-address@example.com",
+            password="test-password-42", is_active=True, email_verified=True,
+        )
+        self.client.force_login(user)
+        response = self.client.get("/fa/account/dashboard/")
+        self.assertContains(response, 'class="account-language-switch"', html=False)
+        self.assertContains(response, 'class="account-email" dir="ltr"', html=False)
+        self.assertContains(response, 'class="dashboard-account-links"', html=False)
+
     def create_result(self, user, exam, version, number):
         order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")
         entitlement = ExamEntitlement.objects.create(

@@ -229,7 +229,11 @@ def verification_sent(request):
 
 @login_required
 def dashboard(request):
-    lang = request.GET.get("lang") or request.user.preferred_language
+    # The language prefix is authoritative. Falling back to the stored
+    # preference previously made /en/account/dashboard/ render in Persian.
+    lang = getattr(request, "LANGUAGE_CODE", None) or request.GET.get("lang") or request.user.preferred_language
+    lang = lang if lang in {"fa", "en"} else "fa"
+    request.session["lang"] = lang
     entitlements = request.user.exam_entitlements.select_related("exam", "order", "attempt", "attempt__result")
     grouped = OrderedDict()
     for entitlement in entitlements:
