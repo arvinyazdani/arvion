@@ -1,0 +1,65 @@
+from datetime import timedelta
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+from django.urls import reverse
+from django.utils import timezone
+
+from accounts.models import User
+from assessments.models import Attempt, ManualPaymentSubmission, SupportTicket
+from clinic_orders.models import ClinicOrder
+from crm_orders.models import CrmOrder
+from leads.models import Lead
+from traffic.models import ActiveVisitor, TrafficDay
+
+
+def _metric(label, value, description, url="", tone=""):
+    return {"label": label, "value": value, "description": description, "url": url, "tone": tone}
+
+
+@staff_member_required(login_url="accounts:login")
+def dashboard(request):
+    """Permission-aware command centre outside Django's model administration UI."""
+    user = request.user
+    metrics = []
+    queues = []
+    if user.has_perm("accounts.change_user"):
+        pending_users = User.objects.filter(is_active=False).order_by("-date_joined")
+        metrics.append(_metric("حساب نیازمند تأیید", pending_users.count(), "فعال‌سازی و کنترل ثبت‌نام", reverse("admin:accounts_user_changelist") + "?is_active__exact=0", "warning"))
+        queues += [{"kind": "حساب", "title": item.email, "meta": "منتظر فعال‌سازی", "date": item.date_joined, "url": reverse("admin:accounts_user_change", args=[item.pk])} for item in pending_users[:4]]
+    if user.has_perm("leads.view_lead"):
+        new_leads = Lead.objects.filter(status="new").order_by("-created_at")
+        metrics.append(_metric("درخواست همکاری جدید", new_leads.count(), "نیازمند اولین تماس", reverse("admin:leads_lead_changelist") + "?status__exact=new", "warning"))
+        queues += [{"kind": "همکاری", "title": item.name, "meta": item.business_name or item.tracking_code, "date": item.created_at, "url": reverse("admin:leads_lead_change", args=[item.pk])} for item in new_leads[:4]]
+    if user.has_perm("crm_orders.view_crmorder"):
+        crm = CrmOrder.objects.filter(status="new").order_by("-created_at")
+        metrics.append(_metric("نیازسنجی CRM", crm.count(), "سفارش‌های تحلیل‌نشده", reverse("admin:crm_orders_crmorder_changelist") + "?status__exact=new", "warning"))
+        queues += [{"kind": "CRM", "title": item.organization_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("admin:crm_orders_crmorder_change", args=[item.pk])} for item in crm[:4]]
+    if user.has_perm("clinic_orders.view_clinicorder"):
+        clinics = ClinicOrder.objects.filter(status="new").order_by("-created_at")
+        metrics.append(_metric("نیازسنجی کلینیک", clinics.count(), "درخواست‌های تحلیل‌نشده", reverse("admin:clinic_orders_clinicorder_changelist") + "?status__exact=new", "warning"))
+        queues += [{"kind": "کلینیک", "title": item.clinic_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("admin:clinic_orders_clinicorder_change", args=[item.pk])} for item in clinics[:4]]
+    if user.has_perm("assessments.view_manualpaymentsubmission"):
+        payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("-created_at")
+        metrics.append(_metric("پرداخت منتظر بررسی", payments.count(), "تأیید بانکی و دسترسی آزمون", reverse("admin:assessments_manualpaymentsubmission_changelist") + "?status__exact=pending", "danger"))
+        queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.created_at, "url": reverse("admin:assessments_manualpaymentsubmission_change", args=[item.pk])} for item in payments[:4]]
+    if user.has_perm("assessments.view_supportticket"):
+        metrics.append(_metric("تیکت باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("admin:assessments_supportticket_changelist")))
+    if user.has_perm("assessments.view_attempt"):
+        metrics.append(_metric("آزمون در حال اجرا", Attempt.objects.filter(status="in_progress").count(), "نشست‌های فعال آزمون", reverse("admin:assessments_attempt_changelist")))
+
+    chart = []
+    online = None
+    if user.has_perm("traffic.view_trafficday"):
+        online = ActiveVisitor.objects.filter(last_seen__gte=timezone.now() - timedelta(minutes=5)).count()
+        for day in reversed(TrafficDay.objects.order_by("-date")[:7]):
+            chart.append({"label": day.date.strftime("%m/%d"), "views": day.page_views, "visitors": day.unique_visitors})
+        today = TrafficDay.objects.filter(date=timezone.localdate()).first()
+        metrics += [
+            _metric("بازدید امروز", today.page_views if today else 0, "نمایش صفحه‌های عمومی"),
+            _metric("کاربر آنلاین", online, "فعال در پنج دقیقه اخیر", tone="positive"),
+        ]
+    queues.sort(key=lambda item: item["date"], reverse=True)
+    return render(request, "management_portal/dashboard.html", {
+        "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online,
+    })

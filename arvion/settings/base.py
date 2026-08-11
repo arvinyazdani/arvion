@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "crm_orders",
     "clinic_orders",
     "traffic",
+    "management_portal",
     "taggit",
     "widget_tweaks",
 ]
