@@ -3,9 +3,11 @@ from datetime import timedelta
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from accounts.models import User
 from assessments.models import Attempt, ManualPaymentSubmission, SupportTicket
@@ -15,7 +17,7 @@ from leads.models import Lead
 from traffic.models import ActiveVisitor, TrafficDay
 from accounts.staff_roles import STAFF_ROLES, group_name
 from .forms import StaffCreateForm, StaffRolesForm
-from .models import StaffAccessAudit
+from .models import ManagementNotification, StaffAccessAudit
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -65,9 +67,48 @@ def dashboard(request):
             _metric("کاربر آنلاین", online, "فعال در پنج دقیقه اخیر", tone="positive"),
         ]
     queues.sort(key=lambda item: item["date"], reverse=True)
+    notifications = _visible_notifications(user)
+    metrics.insert(0, _metric("اعلان خوانده‌نشده", notifications.filter(status="unread").count(), "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
     return render(request, "management_portal/dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online,
     })
+
+
+def _visible_notifications(user):
+    queryset = ManagementNotification.objects.all()
+    if user.is_superuser:
+        return queryset
+    roles = [name.removeprefix("rvion_") for name in user.groups.values_list("name", flat=True) if name.startswith("rvion_")]
+    return queryset.filter(role__in=roles)
+
+
+@staff_member_required(login_url="accounts:login")
+def notification_list(request):
+    status, category = request.GET.get("status", ""), request.GET.get("category", "")
+    queryset = _visible_notifications(request.user)
+    if status in dict(ManagementNotification.STATUSES):
+        queryset = queryset.filter(status=status)
+    if category in dict(ManagementNotification.CATEGORIES):
+        queryset = queryset.filter(category=category)
+    return render(request, "management_portal/notifications.html", {
+        "notifications": queryset[:100], "statuses": ManagementNotification.STATUSES,
+        "categories": ManagementNotification.CATEGORIES, "active_status": status, "active_category": category,
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def notification_status(request, notification_id, status):
+    if status not in dict(ManagementNotification.STATUSES):
+        raise Http404
+    notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
+    notification.status = status
+    if status == "resolved":
+        notification.resolved_by, notification.resolved_at = request.user, timezone.now()
+    else:
+        notification.resolved_by, notification.resolved_at = None, None
+    notification.save(update_fields=["status", "resolved_by", "resolved_at", "updated_at"])
+    return redirect(request.POST.get("next") or "management_portal:notification_list")
 
 
 def _require_superuser(request):

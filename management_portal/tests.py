@@ -5,7 +5,7 @@ from django.urls import reverse
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder
-from management_portal.models import StaffAccessAudit
+from management_portal.models import ManagementNotification, StaffAccessAudit
 
 
 class ManagementDashboardTests(TestCase):
@@ -67,3 +67,27 @@ class ManagementDashboardTests(TestCase):
         other = User.objects.create_superuser(username="root4", email="root4@example.com", password="safe-password")
         self.client.force_login(root)
         self.assertEqual(self.client.get(reverse("management_portal:staff_edit", args=[other.pk])).status_code, 403)
+
+    def test_new_customer_creates_account_notification(self):
+        customer = User.objects.create_user(username="new-customer", email="new-customer@example.com", password="safe-password")
+        notification = ManagementNotification.objects.get(source_key=f"user:{customer.pk}")
+        self.assertEqual(notification.category, "accounts")
+        self.assertEqual(notification.status, "unread")
+
+    def test_notifications_are_filtered_by_role_and_can_be_resolved(self):
+        root = User.objects.create_superuser(username="notify-root", email="notify-root@example.com", password="safe-password")
+        sales = User.objects.create_user(username="notify-sales", email="notify-sales@example.com", password="safe-password", is_staff=True)
+        from accounts.staff_roles import sync_staff_role_groups
+        sales.groups.add(sync_staff_role_groups()["sales"])
+        sales_item = ManagementNotification.objects.create(category="sales", title="فروش", target_url="/admin/", role="sales", source_key="test:sales")
+        ManagementNotification.objects.create(category="payments", title="مالی", target_url="/admin/", role="assessments", source_key="test:payments")
+        self.client.force_login(sales)
+        response = self.client.get(reverse("management_portal:notification_list"))
+        self.assertContains(response, "فروش")
+        self.assertNotContains(response, "مالی")
+        update = self.client.post(reverse("management_portal:notification_status", args=[sales_item.pk, "resolved"]))
+        self.assertRedirects(update, reverse("management_portal:notification_list"))
+        sales_item.refresh_from_db()
+        self.assertEqual(sales_item.resolved_by, sales)
+        self.client.force_login(root)
+        self.assertContains(self.client.get(reverse("management_portal:notification_list")), "مالی")
