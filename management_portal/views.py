@@ -15,6 +15,7 @@ from clinic_orders.models import ClinicOrder
 from crm_orders.models import CrmOrder
 from leads.models import Lead
 from traffic.models import ActiveVisitor, TrafficDay
+from contracts.models import ContractProposal
 from accounts.staff_roles import STAFF_ROLES, group_name
 from .forms import StaffCreateForm, StaffRolesForm
 from .models import ManagementNotification, StaffAccessAudit
@@ -69,6 +70,9 @@ def dashboard(request):
     queues.sort(key=lambda item: item["date"], reverse=True)
     notifications = _visible_notifications(user)
     metrics.insert(0, _metric("اعلان خوانده‌نشده", notifications.filter(status="unread").count(), "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
+    if user.is_superuser:
+        metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("contracts:proposal_list"), "positive"))
+        metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
     return render(request, "management_portal/dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online,
     })

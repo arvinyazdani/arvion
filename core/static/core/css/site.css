@@ -78,7 +78,7 @@
   .page-hero{padding:42px 0 34px}.page-hero .lead{margin-bottom:0}
   .section{padding:52px 0}.section-head{margin-bottom:26px;gap:15px}.section-head h2{font-size:2.25rem}.section-head p{margin:0}
   .content-grid{gap:30px}
-  .grid-3{display:flex;gap:14px;margin-inline:-14px;padding:0 14px 18px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}.grid-3::-webkit-scrollbar{display:none}.grid-3>.card,.grid-3>.project-card{flex:0 0:min(86vw,360px);scroll-snap-align:center}
+  .grid-3{display:flex;gap:14px;margin-inline:-14px;padding:0 14px 18px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}.grid-3::-webkit-scrollbar{display:none}.grid-3>.card,.grid-3>.project-card{flex:0 0 86vw;max-width:360px;scroll-snap-align:center}
   .card{padding:23px;border-radius:20px}.card:hover{transform:none}
   .button,.nav-cta{min-height:48px;padding:11px 18px}.actions{gap:10px}
   .form-card{padding:23px;border-radius:22px;box-shadow:0 12px 36px rgba(16,24,40,.08)}
