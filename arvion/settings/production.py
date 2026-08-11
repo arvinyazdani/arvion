@@ -17,6 +17,11 @@ if USE_SMTP_EMAIL:
     required += ["EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD"]
 if USE_S3_STORAGE:
     required += ["AWS_STORAGE_BUCKET_NAME", "AWS_S3_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+if SMS_BACKEND == "core.sms.backends.MelipayamakSMSBackend":
+    required += [
+        "MELIPAYAMAK_USERNAME", "MELIPAYAMAK_PASSWORD",
+        "MELIPAYAMAK_SENDER_NUMBER",
+    ]
 missing = [name for name in required if not os.getenv(name)]
 if missing:
     raise RuntimeError(f"Missing production environment variables: {', '.join(missing)}")

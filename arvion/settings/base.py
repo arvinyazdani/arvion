@@ -95,6 +95,18 @@ AUTH_LOGIN_WINDOW_SECONDS = int(os.getenv("AUTH_LOGIN_WINDOW_SECONDS", "900"))
 AUTH_EMAIL_REQUESTS = int(os.getenv("AUTH_EMAIL_REQUESTS", "4"))
 AUTH_EMAIL_WINDOW_SECONDS = int(os.getenv("AUTH_EMAIL_WINDOW_SECONDS", "3600"))
 
+# SMS delivery. The console backend is intentionally the safe local/test default.
+SMS_BACKEND = os.getenv("SMS_BACKEND", "core.sms.backends.ConsoleSMSBackend")
+MELIPAYAMAK_USERNAME = os.getenv("MELIPAYAMAK_USERNAME", "")
+MELIPAYAMAK_PASSWORD = os.getenv("MELIPAYAMAK_PASSWORD", "")
+MELIPAYAMAK_SENDER_NUMBER = os.getenv("MELIPAYAMAK_SENDER_NUMBER", "")
+MELIPAYAMAK_BODY_ID = os.getenv("MELIPAYAMAK_BODY_ID", "")
+SMS_HTTP_TIMEOUT = int(os.getenv("SMS_HTTP_TIMEOUT", "10"))
+OTP_TTL_SECONDS = int(os.getenv("OTP_TTL_SECONDS", "300"))
+OTP_REQUEST_LIMIT = int(os.getenv("OTP_REQUEST_LIMIT", "3"))
+OTP_REQUEST_WINDOW_SECONDS = int(os.getenv("OTP_REQUEST_WINDOW_SECONDS", "600"))
+OTP_MAX_VERIFY_ATTEMPTS = int(os.getenv("OTP_MAX_VERIFY_ATTEMPTS", "5"))
+
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Rvion <noreply@rvin-tech.com>")
 CONTACT_NOTIFICATION_EMAIL = os.getenv("CONTACT_NOTIFICATION_EMAIL", "owner@rvin-tech.com")
 LEAD_RATE_LIMIT_SECONDS = int(os.getenv("LEAD_RATE_LIMIT_SECONDS", "60"))
