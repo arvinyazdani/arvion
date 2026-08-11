@@ -31,6 +31,8 @@ class ContractWorkflowTests(TestCase):
         self.assertEqual(version.snapshot["project_scope"], original)
         response = self.client.get(reverse("contracts:public_contract", args=[self.proposal.token]))
         self.assertContains(response, "noindex,nofollow,noarchive")
+        self.assertContains(response, "پیشنهاد همکاری سامانه نمونه | آرویون")
+        self.assertContains(response, "share-contract-v1.png")
         self.assertContains(response, "سامانه نمونه")
         self.assertNotContains(response, "متن تغییر یافته")
 

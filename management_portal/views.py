@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,8 +17,10 @@ from leads.models import Lead
 from traffic.models import ActiveVisitor, TrafficDay
 from contracts.models import ContractProposal
 from accounts.staff_roles import STAFF_ROLES, group_name
-from .forms import StaffCreateForm, StaffRolesForm
-from .models import ManagementNotification, StaffAccessAudit
+from core.sms import send_sms
+from core.sms.backends import SMSDeliveryError
+from .forms import ManualSMSForm, StaffCreateForm, StaffRolesForm
+from .models import ManagementNotification, SMSDispatch, StaffAccessAudit
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -73,6 +75,7 @@ def dashboard(request):
     if user.is_superuser:
         metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("contracts:proposal_list"), "positive"))
         metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
+        metrics.insert(3, _metric("ارسال پیامک", SMSDispatch.objects.filter(status="sent").count(), "ارسال تکی یا گروهی و مشاهده سابقه", reverse("management_portal:sms_send")))
     return render(request, "management_portal/dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online,
     })
@@ -162,3 +165,34 @@ def staff_edit(request, user_id):
         messages.success(request, f"مسئولیت‌های {member.email} بروزرسانی شد.")
         return redirect("management_portal:staff_list")
     return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها", "member": member})
+
+
+@staff_member_required(login_url="accounts:login")
+def sms_send(request):
+    _require_superuser(request)
+    form = ManualSMSForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        sent = failed = 0
+        for recipient in form.cleaned_data["recipients"]:
+            try:
+                result = send_sms(recipient, form.cleaned_data["message"])
+            except (SMSDeliveryError, ImproperlyConfigured, ValueError) as exc:
+                failed += 1
+                SMSDispatch.objects.create(
+                    recipient=recipient, message=form.cleaned_data["message"], status="failed",
+                    error_message=str(exc)[:240], sent_by=request.user,
+                )
+            else:
+                sent += 1
+                SMSDispatch.objects.create(
+                    recipient=recipient, message=form.cleaned_data["message"], status="sent",
+                    provider=result.provider, provider_reference=result.reference, sent_by=request.user,
+                )
+        if sent:
+            messages.success(request, f"{sent} پیامک برای ارسال پذیرفته شد.")
+        if failed:
+            messages.error(request, f"ارسال برای {failed} شماره ناموفق بود؛ جزئیات در سابقه ثبت شد.")
+        return redirect("management_portal:sms_send")
+    return render(request, "management_portal/sms_send.html", {
+        "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50],
+    })

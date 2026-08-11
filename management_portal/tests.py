@@ -5,7 +5,9 @@ from django.urls import reverse
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder
-from management_portal.models import ManagementNotification, StaffAccessAudit
+from management_portal.models import ManagementNotification, SMSDispatch, StaffAccessAudit
+from core.sms.backends import SMSResult
+from unittest.mock import patch
 
 
 class ManagementDashboardTests(TestCase):
@@ -91,3 +93,34 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(sales_item.resolved_by, sales)
         self.client.force_login(root)
         self.assertContains(self.client.get(reverse("management_portal:notification_list")), "مالی")
+
+    def test_sms_page_is_restricted_to_superuser(self):
+        staff = User.objects.create_user(username="sms-staff", email="sms-staff@example.com", password="safe-password", is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(reverse("management_portal:sms_send")).status_code, 403)
+
+    @patch("management_portal.views.send_sms")
+    def test_superuser_can_send_unique_normalized_sms_batch(self, mocked_send):
+        mocked_send.return_value = SMSResult(provider="test", reference="ref-1")
+        root = User.objects.create_superuser(username="sms-root", email="sms-root@example.com", password="safe-password")
+        self.client.force_login(root)
+        response = self.client.post(reverse("management_portal:sms_send"), {
+            "recipients": "09120373271\n+98 912 037 3271\n۰۹۱۲۱۱۱۲۲۳۳",
+            "message": "پیام آزمایشی آرویون",
+            "confirm": "on",
+        })
+        self.assertRedirects(response, reverse("management_portal:sms_send"))
+        self.assertEqual(mocked_send.call_count, 2)
+        self.assertEqual(SMSDispatch.objects.filter(status="sent").count(), 2)
+        self.assertSetEqual(set(SMSDispatch.objects.values_list("recipient", flat=True)), {"989120373271", "989121112233"})
+
+    @patch("management_portal.views.send_sms")
+    def test_invalid_batch_does_not_send_any_sms(self, mocked_send):
+        root = User.objects.create_superuser(username="sms-root-invalid", email="sms-root-invalid@example.com", password="safe-password")
+        self.client.force_login(root)
+        response = self.client.post(reverse("management_portal:sms_send"), {
+            "recipients": "09120373271\n02112345678", "message": "سلام", "confirm": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+        mocked_send.assert_not_called()
+        self.assertContains(response, "شماره نامعتبر")

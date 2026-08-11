@@ -49,6 +49,16 @@
   }
 
   const welcome = document.querySelector("[data-app-welcome]");
+  const hideNavigationLoader = () => {
+    document.documentElement.classList.remove("navigation-pending");
+    if (welcome) welcome.setAttribute("aria-hidden", "true");
+  };
+  const showNavigationLoader = () => {
+    if (!welcome) return;
+    welcome.classList.remove("is-leaving");
+    welcome.setAttribute("aria-hidden", "false");
+    document.documentElement.classList.add("navigation-pending");
+  };
   if (document.documentElement.classList.contains("welcome-pending") && welcome) {
     const startedAt = performance.now();
     let welcomeDismissed = false;
@@ -60,7 +70,7 @@
         welcome.classList.add("is-leaving");
         document.documentElement.classList.remove("welcome-pending");
         try { sessionStorage.setItem("rvion-welcome-v1", "seen"); } catch (error) {}
-        window.setTimeout(() => welcome.remove(), 650);
+        window.setTimeout(() => welcome.classList.remove("is-leaving"), 650);
       }, wait);
     };
     if (document.readyState === "complete") dismissWelcome();
@@ -68,8 +78,26 @@
     window.setTimeout(dismissWelcome, 3500);
   } else {
     document.documentElement.classList.remove("welcome-pending");
-    welcome?.remove();
   }
+
+  document.addEventListener("click", event => {
+    const link = event.target.closest("a[href]");
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (link.target === "_blank" || link.hasAttribute("download") || link.dataset.noLoader !== undefined) return;
+    let destination;
+    try { destination = new URL(link.href, location.href); } catch (error) { return; }
+    if (destination.origin !== location.origin || !/^https?:$/.test(destination.protocol)) return;
+    if (destination.pathname === location.pathname && destination.search === location.search && destination.hash) return;
+    showNavigationLoader();
+  });
+  document.addEventListener("submit", event => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || event.defaultPrevented || form.dataset.noLoader !== undefined) return;
+    if (typeof form.checkValidity === "function" && !form.checkValidity()) return;
+    showNavigationLoader();
+  });
+  window.addEventListener("pageshow", hideNavigationLoader);
+  window.addEventListener("pagehide", () => {});
 
   const guideButtons = [...document.querySelectorAll("[data-install-guide]")];
   const dialog = document.querySelector("[data-install-dialog]");

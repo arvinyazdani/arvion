@@ -38,3 +38,21 @@ class ManagementNotification(models.Model):
         ordering = ("-created_at",)
         verbose_name = "اعلان مدیریتی"
         verbose_name_plural = "اعلان‌های مدیریتی"
+
+
+class SMSDispatch(models.Model):
+    STATUSES = (("sent", "ارسال شد"), ("failed", "ناموفق"))
+
+    recipient = models.CharField(max_length=12, db_index=True)
+    message = models.TextField(max_length=1000)
+    status = models.CharField(max_length=10, choices=STATUSES, db_index=True)
+    provider = models.CharField(max_length=40, blank=True)
+    provider_reference = models.CharField(max_length=120, blank=True)
+    error_message = models.CharField(max_length=240, blank=True)
+    sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="manual_sms_dispatches")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "ارسال دستی پیامک"
+        verbose_name_plural = "ارسال‌های دستی پیامک"

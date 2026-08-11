@@ -3,6 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from accounts.models import User
 from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
+from core.sms.backends import normalize_iran_mobile
 
 
 ROLE_CHOICES = [(key, value["label_fa"]) for key, value in STAFF_ROLES.items()]
@@ -51,3 +52,44 @@ class StaffRolesForm(forms.Form):
         self.staff_user.is_staff = self.cleaned_data["is_staff"]
         self.staff_user.save(update_fields=["is_staff"])
         return self.staff_user
+
+
+class ManualSMSForm(forms.Form):
+    recipients = forms.CharField(
+        label="شماره گیرندگان",
+        widget=forms.Textarea(attrs={"rows": 6, "placeholder": "هر شماره در یک خط، یا با ویرگول جدا شود\n0912...\n+989..."}),
+        help_text="حداکثر ۲۰ شماره ایرانی؛ قالب‌های 09، +98، 0098 و ارقام فارسی پذیرفته می‌شوند.",
+    )
+    message = forms.CharField(
+        label="متن پیامک",
+        max_length=1000,
+        widget=forms.Textarea(attrs={"rows": 7, "placeholder": "متن پیام را بنویسید...", "data-sms-message": ""}),
+        help_text="هزینه نهایی بر اساس طول پیام و تعرفه پنل محاسبه می‌شود.",
+    )
+    confirm = forms.BooleanField(label="شماره‌ها و متن را بررسی کرده‌ام و ارسال واقعی انجام شود")
+
+    def clean_recipients(self):
+        raw = self.cleaned_data["recipients"]
+        values = [item.strip() for item in raw.replace("،", ",").replace(";", ",").replace("\n", ",").split(",") if item.strip()]
+        if not values:
+            raise forms.ValidationError("حداقل یک شماره وارد کنید.")
+        if len(values) > 20:
+            raise forms.ValidationError("در هر ارسال حداکثر ۲۰ شماره مجاز است.")
+        normalized, invalid = [], []
+        for value in values:
+            try:
+                mobile = normalize_iran_mobile(value)
+            except ValueError:
+                invalid.append(value[:24])
+                continue
+            if mobile not in normalized:
+                normalized.append(mobile)
+        if invalid:
+            raise forms.ValidationError("شماره نامعتبر: " + "، ".join(invalid[:5]))
+        return normalized
+
+    def clean_message(self):
+        message = self.cleaned_data["message"].strip()
+        if not message:
+            raise forms.ValidationError("متن پیامک نمی‌تواند خالی باشد.")
+        return message
