@@ -4,7 +4,12 @@ from unittest.mock import patch
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, override_settings
 
-from core.sms.backends import MelipayamakSMSBackend, SMSDeliveryError, normalize_iran_mobile
+from core.sms.backends import (
+    MelipayamakSMSBackend,
+    SMSDeliveryError,
+    melipayamak_recipient,
+    normalize_iran_mobile,
+)
 
 
 class FakeResponse:
@@ -31,8 +36,25 @@ class SMSBackendTests(SimpleTestCase):
     )
 
     def test_normalizes_supported_iran_mobile_formats(self):
-        for value in ("09120373271", "9120373271", "+98 912 037 3271", "00989120373271"):
+        for value in (
+            "09120373271",
+            "9120373271",
+            "+98 912 037 3271",
+            "00989120373271",
+            "۰۹۱۲۰۳۷۳۲۷۱",
+            "+۹۸ ۹۱۲ ۰۳۷ ۳۲۷۱",
+            "٠٩١٢٠٣٧٣٢٧١",
+        ):
             self.assertEqual(normalize_iran_mobile(value), "989120373271")
+
+    def test_formats_all_supported_inputs_for_melipayamak(self):
+        for value in ("09120373271", "9120373271", "+989120373271", "۰۰۹۸۹۱۲۰۳۷۳۲۷۱"):
+            self.assertEqual(melipayamak_recipient(value), "09120373271")
+
+    def test_rejects_invalid_iran_mobile_numbers(self):
+        for value in ("", "02112345678", "0912037327", "9891203732719"):
+            with self.assertRaises(ValueError):
+                normalize_iran_mobile(value)
 
     @settings
     @patch("core.sms.backends.urlopen")
@@ -42,7 +64,7 @@ class SMSBackendTests(SimpleTestCase):
         request = mocked_open.call_args.args[0]
         self.assertEqual(result.reference, "tracking-id")
         self.assertIn(b"from=50004001021100", request.data)
-        self.assertIn(b"to=989120373271", request.data)
+        self.assertIn(b"to=09120373271", request.data)
         self.assertNotIn(b"secret", str(request.headers).encode())
 
     @settings
@@ -53,6 +75,7 @@ class SMSBackendTests(SimpleTestCase):
         request = mocked_open.call_args.args[0]
         self.assertIn(b"bodyId=42", request.data)
         self.assertIn(b"text=123456", request.data)
+        self.assertIn(b"to=09120373271", request.data)
 
     @override_settings(
         MELIPAYAMAK_USERNAME="9333021100", MELIPAYAMAK_PASSWORD="secret",

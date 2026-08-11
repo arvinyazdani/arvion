@@ -1,5 +1,6 @@
 import json
 import logging
+import unicodedata
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -24,7 +25,11 @@ class SMSResult:
 
 
 def normalize_iran_mobile(value):
-    digits = "".join(ch for ch in str(value) if ch.isdigit())
+    digits = "".join(
+        str(unicodedata.digit(ch))
+        for ch in str(value).strip()
+        if ch.isdecimal()
+    )
     if digits.startswith("0098"):
         digits = digits[2:]
     elif digits.startswith("0") and len(digits) == 11:
@@ -34,6 +39,12 @@ def normalize_iran_mobile(value):
     if len(digits) != 12 or not digits.startswith("989"):
         raise ValueError("شماره موبایل ایران معتبر نیست.")
     return digits
+
+
+def melipayamak_recipient(value):
+    """Return the local 09… format accepted by Melipayamak's REST API."""
+    canonical = normalize_iran_mobile(value)
+    return "0" + canonical[2:]
 
 
 class ConsoleSMSBackend:
@@ -89,7 +100,7 @@ class MelipayamakSMSBackend:
             "username": self.username,
             "password": self.password,
             "from": self.sender,
-            "to": normalize_iran_mobile(to),
+            "to": melipayamak_recipient(to),
             "text": str(text),
             "isFlash": "false",
         })
@@ -101,7 +112,7 @@ class MelipayamakSMSBackend:
         return self._post(self.OTP_URL, {
             "username": self.username,
             "password": self.password,
-            "to": normalize_iran_mobile(to),
+            "to": melipayamak_recipient(to),
             "text": str(code),
             "bodyId": template_id,
         })
