@@ -52,3 +52,11 @@ class ClauseSelectionForm(forms.Form):
         if bool(data.get("custom_title", "").strip()) != bool(data.get("custom_body", "").strip()):
             raise forms.ValidationError("برای بند جدید، عنوان و متن را با هم وارد کنید.")
         return data
+
+
+class OtpRequestForm(forms.Form):
+    agreement = forms.BooleanField(label="متن و همه بندهای این نسخه را خوانده‌ام و با آن موافقم.")
+
+
+class OtpVerifyForm(forms.Form):
+    code = forms.RegexField(label="کد تأیید شش‌رقمی", regex=r"^\d{6}$", max_length=6, min_length=6)

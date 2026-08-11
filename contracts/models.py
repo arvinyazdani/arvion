@@ -79,3 +79,29 @@ class ContractReview(models.Model):
 
     class Meta:
         ordering = ("-reviewed_at",)
+
+
+class ContractOtpChallenge(models.Model):
+    version = models.ForeignKey(ContractVersion, on_delete=models.PROTECT, related_name="otp_challenges")
+    phone = models.CharField(max_length=12)
+    code_hash = models.CharField(max_length=128)
+    provider_reference = models.CharField(max_length=120, blank=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+
+class ContractAcceptance(models.Model):
+    version = models.OneToOneField(ContractVersion, on_delete=models.PROTECT, related_name="acceptance")
+    verified_phone = models.CharField(max_length=12)
+    provider_reference = models.CharField(max_length=120, blank=True)
+    accepted_at = models.DateTimeField(auto_now_add=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=240, blank=True)
+
+    class Meta:
+        ordering = ("-accepted_at",)

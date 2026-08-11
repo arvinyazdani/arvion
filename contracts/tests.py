@@ -1,4 +1,6 @@
-from django.test import TestCase
+from unittest.mock import patch
+
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
@@ -63,3 +65,29 @@ class ContractWorkflowTests(TestCase):
         second = publish_version(self.proposal, self.root)
         self.assertEqual(len(second.snapshot["clauses"]), old_count)
         self.assertEqual(second.snapshot["clauses"][-1]["title"], "بند اختصاصی")
+
+    @override_settings(SMS_BACKEND="core.sms.backends.ConsoleSMSBackend")
+    @patch("contracts.views.secrets.randbelow", return_value=123456)
+    def test_otp_acceptance_is_hashed_single_use_and_bound_to_version(self, _random):
+        version = publish_version(self.proposal, self.root)
+        ContractReview.objects.create(
+            version=version,
+            accepted_clause_ids=[str(item["id"]) for item in version.snapshot["clauses"]],
+            rejected_clause_ids=[],
+        )
+        request_url = reverse("contracts:contract_request_otp", args=[self.proposal.token])
+        accept_url = reverse("contracts:contract_accept", args=[self.proposal.token])
+        response = self.client.post(request_url, {"agreement": "on"})
+        self.assertRedirects(response, accept_url)
+        challenge = version.otp_challenges.get()
+        self.assertNotIn("123456", challenge.code_hash)
+        verify_url = reverse("contracts:contract_verify_otp", args=[self.proposal.token])
+        self.client.post(verify_url, {"code": "123456"})
+        challenge.refresh_from_db()
+        self.proposal.refresh_from_db()
+        self.assertIsNotNone(challenge.used_at)
+        self.assertEqual(self.proposal.status, "accepted")
+        self.assertEqual(version.acceptance.verified_phone, self.proposal.customer_phone)
+        second = self.client.post(verify_url, {"code": "123456"})
+        self.assertRedirects(second, accept_url)
+        self.assertEqual(version.otp_challenges.filter(used_at__isnull=False).count(), 1)
