@@ -125,7 +125,8 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
-        self.assertContains(response, "فرآیند کسب‌وکارت")
+        self.assertContains(response, "فرآیند پیچیده")
+        self.assertContains(response, "راهکارهای آرویون")
         self.assertContains(response, "چه کاری انجام می‌دهیم")
         self.assertContains(response, "هویت حقوقی و اطلاعات قابل استعلام")
         self.assertNotContains(response, "۲۴ پروژه")
@@ -150,7 +151,7 @@ class CorePagesTests(TestCase):
         self.assertContains(persian, 'href="/fa/crm-order/"', html=False)
 
         home = self.client.get("/fa/")
-        self.assertContains(home, "معرفی اپ CRM")
+        self.assertContains(home, "معرفی کامل راهکار")
         self.assertContains(home, 'href="/fa/crm/"', html=False)
 
     def test_service_worker_is_served_from_root_for_full_app_scope(self):
