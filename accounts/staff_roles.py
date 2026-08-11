@@ -60,3 +60,28 @@ STAFF_ROLES = {
 
 def group_name(role):
     return f"rvion_{role}"
+
+
+def sync_staff_role_groups():
+    """Create/update the fixed least-privilege groups and return them by role."""
+    from django.contrib.auth.models import Group, Permission
+    from django.core.exceptions import ImproperlyConfigured
+
+    groups = {}
+    for role, config in STAFF_ROLES.items():
+        group, _ = Group.objects.get_or_create(name=group_name(role))
+        permissions = []
+        for model_key, actions in config["permissions"].items():
+            app_label, model = model_key.split(".")
+            for action in actions:
+                try:
+                    permissions.append(Permission.objects.get(
+                        content_type__app_label=app_label,
+                        content_type__model=model,
+                        codename=f"{action}_{model}",
+                    ))
+                except Permission.DoesNotExist as exc:
+                    raise ImproperlyConfigured(f"Missing permission: {app_label}.{action}_{model}") from exc
+        group.permissions.set(permissions)
+        groups[role] = group
+    return groups

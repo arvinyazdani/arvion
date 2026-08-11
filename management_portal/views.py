@@ -1,7 +1,9 @@
 from datetime import timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
@@ -11,6 +13,9 @@ from clinic_orders.models import ClinicOrder
 from crm_orders.models import CrmOrder
 from leads.models import Lead
 from traffic.models import ActiveVisitor, TrafficDay
+from accounts.staff_roles import STAFF_ROLES, group_name
+from .forms import StaffCreateForm, StaffRolesForm
+from .models import StaffAccessAudit
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -63,3 +68,52 @@ def dashboard(request):
     return render(request, "management_portal/dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online,
     })
+
+
+def _require_superuser(request):
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return False
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    return True
+
+
+@staff_member_required(login_url="accounts:login")
+def staff_list(request):
+    _require_superuser(request)
+    role_names = [group_name(key) for key in STAFF_ROLES]
+    staff = User.objects.filter(is_staff=True).prefetch_related("groups").order_by("-is_superuser", "first_name", "email")
+    rows = []
+    for member in staff:
+        rows.append({
+            "user": member,
+            "roles": [config["label_fa"] for key, config in STAFF_ROLES.items() if member.groups.filter(name=group_name(key)).exists()],
+        })
+    return render(request, "management_portal/staff_list.html", {"staff_rows": rows, "role_names": role_names})
+
+
+@staff_member_required(login_url="accounts:login")
+def staff_create(request):
+    _require_superuser(request)
+    form = StaffCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        member = form.save()
+        StaffAccessAudit.objects.create(actor=request.user, target=member, action="created", roles=form.cleaned_data["roles"], staff_enabled=True)
+        messages.success(request, f"حساب مدیریتی {member.email} ساخته شد.")
+        return redirect("management_portal:staff_list")
+    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ساخت همکار جدید", "is_create": True})
+
+
+@staff_member_required(login_url="accounts:login")
+def staff_edit(request, user_id):
+    _require_superuser(request)
+    member = get_object_or_404(User, pk=user_id, is_staff=True)
+    if member.is_superuser:
+        raise PermissionDenied
+    form = StaffRolesForm(request.POST or None, user=member)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        StaffAccessAudit.objects.create(actor=request.user, target=member, action="roles_updated", roles=form.cleaned_data["roles"], staff_enabled=form.cleaned_data["is_staff"])
+        messages.success(request, f"مسئولیت‌های {member.email} بروزرسانی شد.")
+        return redirect("management_portal:staff_list")
+    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها", "member": member})

@@ -1,8 +1,8 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 
-from accounts.staff_roles import STAFF_ROLES, group_name
+from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
 
 
 class Command(BaseCommand):
@@ -13,23 +13,12 @@ class Command(BaseCommand):
         parser.add_argument("--role", choices=tuple(STAFF_ROLES), help="Role assigned with --email")
 
     def handle(self, *args, **options):
-        for role, config in STAFF_ROLES.items():
-            group, _ = Group.objects.get_or_create(name=group_name(role))
-            permissions = []
-            for model_key, actions in config["permissions"].items():
-                app_label, model = model_key.split(".")
-                for action in actions:
-                    try:
-                        permission = Permission.objects.get(
-                            content_type__app_label=app_label,
-                            content_type__model=model,
-                            codename=f"{action}_{model}",
-                        )
-                    except Permission.DoesNotExist as exc:
-                        raise CommandError(f"Missing permission: {app_label}.{action}_{model}") from exc
-                    permissions.append(permission)
-            group.permissions.set(permissions)
-            self.stdout.write(f"{group.name}: {len(permissions)} permissions")
+        try:
+            groups = sync_staff_role_groups()
+        except Exception as exc:
+            raise CommandError(str(exc)) from exc
+        for group in groups.values():
+            self.stdout.write(f"{group.name}: {group.permissions.count()} permissions")
 
         email, role = options.get("email"), options.get("role")
         if bool(email) != bool(role):
