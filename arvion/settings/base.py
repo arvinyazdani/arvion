@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "clinic_orders",
     "traffic",
     "management_portal",
+    "contracts",
     "taggit",
     "widget_tweaks",
 ]

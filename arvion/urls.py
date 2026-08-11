@@ -42,6 +42,7 @@ urlpatterns = [
     path("admin/operations/", operations_dashboard, name="admin_operations"),
     path("admin/", admin.site.urls),
     path("management/", include(("management_portal.urls", "management_portal"), namespace="management_portal")),
+    path("contract/", include(("contracts.urls", "contracts"), namespace="contracts")),
     path("robots.txt", robots_txt, name="robots"),
     path("favicon.ico", favicon, name="favicon"),
     path("service-worker.js", TemplateView.as_view(template_name="core/service-worker.js", content_type="application/javascript"), name="service_worker"),
