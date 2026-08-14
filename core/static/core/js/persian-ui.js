@@ -24,6 +24,14 @@
         node.nodeValue = toFa(node.nodeValue);
       }
     }
+  } else {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.parentElement?.closest("script, style, code, pre, textarea, [data-persian-digits]") && /[۰-۹٠-٩]/.test(node.nodeValue)) {
+        node.nodeValue = toAscii(node.nodeValue);
+      }
+    }
   }
 
   document.querySelectorAll('input[type="number"]').forEach(input => {
