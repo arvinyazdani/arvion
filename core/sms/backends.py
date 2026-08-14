@@ -68,6 +68,7 @@ class MelipayamakSMSBackend:
         self.password = settings.MELIPAYAMAK_PASSWORD
         self.sender = settings.MELIPAYAMAK_SENDER_NUMBER
         self.default_body_id = settings.MELIPAYAMAK_BODY_ID
+        self.otp_mode = settings.MELIPAYAMAK_OTP_MODE
         self.timeout = settings.SMS_HTTP_TIMEOUT
         if not self.username or not self.password or not self.sender:
             raise ImproperlyConfigured("تنظیمات اتصال ملی‌پیامک کامل نیست.")
@@ -107,8 +108,13 @@ class MelipayamakSMSBackend:
 
     def send_otp(self, *, to, code, body_id=None):
         template_id = str(body_id or self.default_body_id).strip()
+        if self.otp_mode != "pattern" and not body_id:
+            return self.send(
+                to=to,
+                text=f"کد تأیید آرویون: {code}\nاین کد ۵ دقیقه اعتبار دارد.",
+            )
         if not template_id:
-            raise ImproperlyConfigured("MELIPAYAMAK_BODY_ID برای ارسال OTP تنظیم نشده است.")
+            raise ImproperlyConfigured("MELIPAYAMAK_BODY_ID برای حالت pattern تنظیم نشده است.")
         return self._post(self.OTP_URL, {
             "username": self.username,
             "password": self.password,

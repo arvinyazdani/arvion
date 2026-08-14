@@ -69,12 +69,12 @@ class SMSBackendTests(SimpleTestCase):
 
     @settings
     @patch("core.sms.backends.urlopen")
-    def test_sends_otp_with_approved_body_id(self, mocked_open):
+    def test_sends_otp_as_free_text_without_body_id(self, mocked_open):
         mocked_open.return_value = FakeResponse({"Value": "otp-id", "RetStatus": 1, "StrRetStatus": "Ok"})
         MelipayamakSMSBackend().send_otp(to="09120373271", code="123456")
         request = mocked_open.call_args.args[0]
-        self.assertIn(b"bodyId=42", request.data)
-        self.assertIn(b"text=123456", request.data)
+        self.assertIn(b"text=%DA%A9%D8%AF+%D8%AA%D8%A3%DB%8C%DB%8C%D8%AF+%D8%A2%D8%B1%D9%88%DB%8C%D9%88%D9%86%3A+123456", request.data)
+        self.assertNotIn(b"bodyId", request.data)
         self.assertIn(b"to=09120373271", request.data)
 
     @override_settings(
@@ -82,9 +82,10 @@ class SMSBackendTests(SimpleTestCase):
         MELIPAYAMAK_SENDER_NUMBER="50004001021100", MELIPAYAMAK_BODY_ID="",
         SMS_HTTP_TIMEOUT=2,
     )
-    def test_refuses_otp_without_template(self):
-        with self.assertRaises(ImproperlyConfigured):
-            MelipayamakSMSBackend().send_otp(to="09120373271", code="123456")
+    def test_pattern_mode_requires_template(self):
+        with override_settings(MELIPAYAMAK_OTP_MODE="pattern"):
+            with self.assertRaises(ImproperlyConfigured):
+                MelipayamakSMSBackend().send_otp(to="09120373271", code="123456")
 
     @settings
     @patch("core.sms.backends.urlopen")
