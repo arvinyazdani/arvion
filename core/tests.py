@@ -104,6 +104,20 @@ class CorePagesTests(TestCase):
         self.assertNotContains(response, ">ARVION<", html=False)
         self.assertNotContains(response, ">رویون<", html=False)
 
+    def test_delivery_card_is_fully_localized_and_public_email_is_hidden(self):
+        fa_response = self.client.get("/fa/")
+        self.assertContains(fa_response, "از نیاز کسب‌وکار")
+        self.assertContains(fa_response, "شفاف")
+        self.assertNotContains(fa_response, "hello@rvin-tech.com")
+
+        en_response = self.client.get("/en/")
+        self.assertContains(en_response, "From business need")
+        self.assertContains(en_response, "Defined")
+        self.assertContains(en_response, "Supported")
+        delivery_html = en_response.content.decode().split('class="hero-panel"', 1)[1].split("</section>", 1)[0]
+        self.assertNotRegex(delivery_html, r"[۰-۹]")
+        self.assertNotIn("hello@rvin-tech.com", en_response.content.decode())
+
     def test_company_page_does_not_claim_an_unissued_trust_seal(self):
         response = self.client.get(reverse("company_info") + "?lang=fa")
         self.assertContains(response, "فرآیند دریافت اینماد در حال تکمیل است")

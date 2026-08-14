@@ -38,7 +38,7 @@
   <script src="{% static 'core/js/persian-ui.js' %}?v=3" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=4" defer></script>
   {% block extra_head %}{% endblock %}
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","email":"hello@rvin-tech.com","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <div class="app-welcome" data-app-welcome aria-hidden="true" role="status" aria-label="{% if lang == 'fa' %}در حال بارگذاری صفحه{% else %}Loading page{% endif %}">
@@ -90,7 +90,7 @@
     <div class="shell footer-grid">
       <div class="footer-brand"><a class="brand" href="{% url 'home' %}"><span class="brand-mark">R</span><span>RVION</span></a><p>{% if lang == 'fa' %}محصول دیجیتال روشن، امن و قابل توسعه.{% else %}Clear, secure and extensible digital products.{% endif %}</p></div>
       <nav class="footer-links" aria-label="{% if lang == 'fa' %}پیوندهای فوتر{% else %}Footer links{% endif %}"><a href="{% url 'services:list' %}">{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</a><a href="{% url 'crm_orders:create' %}">CRM</a><a href="{% url 'clinic_orders:create' %}">{% if lang == 'fa' %}کلینیک{% else %}Clinic{% endif %}</a><a href="{% url 'assessments:list' %}">{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</a><a href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Contact{% endif %}</a></nav>
-      <div class="footer-contact"><a dir="ltr" href="tel:+989333021100">{{ company.phone }}</a><a dir="ltr" href="mailto:hello@rvin-tech.com">hello@rvin-tech.com</a>{% if show_whatsapp_share %}<a class="whatsapp-share" href="{{ whatsapp_share_url }}" target="_blank" rel="noopener noreferrer"><b aria-hidden="true">↗</b>{% if lang == 'fa' %}اشتراک در واتساپ{% else %}Share on WhatsApp{% endif %}</a>{% endif %}</div>
+      <div class="footer-contact"><a dir="ltr" href="tel:+989333021100">{{ company.phone }}</a>{% if show_whatsapp_share %}<a class="whatsapp-share" href="{{ whatsapp_share_url }}" target="_blank" rel="noopener noreferrer"><b aria-hidden="true">↗</b>{% if lang == 'fa' %}اشتراک در واتساپ{% else %}Share on WhatsApp{% endif %}</a>{% endif %}</div>
     </div>
     <div class="shell footer-bottom"><a href="{% url 'company_info' %}">{% if lang == 'fa' %}شرکت ثبت‌شده · شناسه ملی {{ company.national_id }}{% else %}Registered company · {{ company.national_id }}{% endif %}</a><nav><a href="{% url 'privacy' %}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}">{% if lang == 'fa' %}شرایط خدمات{% else %}Terms{% endif %}</a><a href="{% url 'refund_policy' %}">{% if lang == 'fa' %}بازپرداخت{% else %}Refunds{% endif %}</a></nav><span>© {% now "Y" %} Rvion</span></div>
   </footer>
