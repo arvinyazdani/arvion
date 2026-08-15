@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
-from assessments.models import Attempt, ManualPaymentSubmission, SupportTicket
+from assessments.models import Attempt, AttemptResult, Certificate, Exam, ManualPaymentSubmission, SupportTicket
 from clinic_orders.models import ClinicOrder
 from crm_orders.models import CrmOrder
 from leads.models import Lead
@@ -281,6 +281,39 @@ def payment_review(request, payment_id, decision):
     OperationalAudit.objects.create(actor=request.user, action=f"payment_{decision}", target_type="manual_payment", target_id=str(payment.pk), summary=f"رسید {payment.reference_number}: {payment.status}", metadata={"order": str(payment.order_id)})
     messages.success(request, "بررسی رسید ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Payment review saved.")
     return redirect("management_portal:approvals")
+
+
+@staff_member_required(login_url="accounts:login")
+def assessment_support(request):
+    user = request.user
+    if not user.is_superuser and not (user.has_perm("assessments.view_exam") or user.has_perm("assessments.view_supportticket")):
+        raise PermissionDenied
+    context = {"lang": getattr(request, "LANGUAGE_CODE", "fa")}
+    if user.is_superuser or user.has_perm("assessments.view_exam"):
+        context.update({
+            "exams": Exam.objects.all()[:50],
+            "attempts": Attempt.objects.select_related("user", "exam").order_by("-created_at")[:30],
+            "result_count": AttemptResult.objects.count(), "certificate_count": Certificate.objects.filter(is_revoked=False).count(),
+        })
+    if user.is_superuser or user.has_perm("assessments.view_supportticket"):
+        context["tickets"] = SupportTicket.objects.select_related("user").order_by("status", "-created_at")[:100]
+    return render(request, "management_portal/v2/assessment_support.html", context)
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def ticket_status(request, ticket_id):
+    if not request.user.is_superuser and not request.user.has_perm("assessments.change_supportticket"):
+        raise PermissionDenied
+    ticket = get_object_or_404(SupportTicket, pk=ticket_id)
+    status = request.POST.get("status", "")
+    if status not in dict(SupportTicket.STATUSES):
+        raise Http404
+    ticket.status = status
+    ticket.save(update_fields=["status", "updated_at"])
+    OperationalAudit.objects.create(actor=request.user, action="ticket_status", target_type="support_ticket", target_id=str(ticket.pk), summary=f"تیکت #{ticket.pk}: {status}")
+    messages.success(request, "وضعیت تیکت بروزرسانی شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Ticket status updated.")
+    return redirect("management_portal:assessment_support")
 
 
 def _visible_notifications(user):

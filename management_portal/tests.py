@@ -6,7 +6,7 @@ from django.utils import timezone, translation
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder
-from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order
+from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
 from management_portal.models import ManagementNotification, OperationalAudit, SMSDispatch, StaffAccessAudit
 from core.sms.backends import SMSResult
 from unittest.mock import patch
@@ -117,6 +117,21 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(order.status, "paid")
         self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
         self.assertTrue(OperationalAudit.objects.filter(action="payment_approve", target_id=str(payment.pk)).exists())
+
+    def test_support_staff_can_update_ticket_without_admin(self):
+        staff = User.objects.create_user(username="support", email="support@example.com", password="safe-password", is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename="view_supportticket"), Permission.objects.get(codename="change_supportticket"))
+        customer = User.objects.create_user(username="support-customer", email="support-customer@example.com", password="safe-password", is_active=True)
+        ticket = SupportTicket.objects.create(user=customer, category="technical", subject="مشکل ورود", message="صفحه ورود باز نمی‌شود")
+        self.client.force_login(staff)
+        listing = self.client.get(reverse("management_portal:assessment_support"))
+        self.assertContains(listing, "مشکل ورود")
+        self.assertNotContains(listing, 'href="/admin/')
+        response = self.client.post(reverse("management_portal:ticket_status", args=[ticket.pk]), {"status": "in_review"})
+        self.assertRedirects(response, reverse("management_portal:assessment_support"))
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, "in_review")
+        self.assertTrue(OperationalAudit.objects.filter(action="ticket_status", target_id=str(ticket.pk)).exists())
 
     def test_superuser_sees_dashboard_shell(self):
         user = User.objects.create_superuser(username="root", email="root@example.com", password="safe-password")
