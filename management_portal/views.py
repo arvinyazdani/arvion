@@ -73,7 +73,7 @@ def dashboard(request):
     notifications = _visible_notifications(user)
     metrics.insert(0, _metric("اعلان خوانده‌نشده", notifications.filter(status="unread").count(), "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
     if user.is_superuser:
-        metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("contracts:proposal_list"), "positive"))
+        metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("management_portal:contract_list"), "positive"))
         metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
         metrics.insert(3, _metric("ارسال پیامک", SMSDispatch.objects.filter(status="sent").count(), "ارسال تکی یا گروهی و مشاهده سابقه", reverse("management_portal:sms_send")))
     # V2 never sends managers back to Django Admin. Modules are replaced phase by phase.

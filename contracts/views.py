@@ -27,17 +27,23 @@ def _require_contract_manager(request):
         raise PermissionDenied
 
 
+def _manager_url(request, old_name, new_name, *args):
+    namespace = getattr(getattr(request, "resolver_match", None), "namespace", "")
+    return reverse(f"management_portal:{new_name}" if namespace == "management_portal" else f"contracts:{old_name}", args=args)
+
+
 @staff_member_required(login_url="accounts:login")
 def proposal_list(request):
     _require_contract_manager(request)
-    return render(request, "contracts/proposal_list_v2.html", {"proposals": ContractProposal.objects.select_related("created_by")})
+    rows = [{"item": item, "url": _manager_url(request, "proposal_detail", "contract_detail", item.pk)} for item in ContractProposal.objects.select_related("created_by")]
+    return render(request, "contracts/proposal_list_v2.html", {"proposal_rows": rows, "create_url": _manager_url(request, "proposal_create", "contract_create"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
 @transaction.atomic
 def proposal_create(request):
     _require_contract_manager(request)
-    form = ProposalForm(request.POST or None)
+    form = ProposalForm(request.POST or None, language=getattr(request, "LANGUAGE_CODE", "fa"))
     if request.method == "POST" and form.is_valid():
         proposal = form.save(commit=False)
         form.apply_assessment()
@@ -45,8 +51,8 @@ def proposal_create(request):
         proposal.save()
         add_default_clauses(proposal)
         messages.success(request, "پیش‌نویس قرارداد ساخته شد؛ بندها را بررسی و سپس لینک را فعال کنید.")
-        return redirect("contracts:proposal_detail", proposal_id=proposal.pk)
-    return render(request, "contracts/proposal_form_v2.html", {"form": form, "assessment_data": form.assessment_data})
+        return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
+    return render(request, "contracts/proposal_form_v2.html", {"form": form, "assessment_data": form.assessment_data, "list_url": _manager_url(request, "proposal_list", "contract_list"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -54,7 +60,7 @@ def proposal_detail(request, proposal_id):
     _require_contract_manager(request)
     proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses", "versions"), pk=proposal_id)
     public_url = request.build_absolute_uri(reverse("contracts:public_contract", args=[proposal.token]))
-    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "public_url": public_url})
+    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "public_url": public_url, "list_url": _manager_url(request, "proposal_list", "contract_list"), "clauses_url": _manager_url(request, "proposal_clauses", "contract_clauses", proposal.pk), "publish_url": _manager_url(request, "proposal_publish", "contract_publish", proposal.pk), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -64,7 +70,7 @@ def proposal_clauses(request, proposal_id):
     proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses"), pk=proposal_id)
     if proposal.status == "accepted":
         raise PermissionDenied
-    form = ClauseSelectionForm(request.POST or None, proposal=proposal)
+    form = ClauseSelectionForm(request.POST or None, proposal=proposal, language=getattr(request, "LANGUAGE_CODE", "fa"))
     if request.method == "POST" and form.is_valid():
         enabled = {int(value) for value in form.cleaned_data["enabled_clauses"]}
         proposal.clauses.update(is_enabled=False)
@@ -74,8 +80,8 @@ def proposal_clauses(request, proposal_id):
             position = (proposal.clauses.order_by("-position").values_list("position", flat=True).first() or 0) + 1
             ContractClause.objects.create(proposal=proposal, title=title, body=body, position=position)
         messages.success(request, "انتخاب بندها ذخیره شد. برای ارسال، نسخه جدید بسازید.")
-        return redirect("contracts:proposal_detail", proposal_id=proposal.pk)
-    return render(request, "contracts/proposal_clauses.html", {"proposal": proposal, "form": form})
+        return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
+    return render(request, "contracts/proposal_clauses.html", {"proposal": proposal, "form": form, "detail_url": _manager_url(request, "proposal_detail", "contract_detail", proposal.pk), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -87,7 +93,7 @@ def proposal_publish(request, proposal_id):
         raise PermissionDenied
     version = publish_version(proposal, request.user)
     messages.success(request, f"نسخه {version.number} ثبت و لینک مشتری فعال شد.")
-    return redirect("contracts:proposal_detail", proposal_id=proposal.pk)
+    return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
 
 
 @never_cache

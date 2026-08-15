@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
-from crm_orders.models import CrmOrder
+from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from contracts.models import ContractProposal, ContractReview
 from contracts.services import add_default_clauses, publish_version
 from django.utils import timezone
@@ -46,6 +46,36 @@ class ContractWorkflowTests(TestCase):
         proposal = ContractProposal.objects.latest("created_at")
         self.assertEqual(proposal.customer_name, "علی نمونه")
         self.assertIn("فرآیند فعلی", proposal.project_scope)
+
+    def test_management_contract_routes_use_new_shell(self):
+        self.client.force_login(self.root)
+        listing = self.client.get(reverse("management_portal:contract_list"))
+        self.assertContains(listing, "پیشنهادهای قرارداد")
+        self.assertContains(listing, self.proposal.project_title)
+        self.assertNotContains(listing, 'href="/admin/')
+        detail = self.client.get(reverse("management_portal:contract_detail", args=[self.proposal.pk]))
+        self.assertContains(detail, "مدیریت بندها")
+        self.assertContains(detail, reverse("management_portal:contract_clauses", args=[self.proposal.pk]))
+
+    def test_specialist_discovery_is_included_in_contract_scope(self):
+        crm = CrmOrder.objects.create(
+            organization_name="نور بینان", industry="تجهیزات", organization_size="under_10",
+            contact_name="مدیر پروژه", job_title="مدیر", work_email="manager@example.com", phone="09120373271",
+            crm_user_count="1_5", current_process="فرآیند اولیه", main_pain_points="پیگیری دستی",
+            success_metrics="کاهش زمان", critical_workflows="فروش", reports_needed="", permission_requirements="",
+            budget_range="estimate", expected_timeline="1_2", decision_process="مدیرعامل", privacy_accepted_at=timezone.now(),
+        )
+        CrmSpecialistDiscovery.objects.create(order=crm, status="submitted", answers={"نقش‌های واقعی": ["فروش", "مدیر سیستم"]})
+        self.client.force_login(self.root)
+        response = self.client.post(reverse("management_portal:contract_create"), {
+            "needs_assessment": f"crm:{crm.pk}", "title": "پیشنهاد CRM", "customer_name": "x",
+            "customer_phone": "09120373271", "customer_email": "x@example.com", "client_details": "",
+            "project_title": "x", "project_scope": "x", "amount_irr": "1000000", "payment_terms": "۵۰/۵۰", "delivery_terms": "۸ هفته",
+        })
+        self.assertEqual(response.status_code, 302)
+        proposal = ContractProposal.objects.latest("created_at")
+        self.assertIn("نیازسنجی تخصصی", proposal.project_scope)
+        self.assertIn("مدیر سیستم", proposal.project_scope)
 
     def test_publish_creates_immutable_snapshot_and_public_noindex_page(self):
         version = publish_version(self.proposal, self.root)

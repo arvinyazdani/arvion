@@ -6,6 +6,18 @@ from clinic_orders.models import ClinicOrder
 from .models import ContractProposal
 
 
+def _specialist_summary(order):
+    discovery = order.specialist_discovery if hasattr(order, "specialist_discovery") else None
+    if not discovery or discovery.status == "draft" or not discovery.answers:
+        return ""
+    lines = ["پاسخ‌های نیازسنجی تخصصی:"]
+    for key, value in discovery.answers.items():
+        if value not in (None, "", [], {}):
+            rendered = "، ".join(map(str, value)) if isinstance(value, list) else str(value)
+            lines.append(f"- {key}: {rendered}")
+    return "\n".join(lines)
+
+
 class ProposalForm(forms.ModelForm):
     needs_assessment = forms.ChoiceField(label="منبع نیازسنجی", required=False, choices=())
 
@@ -24,17 +36,28 @@ class ProposalForm(forms.ModelForm):
         return normalize_iran_mobile(self.cleaned_data["customer_phone"])
 
     def __init__(self, *args, **kwargs):
+        language = kwargs.pop("language", "fa")
         super().__init__(*args, **kwargs)
-        choices = [("", "— انتخاب دستی —")]
+        if language == "en":
+            labels = {
+                "needs_assessment": "Discovery source", "title": "Contract title", "customer_name": "Customer name",
+                "customer_phone": "Customer mobile", "customer_email": "Customer email", "client_details": "Customer details",
+                "project_title": "Project title", "project_scope": "Project scope", "amount_irr": "Contract amount (IRR)",
+                "payment_terms": "Payment terms", "delivery_terms": "Delivery terms",
+            }
+            for name, label in labels.items():
+                self.fields[name].label = label
+        choices = [("", "— Manual entry —" if language == "en" else "— انتخاب دستی —")]
         choices += [(f"crm:{item.pk}", f"CRM · {item.tracking_code} · {item.organization_name}") for item in CrmOrder.objects.order_by("-created_at")[:100]]
-        choices += [(f"clinic:{item.pk}", f"کلینیک · {item.tracking_code} · {item.clinic_name}") for item in ClinicOrder.objects.order_by("-created_at")[:100]]
+        clinic_label = "Clinic" if language == "en" else "کلینیک"
+        choices += [(f"clinic:{item.pk}", f"{clinic_label} · {item.tracking_code} · {item.clinic_name}") for item in ClinicOrder.objects.order_by("-created_at")[:100]]
         self.fields["needs_assessment"].choices = choices
 
     @property
     def assessment_data(self):
         data = {}
         for item in CrmOrder.objects.order_by("-created_at")[:100]:
-            data[f"crm:{item.pk}"] = {"customer_name": item.contact_name or item.organization_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"سامانه CRM سازمانی {item.organization_name}", "project_scope": "\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements])), "client_details": f"نام مجموعه: {item.organization_name}\nصنعت: {item.industry}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
+            data[f"crm:{item.pk}"] = {"customer_name": item.contact_name or item.organization_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"سامانه CRM سازمانی {item.organization_name}", "project_scope": "\n\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements, _specialist_summary(item)])), "client_details": f"نام مجموعه: {item.organization_name}\nصنعت: {item.industry}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
         for item in ClinicOrder.objects.order_by("-created_at")[:100]:
             data[f"clinic:{item.pk}"] = {"customer_name": item.contact_name or item.clinic_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"پلتفرم کلینیک {item.clinic_name}", "project_scope": "\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements])), "client_details": f"نام مجموعه: {item.clinic_name}\nشهر: {item.city}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
         return data
@@ -50,7 +73,8 @@ class ProposalForm(forms.ModelForm):
         self.instance.customer_email = source.work_email
         name = source.organization_name if kind == "crm" else source.clinic_name
         self.instance.project_title = f"{'سامانه CRM سازمانی' if kind == 'crm' else 'پلتفرم کلینیک'} {name}"
-        self.instance.project_scope = "\n".join(filter(None, [source.current_process, source.main_pain_points, source.required_integrations, source.security_requirements]))
+        specialist = _specialist_summary(source) if kind == "crm" else ""
+        self.instance.project_scope = "\n\n".join(filter(None, [source.current_process, source.main_pain_points, source.required_integrations, source.security_requirements, specialist]))
         location = f"صنعت: {source.industry}" if kind == "crm" else f"شهر: {source.city}"
         self.instance.client_details = f"نام مجموعه: {name}\n{location}\nکد نیازسنجی: {source.tracking_code}\nمعیارهای موفقیت: {source.success_metrics}"
 
@@ -83,7 +107,12 @@ class ClauseSelectionForm(forms.Form):
 
     def __init__(self, *args, proposal, **kwargs):
         self.proposal = proposal
+        language = kwargs.pop("language", "fa")
         super().__init__(*args, **kwargs)
+        if language == "en":
+            self.fields["enabled_clauses"].label = "Enabled clauses"
+            self.fields["custom_title"].label = "New clause title"
+            self.fields["custom_body"].label = "New clause text"
         clauses = proposal.clauses.all()
         self.fields["enabled_clauses"].choices = [(str(item.pk), item.title) for item in clauses]
         self.initial.setdefault("enabled_clauses", [str(item.pk) for item in clauses if item.is_enabled])
