@@ -49,7 +49,10 @@
   }
 
   const welcome = document.querySelector("[data-app-welcome]");
+  let navigationFailsafe = null;
   const hideNavigationLoader = () => {
+    if (navigationFailsafe) window.clearTimeout(navigationFailsafe);
+    navigationFailsafe = null;
     document.documentElement.classList.remove("navigation-pending");
     if (welcome) welcome.setAttribute("aria-hidden", "true");
   };
@@ -58,6 +61,7 @@
     welcome.classList.remove("is-leaving");
     welcome.setAttribute("aria-hidden", "false");
     document.documentElement.classList.add("navigation-pending");
+    navigationFailsafe = window.setTimeout(hideNavigationLoader, 15000);
   };
   if (document.documentElement.classList.contains("welcome-pending") && welcome) {
     const startedAt = performance.now();

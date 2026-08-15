@@ -761,6 +761,19 @@ class AssessmentEngineTests(TestCase):
         response = self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": foreign_question.choices.first().pk})
         self.assertEqual(response.status_code, 404)
 
+    def test_attempt_navigation_waits_for_pending_answer_and_has_timeout_recovery(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:attempt", args=[attempt.pk]) + "?q=1&lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "data-exam-nav")
+        self.assertContains(response, "const flushSave=")
+        self.assertContains(response, "AbortController")
+        self.assertContains(response, "15000")
+        self.assertContains(response, "پاسخ ذخیره نشد؛ اتصال را بررسی")
+
     def test_listening_play_count_is_limited_to_two(self):
         Question.objects.filter(pk__in=[question.pk for question in self.questions]).update(
             question_type="listening", audio_path="assessments/audio/clip01.wav",
