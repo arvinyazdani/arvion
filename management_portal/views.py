@@ -1,11 +1,13 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
+from pathlib import Path
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
@@ -41,8 +43,10 @@ def crm_workspace(request):
     if query: cases = cases.filter(Q(customer_name__icontains=query) | Q(contact_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query) | Q(code__icontains=query))
     if stage in dict(CustomerCase.STAGES): cases = cases.filter(stage=stage)
     if owner.isdigit(): cases = cases.filter(owner_id=owner)
-    now = timezone.now()
-    return render(request, "management_portal/v2/crm_workspace.html", {"cases": cases[:200], "query": query, "active_stage": stage, "active_owner": owner, "stages": CustomerCase.STAGES, "owners": User.objects.filter(is_staff=True, is_active=True), "lang": lang, "stats": {"all": CustomerCase.objects.count(), "urgent": CustomerCase.objects.filter(priority="urgent").count(), "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(), "today": CustomerCase.objects.filter(next_follow_up_at__date=timezone.localdate()).count()}})
+    now = timezone.now(); page = Paginator(cases, 30).get_page(request.GET.get("page")); backup_dir = Path(getattr(settings, "CRM_BACKUP_DIR", "/srv/arvion/backups")); backups = sorted(backup_dir.glob("*.dump"), key=lambda item: item.stat().st_mtime, reverse=True) if backup_dir.exists() else []; latest_backup = backups[0] if backups else None
+    backup_status = {"available": bool(latest_backup), "name": latest_backup.name if latest_backup else "", "size_mb": round(latest_backup.stat().st_size / 1048576, 2) if latest_backup else 0, "modified_at": datetime.fromtimestamp(latest_backup.stat().st_mtime, tz=timezone.get_current_timezone()) if latest_backup else None}
+    backup_status["healthy"] = bool(backup_status["modified_at"] and backup_status["modified_at"] >= now - timedelta(hours=26))
+    return render(request, "management_portal/v2/crm_workspace.html", {"cases": page, "page_obj": page, "query": query, "active_stage": stage, "active_owner": owner, "stages": CustomerCase.STAGES, "owners": User.objects.filter(is_staff=True, is_active=True), "lang": lang, "backup_status": backup_status, "stats": {"all": CustomerCase.objects.count(), "urgent": CustomerCase.objects.filter(priority="urgent").count(), "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(), "today": CustomerCase.objects.filter(next_follow_up_at__date=timezone.localdate()).count()}})
 
 
 @staff_member_required(login_url="accounts:login")
