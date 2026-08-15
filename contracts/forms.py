@@ -13,6 +13,12 @@ class ProposalForm(forms.ModelForm):
         model = ContractProposal
         fields = ("needs_assessment", "title", "customer_name", "customer_phone", "customer_email", "client_details", "project_title", "project_scope", "amount_irr", "payment_terms", "delivery_terms")
         widgets = {"client_details": forms.Textarea(attrs={"rows": 3}), "project_scope": forms.Textarea(attrs={"rows": 6}), "payment_terms": forms.Textarea(attrs={"rows": 3})}
+        labels = {
+            "title": "عنوان قرارداد", "customer_name": "نام مشتری", "customer_phone": "شماره موبایل مشتری",
+            "customer_email": "ایمیل مشتری", "client_details": "اطلاعات تکمیلی مشتری", "project_title": "عنوان پروژه",
+            "project_scope": "محدوده و شرح پروژه", "amount_irr": "مبلغ قرارداد (ریال)", "payment_terms": "شرایط پرداخت",
+            "delivery_terms": "زمان و شرایط تحویل",
+        }
 
     def clean_customer_phone(self):
         return normalize_iran_mobile(self.cleaned_data["customer_phone"])

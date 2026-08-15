@@ -30,7 +30,7 @@ def _require_contract_manager(request):
 @staff_member_required(login_url="accounts:login")
 def proposal_list(request):
     _require_contract_manager(request)
-    return render(request, "contracts/proposal_list.html", {"proposals": ContractProposal.objects.select_related("created_by")})
+    return render(request, "contracts/proposal_list_v2.html", {"proposals": ContractProposal.objects.select_related("created_by")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -46,7 +46,7 @@ def proposal_create(request):
         add_default_clauses(proposal)
         messages.success(request, "پیش‌نویس قرارداد ساخته شد؛ بندها را بررسی و سپس لینک را فعال کنید.")
         return redirect("contracts:proposal_detail", proposal_id=proposal.pk)
-    return render(request, "contracts/proposal_form.html", {"form": form})
+    return render(request, "contracts/proposal_form_v2.html", {"form": form})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -54,7 +54,7 @@ def proposal_detail(request, proposal_id):
     _require_contract_manager(request)
     proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses", "versions"), pk=proposal_id)
     public_url = request.build_absolute_uri(reverse("contracts:public_contract", args=[proposal.token]))
-    return render(request, "contracts/proposal_detail.html", {"proposal": proposal, "public_url": public_url})
+    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "public_url": public_url})
 
 
 @staff_member_required(login_url="accounts:login")
