@@ -4,8 +4,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
+from crm_orders.models import CrmOrder
 from contracts.models import ContractProposal, ContractReview
 from contracts.services import add_default_clauses, publish_version
+from django.utils import timezone
 
 
 class ContractWorkflowTests(TestCase):
@@ -21,6 +23,29 @@ class ContractWorkflowTests(TestCase):
     def test_public_link_is_hidden_before_publish(self):
         response = self.client.get(reverse("contracts:public_contract", args=[self.proposal.token]))
         self.assertEqual(response.status_code, 404)
+
+    def test_proposal_form_can_prefill_from_crm_assessment(self):
+        crm = CrmOrder.objects.create(
+            organization_name="شرکت نمونه", industry="فناوری", organization_size="under_10",
+            contact_name="علی نمونه", job_title="مدیر", work_email="ali@example.com", phone="09120373271",
+            primary_goals=[], departments=[], customer_types=[], lead_sources=[], crm_user_count="1_5",
+            current_process="فرآیند فعلی", current_data_sources=[], main_pain_points="پیگیری دستی",
+            success_metrics="کاهش زمان پاسخ", required_capabilities=[], customer_data_fields=[], reminder_types=[],
+            notification_channels=[], critical_workflows="", correspondence_features=[], ai_use_cases=[],
+            reporting_priorities=[], system_roles=[], reports_needed="", permission_requirements="", budget_range="estimate",
+            expected_timeline="1_2", decision_process="مدیرعامل", privacy_accepted_at=timezone.now(),
+        )
+        self.client.force_login(self.root)
+        response = self.client.post(reverse("contracts:proposal_create"), {
+            "needs_assessment": f"crm:{crm.pk}", "title": "پیشنهاد CRM", "customer_name": "x",
+            "customer_phone": "09120373271", "customer_email": "x@example.com", "client_details": "",
+            "project_title": "x", "project_scope": "x", "amount_irr": "1000000",
+            "payment_terms": "۵۰/۵۰", "delivery_terms": "۸ هفته",
+        })
+        self.assertEqual(response.status_code, 302)
+        proposal = ContractProposal.objects.latest("created_at")
+        self.assertEqual(proposal.customer_name, "علی نمونه")
+        self.assertIn("فرآیند فعلی", proposal.project_scope)
 
     def test_publish_creates_immutable_snapshot_and_public_noindex_page(self):
         version = publish_version(self.proposal, self.root)

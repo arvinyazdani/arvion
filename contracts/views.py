@@ -40,6 +40,7 @@ def proposal_create(request):
     form = ProposalForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         proposal = form.save(commit=False)
+        form.apply_assessment()
         proposal.created_by = request.user
         proposal.save()
         add_default_clauses(proposal)
