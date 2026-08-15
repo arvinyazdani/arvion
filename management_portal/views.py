@@ -2,7 +2,10 @@ from datetime import timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.core.mail import send_mail
+from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -20,7 +23,8 @@ from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .forms import ManualSMSForm, StaffCreateForm, StaffRolesForm
-from .models import ManagementNotification, SMSDispatch, StaffAccessAudit
+from assessments.services import PaymentVerificationError, verify_gateway_payment
+from .models import ManagementNotification, OperationalAudit, SMSDispatch, StaffAccessAudit
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -81,6 +85,8 @@ def dashboard(request):
         if item.get("url", "").startswith("/admin/"):
             if item["label"] in {"درخواست همکاری جدید", "نیازسنجی CRM", "نیازسنجی کلینیک"}:
                 item["url"] = reverse("management_portal:request_list")
+            elif item["label"] in {"حساب نیازمند تأیید", "پرداخت منتظر بررسی"}:
+                item["url"] = reverse("management_portal:approvals")
             else:
                 item["url"] = ""
     for item in queues:
@@ -90,6 +96,8 @@ def dashboard(request):
             if kind:
                 source = item["url"].split("/")[-3]
                 item["url"] = reverse("management_portal:request_detail", args=[kind, source])
+            elif item["kind"] in {"حساب", "پرداخت"}:
+                item["url"] = reverse("management_portal:approvals")
             else:
                 item["url"] = ""
     lang = getattr(request, "LANGUAGE_CODE", "fa")
@@ -206,6 +214,73 @@ def request_update(request, kind, object_id):
     text = "درخواست با موفقیت بروزرسانی شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Request updated successfully."
     messages.success(request, text)
     return redirect("management_portal:request_detail", kind=kind, object_id=object_id)
+
+
+def _require_account_or_payment_access(user):
+    if not user.is_superuser and not (user.has_perm("accounts.change_user") or user.has_perm("assessments.view_manualpaymentsubmission")):
+        raise PermissionDenied
+
+
+@staff_member_required(login_url="accounts:login")
+def approvals(request):
+    _require_account_or_payment_access(request.user)
+    users = User.objects.filter(is_active=False).order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
+    payments = ManualPaymentSubmission.objects.select_related("order__user", "order__exam", "reviewed_by").order_by("-created_at")[:100] if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
+    return render(request, "management_portal/v2/approvals.html", {"pending_users": users, "payments": payments, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+@transaction.atomic
+def account_approval(request, user_id, decision):
+    if not request.user.is_superuser and not request.user.has_perm("accounts.change_user"):
+        raise PermissionDenied
+    if decision not in {"approve", "reject"}:
+        raise Http404
+    customer = get_object_or_404(User.objects.select_for_update(), pk=user_id, is_staff=False)
+    if decision == "approve":
+        customer.is_active = True
+        customer.email_verified = True
+        customer.save(update_fields=["is_active", "email_verified"])
+        summary = f"حساب {customer.email} فعال شد"
+    else:
+        customer.is_active = False
+        customer.save(update_fields=["is_active"])
+        summary = f"درخواست حساب {customer.email} رد شد"
+    OperationalAudit.objects.create(actor=request.user, action=f"account_{decision}", target_type="user", target_id=str(customer.pk), summary=summary)
+    messages.success(request, summary)
+    return redirect("management_portal:approvals")
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+@transaction.atomic
+def payment_review(request, payment_id, decision):
+    if not request.user.is_superuser and not request.user.has_perm("assessments.change_manualpaymentsubmission"):
+        raise PermissionDenied
+    if decision not in {"approve", "reject"}:
+        raise Http404
+    payment = get_object_or_404(ManualPaymentSubmission.objects.select_for_update().select_related("order__user", "order__exam"), pk=payment_id)
+    if payment.status != "pending":
+        messages.warning(request, "این رسید قبلاً بررسی شده است." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "This receipt has already been reviewed.")
+        return redirect("management_portal:approvals")
+    note = request.POST.get("review_note", "").strip()[:500]
+    if decision == "approve":
+        try:
+            order, created = verify_gateway_payment(payment.order_id, gateway="card_transfer", external_id=f"card-{payment.reference_number}", amount_irr=payment.order.amount_irr, response={"manual_review": True, "reference": payment.reference_number})
+        except PaymentVerificationError as exc:
+            messages.error(request, str(exc))
+            return redirect("management_portal:approvals")
+        payment.status = "approved"
+        if created:
+            send_mail("پرداخت شما تأیید شد", f"پرداخت سفارش {order.pk} تأیید شد و دسترسی آزمون فعال است.\n{settings.SITE_URL}/fa/account/", settings.DEFAULT_FROM_EMAIL, [order.user.email], fail_silently=True)
+    else:
+        payment.status = "rejected"
+    payment.reviewed_by, payment.reviewed_at, payment.review_note = request.user, timezone.now(), note
+    payment.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"])
+    OperationalAudit.objects.create(actor=request.user, action=f"payment_{decision}", target_type="manual_payment", target_id=str(payment.pk), summary=f"رسید {payment.reference_number}: {payment.status}", metadata={"order": str(payment.order_id)})
+    messages.success(request, "بررسی رسید ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Payment review saved.")
+    return redirect("management_portal:approvals")
 
 
 def _visible_notifications(user):

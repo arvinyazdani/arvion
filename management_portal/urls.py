@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import dashboard, notification_feed, notification_list, notification_status, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list
+from .views import account_approval, approvals, dashboard, notification_feed, notification_list, notification_status, payment_review, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list
 from contracts.views import proposal_clauses, proposal_create, proposal_detail, proposal_list, proposal_publish
 
 urlpatterns = [
@@ -20,4 +20,7 @@ urlpatterns = [
     path("contracts/<int:proposal_id>/", proposal_detail, name="contract_detail"),
     path("contracts/<int:proposal_id>/clauses/", proposal_clauses, name="contract_clauses"),
     path("contracts/<int:proposal_id>/publish/", proposal_publish, name="contract_publish"),
+    path("approvals/", approvals, name="approvals"),
+    path("approvals/accounts/<int:user_id>/<str:decision>/", account_approval, name="account_approval"),
+    path("approvals/payments/<int:payment_id>/<str:decision>/", payment_review, name="payment_review"),
 ]

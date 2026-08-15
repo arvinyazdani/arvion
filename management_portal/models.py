@@ -56,3 +56,18 @@ class SMSDispatch(models.Model):
         ordering = ("-created_at",)
         verbose_name = "ارسال دستی پیامک"
         verbose_name_plural = "ارسال‌های دستی پیامک"
+
+
+class OperationalAudit(models.Model):
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="management_operations")
+    action = models.CharField(max_length=60, db_index=True)
+    target_type = models.CharField(max_length=60, db_index=True)
+    target_id = models.CharField(max_length=80, db_index=True)
+    summary = models.CharField(max_length=240)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "رویداد عملیاتی"
+        verbose_name_plural = "سابقه عملیات"

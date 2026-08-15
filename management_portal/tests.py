@@ -6,7 +6,8 @@ from django.utils import timezone, translation
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder
-from management_portal.models import ManagementNotification, SMSDispatch, StaffAccessAudit
+from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order
+from management_portal.models import ManagementNotification, OperationalAudit, SMSDispatch, StaffAccessAudit
 from core.sms.backends import SMSResult
 from unittest.mock import patch
 
@@ -90,6 +91,32 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(response.status_code, 403)
         order.refresh_from_db()
         self.assertEqual(order.status, "new")
+
+    def test_superuser_can_approve_customer_account_with_audit(self):
+        root = User.objects.create_superuser(username="approval-root", email="approval-root@example.com", password="safe-password")
+        customer = User.objects.create_user(username="waiting", email="waiting@example.com", password="safe-password", is_active=False)
+        self.client.force_login(root)
+        response = self.client.post(reverse("management_portal:account_approval", args=[customer.pk, "approve"]))
+        self.assertRedirects(response, reverse("management_portal:approvals"))
+        customer.refresh_from_db()
+        self.assertTrue(customer.is_active)
+        self.assertTrue(customer.email_verified)
+        self.assertTrue(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
+
+    def test_payment_approval_grants_access_once_and_records_audit(self):
+        root = User.objects.create_superuser(username="pay-root", email="pay-root@example.com", password="safe-password")
+        customer = User.objects.create_user(username="buyer", email="buyer@example.com", password="safe-password", is_active=True)
+        exam = Exam.objects.create(slug="management-test", title_fa="آزمون", title_en="Exam", description_fa="شرح", description_en="Description", language_mode="bilingual", price_irr=500000)
+        order = Order.objects.create(user=customer, exam=exam, subtotal_irr=500000, amount_irr=500000, gateway="card_transfer", terms_version="v1", terms_accepted_at=timezone.now())
+        payment = ManualPaymentSubmission.objects.create(order=order, payer_name="خریدار", reference_number="REF-MANAGEMENT-1", paid_at=timezone.now())
+        self.client.force_login(root)
+        response = self.client.post(reverse("management_portal:payment_review", args=[payment.pk, "approve"]), {"review_note": "رسید بررسی شد"})
+        self.assertRedirects(response, reverse("management_portal:approvals"))
+        payment.refresh_from_db(); order.refresh_from_db()
+        self.assertEqual(payment.status, "approved")
+        self.assertEqual(order.status, "paid")
+        self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
+        self.assertTrue(OperationalAudit.objects.filter(action="payment_approve", target_id=str(payment.pk)).exists())
 
     def test_superuser_sees_dashboard_shell(self):
         user = User.objects.create_superuser(username="root", email="root@example.com", password="safe-password")
