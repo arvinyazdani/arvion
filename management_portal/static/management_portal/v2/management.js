@@ -14,7 +14,7 @@
     if(Notification.permission==='denied'){explainBlocked();return}
     label(fa?'در حال فعال‌سازی…':'Enabling…','loading');
     const permission=await Notification.requestPermission();if(permission!=='granted'){explainBlocked();return}
-    const registration=await navigator.serviceWorker.register('/service-worker.js');await registration.update();await navigator.serviceWorker.ready;
+    const registration=await navigator.serviceWorker.register('/service-worker.js?v=2',{updateViaCache:'none'});await registration.update();await navigator.serviceWorker.ready;
     let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(window.RVION_VAPID_PUBLIC_KEY)});
     const response=await fetch(window.RVION_PUSH_SUBSCRIBE,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(subscription.toJSON())});
     if(!response.ok)throw new Error('subscription_failed');
