@@ -30,6 +30,15 @@ class ProposalForm(forms.ModelForm):
         choices += [(f"clinic:{item.pk}", f"کلینیک · {item.tracking_code} · {item.clinic_name}") for item in ClinicOrder.objects.order_by("-created_at")[:100]]
         self.fields["needs_assessment"].choices = choices
 
+    @property
+    def assessment_data(self):
+        data = {}
+        for item in CrmOrder.objects.order_by("-created_at")[:100]:
+            data[f"crm:{item.pk}"] = {"customer_name": item.contact_name or item.organization_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"سامانه CRM سازمانی {item.organization_name}", "project_scope": "\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements])), "client_details": f"نام مجموعه: {item.organization_name}\nصنعت: {item.industry}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
+        for item in ClinicOrder.objects.order_by("-created_at")[:100]:
+            data[f"clinic:{item.pk}"] = {"customer_name": item.contact_name or item.clinic_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"پلتفرم کلینیک {item.clinic_name}", "project_scope": "\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements])), "client_details": f"نام مجموعه: {item.clinic_name}\nشهر: {item.city}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
+        return data
+
     def apply_assessment(self):
         value = self.cleaned_data.get("needs_assessment", "")
         if not value:

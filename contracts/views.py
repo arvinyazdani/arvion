@@ -46,7 +46,7 @@ def proposal_create(request):
         add_default_clauses(proposal)
         messages.success(request, "پیش‌نویس قرارداد ساخته شد؛ بندها را بررسی و سپس لینک را فعال کنید.")
         return redirect("contracts:proposal_detail", proposal_id=proposal.pk)
-    return render(request, "contracts/proposal_form_v2.html", {"form": form})
+    return render(request, "contracts/proposal_form_v2.html", {"form": form, "assessment_data": form.assessment_data})
 
 
 @staff_member_required(login_url="accounts:login")
