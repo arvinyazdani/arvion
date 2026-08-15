@@ -267,6 +267,38 @@ class AccountFlowTests(TestCase):
         self.assertEqual(user.phone_verifications.count(), 1)
         self.assertContains(response, "Wait until the timer finishes")
 
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="resume-ref"))
+    def test_interrupted_registration_can_resume_securely_with_same_password(self, mocked_send):
+        payload = self.registration_payload()
+        self.client.post(reverse("accounts:register") + "?lang=fa", payload)
+        user = User.objects.get(email="arvin@example.com")
+        challenge = user.phone_verifications.first()
+        challenge.resend_available_at = timezone.now() - timedelta(seconds=1)
+        challenge.save(update_fields=["resend_available_at"])
+        self.client.session.flush()
+
+        response = self.client.post(reverse("accounts:register") + "?lang=fa", payload)
+
+        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=fa")
+        self.assertEqual(User.objects.filter(email="arvin@example.com").count(), 1)
+        self.assertEqual(user.phone_verifications.count(), 2)
+        self.assertEqual(mocked_send.call_count, 2)
+        self.assertEqual(self.client.session["phone_verification_user_id"], user.pk)
+
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="resume-ref"))
+    def test_interrupted_registration_cannot_resume_with_wrong_password(self, mocked_send):
+        payload = self.registration_payload()
+        self.client.post(reverse("accounts:register") + "?lang=en", payload)
+        self.client.session.flush()
+        payload["password1"] = payload["password2"] = "Different-safe-password-84"
+
+        response = self.client.post(reverse("accounts:register") + "?lang=en", payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("phone_verification_user_id", self.client.session)
+        self.assertContains(response, "already exists")
+        self.assertEqual(mocked_send.call_count, 1)
+
     @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
     def test_wrong_code_has_five_attempt_limit_and_clear_hint(self, mocked_send):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())

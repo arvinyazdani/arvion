@@ -19,8 +19,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
+import math
 
 from core.views.lang import LanguageViewMixin
+from core.sms.backends import normalize_iran_mobile
 
 from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import PhoneVerification, User
@@ -52,6 +54,52 @@ class RegisterView(LanguageViewMixin, FormView):
                 "Your account was created, but the SMS could not be sent. Use resend code to try again.",
             )
         return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
+
+    def form_invalid(self, form):
+        """Resume an interrupted signup only after proving the saved password."""
+        email = self.request.POST.get("email", "").strip().lower()
+        try:
+            mobile = normalize_iran_mobile(self.request.POST.get("mobile", ""))
+        except ValueError:
+            mobile = None
+        user = User.objects.filter(
+            email__iexact=email, mobile=mobile, is_active=False, mobile_verified_at__isnull=True,
+        ).first() if email and mobile else None
+        if user and user.check_password(self.request.POST.get("password1", "")):
+            self.request.session["phone_verification_user_id"] = user.pk
+            latest = user.phone_verifications.first()
+            if not latest or latest.resend_available_at <= timezone.now():
+                try:
+                    issue_phone_verification(user)
+                    messages.success(
+                        self.request,
+                        "ثبت‌نام نیمه‌کاره پیدا شد و یک کد جدید فرستادیم."
+                        if self.lang == "fa" else
+                        "We found your interrupted signup and sent a new code.",
+                    )
+                except PermissionError:
+                    messages.error(
+                        self.request,
+                        "تعداد درخواست کد زیاد بوده است؛ چند دقیقه بعد دوباره تلاش کنید."
+                        if self.lang == "fa" else
+                        "Too many code requests. Try again in a few minutes.",
+                    )
+                except Exception:
+                    messages.error(
+                        self.request,
+                        "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید."
+                        if self.lang == "fa" else
+                        "The code could not be sent. Try again shortly.",
+                    )
+            else:
+                messages.info(
+                    self.request,
+                    "ثبت‌نام قبلی پیدا شد؛ تا پایان تایمر می‌توانید همان کد را وارد کنید."
+                    if self.lang == "fa" else
+                    "We found your previous signup. You can use the current code until the timer ends.",
+                )
+            return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -142,7 +190,7 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
         latest = user.phone_verifications.first()
         remaining = 0
         if latest:
-            remaining = max(0, int((latest.resend_available_at - timezone.now()).total_seconds()))
+            remaining = max(0, math.ceil((latest.resend_available_at - timezone.now()).total_seconds()))
         context.update({"mobile_masked": f"{user.mobile[:4]}••••{user.mobile[-4:]}", "resend_seconds": remaining})
         return context
 
