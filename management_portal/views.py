@@ -358,6 +358,17 @@ def content_toggle(request, kind, object_id):
     return redirect("management_portal:content_center")
 
 
+@staff_member_required(login_url="accounts:login")
+def audit_log(request):
+    _require_superuser(request)
+    query = request.GET.get("q", "").strip()
+    events = OperationalAudit.objects.select_related("actor")
+    if query:
+        from django.db.models import Q
+        events = events.filter(Q(summary__icontains=query) | Q(action__icontains=query) | Q(actor__email__icontains=query))
+    return render(request, "management_portal/v2/audit_log.html", {"events": events[:200], "query": query, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
 def _visible_notifications(user):
     queryset = ManagementNotification.objects.all()
     if user.is_superuser:
@@ -377,6 +388,7 @@ def notification_list(request):
     return render(request, "management_portal/notifications.html", {
         "notifications": queryset[:100], "statuses": ManagementNotification.STATUSES,
         "categories": ManagementNotification.CATEGORIES, "active_status": status, "active_category": category,
+        "lang": getattr(request, "LANGUAGE_CODE", "fa"),
     })
 
 
@@ -424,7 +436,7 @@ def staff_list(request):
             "user": member,
             "roles": [config["label_fa"] for key, config in STAFF_ROLES.items() if member.groups.filter(name=group_name(key)).exists()],
         })
-    return render(request, "management_portal/staff_list.html", {"staff_rows": rows, "role_names": role_names})
+    return render(request, "management_portal/staff_list.html", {"staff_rows": rows, "role_names": role_names, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -436,7 +448,7 @@ def staff_create(request):
         StaffAccessAudit.objects.create(actor=request.user, target=member, action="created", roles=form.cleaned_data["roles"], staff_enabled=True)
         messages.success(request, f"حساب مدیریتی {member.email} ساخته شد.")
         return redirect("management_portal:staff_list")
-    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ساخت همکار جدید", "is_create": True})
+    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ساخت همکار جدید", "is_create": True, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -451,7 +463,7 @@ def staff_edit(request, user_id):
         StaffAccessAudit.objects.create(actor=request.user, target=member, action="roles_updated", roles=form.cleaned_data["roles"], staff_enabled=form.cleaned_data["is_staff"])
         messages.success(request, f"مسئولیت‌های {member.email} بروزرسانی شد.")
         return redirect("management_portal:staff_list")
-    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها", "member": member})
+    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها", "member": member, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")

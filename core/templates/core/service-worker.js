@@ -11,3 +11,4 @@ self.addEventListener("fetch", event => {
     return response;
   }).catch(() => caches.match(event.request).then(cached => cached || (event.request.mode === "navigate" ? caches.match("/fa/") : Response.error()))));
 });
+self.addEventListener("notificationclick", event => { event.notification.close(); event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(items => items[0] ? items[0].focus() : clients.openWindow("/fa/management/"))); });
