@@ -116,3 +116,4 @@
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>
+{% if request.user.is_staff %}<script>document.addEventListener('DOMContentLoaded',()=>{const label=document.documentElement.lang==='fa'?'داشبورد ادمین':'Admin dashboard';document.querySelectorAll('a[href*="/management/"]').forEach(a=>{if(a.textContent.trim()==='مرکز مدیریت'||a.textContent.trim()==='Management')a.textContent=label});const bar=document.querySelector('.mobile-tabbar');if(bar&&!bar.querySelector('[data-admin-shortcut]')){const a=document.createElement('a');a.dataset.adminShortcut='true';a.href='/management/';a.innerHTML='<b aria-hidden="true">▣</b><span>'+label+'</span>';bar.appendChild(a)}})</script>{% endif %}
