@@ -53,6 +53,44 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(detail, "نبود پیگیری یکپارچه")
         self.assertContains(detail, "فرم تخصصی مشتری")
 
+    def test_sales_staff_can_update_request_status_and_internal_note(self):
+        user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)
+        user.user_permissions.add(
+            Permission.objects.get(codename="view_crmorder"),
+            Permission.objects.get(codename="change_crmorder"),
+        )
+        order = CrmOrder.objects.create(
+            organization_name="شرکت پیگیری", industry="خدمات", organization_size="under_10", contact_name="علی",
+            job_title="مدیر", work_email="ali@example.com", phone="09120000001", crm_user_count="1_5",
+            current_process="ثبت دستی", main_pain_points="پیگیری دشوار", success_metrics="زمان پاسخ",
+            critical_workflows="فروش", reports_needed="", permission_requirements="", hosting_preference="cloud",
+            budget_range="estimate", expected_timeline="unsure", decision_process="مدیر", privacy_accepted_at=timezone.now(),
+        )
+        self.client.force_login(user)
+        response = self.client.post(reverse("management_portal:request_update", args=["crm", order.pk]), {
+            "status": "discovery", "internal_notes": "تماس اولیه انجام شد",
+        })
+        self.assertRedirects(response, reverse("management_portal:request_detail", args=["crm", order.pk]))
+        order.refresh_from_db()
+        self.assertEqual(order.status, "discovery")
+        self.assertEqual(order.internal_notes, "تماس اولیه انجام شد")
+
+    def test_view_only_staff_cannot_update_request(self):
+        user = User.objects.create_user(username="sales-read", email="sales-read@example.com", password="safe-password", is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename="view_crmorder"))
+        order = CrmOrder.objects.create(
+            organization_name="شرکت فقط خواندنی", industry="خدمات", organization_size="under_10", contact_name="رضا",
+            job_title="مدیر", work_email="reza@example.com", phone="09120000002", crm_user_count="1_5",
+            current_process="ثبت دستی", main_pain_points="پیگیری", success_metrics="زمان پاسخ",
+            critical_workflows="فروش", reports_needed="", permission_requirements="", hosting_preference="cloud",
+            budget_range="estimate", expected_timeline="unsure", decision_process="مدیر", privacy_accepted_at=timezone.now(),
+        )
+        self.client.force_login(user)
+        response = self.client.post(reverse("management_portal:request_update", args=["crm", order.pk]), {"status": "won"})
+        self.assertEqual(response.status_code, 403)
+        order.refresh_from_db()
+        self.assertEqual(order.status, "new")
+
     def test_superuser_sees_dashboard_shell(self):
         user = User.objects.create_superuser(username="root", email="root@example.com", password="safe-password")
         self.client.force_login(user)

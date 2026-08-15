@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import dashboard, notification_feed, notification_list, notification_status, request_detail, request_list, sms_send, staff_create, staff_edit, staff_list
+from .views import dashboard, notification_feed, notification_list, notification_status, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
@@ -13,4 +13,5 @@ urlpatterns = [
     path("sms/", sms_send, name="sms_send"),
     path("requests/", request_list, name="request_list"),
     path("requests/<str:kind>/<int:object_id>/", request_detail, name="request_detail"),
+    path("requests/<str:kind>/<int:object_id>/update/", request_update, name="request_update"),
 ]

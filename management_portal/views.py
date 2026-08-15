@@ -143,7 +143,12 @@ def request_list(request):
         if query: qs = qs.filter(clinic_name__icontains=query)
         rows += [{"kind": "clinic", "kind_label": "کلینیک", "id": x.pk, "title": x.clinic_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
     rows.sort(key=lambda x: x["created_at"], reverse=True)
-    return render(request, "management_portal/v2/request_list.html", {"rows": rows, "active_kind": kind, "query": query, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    if lang == "en":
+        status_labels = {"جدید": "New", "جلسه تحلیل": "Discovery", "واجد شرایط": "Qualified", "پیشنهاد ارسال شد": "Proposal sent", "قرارداد": "Won", "بسته‌شده": "Closed"}
+        for row in rows:
+            row["status"] = status_labels.get(str(row["status"]), row["status"])
+    return render(request, "management_portal/v2/request_list.html", {"rows": rows, "active_kind": kind, "query": query, "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -161,7 +166,46 @@ def request_detail(request, kind, object_id):
         title, contact, phone, email, code, summary = item.organization_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
     else:
         title, contact, phone, email, code, summary = item.clinic_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
-    return render(request, "management_portal/v2/request_detail.html", {"item": item, "kind": kind, "title": title, "contact": contact, "phone": phone, "email": email, "code": code, "summary": summary, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    status_choices = list(model.STATUSES)
+    if lang == "en" and kind in {"crm", "clinic"}:
+        status_en = {"new": "New", "discovery": "Discovery", "qualified": "Qualified", "proposal": "Proposal sent", "won": "Won", "lost": "Closed"}
+        status_choices = [(value, status_en[value]) for value, _ in status_choices]
+    return render(request, "management_portal/v2/request_detail.html", {
+        "item": item, "kind": kind, "title": title, "contact": contact, "phone": phone,
+        "email": email, "code": code, "summary": summary, "lang": lang, "status_choices": status_choices,
+        "can_change": request.user.is_superuser or request.user.has_perm({"lead": "leads.change_lead", "crm": "crm_orders.change_crmorder", "clinic": "clinic_orders.change_clinicorder"}[kind]),
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def request_update(request, kind, object_id):
+    """Update an enquiry without exposing Django Admin."""
+    _require_sales_access(request.user)
+    models = {"lead": Lead, "crm": CrmOrder, "clinic": ClinicOrder}
+    model = models.get(kind)
+    if not model:
+        raise Http404
+    permission = {"lead": "leads.change_lead", "crm": "crm_orders.change_crmorder", "clinic": "clinic_orders.change_clinicorder"}[kind]
+    if not request.user.is_superuser and not request.user.has_perm(permission):
+        raise PermissionDenied
+    item = get_object_or_404(model, pk=object_id)
+    status = request.POST.get("status", "")
+    if status not in dict(model.STATUSES):
+        raise Http404
+    item.status = status
+    update_fields = ["status"]
+    if hasattr(item, "internal_notes"):
+        item.internal_notes = request.POST.get("internal_notes", "").strip()
+        update_fields.append("internal_notes")
+    if kind == "lead":
+        item.is_reviewed = status != "new"
+        update_fields.append("is_reviewed")
+    item.save(update_fields=update_fields)
+    text = "درخواست با موفقیت بروزرسانی شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Request updated successfully."
+    messages.success(request, text)
+    return redirect("management_portal:request_detail", kind=kind, object_id=object_id)
 
 
 def _visible_notifications(user):
