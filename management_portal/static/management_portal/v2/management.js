@@ -1,4 +1,5 @@
 (()=>{
+  window.RVION_STAFF_PUSH=true;const onboarding=document.createElement('script');onboarding.src='/static/core/js/staff-push.js?v=1';onboarding.defer=true;document.head.appendChild(onboarding);
   const menu=document.querySelector('.m-menu'),sidebar=document.querySelector('.m-sidebar'),scrim=document.querySelector('.m-scrim');
   if(menu&&sidebar&&scrim){const close=()=>{sidebar.classList.remove('open');scrim.classList.remove('open');menu.setAttribute('aria-expanded','false')};menu.addEventListener('click',()=>{const open=!sidebar.classList.contains('open');sidebar.classList.toggle('open',open);scrim.classList.toggle('open',open);menu.setAttribute('aria-expanded',String(open))});scrim.addEventListener('click',close);document.addEventListener('keydown',event=>{if(event.key==='Escape')close()})}
   const languageLink=document.querySelector('.m-top-actions a.m-lang');if(languageLink){const target=document.documentElement.lang==='fa'?'en':'fa';languageLink.href=location.pathname.replace(/^\/(fa|en)(?=\/)/,`/${target}`)+location.search}

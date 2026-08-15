@@ -7,7 +7,7 @@ from accounts.models import User
 from assessments.models import ManualPaymentSubmission, SupportTicket
 from clinic_orders.models import ClinicOrder
 from contracts.models import ContractAcceptance, ContractReview
-from crm_orders.models import CrmOrder
+from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from leads.models import Lead
 
 from .models import ManagementNotification
@@ -39,6 +39,12 @@ def new_lead(sender, instance, created, **kwargs):
 def new_crm(sender, instance, created, **kwargs):
     if created:
         notify(category="sales", title="نیازسنجی CRM جدید", description=instance.organization_name, target_url=reverse("management_portal:request_detail", args=["crm", instance.pk]), role="sales", source_key=f"crm:{instance.pk}")
+
+
+@receiver(post_save, sender=CrmSpecialistDiscovery)
+def specialist_crm_submitted(sender, instance, **kwargs):
+    if instance.status == "submitted":
+        notify(category="sales", title="نیازسنجی تخصصی CRM تکمیل شد", description=instance.order.organization_name, target_url=reverse("management_portal:request_detail", args=["crm", instance.order_id]), role="sales", source_key=f"crm-specialist:{instance.pk}:submitted")
 
 
 @receiver(post_save, sender=ClinicOrder)

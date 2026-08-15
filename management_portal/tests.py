@@ -6,7 +6,7 @@ from django.utils import timezone, translation
 
 from accounts.models import User
 from accounts.staff_roles import group_name
-from crm_orders.models import CrmOrder
+from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
 from management_portal.models import ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
 from management_portal.notifications import process_notifications
@@ -28,6 +28,13 @@ class ManagementDashboardTests(TestCase):
         user = User.objects.create_user(username="client", email="client@example.com", password="safe-password")
         self.client.force_login(user)
         self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_staff_sees_device_push_onboarding_across_public_web_app(self):
+        user = User.objects.create_user(username="staff-push", email="staff-push@example.com", password="safe-password", is_staff=True)
+        self.client.force_login(user)
+        response = self.client.get(reverse("home"))
+        self.assertContains(response, "core/js/staff-push.js")
+        self.assertContains(response, "RVION_STAFF_PUSH")
 
     def test_staff_only_sees_permitted_operational_data(self):
         user = User.objects.create_user(username="sales", email="sales@example.com", password="safe-password", is_staff=True)
@@ -56,6 +63,8 @@ class ManagementDashboardTests(TestCase):
         detail = self.client.get(reverse("management_portal:request_detail", args=["crm", order.pk]))
         self.assertContains(detail, "نبود پیگیری یکپارچه")
         self.assertContains(detail, "فرم تخصصی مشتری")
+        discovery = CrmSpecialistDiscovery.objects.create(order=order, status="submitted", answers={"workflow": "ok"})
+        self.assertTrue(ManagementNotification.objects.filter(source_key=f"crm-specialist:{discovery.pk}:submitted").exists())
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):
         user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)
