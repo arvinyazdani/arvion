@@ -8,7 +8,7 @@ from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
-from management_portal.models import CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from management_portal.models import CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
 from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -72,6 +72,20 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(self.client.get(reverse("management_portal:crm_case_export", args=[case.pk])).status_code, 200)
         discovery = CrmSpecialistDiscovery.objects.create(order=order, status="submitted", answers={"workflow": "ok"})
         self.assertTrue(ManagementNotification.objects.filter(source_key=f"crm-specialist:{discovery.pk}:submitted").exists())
+
+    def test_all_staff_can_open_unified_customer_workspace_and_contacts(self):
+        staff = User.objects.create_user(username="operations", email="operations@example.com", password="safe-password", is_staff=True)
+        account = User.objects.create_user(username="customer-account", email="customer@example.com", mobile="09120000001", password="safe-password")
+        customer = Customer.objects.create(name="شرکت یکپارچه", phone="09120000001", email="customer@example.com")
+        CustomerContact.objects.create(customer=customer, name="مینا رضایی", role="مدیر پروژه", phone="09120000001", email="customer@example.com", user=account, is_primary=True)
+        case = CustomerCase.objects.create(customer=customer, kind="crm", customer_name="شرکت یکپارچه", contact_name="مینا رضایی", phone="09120000001", email="customer@example.com")
+        self.client.force_login(staff)
+        listing = self.client.get(reverse("management_portal:customer_workspace"))
+        self.assertContains(listing, "شرکت یکپارچه")
+        detail = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(detail, "مینا رضایی")
+        self.assertContains(detail, "حساب سایت متصل")
+        self.assertContains(detail, case.code)
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):
         user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)
@@ -171,7 +185,7 @@ class ManagementDashboardTests(TestCase):
         self.client.force_login(user)
         response = self.client.get(self.url)
         self.assertContains(response, "مرکز مدیریت")
-        self.assertContains(response, "صندوق کار")
+        self.assertContains(response, "مرکز عملیات")
 
     def test_new_dashboard_is_language_scoped_and_does_not_link_to_django_admin(self):
         root = User.objects.create_superuser(username="root-lang", email="root-lang@example.com", password="safe-password")
@@ -180,7 +194,7 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(fa, "خانه مدیریت")
         self.assertNotContains(fa, 'href="/admin/')
         en = self.client.get("/en/management/")
-        self.assertContains(en, "Today’s work and business status")
+        self.assertContains(en, "What needs your decision today?")
         self.assertContains(en, "Team &amp; access", html=True)
         self.assertContains(en, "Business management")
         self.assertNotContains(en, 'href="/admin/')

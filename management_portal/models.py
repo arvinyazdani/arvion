@@ -9,11 +9,52 @@ def customer_case_code():
     return "CASE-" + get_random_string(10, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
 
+class Customer(models.Model):
+    """The canonical company/person record shared by every operational module."""
+    KINDS = (("company", "شرکت"), ("person", "شخص"))
+
+    name = models.CharField(max_length=180, db_index=True)
+    kind = models.CharField(max_length=12, choices=KINDS, default="company", db_index=True)
+    phone = models.CharField(max_length=24, blank=True, db_index=True)
+    email = models.EmailField(blank=True, db_index=True)
+    tags = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        ordering = ("name", "pk")
+
+    def __str__(self):
+        return self.name
+
+
+class CustomerContact(models.Model):
+    """A real person connected to a customer, optionally with an Rvion account."""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="contacts")
+    name = models.CharField(max_length=140, db_index=True)
+    role = models.CharField(max_length=120, blank=True)
+    phone = models.CharField(max_length=24, blank=True, db_index=True)
+    email = models.EmailField(blank=True, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name="customer_contact_profiles")
+    is_primary = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-is_primary", "name", "pk")
+        constraints = [models.UniqueConstraint(fields=("customer", "phone", "email", "name"), name="unique_customer_contact_identity")]
+
+    def __str__(self):
+        return self.name
+
+
 class CustomerCase(models.Model):
     KINDS = (("lead", "همکاری"), ("crm", "CRM"), ("clinic", "کلینیک"), ("general", "عمومی"))
     STAGES = (("new", "جدید"), ("discovery", "نیازسنجی"), ("qualified", "واجد شرایط"), ("proposal", "پیشنهاد/قرارداد"), ("won", "موفق"), ("lost", "بسته‌شده"))
     PRIORITIES = (("low", "کم"), ("normal", "عادی"), ("high", "زیاد"), ("urgent", "فوری"))
     code = models.CharField(max_length=15, unique=True, default=customer_case_code, editable=False)
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, blank=True, null=True, related_name="cases")
     kind = models.CharField(max_length=12, choices=KINDS, db_index=True)
     customer_name = models.CharField(max_length=180, db_index=True)
     contact_name = models.CharField(max_length=140, blank=True)

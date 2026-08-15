@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from accounts.models import User
 from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
 from core.sms.backends import normalize_iran_mobile
-from .models import CaseActivity, CaseTask, CustomerCase
+from .models import CaseActivity, CaseTask, CustomerCase, CustomerContact
 
 ROLE_CHOICES = [(key, value["label_fa"]) for key, value in STAFF_ROLES.items()]
 
@@ -168,3 +168,28 @@ class CaseActivityForm(forms.ModelForm):
         labels = {"kind": ("نوع فعالیت", "Activity type"), "title": ("عنوان", "Title"), "body": ("شرح", "Details")}
         for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
         if lang == "en": self.fields["kind"].choices = (("note", "Note"), ("call", "Call"), ("message", "Message"), ("meeting", "Meeting"))
+
+
+class CustomerContactForm(forms.ModelForm):
+    class Meta:
+        model = CustomerContact
+        fields = ("name", "role", "phone", "email", "user", "is_primary")
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["user"].queryset = User.objects.filter(is_staff=False, is_active=True).order_by("email")
+        labels = {
+            "name": ("نام مخاطب", "Contact name"), "role": ("سمت در شرکت", "Role at company"),
+            "phone": ("شماره تماس", "Phone"), "email": ("ایمیل", "Email"),
+            "user": ("حساب کاربری متصل", "Linked site account"), "is_primary": ("مخاطب اصلی", "Primary contact"),
+        }
+        for name, pair in labels.items():
+            self.fields[name].label = pair[0 if lang == "fa" else 1]
+
+    def clean(self):
+        cleaned = super().clean()
+        user = cleaned.get("user")
+        if user:
+            cleaned["email"] = cleaned.get("email") or user.email
+            cleaned["phone"] = cleaned.get("phone") or user.mobile or ""
+        return cleaned

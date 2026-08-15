@@ -30,9 +30,56 @@ from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
-from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
+from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
 from assessments.services import PaymentVerificationError, verify_gateway_payment
-from .models import CaseActivity, CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+
+
+@staff_member_required(login_url="accounts:login")
+def customer_workspace(request):
+    """One connected list of real customers, not a list of isolated forms."""
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    query = request.GET.get("q", "").strip()
+    customers = Customer.objects.prefetch_related("contacts", "cases__tasks", "cases__activities").order_by("-updated_at")
+    if query:
+        customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query) | Q(contacts__name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).distinct()
+    page = Paginator(customers, 30).get_page(request.GET.get("page"))
+    now = timezone.now()
+    return render(request, "management_portal/v2/customer_workspace.html", {
+        "customers": page, "page_obj": page, "query": query, "lang": lang,
+        "stats": {
+            "customers": Customer.objects.count(),
+            "contacts": CustomerContact.objects.count(),
+            "active_cases": CustomerCase.objects.exclude(stage__in=("won", "lost")).count(),
+            "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(),
+        },
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+def customer_detail(request, customer_id):
+    customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    events = CaseActivity.objects.filter(case__customer=customer).select_related("case", "actor").order_by("-created_at")[:30]
+    return render(request, "management_portal/v2/customer_detail.html", {"customer": customer, "contact_form": CustomerContactForm(lang=lang), "events": events, "lang": lang})
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_contact_create(request, customer_id):
+    customer = get_object_or_404(Customer, pk=customer_id)
+    form = CustomerContactForm(request.POST, lang=getattr(request, "LANGUAGE_CODE", "fa"))
+    if form.is_valid():
+        contact = form.save(commit=False)
+        contact.customer = customer
+        if contact.is_primary:
+            CustomerContact.objects.filter(customer=customer, is_primary=True).update(is_primary=False)
+        contact.save()
+        OperationalAudit.objects.create(actor=request.user, action="customer_contact_created", target_type="customer", target_id=str(customer.pk), summary=contact.name)
+        messages.success(request, "مخاطب به پرونده مشتری اضافه شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Contact added to customer record.")
+    else:
+        messages.error(request, "اطلاعات مخاطب معتبر نیست." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Contact details are invalid.")
+    return redirect("management_portal:customer_detail", customer_id=customer.pk)
 
 
 @staff_member_required(login_url="accounts:login")
@@ -191,9 +238,12 @@ def dashboard(request):
                 item["label"], item["description"] = labels[item["label"]]
         for item in queues:
             item["kind"] = kinds.get(item["kind"], item["kind"])
-    return render(request, "management_portal/v2/dashboard.html", {
+    recent_customers = Customer.objects.prefetch_related("contacts", "cases").order_by("-updated_at")[:8]
+    open_tasks = CaseTask.objects.filter(status="open").select_related("case__customer", "assigned_to").order_by("due_at", "-created_at")[:8]
+    return render(request, "management_portal/v2/operations_dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
         "unread_count": notifications.filter(status="unread").count(),
+        "recent_customers": recent_customers, "open_tasks": open_tasks,
         "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
     })
 
