@@ -1,4 +1,6 @@
 import re
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.core import mail
 from django.test import TestCase
@@ -9,17 +11,21 @@ from leads.models import Lead
 
 
 class PublicUserJourneyTests(TestCase):
-    def test_visitor_can_register_verify_and_reach_private_dashboard(self):
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="journey-ref"))
+    def test_visitor_can_register_verify_and_reach_private_dashboard(self, mocked_send):
         response = self.client.post(reverse("accounts:register") + "?lang=en", {
             "first_name": "Journey", "last_name": "Tester",
             "email": "journey@example.com",
+            "mobile": "09121234567",
             "password1": "A-secure-journey-password-42",
             "password2": "A-secure-journey-password-42",
         })
-        self.assertRedirects(response, reverse("accounts:verification_sent") + "?lang=en")
-        verification_path = re.search(r"http://testserver([^\s]+)", mail.outbox[0].body).group(1)
+        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=en")
+        verification_code = mocked_send.call_args.args[1]
 
-        verified = self.client.get(verification_path, follow=True)
+        verified = self.client.post(
+            reverse("accounts:verify_phone") + "?lang=en", {"code": verification_code}, follow=True
+        )
 
         self.assertEqual(verified.status_code, 200)
         self.assertTemplateUsed(verified, "accounts/dashboard.html")
@@ -41,4 +47,3 @@ class PublicUserJourneyTests(TestCase):
         lead = Lead.objects.get()
         self.assertContains(response, lead.tracking_code)
         self.assertTemplateUsed(response, "leads/thanks.html")
-

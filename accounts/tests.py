@@ -1,6 +1,8 @@
 import re
 from io import StringIO
 from datetime import timedelta
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
@@ -121,31 +123,29 @@ class AccountFlowTests(TestCase):
             "first_name": "Arvin",
             "last_name": "Yazdani",
             "email": "ARVIN@example.com",
+            "mobile": "09120373271",
             "password1": "A-secure-test-password-42",
             "password2": "A-secure-test-password-42",
         }
 
-    def test_registration_creates_inactive_user_and_sends_verification(self):
+    def test_registration_creates_inactive_user_and_sends_sms_verification(self):
         response = self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
-        self.assertRedirects(response, reverse("accounts:verification_sent") + "?lang=en")
+        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=en")
         user = User.objects.get(email="arvin@example.com")
         self.assertFalse(user.is_active)
         self.assertFalse(user.email_verified)
         self.assertEqual(user.username, user.email)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(user.verification_email_count, 1)
-        self.assertIsNotNone(user.verification_sent_at)
-        self.assertIn("?lang=en", mail.outbox[0].body)
+        self.assertEqual(user.mobile, "989120373271")
+        self.assertEqual(user.phone_verifications.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
 
     @override_settings(MANUAL_ACCOUNT_APPROVAL=True)
-    def test_manual_approval_registration_needs_no_email(self):
+    def test_sms_verification_supersedes_manual_account_approval(self):
         response = self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload(), follow=True)
         user = User.objects.get(email="arvin@example.com")
         self.assertFalse(user.is_active)
-        self.assertFalse(user.email_verified)
         self.assertEqual(len(mail.outbox), 0)
-        self.assertContains(response, "administrator will review and activate")
-        self.assertNotContains(response, "Resend")
+        self.assertContains(response, "Enter the code we texted you")
 
     def test_registration_requires_first_and_last_name(self):
         payload = self.registration_payload()
@@ -200,13 +200,15 @@ class AccountFlowTests(TestCase):
         self.assertEqual(user.first_name, "Legacy")
         self.assertEqual(user.last_name, "User Name")
 
-    def test_verification_activates_and_logs_user_in(self):
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
+    def test_phone_verification_activates_and_logs_user_in(self, mocked_send):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
-        verify_url = re.search(r"http://testserver([^\s]+)", mail.outbox[0].body).group(1)
-        response = self.client.get(verify_url)
+        code = mocked_send.call_args.args[1]
+        response = self.client.post(reverse("accounts:verify_phone") + "?lang=en", {"code": code})
         user = User.objects.get(email="arvin@example.com")
         self.assertTrue(user.is_active)
         self.assertTrue(user.email_verified)
+        self.assertIsNotNone(user.mobile_verified_at)
         self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=en")
 
     def test_unverified_user_cannot_log_in(self):
@@ -246,43 +248,35 @@ class AccountFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("_auth_user_id", self.client.session)
 
-    def test_unverified_user_can_request_a_fresh_link_after_cooldown(self):
+    def test_unverified_user_can_request_a_fresh_sms_after_cooldown(self):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
         user = User.objects.get(email="arvin@example.com")
-        user.verification_sent_at = timezone.now() - timedelta(minutes=3)
-        user.save(update_fields=["verification_sent_at"])
-        mail.outbox.clear()
+        challenge = user.phone_verifications.first()
+        challenge.resend_available_at = timezone.now() - timedelta(seconds=1)
+        challenge.save(update_fields=["resend_available_at"])
 
-        response = self.client.post(
-            reverse("accounts:resend_verification") + "?lang=en", {"email": "ARVIN@example.com"}
-        )
+        response = self.client.post(reverse("accounts:verify_phone") + "?lang=en", {"action": "resend"})
 
-        self.assertRedirects(
-            response, reverse("accounts:verification_sent") + "?lang=en&resent=1"
-        )
-        self.assertEqual(len(mail.outbox), 1)
-        user.refresh_from_db()
-        self.assertEqual(user.verification_email_count, 2)
-        self.assertIn("?lang=en", mail.outbox[0].body)
+        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=en")
+        self.assertEqual(user.phone_verifications.count(), 2)
 
-    def test_resend_is_throttled_and_does_not_reveal_account_existence(self):
+    def test_resend_is_disabled_during_two_minute_cooldown(self):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
-        mail.outbox.clear()
-        existing = self.client.post(
-            reverse("accounts:resend_verification") + "?lang=en", {"email": "arvin@example.com"}
-        )
-        unknown = self.client.post(
-            reverse("accounts:resend_verification") + "?lang=en", {"email": "unknown@example.com"}
-        )
+        user = User.objects.get(email="arvin@example.com")
+        response = self.client.post(reverse("accounts:verify_phone") + "?lang=en", {"action": "resend"}, follow=True)
+        self.assertEqual(user.phone_verifications.count(), 1)
+        self.assertContains(response, "Wait until the timer finishes")
 
-        expected = reverse("accounts:verification_sent") + "?lang=en&resent=1"
-        self.assertRedirects(existing, expected)
-        self.assertRedirects(unknown, expected)
-        self.assertEqual(len(mail.outbox), 0)
-        existing_page = self.client.get(existing.url)
-        unknown_page = self.client.get(unknown.url)
-        self.assertContains(existing_page, "If an eligible unverified account exists")
-        self.assertContains(unknown_page, "If an eligible unverified account exists")
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
+    def test_wrong_code_has_five_attempt_limit_and_clear_hint(self, mocked_send):
+        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
+        url = reverse("accounts:verify_phone") + "?lang=en"
+        for remaining in range(4, -1, -1):
+            response = self.client.post(url, {"code": "000000"})
+            self.assertContains(response, f"{remaining} attempts remain")
+        response = self.client.post(url, {"code": mocked_send.call_args.args[1]})
+        self.assertContains(response, "Too many attempts")
+        self.assertFalse(User.objects.get(email="arvin@example.com").is_active)
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("accounts:dashboard"))

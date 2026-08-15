@@ -1,0 +1,21 @@
+{% extends "core/base.html" %}
+{% block title %}{% if lang == 'fa' %}تأیید شماره موبایل | آرویون{% else %}Verify mobile | Rvion{% endif %}{% endblock %}
+{% block content %}
+<section class="account-section otp-section"><div class="shell narrow"><div class="form-card otp-card">
+  <span class="eyebrow">{% if lang == 'fa' %}ثبت‌نام · مرحله ۲ از ۲{% else %}SIGN UP · STEP 2 OF 2{% endif %}</span>
+  <div class="otp-icon" aria-hidden="true">✦</div>
+  <h1>{% if lang == 'fa' %}کد پیامک‌شده را وارد کنید{% else %}Enter the code we texted you{% endif %}</h1>
+  <p>{% if lang == 'fa' %}کد ۶ رقمی به شماره <b dir="ltr">{{ mobile_masked }}</b> فرستاده شد. کد تا ۵ دقیقه معتبر است.{% else %}A 6-digit code was sent to <b dir="ltr">{{ mobile_masked }}</b>. It remains valid for 5 minutes.{% endif %}</p>
+  <form method="post" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="errorlist">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="field otp-field"><label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>{{ form.code }}{{ form.code.errors }}<small>{% if lang == 'fa' %}پیامک را دریافت نکردید؟ پوشه پیام‌های مسدودشده و آنتن موبایل را بررسی کنید.{% else %}No SMS? Check blocked messages and your mobile signal.{% endif %}</small></div>
+    <button class="button otp-submit" type="submit">{% if lang == 'fa' %}تأیید و ورود به حساب{% else %}Verify and enter account{% endif %}</button>
+  </form>
+  <form method="post" class="otp-resend">{% csrf_token %}<input type="hidden" name="action" value="resend">
+    <button class="button secondary" type="submit" data-resend-button {% if resend_seconds %}disabled{% endif %}>{% if lang == 'fa' %}ارسال کد جدید{% else %}Send a new code{% endif %}</button>
+    <p data-resend-wrap {% if not resend_seconds %}hidden{% endif %}>{% if lang == 'fa' %}امکان ارسال دوباره تا{% else %}Resend available in{% endif %} <b data-resend-timer data-seconds="{{ resend_seconds }}" dir="ltr">02:00</b></p>
+  </form>
+  <div class="otp-help"><p>{% if lang == 'fa' %}اگر پیامک نرسید، آنتن موبایل را بررسی کنید و پس از پایان تایمر کد تازه بگیرید.{% else %}If the SMS does not arrive, check your signal and request a fresh code after the timer.{% endif %}</p><form method="post">{% csrf_token %}<input type="hidden" name="action" value="restart"><button class="text-link" type="submit">{% if lang == 'fa' %}شماره اشتباه است؛ اصلاح اطلاعات ثبت‌نام{% else %}Wrong number — correct registration details{% endif %}</button></form></div>
+</div></div></section>
+{% endblock %}
+{% block extra_scripts %}<script>(()=>{const timer=document.querySelector('[data-resend-timer]'),button=document.querySelector('[data-resend-button]'),wrap=document.querySelector('[data-resend-wrap]');if(!timer||!button)return;let left=Number(timer.dataset.seconds)||0;const draw=()=>{timer.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');if(left<=0){button.disabled=false;if(wrap)wrap.hidden=true;return}left-=1;setTimeout(draw,1000)};draw();document.querySelector('.otp-input')?.focus()})();</script>{% endblock %}

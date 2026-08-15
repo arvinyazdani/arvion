@@ -8,18 +8,18 @@ from .models import User
 @admin.register(User)
 class RvionUserAdmin(UserAdmin):
     change_list_template = "admin/accounts/user/change_list.html"
-    list_display = ("email", "full_name", "account_status", "assigned_roles", "is_staff", "date_joined")
-    list_filter = ("email_verified", "is_staff", "is_active", "preferred_language")
-    search_fields = ("email", "first_name", "last_name")
+    list_display = ("email", "mobile", "full_name", "account_status", "assigned_roles", "is_staff", "date_joined")
+    list_filter = ("mobile_verified_at", "email_verified", "is_staff", "is_active", "preferred_language")
+    search_fields = ("email", "mobile", "first_name", "last_name")
     ordering = ("-date_joined",)
     filter_horizontal = ("groups",)
     fieldsets = (
-        ("اطلاعات حساب", {"fields": ("username", "password", "email", "first_name", "last_name", "preferred_language")}),
-        ("وضعیت و ورود", {"fields": ("is_active", "email_verified", "is_staff"), "description": "برای مشتری عادی فقط «فعال» و «ایمیل تأییدشده» کافی است. گزینه کارکنان فقط برای ورود به مدیریت است."}),
+        ("اطلاعات حساب", {"fields": ("username", "password", "email", "mobile", "first_name", "last_name", "preferred_language")}),
+        ("وضعیت و ورود", {"fields": ("is_active", "mobile_verified_at", "email_verified", "is_staff"), "description": "زمان تأیید موبایل فقط پس از ورود کد درست ثبت می‌شود. گزینه کارکنان فقط برای ورود به مدیریت است."}),
         ("نقش‌های آماده", {"fields": ("groups",), "description": "برای کارکنان یک یا چند نقش آماده انتخاب کنید؛ نیازی به تنظیم تک‌تک مجوزها نیست."}),
         ("سوابق", {"fields": ("last_login", "date_joined"), "classes": ("collapse",)}),
     )
-    readonly_fields = ("last_login", "date_joined")
+    readonly_fields = ("last_login", "date_joined", "mobile_verified_at")
     actions = ("approve_accounts", "assign_sales_role", "assign_assessment_role", "assign_support_role", "remove_staff_access")
 
     @admin.display(description="نام")

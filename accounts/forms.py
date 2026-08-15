@@ -1,25 +1,31 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
+from core.sms.backends import normalize_iran_mobile
+
 from .models import User
 
 
 class RegistrationForm(UserCreationForm):
+    mobile = forms.CharField(max_length=20)
+
     class Meta:
         model = User
-        fields = ("first_name", "last_name", "email")
+        fields = ("first_name", "last_name", "email", "mobile")
 
     def __init__(self, *args, lang="fa", **kwargs):
         super().__init__(*args, **kwargs)
         self.lang = lang
         labels = {
-            "fa": {"first_name": "نام", "last_name": "نام خانوادگی", "email": "ایمیل", "password1": "رمز عبور", "password2": "تکرار رمز عبور"},
-            "en": {"first_name": "First name", "last_name": "Last name", "email": "Email", "password1": "Password", "password2": "Confirm password"},
+            "fa": {"first_name": "نام", "last_name": "نام خانوادگی", "email": "ایمیل", "mobile": "شماره موبایل", "password1": "رمز عبور", "password2": "تکرار رمز عبور"},
+            "en": {"first_name": "First name", "last_name": "Last name", "email": "Email", "mobile": "Mobile number", "password1": "Password", "password2": "Confirm password"},
         }[lang]
         for name, label in labels.items():
             self.fields[name].label = label
         self.fields["first_name"].required = True
         self.fields["last_name"].required = True
+        self.fields["mobile"].widget.attrs.update({"inputmode": "tel", "autocomplete": "tel", "dir": "ltr", "placeholder": "09121234567"})
+        self.fields["mobile"].help_text = "شماره‌ای را وارد کنید که اکنون به آن دسترسی دارید." if lang == "fa" else "Use a mobile number you can access now."
 
     def clean_first_name(self):
         return " ".join(self.cleaned_data["first_name"].split())
@@ -39,15 +45,51 @@ class RegistrationForm(UserCreationForm):
             raise forms.ValidationError(message, code="mistyped_email_domain")
         return email
 
+    def clean_mobile(self):
+        try:
+            mobile = normalize_iran_mobile(self.cleaned_data["mobile"])
+        except ValueError:
+            raise forms.ValidationError(
+                "شماره موبایل معتبر نیست؛ مانند 09121234567 وارد کنید."
+                if self.lang == "fa" else "Enter a valid Iranian mobile number, such as 09121234567."
+            )
+        if User.objects.filter(mobile=mobile).exists():
+            raise forms.ValidationError(
+                "این شماره قبلاً ثبت شده است؛ از صفحه ورود استفاده کنید."
+                if self.lang == "fa" else "This number is already registered. Please sign in."
+            )
+        return mobile
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"]
         user.username = user.email
+        user.mobile = self.cleaned_data["mobile"]
         user.preferred_language = self.lang
         user.is_active = False
         if commit:
             user.save()
         return user
+
+
+class PhoneVerificationForm(forms.Form):
+    code = forms.CharField(min_length=6, max_length=6)
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lang = lang
+        self.fields["code"].label = "کد تأیید ۶ رقمی" if lang == "fa" else "6-digit verification code"
+        self.fields["code"].widget.attrs.update({
+            "inputmode": "numeric", "autocomplete": "one-time-code", "pattern": "[0-9۰-۹]{6}",
+            "dir": "ltr", "placeholder": "------", "class": "otp-input",
+        })
+
+    def clean_code(self):
+        import unicodedata
+        value = "".join(str(unicodedata.digit(ch)) for ch in self.cleaned_data["code"] if ch.isdecimal())
+        if len(value) != 6:
+            raise forms.ValidationError("کد باید دقیقاً ۶ رقم باشد." if self.lang == "fa" else "The code must contain exactly 6 digits.")
+        return value
 
 
 class EmailAuthenticationForm(AuthenticationForm):

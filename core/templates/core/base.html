@@ -34,7 +34,7 @@
   <link rel="apple-touch-icon" href="{% static 'core/icons/icon-192.png' %}">
   <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
   <script>try{if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=27">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=28">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=4" defer></script>
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=1" defer></script>{% endif %}

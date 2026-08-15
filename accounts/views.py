@@ -7,6 +7,7 @@ from django.contrib.auth.views import (
 )
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.hashers import check_password
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_str
@@ -21,9 +22,9 @@ from collections import OrderedDict
 
 from core.views.lang import LanguageViewMixin
 
-from .forms import EmailAuthenticationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
-from .models import User
-from .services import send_verification_email
+from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
+from .models import PhoneVerification, User
+from .services import issue_phone_verification, send_verification_email
 from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
 
@@ -40,14 +41,109 @@ class RegisterView(LanguageViewMixin, FormView):
 
     def form_valid(self, form):
         user = form.save()
-        if not settings.MANUAL_ACCOUNT_APPROVAL:
-            send_verification_email(user, self.request, self.lang)
-        self.request.session["verification_email"] = user.email
-        return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}")
+        self.request.session["phone_verification_user_id"] = user.pk
+        try:
+            issue_phone_verification(user)
+        except Exception:
+            messages.error(
+                self.request,
+                "حساب ساخته شد، اما ارسال پیامک انجام نشد. از دکمه ارسال کد جدید استفاده کنید."
+                if self.lang == "fa" else
+                "Your account was created, but the SMS could not be sent. Use resend code to try again.",
+            )
+        return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["manual_approval"] = settings.MANUAL_ACCOUNT_APPROVAL
+        return context
+
+
+@method_decorator(never_cache, name="dispatch")
+class PhoneVerificationView(LanguageViewMixin, FormView):
+    template_name = "accounts/verify_phone.html"
+    form_class = PhoneVerificationForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["lang"] = self.lang
+        return kwargs
+
+    def _user(self):
+        user_id = self.request.session.get("phone_verification_user_id")
+        return User.objects.filter(pk=user_id, is_active=False, mobile_verified_at__isnull=True).first()
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self._user():
+            lang = request.GET.get("lang") or getattr(request, "LANGUAGE_CODE", "fa")
+            messages.info(request, "ابتدا فرم ثبت‌نام را تکمیل کنید." if lang == "fa" else "Complete registration first.")
+            return redirect(f"{reverse('accounts:register')}?lang={lang}")
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get("action") == "restart":
+            user = self._user()
+            user.delete()
+            request.session.pop("phone_verification_user_id", None)
+            messages.info(request, "اطلاعات قبلی پاک شد؛ شماره درست را وارد کنید." if self.lang == "fa" else "Previous details were cleared. Enter the correct number.")
+            return redirect(f"{reverse('accounts:register')}?lang={self.lang}")
+        if request.POST.get("action") == "resend":
+            return self._resend()
+        return super().post(request, *args, **kwargs)
+
+    def _resend(self):
+        user = self._user()
+        latest = user.phone_verifications.first()
+        if latest and latest.resend_available_at > timezone.now():
+            messages.warning(
+                self.request,
+                "تا پایان زمان نمایش‌داده‌شده صبر کنید." if self.lang == "fa" else "Wait until the timer finishes before requesting another code.",
+            )
+        else:
+            try:
+                issue_phone_verification(user)
+                messages.success(self.request, "کد جدید ارسال شد." if self.lang == "fa" else "A new code was sent.")
+            except PermissionError:
+                messages.error(self.request, "درخواست‌ها زیاد بوده است؛ ۱۰ دقیقه بعد دوباره امتحان کنید." if self.lang == "fa" else "Too many requests. Try again in 10 minutes.")
+            except Exception:
+                messages.error(self.request, "ارسال پیامک ممکن نشد. اتصال را بررسی و دوباره تلاش کنید." if self.lang == "fa" else "We could not send the SMS. Check your connection and try again.")
+        return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
+
+    def form_valid(self, form):
+        user = self._user()
+        challenge = user.phone_verifications.first()
+        if not challenge or challenge.expires_at <= timezone.now():
+            form.add_error("code", "کد منقضی شده است؛ کد جدید بگیرید." if self.lang == "fa" else "This code has expired. Request a new one.")
+            return self.form_invalid(form)
+        if not challenge.is_usable:
+            form.add_error("code", "تعداد تلاش‌ها تمام شده است؛ کد جدید بگیرید." if self.lang == "fa" else "Too many attempts. Request a new code.")
+            return self.form_invalid(form)
+        if not check_password(form.cleaned_data["code"], challenge.code_hash):
+            challenge.attempts += 1
+            challenge.save(update_fields=["attempts"])
+            remaining = max(0, settings.OTP_MAX_VERIFY_ATTEMPTS - challenge.attempts)
+            form.add_error("code", (f"کد درست نیست؛ {remaining} تلاش دیگر دارید." if self.lang == "fa" else f"Incorrect code. {remaining} attempts remain."))
+            return self.form_invalid(form)
+        now = timezone.now()
+        challenge.used_at = now
+        challenge.save(update_fields=["used_at"])
+        user.mobile_verified_at = now
+        user.email_verified = True
+        user.is_active = True
+        user.save(update_fields=["mobile_verified_at", "email_verified", "is_active"])
+        login(self.request, user)
+        self.request.session.pop("phone_verification_user_id", None)
+        messages.success(self.request, "شماره شما تأیید شد؛ به حساب آرویون خوش آمدید." if self.lang == "fa" else "Your number is verified. Welcome to Rvion.")
+        return redirect(f"{reverse('accounts:dashboard')}?lang={self.lang}")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self._user()
+        latest = user.phone_verifications.first()
+        remaining = 0
+        if latest:
+            remaining = max(0, int((latest.resend_available_at - timezone.now()).total_seconds()))
+        context.update({"mobile_masked": f"{user.mobile[:4]}••••{user.mobile[-4:]}", "resend_seconds": remaining})
         return context
 
 

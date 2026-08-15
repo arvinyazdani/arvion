@@ -1,12 +1,13 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 
-from .views import AccountLoginView, AccountOrdersView, AccountPasswordResetCompleteView, AccountPasswordResetConfirmView, AccountPasswordResetDoneView, AccountPasswordResetView, AccountReceiptView, AccountResultsView, ProfileIdentityView, RegisterView, ResendVerificationView, dashboard, verification_sent, verify_email
+from .views import AccountLoginView, AccountOrdersView, AccountPasswordResetCompleteView, AccountPasswordResetConfirmView, AccountPasswordResetDoneView, AccountPasswordResetView, AccountReceiptView, AccountResultsView, PhoneVerificationView, ProfileIdentityView, RegisterView, ResendVerificationView, dashboard, verification_sent, verify_email
 
 app_name = "accounts"
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
+    path("verify-phone/", PhoneVerificationView.as_view(), name="verify_phone"),
     path("login/", AccountLoginView.as_view(), name="login"),
     path("password/reset/", AccountPasswordResetView.as_view(), name="password_reset"),
     path("password/reset/sent/", AccountPasswordResetDoneView.as_view(), name="password_reset_done"),

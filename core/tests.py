@@ -172,7 +172,7 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("service_worker"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/javascript")
-        self.assertContains(response, 'const CACHE = "rvion-shell-v1"')
+        self.assertContains(response, 'const CACHE = "rvion-shell-v2"')
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")
