@@ -79,10 +79,19 @@ def dashboard(request):
     # V2 never sends managers back to Django Admin. Modules are replaced phase by phase.
     for item in metrics:
         if item.get("url", "").startswith("/admin/"):
-            item["url"] = ""
+            if item["label"] in {"درخواست همکاری جدید", "نیازسنجی CRM", "نیازسنجی کلینیک"}:
+                item["url"] = reverse("management_portal:request_list")
+            else:
+                item["url"] = ""
     for item in queues:
         if item.get("url", "").startswith("/admin/"):
-            item["url"] = ""
+            kind_map = {"همکاری": "lead", "CRM": "crm", "کلینیک": "clinic"}
+            kind = kind_map.get(item["kind"])
+            if kind:
+                source = item["url"].split("/")[-3]
+                item["url"] = reverse("management_portal:request_detail", args=[kind, source])
+            else:
+                item["url"] = ""
     lang = getattr(request, "LANGUAGE_CODE", "fa")
     if lang == "en":
         labels = {
@@ -108,6 +117,51 @@ def dashboard(request):
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
         "unread_count": notifications.filter(status="unread").count(),
     })
+
+
+def _require_sales_access(user):
+    if not user.is_superuser and not (user.has_perm("leads.view_lead") or user.has_perm("crm_orders.view_crmorder") or user.has_perm("clinic_orders.view_clinicorder")):
+        raise PermissionDenied
+
+
+@staff_member_required(login_url="accounts:login")
+def request_list(request):
+    _require_sales_access(request.user)
+    kind = request.GET.get("kind", "all")
+    query = request.GET.get("q", "").strip()
+    rows = []
+    if kind in {"all", "lead"} and (request.user.is_superuser or request.user.has_perm("leads.view_lead")):
+        qs = Lead.objects.all()
+        if query: qs = qs.filter(name__icontains=query)
+        rows += [{"kind": "lead", "kind_label": "درخواست همکاری", "id": x.pk, "title": x.business_name or x.name, "contact": x.name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
+    if kind in {"all", "crm"} and (request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")):
+        qs = CrmOrder.objects.all()
+        if query: qs = qs.filter(organization_name__icontains=query)
+        rows += [{"kind": "crm", "kind_label": "CRM", "id": x.pk, "title": x.organization_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
+    if kind in {"all", "clinic"} and (request.user.is_superuser or request.user.has_perm("clinic_orders.view_clinicorder")):
+        qs = ClinicOrder.objects.all()
+        if query: qs = qs.filter(clinic_name__icontains=query)
+        rows += [{"kind": "clinic", "kind_label": "کلینیک", "id": x.pk, "title": x.clinic_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
+    rows.sort(key=lambda x: x["created_at"], reverse=True)
+    return render(request, "management_portal/v2/request_list.html", {"rows": rows, "active_kind": kind, "query": query, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+def request_detail(request, kind, object_id):
+    _require_sales_access(request.user)
+    models = {"lead": Lead, "crm": CrmOrder, "clinic": ClinicOrder}
+    model = models.get(kind)
+    if not model: raise Http404
+    permission = {"lead": "leads.view_lead", "crm": "crm_orders.view_crmorder", "clinic": "clinic_orders.view_clinicorder"}[kind]
+    if not request.user.is_superuser and not request.user.has_perm(permission): raise PermissionDenied
+    item = get_object_or_404(model, pk=object_id)
+    if kind == "lead":
+        title, contact, phone, email, code, summary = item.business_name or item.name, item.name, item.phone or "—", item.email_or_telegram, item.tracking_code, item.message
+    elif kind == "crm":
+        title, contact, phone, email, code, summary = item.organization_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
+    else:
+        title, contact, phone, email, code, summary = item.clinic_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
+    return render(request, "management_portal/v2/request_detail.html", {"item": item, "kind": kind, "title": title, "contact": contact, "phone": phone, "email": email, "code": code, "summary": summary, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 def _visible_notifications(user):

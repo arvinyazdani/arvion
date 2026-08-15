@@ -1,7 +1,7 @@
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
-from django.utils import translation
+from django.utils import timezone, translation
 
 from accounts.models import User
 from accounts.staff_roles import group_name
@@ -34,6 +34,24 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "نیازسنجی CRM")
         self.assertNotContains(response, "پرداخت منتظر بررسی")
         self.assertNotContains(response, "حساب نیازمند تأیید")
+
+    def test_sales_staff_can_manage_requests_without_django_admin_links(self):
+        user = User.objects.create_user(username="sales-v2", email="sales-v2@example.com", password="safe-password", is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename="view_crmorder"))
+        order = CrmOrder.objects.create(
+            organization_name="سازمان آزمایشی", industry="فناوری", organization_size="under_10", contact_name="مینا",
+            job_title="مدیر", work_email="mina@example.com", phone="09120000000", crm_user_count="1_5",
+            current_process="فرآیند فعلی سازمان آزمایشی", main_pain_points="نبود پیگیری یکپارچه", success_metrics="پاسخ سریع",
+            critical_workflows="پیگیری فروش مرحله به مرحله", reports_needed="", permission_requirements="", hosting_preference="cloud",
+            budget_range="estimate", expected_timeline="unsure", decision_process="تصمیم مدیرعامل پس از بررسی", privacy_accepted_at=timezone.now(),
+        )
+        self.client.force_login(user)
+        listing = self.client.get(reverse("management_portal:request_list"))
+        self.assertContains(listing, "سازمان آزمایشی")
+        self.assertNotContains(listing, 'href="/admin/')
+        detail = self.client.get(reverse("management_portal:request_detail", args=["crm", order.pk]))
+        self.assertContains(detail, "نبود پیگیری یکپارچه")
+        self.assertContains(detail, "فرم تخصصی مشتری")
 
     def test_superuser_sees_dashboard_shell(self):
         user = User.objects.create_superuser(username="root", email="root@example.com", password="safe-password")
