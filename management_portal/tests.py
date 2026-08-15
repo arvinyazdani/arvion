@@ -270,6 +270,19 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(PushSubscription.objects.filter(user=root, is_active=True).exists())
 
+    def test_opening_push_marks_only_that_notification_seen(self):
+        root = User.objects.create_superuser(username="open-root", email="open-root@example.com", password="safe-password")
+        first = ManagementNotification.objects.create(category="sales", title="اول", target_url=reverse("management_portal:request_list"), role="", source_key="open:first")
+        second = ManagementNotification.objects.create(category="sales", title="دوم", target_url=reverse("management_portal:request_list"), role="", source_key="open:second")
+        first_receipt = NotificationReceipt.objects.create(user=root, notification=first)
+        second_receipt = NotificationReceipt.objects.create(user=root, notification=second)
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:notification_open", args=[first.pk]))
+        self.assertRedirects(response, reverse("management_portal:request_list"))
+        first_receipt.refresh_from_db(); second_receipt.refresh_from_db()
+        self.assertIsNotNone(first_receipt.seen_at)
+        self.assertIsNone(second_receipt.seen_at)
+
     def test_sms_page_is_restricted_to_superuser(self):
         staff = User.objects.create_user(username="sms-staff", email="sms-staff@example.com", password="safe-password", is_staff=True)
         self.client.force_login(staff)

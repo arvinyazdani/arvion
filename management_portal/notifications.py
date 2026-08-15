@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
+from django.urls import reverse
 
 from accounts.models import User
 from core.sms import send_sms
@@ -66,7 +67,7 @@ def process_notifications(now=None):
     fresh = NotificationReceipt.objects.select_related("notification", "user").filter(push_sent_at__isnull=True, notification__status="unread")
     for receipt in fresh:
         item = receipt.notification
-        receipt.last_error = _send_user_push(receipt.user, {"title": item.title, "body": item.description, "url": item.target_url, "tag": f"rvion-{item.pk}", "urgent": item.category in URGENT_SMS_CATEGORIES})
+        receipt.last_error = _send_user_push(receipt.user, {"title": item.title, "body": item.description, "url": reverse("management_portal:notification_open", args=[item.pk]), "tag": f"rvion-{item.pk}", "urgent": item.category in URGENT_SMS_CATEGORIES})
         receipt.push_sent_at = now
         receipt.save(update_fields=["push_sent_at", "last_error"])
         push_count += 1

@@ -435,6 +435,13 @@ def notification_status(request, notification_id, status):
     return redirect(request.POST.get("next") or "management_portal:notification_list")
 
 
+@staff_member_required(login_url="accounts:login")
+def notification_open(request, notification_id):
+    notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
+    NotificationReceipt.objects.filter(user=request.user, notification=notification, seen_at__isnull=True).update(seen_at=timezone.now())
+    return redirect(notification.target_url or "management_portal:notification_list")
+
+
 def _require_superuser(request):
     if not request.user.is_authenticated or not request.user.is_staff:
         return False
