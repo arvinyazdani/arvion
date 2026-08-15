@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path
 
-from .models import CrmOrder
+from .models import CrmOrder, CrmSpecialistDiscovery
 from .text_export import render_crm_order_text
 
 
@@ -49,3 +49,11 @@ class CrmOrderAdmin(admin.ModelAdmin):
         response = HttpResponse("\ufeff" + render_crm_order_text(order), content_type="text/plain; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="crm-{order.tracking_code}.txt"'
         return response
+
+
+@admin.register(CrmSpecialistDiscovery)
+class CrmSpecialistDiscoveryAdmin(admin.ModelAdmin):
+    list_display = ("order", "status", "updated_at")
+    list_filter = ("status",)
+    search_fields = ("order__tracking_code", "order__organization_name")
+    readonly_fields = ("order", "token", "updated_at", "created_at")

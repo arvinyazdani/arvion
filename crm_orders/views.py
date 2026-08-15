@@ -9,7 +9,10 @@ from django.views.generic import DetailView, FormView
 from accounts.security import client_address, normalized_fingerprint
 from core.views.lang import LanguageViewMixin
 from .forms import CrmOrderForm
-from .models import CrmOrder
+from .models import CrmOrder, CrmSpecialistDiscovery
+from .specialist import SECTIONS
+from .specialist_forms import SpecialistDiscoveryForm
+from django.shortcuts import get_object_or_404, render
 
 
 class CrmOrderCreateView(LanguageViewMixin, FormView):
@@ -57,3 +60,31 @@ class CrmOrderThanksView(LanguageViewMixin, DetailView):
     context_object_name = "crm_order"
     slug_field = "tracking_code"
     slug_url_kwarg = "code"
+
+
+def specialist_discovery(request, code, section=None):
+    order = get_object_or_404(CrmOrder, tracking_code=code)
+    discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
+    keys = [item[0] for item in SECTIONS]
+    section = section or keys[0]
+    if section not in keys:
+        return redirect("crm_orders:specialist", code=code)
+    index = keys.index(section)
+    form = SpecialistDiscoveryForm(request.POST or None, section_key=section, initial=discovery.answers.get(section, {}))
+    if request.method == "POST" and form.is_valid():
+        answers = dict(discovery.answers)
+        answers[section] = form.cleaned_data
+        discovery.answers = answers
+        if index == len(keys) - 1:
+            discovery.status = "submitted"
+            discovery.save(update_fields=["answers", "status", "updated_at"])
+            return redirect("crm_orders:specialist_done", code=code)
+        discovery.save(update_fields=["answers", "updated_at"])
+        return redirect("crm_orders:specialist_section", code=code, section=keys[index + 1])
+    return render(request, "crm_orders/specialist_wizard.html", {"order": order, "discovery": discovery, "form": form, "section": next(item for item in SECTIONS if item[0] == section), "sections": SECTIONS, "index": index, "total": len(keys)})
+
+
+def specialist_done(request, code):
+    order = get_object_or_404(CrmOrder, tracking_code=code)
+    discovery = get_object_or_404(CrmSpecialistDiscovery, order=order)
+    return render(request, "crm_orders/specialist_done.html", {"order": order, "discovery": discovery})

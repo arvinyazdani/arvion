@@ -1,5 +1,10 @@
 from django.db import models
 from django.utils.crypto import get_random_string
+import secrets
+
+
+def specialist_token():
+    return secrets.token_urlsafe(32)
 
 
 def crm_tracking_code():
@@ -77,3 +82,20 @@ class CrmOrder(models.Model):
 
     def __str__(self):
         return f"{self.tracking_code} — {self.organization_name}"
+
+
+class CrmSpecialistDiscovery(models.Model):
+    STATUS = [("draft", "پیش‌نویس"), ("submitted", "تکمیل‌شده"), ("reviewed", "بررسی‌شده")]
+    order = models.OneToOneField(CrmOrder, on_delete=models.CASCADE, related_name="specialist_discovery")
+    token = models.CharField(max_length=64, unique=True, default=specialist_token, editable=False)
+    answers = models.JSONField(default=dict)
+    status = models.CharField(max_length=12, choices=STATUS, default="draft")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "نیازسنجی تخصصی CRM"
+        verbose_name_plural = "نیازسنجی‌های تخصصی CRM"
+
+    def __str__(self):
+        return f"{self.order.tracking_code} · نیازسنجی تخصصی"
