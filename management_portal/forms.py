@@ -5,9 +5,7 @@ from accounts.models import User
 from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
 from core.sms.backends import normalize_iran_mobile
 
-
 ROLE_CHOICES = [(key, value["label_fa"]) for key, value in STAFF_ROLES.items()]
-
 
 class StaffCreateForm(forms.Form):
     first_name = forms.CharField(label="نام", max_length=150)
@@ -16,10 +14,21 @@ class StaffCreateForm(forms.Form):
     password = forms.CharField(label="رمز عبور موقت", widget=forms.PasswordInput, validators=[validate_password])
     roles = forms.MultipleChoiceField(label="مسئولیت‌ها", choices=ROLE_CHOICES, widget=forms.CheckboxSelectMultiple)
 
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lang = lang
+        labels = {
+            "first_name": ("نام", "First name"), "last_name": ("نام خانوادگی", "Last name"),
+            "email": ("ایمیل کاری", "Work email"), "password": ("رمز عبور موقت", "Temporary password"),
+            "roles": ("مسئولیت‌ها", "Responsibilities"),
+        }
+        for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
+        self.fields["roles"].choices = [(key, value[f"label_{lang}"]) for key, value in STAFF_ROLES.items()]
+
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("حسابی با این ایمیل وجود دارد.")
+            raise forms.ValidationError("حسابی با این ایمیل وجود دارد." if self.lang == "fa" else "An account with this email already exists.")
         return email
 
     def save(self):
@@ -37,12 +46,15 @@ class StaffRolesForm(forms.Form):
     roles = forms.MultipleChoiceField(label="مسئولیت‌ها", choices=ROLE_CHOICES, widget=forms.CheckboxSelectMultiple, required=False)
     is_staff = forms.BooleanField(label="دسترسی به مرکز مدیریت فعال باشد", required=False)
 
-    def __init__(self, *args, user, **kwargs):
+    def __init__(self, *args, user, lang="fa", **kwargs):
         self.staff_user = user
         initial = kwargs.setdefault("initial", {})
         initial["roles"] = [key for key in STAFF_ROLES if user.groups.filter(name=group_name(key)).exists()]
         initial["is_staff"] = user.is_staff
         super().__init__(*args, **kwargs)
+        self.fields["roles"].label = "مسئولیت‌ها" if lang == "fa" else "Responsibilities"
+        self.fields["is_staff"].label = "دسترسی به مرکز مدیریت فعال باشد" if lang == "fa" else "Allow access to the management center"
+        self.fields["roles"].choices = [(key, value[f"label_{lang}"]) for key, value in STAFF_ROLES.items()]
 
     def save(self):
         groups = sync_staff_role_groups()
@@ -67,6 +79,18 @@ class ManualSMSForm(forms.Form):
         help_text="هزینه نهایی بر اساس طول پیام و تعرفه پنل محاسبه می‌شود.",
     )
     confirm = forms.BooleanField(label="شماره‌ها و متن را بررسی کرده‌ام و ارسال واقعی انجام شود")
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lang = lang
+        if lang == "en":
+            self.fields["recipients"].label = "Recipients"
+            self.fields["recipients"].help_text = "Up to 20 Iranian mobile numbers; 09, +98 and 0098 formats are accepted."
+            self.fields["recipients"].widget.attrs["placeholder"] = "One number per line or comma-separated\n0912...\n+989..."
+            self.fields["message"].label = "Message"
+            self.fields["message"].help_text = "Final cost depends on message length and provider pricing."
+            self.fields["message"].widget.attrs["placeholder"] = "Write the message..."
+            self.fields["confirm"].label = "I reviewed the numbers and message and confirm real delivery"
 
     def clean_recipients(self):
         raw = self.cleaned_data["recipients"]

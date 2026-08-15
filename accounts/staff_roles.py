@@ -3,6 +3,7 @@
 STAFF_ROLES = {
     "sales": {
         "label_fa": "فروش و درخواست‌ها",
+        "label_en": "Sales & requests",
         "permissions": {
             "leads.lead": {"view", "change"},
             "crm_orders.crmorder": {"view", "change"},
@@ -12,6 +13,7 @@ STAFF_ROLES = {
     },
     "assessments": {
         "label_fa": "عملیات و محتوای آزمون",
+        "label_en": "Assessment operations & content",
         "permissions": {
             "assessments.exam": {"view", "add", "change"},
             "assessments.examversion": {"view", "add", "change"},
@@ -32,6 +34,7 @@ STAFF_ROLES = {
     },
     "support": {
         "label_fa": "پشتیبانی مشتریان",
+        "label_en": "Customer support",
         "permissions": {
             "assessments.supportticket": {"view", "change"},
             "assessments.order": {"view"},
@@ -41,6 +44,7 @@ STAFF_ROLES = {
     },
     "content": {
         "label_fa": "محتوا و وب‌سایت",
+        "label_en": "Content & website",
         "permissions": {
             "blog.post": {"view", "add", "change"},
             "projects.project": {"view", "add", "change"},
@@ -50,6 +54,7 @@ STAFF_ROLES = {
     },
     "analytics": {
         "label_fa": "گزارش بازدید",
+        "label_en": "Traffic analytics",
         "permissions": {
             "traffic.trafficday": {"view"},
             "traffic.activevisitor": {"view"},

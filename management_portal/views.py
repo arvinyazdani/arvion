@@ -129,6 +129,7 @@ def dashboard(request):
     return render(request, "management_portal/v2/dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
         "unread_count": notifications.filter(status="unread").count(),
+        "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
     })
 
 
@@ -184,9 +185,10 @@ def request_detail(request, kind, object_id):
     if lang == "en" and kind in {"crm", "clinic"}:
         status_en = {"new": "New", "discovery": "Discovery", "qualified": "Qualified", "proposal": "Proposal sent", "won": "Won", "lost": "Closed"}
         status_choices = [(value, status_en[value]) for value, _ in status_choices]
+    status_display = dict(status_choices).get(item.status, item.status)
     return render(request, "management_portal/v2/request_detail.html", {
         "item": item, "kind": kind, "title": title, "contact": contact, "phone": phone,
-        "email": email, "code": code, "summary": summary, "lang": lang, "status_choices": status_choices,
+        "email": email, "code": code, "summary": summary, "lang": lang, "status_choices": status_choices, "status_display": status_display,
         "can_change": request.user.is_superuser or request.user.has_perm({"lead": "leads.change_lead", "crm": "crm_orders.change_crmorder", "clinic": "clinic_orders.change_clinicorder"}[kind]),
     })
 
@@ -456,24 +458,26 @@ def staff_list(request):
     role_names = [group_name(key) for key in STAFF_ROLES]
     staff = User.objects.filter(is_staff=True).prefetch_related("groups").order_by("-is_superuser", "first_name", "email")
     rows = []
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
     for member in staff:
         rows.append({
             "user": member,
-            "roles": [config["label_fa"] for key, config in STAFF_ROLES.items() if member.groups.filter(name=group_name(key)).exists()],
+            "roles": [config[f"label_{lang}"] for key, config in STAFF_ROLES.items() if member.groups.filter(name=group_name(key)).exists()],
         })
-    return render(request, "management_portal/staff_list.html", {"staff_rows": rows, "role_names": role_names, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "management_portal/staff_list.html", {"staff_rows": rows, "role_names": role_names, "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")
 def staff_create(request):
     _require_superuser(request)
-    form = StaffCreateForm(request.POST or None)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    form = StaffCreateForm(request.POST or None, lang=lang)
     if request.method == "POST" and form.is_valid():
         member = form.save()
         StaffAccessAudit.objects.create(actor=request.user, target=member, action="created", roles=form.cleaned_data["roles"], staff_enabled=True)
-        messages.success(request, f"حساب مدیریتی {member.email} ساخته شد.")
+        messages.success(request, f"حساب مدیریتی {member.email} ساخته شد." if lang == "fa" else f"Management account {member.email} was created.")
         return redirect("management_portal:staff_list")
-    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ساخت همکار جدید", "is_create": True, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ساخت همکار جدید" if lang == "fa" else "Create team member", "is_create": True, "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -482,19 +486,21 @@ def staff_edit(request, user_id):
     member = get_object_or_404(User, pk=user_id, is_staff=True)
     if member.is_superuser:
         raise PermissionDenied
-    form = StaffRolesForm(request.POST or None, user=member)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    form = StaffRolesForm(request.POST or None, user=member, lang=lang)
     if request.method == "POST" and form.is_valid():
         form.save()
         StaffAccessAudit.objects.create(actor=request.user, target=member, action="roles_updated", roles=form.cleaned_data["roles"], staff_enabled=form.cleaned_data["is_staff"])
-        messages.success(request, f"مسئولیت‌های {member.email} بروزرسانی شد.")
+        messages.success(request, f"مسئولیت‌های {member.email} بروزرسانی شد." if lang == "fa" else f"Responsibilities for {member.email} were updated.")
         return redirect("management_portal:staff_list")
-    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها", "member": member, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها" if lang == "fa" else "Edit responsibilities", "member": member, "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")
 def sms_send(request):
     _require_superuser(request)
-    form = ManualSMSForm(request.POST or None)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    form = ManualSMSForm(request.POST or None, lang=lang)
     if request.method == "POST" and form.is_valid():
         sent = failed = 0
         for recipient in form.cleaned_data["recipients"]:
@@ -513,9 +519,9 @@ def sms_send(request):
                     provider=result.provider, provider_reference=result.reference, sent_by=request.user,
                 )
         if sent:
-            messages.success(request, f"{sent} پیامک برای ارسال پذیرفته شد.")
+            messages.success(request, f"{sent} پیامک برای ارسال پذیرفته شد." if lang == "fa" else f"{sent} SMS messages were accepted for delivery.")
         if failed:
-            messages.error(request, f"ارسال برای {failed} شماره ناموفق بود؛ جزئیات در سابقه ثبت شد.")
+            messages.error(request, f"ارسال برای {failed} شماره ناموفق بود؛ جزئیات در سابقه ثبت شد." if lang == "fa" else f"Delivery failed for {failed} numbers; details were recorded in history.")
         return redirect("management_portal:sms_send")
     return render(request, "management_portal/sms_send.html", {
         "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50], "lang": getattr(request, "LANGUAGE_CODE", "fa"),
