@@ -8,6 +8,7 @@ from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
 from management_portal.models import ManagementNotification, OperationalAudit, SMSDispatch, StaffAccessAudit
+from services.models import Service
 from core.sms.backends import SMSResult
 from unittest.mock import patch
 
@@ -132,6 +133,20 @@ class ManagementDashboardTests(TestCase):
         ticket.refresh_from_db()
         self.assertEqual(ticket.status, "in_review")
         self.assertTrue(OperationalAudit.objects.filter(action="ticket_status", target_id=str(ticket.pk)).exists())
+
+    def test_content_staff_can_toggle_service_without_customer_access(self):
+        staff = User.objects.create_user(username="content", email="content@example.com", password="safe-password", is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename="view_service"), Permission.objects.get(codename="change_service"))
+        service = Service.objects.create(title_fa="خدمت آزمایشی", title_en="Test service", slug="content-test-service", short_description_fa="خلاصه", short_description_en="Summary", is_active=False)
+        self.client.force_login(staff)
+        page = self.client.get(reverse("management_portal:content_center"))
+        self.assertContains(page, "خدمت آزمایشی")
+        self.assertNotContains(page, "waiting@example.com")
+        response = self.client.post(reverse("management_portal:content_toggle", args=["service", service.pk]), {"enabled": "1"})
+        self.assertRedirects(response, reverse("management_portal:content_center"))
+        service.refresh_from_db()
+        self.assertTrue(service.is_active)
+        self.assertTrue(OperationalAudit.objects.filter(action="content_state", target_type="service", target_id=str(service.pk)).exists())
 
     def test_superuser_sees_dashboard_shell(self):
         user = User.objects.create_superuser(username="root", email="root@example.com", password="safe-password")

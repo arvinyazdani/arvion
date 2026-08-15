@@ -19,6 +19,10 @@ from crm_orders.models import CrmOrder
 from leads.models import Lead
 from traffic.models import ActiveVisitor, TrafficDay
 from contracts.models import ContractProposal
+from blog.models import Post
+from core.models import Page
+from projects.models import Project
+from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
@@ -316,6 +320,44 @@ def ticket_status(request, ticket_id):
     return redirect("management_portal:assessment_support")
 
 
+@staff_member_required(login_url="accounts:login")
+def content_center(request):
+    if not request.user.is_superuser and not (request.user.has_perm("blog.view_post") or request.user.has_perm("projects.view_project") or request.user.has_perm("services.view_service") or request.user.has_perm("core.view_page")):
+        raise PermissionDenied
+    return render(request, "management_portal/v2/content_center.html", {
+        "posts": Post.objects.all()[:50] if request.user.is_superuser or request.user.has_perm("blog.view_post") else [],
+        "projects": Project.objects.all()[:50] if request.user.is_superuser or request.user.has_perm("projects.view_project") else [],
+        "services": Service.objects.all()[:50] if request.user.is_superuser or request.user.has_perm("services.view_service") else [],
+        "pages": Page.objects.all()[:50] if request.user.is_superuser or request.user.has_perm("core.view_page") else [],
+        "lang": getattr(request, "LANGUAGE_CODE", "fa"),
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def content_toggle(request, kind, object_id):
+    config = {
+        "post": (Post, "blog.change_post", "is_published"), "project": (Project, "projects.change_project", "is_active"),
+        "service": (Service, "services.change_service", "is_active"),
+    }
+    if kind not in config:
+        raise Http404
+    model, permission, field = config[kind]
+    if not request.user.is_superuser and not request.user.has_perm(permission):
+        raise PermissionDenied
+    item = get_object_or_404(model, pk=object_id)
+    enabled = request.POST.get("enabled") == "1"
+    setattr(item, field, enabled)
+    update_fields = [field]
+    if kind == "post":
+        item.published_at = timezone.now() if enabled else None
+        update_fields.append("published_at")
+    item.save(update_fields=update_fields)
+    OperationalAudit.objects.create(actor=request.user, action="content_state", target_type=kind, target_id=str(item.pk), summary=f"{kind} #{item.pk}: {enabled}")
+    messages.success(request, "وضعیت انتشار ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Publishing state saved.")
+    return redirect("management_portal:content_center")
+
+
 def _visible_notifications(user):
     queryset = ManagementNotification.objects.all()
     if user.is_superuser:
@@ -439,5 +481,5 @@ def sms_send(request):
             messages.error(request, f"ارسال برای {failed} شماره ناموفق بود؛ جزئیات در سابقه ثبت شد.")
         return redirect("management_portal:sms_send")
     return render(request, "management_portal/sms_send.html", {
-        "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50],
+        "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50], "lang": getattr(request, "LANGUAGE_CODE", "fa"),
     })
