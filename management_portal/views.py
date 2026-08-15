@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -101,6 +101,16 @@ def notification_list(request):
         "notifications": queryset[:100], "statuses": ManagementNotification.STATUSES,
         "categories": ManagementNotification.CATEGORIES, "active_status": status, "active_category": category,
     })
+
+
+@staff_member_required(login_url="accounts:login")
+def notification_feed(request):
+    since = request.GET.get("since")
+    queryset = _visible_notifications(request.user).filter(status="unread")
+    if since and since.isdigit():
+        queryset = queryset.filter(pk__gt=int(since))
+    items = list(queryset.order_by("pk")[:25])
+    return JsonResponse({"notifications": [{"id": item.pk, "title": item.title, "description": item.description, "url": item.target_url} for item in items]})
 
 
 @staff_member_required(login_url="accounts:login")
