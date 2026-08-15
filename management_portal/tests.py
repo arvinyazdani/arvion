@@ -180,8 +180,9 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(fa, "خانه مدیریت")
         self.assertNotContains(fa, 'href="/admin/')
         en = self.client.get("/en/management/")
-        self.assertContains(en, "Today’s priorities")
-        self.assertContains(en, "Team &amp; Access", html=True)
+        self.assertContains(en, "Today’s work and business status")
+        self.assertContains(en, "Team &amp; access", html=True)
+        self.assertContains(en, "Business management")
         self.assertNotContains(en, 'href="/admin/')
 
     def test_legacy_management_redirects_to_persian_workspace(self):

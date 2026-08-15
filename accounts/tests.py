@@ -342,6 +342,7 @@ class AccountFlowTests(TestCase):
         self.assertContains(response, 'class="account-language-switch"', html=False)
         self.assertContains(response, 'class="account-email" dir="ltr"', html=False)
         self.assertContains(response, 'class="dashboard-account-links"', html=False)
+        self.assertContains(response, 'class="account-compass"', html=False)
 
     def create_result(self, user, exam, version, number):
         order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")
