@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from accounts.models import User
 from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
 from core.sms.backends import normalize_iran_mobile
+from .models import CaseActivity, CaseTask, CustomerCase
 
 ROLE_CHOICES = [(key, value["label_fa"]) for key, value in STAFF_ROLES.items()]
 
@@ -117,3 +118,53 @@ class ManualSMSForm(forms.Form):
         if not message:
             raise forms.ValidationError("متن پیامک نمی‌تواند خالی باشد.")
         return message
+
+
+class CustomerCaseForm(forms.ModelForm):
+    tags = forms.CharField(required=False)
+    class Meta:
+        model = CustomerCase
+        fields = ("stage", "priority", "owner", "next_follow_up_at", "tags", "summary")
+        widgets = {"next_follow_up_at": forms.DateTimeInput(attrs={"type": "datetime-local"}), "summary": forms.Textarea(attrs={"rows": 5}), "tags": forms.TextInput(attrs={"placeholder": "فروش، مهم، قرارداد"})}
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs); self.lang = lang
+        if self.instance and self.instance.pk: self.initial["tags"] = "، ".join(self.instance.tags)
+        self.fields["owner"].queryset = User.objects.filter(is_staff=True, is_active=True).order_by("first_name", "email")
+        labels = {"stage": ("مرحله پرونده", "Case stage"), "priority": ("اولویت", "Priority"), "owner": ("مسئول پرونده", "Case owner"), "next_follow_up_at": ("پیگیری بعدی", "Next follow-up"), "tags": ("برچسب‌ها", "Tags"), "summary": ("خلاصه مدیریتی", "Management summary")}
+        for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
+        if lang == "en":
+            self.fields["stage"].choices = (("new", "New"), ("discovery", "Discovery"), ("qualified", "Qualified"), ("proposal", "Proposal / contract"), ("won", "Won"), ("lost", "Closed"))
+            self.fields["priority"].choices = (("low", "Low"), ("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"))
+
+    def clean_tags(self):
+        value = self.cleaned_data["tags"]
+        if isinstance(value, list): return value
+        return [item.strip() for item in str(value).replace("،", ",").split(",") if item.strip()][:20]
+
+
+class CaseTaskForm(forms.ModelForm):
+    class Meta:
+        model = CaseTask
+        fields = ("title", "description", "priority", "assigned_to", "due_at")
+        widgets = {"description": forms.Textarea(attrs={"rows": 3}), "due_at": forms.DateTimeInput(attrs={"type": "datetime-local"})}
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assigned_to"].queryset = User.objects.filter(is_staff=True, is_active=True)
+        labels = {"title": ("عنوان وظیفه", "Task title"), "description": ("توضیحات", "Description"), "priority": ("اولویت", "Priority"), "assigned_to": ("مسئول", "Assignee"), "due_at": ("مهلت", "Due date")}
+        for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
+        if lang == "en": self.fields["priority"].choices = (("low", "Low"), ("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"))
+
+
+class CaseActivityForm(forms.ModelForm):
+    class Meta:
+        model = CaseActivity
+        fields = ("kind", "title", "body")
+        widgets = {"body": forms.Textarea(attrs={"rows": 4})}
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        labels = {"kind": ("نوع فعالیت", "Activity type"), "title": ("عنوان", "Title"), "body": ("شرح", "Details")}
+        for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
+        if lang == "en": self.fields["kind"].choices = (("note", "Note"), ("call", "Call"), ("message", "Message"), ("meeting", "Meeting"))

@@ -7,7 +7,8 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
 from django.db import transaction
-from django.http import Http404, JsonResponse
+from django.db.models import Q
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -27,9 +28,69 @@ from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
-from .forms import ManualSMSForm, StaffCreateForm, StaffRolesForm
+from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
 from assessments.services import PaymentVerificationError, verify_gateway_payment
-from .models import ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from .models import CaseActivity, CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+
+
+@staff_member_required(login_url="accounts:login")
+def crm_workspace(request):
+    _require_sales_access(request.user)
+    lang = getattr(request, "LANGUAGE_CODE", "fa"); query = request.GET.get("q", "").strip(); stage = request.GET.get("stage", ""); owner = request.GET.get("owner", "")
+    cases = CustomerCase.objects.select_related("owner", "source_content_type").prefetch_related("tasks", "documents")
+    if query: cases = cases.filter(Q(customer_name__icontains=query) | Q(contact_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query) | Q(code__icontains=query))
+    if stage in dict(CustomerCase.STAGES): cases = cases.filter(stage=stage)
+    if owner.isdigit(): cases = cases.filter(owner_id=owner)
+    now = timezone.now()
+    return render(request, "management_portal/v2/crm_workspace.html", {"cases": cases[:200], "query": query, "active_stage": stage, "active_owner": owner, "stages": CustomerCase.STAGES, "owners": User.objects.filter(is_staff=True, is_active=True), "lang": lang, "stats": {"all": CustomerCase.objects.count(), "urgent": CustomerCase.objects.filter(priority="urgent").count(), "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(), "today": CustomerCase.objects.filter(next_follow_up_at__date=timezone.localdate()).count()}})
+
+
+@staff_member_required(login_url="accounts:login")
+def crm_case_detail(request, case_id):
+    _require_sales_access(request.user); case = get_object_or_404(CustomerCase.objects.select_related("owner", "source_content_type"), pk=case_id); lang = getattr(request, "LANGUAGE_CODE", "fa")
+    return render(request, "management_portal/v2/crm_case_detail.html", {"case": case, "case_form": CustomerCaseForm(instance=case, lang=lang), "task_form": CaseTaskForm(lang=lang), "activity_form": CaseActivityForm(lang=lang), "lang": lang})
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def crm_case_update(request, case_id):
+    _require_case_change(request.user); case = get_object_or_404(CustomerCase, pk=case_id); old_stage = case.stage; form = CustomerCaseForm(request.POST, instance=case, lang=getattr(request, "LANGUAGE_CODE", "fa"))
+    if form.is_valid():
+        case = form.save(); CaseActivity.objects.create(case=case, actor=request.user, kind="status", title="پرونده بروزرسانی شد", body=f"{old_stage} → {case.stage}"); OperationalAudit.objects.create(actor=request.user, action="crm_case_updated", target_type="customer_case", target_id=str(case.pk), summary=case.customer_name, metadata={"stage": case.stage, "priority": case.priority})
+        messages.success(request, "پرونده ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Case saved.")
+    else: messages.error(request, "اطلاعات پرونده معتبر نیست." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Case data is invalid.")
+    return redirect("management_portal:crm_case_detail", case_id=case.pk)
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def crm_task_create(request, case_id):
+    _require_case_change(request.user); case = get_object_or_404(CustomerCase, pk=case_id); form = CaseTaskForm(request.POST, lang=getattr(request, "LANGUAGE_CODE", "fa"))
+    if form.is_valid():
+        task = form.save(commit=False); task.case, task.created_by = case, request.user; task.save(); CaseActivity.objects.create(case=case, actor=request.user, kind="task", title="وظیفه ساخته شد", body=task.title)
+    return redirect("management_portal:crm_case_detail", case_id=case.pk)
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def crm_task_toggle(request, task_id):
+    _require_case_change(request.user); task = get_object_or_404(CaseTask, pk=task_id); task.status = "open" if task.status == "done" else "done"; task.completed_at = None if task.status == "open" else timezone.now(); task.save(update_fields=("status", "completed_at")); CaseActivity.objects.create(case=task.case, actor=request.user, kind="task", title="وضعیت وظیفه تغییر کرد", body=task.title); return redirect("management_portal:crm_case_detail", case_id=task.case_id)
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def crm_activity_create(request, case_id):
+    _require_case_change(request.user); case = get_object_or_404(CustomerCase, pk=case_id); form = CaseActivityForm(request.POST, lang=getattr(request, "LANGUAGE_CODE", "fa"))
+    if form.is_valid(): activity = form.save(commit=False); activity.case, activity.actor = case, request.user; activity.save(); case.last_contact_at = timezone.now(); case.save(update_fields=("last_contact_at", "updated_at"))
+    return redirect("management_portal:crm_case_detail", case_id=case.pk)
+
+
+@staff_member_required(login_url="accounts:login")
+def crm_case_export(request, case_id):
+    _require_sales_access(request.user); case = get_object_or_404(CustomerCase, pk=case_id); lines = [f"پرونده {case.code}", f"مشتری: {case.customer_name}", f"مخاطب: {case.contact_name}", f"تلفن: {case.phone}", f"ایمیل: {case.email}", f"مرحله: {case.get_stage_display()}", f"اولویت: {case.get_priority_display()}", "", "اسناد:"]
+    lines += [f"- {doc.get_kind_display()}: {doc.title} ({doc.created_at:%Y-%m-%d %H:%M})" for doc in case.documents.all()]; lines += ["", "تاریخچه:"]; lines += [f"- {item.created_at:%Y-%m-%d %H:%M} | {item.get_kind_display()} | {item.title} | {item.body}" for item in case.activities.all()]
+    OperationalAudit.objects.create(actor=request.user, action="crm_case_exported", target_type="customer_case", target_id=str(case.pk), summary=case.customer_name)
+    response = HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8"); response["Content-Disposition"] = f'attachment; filename="{case.code}.txt"'; return response
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -135,6 +196,11 @@ def dashboard(request):
 
 def _require_sales_access(user):
     if not user.is_superuser and not (user.has_perm("leads.view_lead") or user.has_perm("crm_orders.view_crmorder") or user.has_perm("clinic_orders.view_clinicorder")):
+        raise PermissionDenied
+
+
+def _require_case_change(user):
+    if not user.is_superuser and not (user.has_perm("leads.change_lead") or user.has_perm("crm_orders.change_crmorder") or user.has_perm("clinic_orders.change_clinicorder")):
         raise PermissionDenied
 
 

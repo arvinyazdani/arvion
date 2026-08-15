@@ -8,7 +8,7 @@ from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
-from management_portal.models import ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from management_portal.models import CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
 from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -38,7 +38,7 @@ class ManagementDashboardTests(TestCase):
 
     def test_staff_only_sees_permitted_operational_data(self):
         user = User.objects.create_user(username="sales", email="sales@example.com", password="safe-password", is_staff=True)
-        user.user_permissions.add(Permission.objects.get(codename="view_crmorder"))
+        user.user_permissions.add(Permission.objects.get(codename="view_crmorder"), Permission.objects.get(codename="change_crmorder"))
         self.client.force_login(user)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -48,7 +48,7 @@ class ManagementDashboardTests(TestCase):
 
     def test_sales_staff_can_manage_requests_without_django_admin_links(self):
         user = User.objects.create_user(username="sales-v2", email="sales-v2@example.com", password="safe-password", is_staff=True)
-        user.user_permissions.add(Permission.objects.get(codename="view_crmorder"))
+        user.user_permissions.add(Permission.objects.get(codename="view_crmorder"), Permission.objects.get(codename="change_crmorder"))
         order = CrmOrder.objects.create(
             organization_name="سازمان آزمایشی", industry="فناوری", organization_size="under_10", contact_name="مینا",
             job_title="مدیر", work_email="mina@example.com", phone="09120000000", crm_user_count="1_5",
@@ -63,6 +63,13 @@ class ManagementDashboardTests(TestCase):
         detail = self.client.get(reverse("management_portal:request_detail", args=["crm", order.pk]))
         self.assertContains(detail, "نبود پیگیری یکپارچه")
         self.assertContains(detail, "فرم تخصصی مشتری")
+        case = CustomerCase.objects.get(source_object_id=order.pk, kind="crm")
+        workspace = self.client.get(reverse("management_portal:crm_workspace"))
+        self.assertContains(workspace, "سازمان آزمایشی")
+        self.assertContains(self.client.get(reverse("management_portal:crm_case_detail", args=[case.pk])), case.code)
+        self.client.post(reverse("management_portal:crm_task_create", args=[case.pk]), {"title": "تماس پیگیری", "priority": "high"})
+        self.assertTrue(CaseTask.objects.filter(case=case, title="تماس پیگیری").exists())
+        self.assertEqual(self.client.get(reverse("management_portal:crm_case_export", args=[case.pk])).status_code, 200)
         discovery = CrmSpecialistDiscovery.objects.create(order=order, status="submitted", answers={"workflow": "ok"})
         self.assertTrue(ManagementNotification.objects.filter(source_key=f"crm-specialist:{discovery.pk}:submitted").exists())
 

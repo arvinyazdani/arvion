@@ -1,10 +1,17 @@
 from django.urls import path
 
-from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, dashboard, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, ticket_status
+from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, dashboard, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, ticket_status
 from contracts.views import proposal_clauses, proposal_create, proposal_detail, proposal_list, proposal_publish
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
+    path("crm/", crm_workspace, name="crm_workspace"),
+    path("crm/cases/<int:case_id>/", crm_case_detail, name="crm_case_detail"),
+    path("crm/cases/<int:case_id>/update/", crm_case_update, name="crm_case_update"),
+    path("crm/cases/<int:case_id>/tasks/new/", crm_task_create, name="crm_task_create"),
+    path("crm/tasks/<int:task_id>/toggle/", crm_task_toggle, name="crm_task_toggle"),
+    path("crm/cases/<int:case_id>/activities/new/", crm_activity_create, name="crm_activity_create"),
+    path("crm/cases/<int:case_id>/export/", crm_case_export, name="crm_case_export"),
     path("staff/", staff_list, name="staff_list"),
     path("staff/new/", staff_create, name="staff_create"),
     path("staff/<int:user_id>/", staff_edit, name="staff_edit"),

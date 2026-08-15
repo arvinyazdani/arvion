@@ -9,7 +9,7 @@ from django.urls import reverse
 from accounts.models import User
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
-from .models import ManagementNotification, NotificationReceipt, PushSubscription
+from .models import CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, PushSubscription
 
 
 URGENT_SMS_CATEGORIES = {"payments"}
@@ -64,6 +64,12 @@ def process_notifications(now=None):
     if not settings.WEB_PUSH_VAPID_PRIVATE_KEY:
         return {"push": 0, "sms": 0, "reminders": 0}
     push_count = sms_count = reminder_count = 0
+    for task in CaseTask.objects.select_related("case").filter(status="open", due_at__lte=now):
+        item, created = ManagementNotification.objects.get_or_create(source_key=f"crm-task-overdue:{task.pk}:{task.due_at.isoformat()}", defaults={"category": "sales", "title": "وظیفه CRM عقب افتاده", "description": f"{task.case.customer_name}: {task.title}", "target_url": reverse("management_portal:crm_case_detail", args=[task.case_id]), "role": "sales"})
+        if created: create_receipts(item)
+    for case in CustomerCase.objects.filter(next_follow_up_at__lte=now).exclude(stage__in=("won", "lost")):
+        item, created = ManagementNotification.objects.get_or_create(source_key=f"crm-followup:{case.pk}:{case.next_follow_up_at.isoformat()}", defaults={"category": "sales", "title": "موعد پیگیری مشتری", "description": case.customer_name, "target_url": reverse("management_portal:crm_case_detail", args=[case.pk]), "role": "sales"})
+        if created: create_receipts(item)
     fresh = NotificationReceipt.objects.select_related("notification", "user").filter(push_sent_at__isnull=True, notification__status="unread")
     for receipt in fresh:
         item = receipt.notification
