@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.urls import reverse
@@ -10,13 +11,16 @@ from crm_orders.models import CrmOrder
 from leads.models import Lead
 
 from .models import ManagementNotification
+from .notifications import create_receipts
 
 
 def notify(*, category, title, description, target_url, role, source_key):
-    ManagementNotification.objects.get_or_create(source_key=source_key, defaults={
+    notification, created = ManagementNotification.objects.get_or_create(source_key=source_key, defaults={
         "category": category, "title": title, "description": description,
         "target_url": target_url, "role": role,
     })
+    if created:
+        transaction.on_commit(lambda: create_receipts(notification))
 
 
 @receiver(post_save, sender=User)

@@ -1,4 +1,5 @@
 from datetime import timedelta
+import json
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
@@ -28,7 +29,7 @@ from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .forms import ManualSMSForm, StaffCreateForm, StaffRolesForm
 from assessments.services import PaymentVerificationError, verify_gateway_payment
-from .models import ManagementNotification, OperationalAudit, SMSDispatch, StaffAccessAudit
+from .models import ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -385,6 +386,8 @@ def notification_list(request):
         queryset = queryset.filter(status=status)
     if category in dict(ManagementNotification.CATEGORIES):
         queryset = queryset.filter(category=category)
+    visible_ids = list(queryset.values_list("pk", flat=True)[:100])
+    NotificationReceipt.objects.filter(user=request.user, notification_id__in=visible_ids, seen_at__isnull=True).update(seen_at=timezone.now())
     return render(request, "management_portal/notifications.html", {
         "notifications": queryset[:100], "statuses": ManagementNotification.STATUSES,
         "categories": ManagementNotification.CATEGORIES, "active_status": status, "active_category": category,
@@ -400,6 +403,21 @@ def notification_feed(request):
         queryset = queryset.filter(pk__gt=int(since))
     items = list(queryset.order_by("pk")[:25])
     return JsonResponse({"notifications": [{"id": item.pk, "title": item.title, "description": item.description, "url": item.target_url} for item in items]})
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def push_subscribe(request):
+    if not settings.WEB_PUSH_VAPID_PUBLIC_KEY:
+        return JsonResponse({"ok": False, "error": "push_not_configured"}, status=503)
+    try:
+        data = json.loads(request.body)
+        endpoint, keys = data["endpoint"], data["keys"]
+        p256dh, auth = keys["p256dh"], keys["auth"]
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({"ok": False, "error": "invalid_subscription"}, status=400)
+    subscription, _ = PushSubscription.objects.update_or_create(endpoint=endpoint, defaults={"user": request.user, "p256dh": p256dh, "auth": auth, "user_agent": request.META.get("HTTP_USER_AGENT", "")[:240], "is_active": True})
+    return JsonResponse({"ok": True, "id": subscription.pk})
 
 
 @staff_member_required(login_url="accounts:login")

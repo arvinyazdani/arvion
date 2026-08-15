@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Permission
-from django.test import TestCase
+from datetime import timedelta
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 
@@ -7,7 +8,8 @@ from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
-from management_portal.models import ManagementNotification, OperationalAudit, SMSDispatch, StaffAccessAudit
+from management_portal.models import ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
 from unittest.mock import patch
@@ -224,6 +226,49 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(sales_item.resolved_by, sales)
         self.client.force_login(root)
         self.assertContains(self.client.get(reverse("management_portal:notification_list")), "مالی")
+
+    @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key", MANAGEMENT_ALERT_SMS_RECIPIENTS=["989120373271"])
+    @patch("management_portal.notifications.send_sms")
+    @patch("management_portal.notifications._send_user_push", return_value="")
+    def test_new_payment_pushes_immediately_and_sends_only_one_urgent_sms(self, mocked_push, mocked_sms):
+        root = User.objects.create_superuser(username="alert-root", email="alert-root@example.com", password="safe-password")
+        item = ManagementNotification.objects.create(category="payments", title="رسید جدید", description="REF-1", target_url="/fa/management/approvals/", role="", source_key="alert:payment")
+        NotificationReceipt.objects.create(user=root, notification=item)
+        first = process_notifications()
+        second = process_notifications()
+        self.assertEqual(first["push"], 1)
+        self.assertEqual(first["sms"], 1)
+        self.assertEqual(second["sms"], 0)
+        self.assertEqual(mocked_sms.call_count, 1)
+        self.assertGreaterEqual(mocked_push.call_count, 1)
+
+    @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key", MANAGEMENT_REMINDER_SECONDS=3600)
+    @patch("management_portal.notifications._send_user_push", return_value="")
+    def test_seen_notifications_do_not_send_hourly_reminder_but_new_items_do(self, mocked_push):
+        root = User.objects.create_superuser(username="reminder-root", email="reminder-root@example.com", password="safe-password")
+        old = ManagementNotification.objects.create(category="sales", title="درخواست", target_url="/fa/management/requests/", role="", source_key="alert:old")
+        receipt = NotificationReceipt.objects.create(user=root, notification=old, push_sent_at=timezone.now()-timedelta(hours=2))
+        self.client.force_login(root)
+        self.client.get(reverse("management_portal:notification_list"))
+        receipt.refresh_from_db()
+        self.assertIsNotNone(receipt.seen_at)
+        result = process_notifications(now=timezone.now())
+        self.assertEqual(result["reminders"], 0)
+        newer = ManagementNotification.objects.create(category="sales", title="درخواست تازه", target_url="/fa/management/requests/", role="", source_key="alert:new")
+        new_receipt = NotificationReceipt.objects.create(user=root, notification=newer, push_sent_at=timezone.now()-timedelta(hours=2))
+        ManagementNotification.objects.filter(pk=newer.pk).update(created_at=timezone.now()-timedelta(hours=2))
+        result = process_notifications(now=timezone.now())
+        self.assertEqual(result["reminders"], 1)
+        new_receipt.refresh_from_db()
+        self.assertIsNotNone(new_receipt.last_reminded_at)
+
+    def test_staff_can_register_push_subscription(self):
+        root = User.objects.create_superuser(username="push-root", email="push-root@example.com", password="safe-password")
+        self.client.force_login(root)
+        with override_settings(WEB_PUSH_VAPID_PUBLIC_KEY="public-key"):
+            response = self.client.post(reverse("management_portal:push_subscribe"), data='{"endpoint":"https://push.example/sub","keys":{"p256dh":"key","auth":"auth"}}', content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(PushSubscription.objects.filter(user=root, is_active=True).exists())
 
     def test_sms_page_is_restricted_to_superuser(self):
         staff = User.objects.create_user(username="sms-staff", email="sms-staff@example.com", password="safe-password", is_staff=True)

@@ -71,3 +71,27 @@ class OperationalAudit(models.Model):
         ordering = ("-created_at",)
         verbose_name = "رویداد عملیاتی"
         verbose_name_plural = "سابقه عملیات"
+
+
+class PushSubscription(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="push_subscriptions")
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.CharField(max_length=240, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class NotificationReceipt(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notification_receipts")
+    notification = models.ForeignKey(ManagementNotification, on_delete=models.CASCADE, related_name="receipts")
+    seen_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    push_sent_at = models.DateTimeField(blank=True, null=True)
+    sms_sent_at = models.DateTimeField(blank=True, null=True)
+    last_reminded_at = models.DateTimeField(blank=True, null=True)
+    last_error = models.CharField(max_length=240, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("user", "notification"), name="unique_user_notification_receipt")]

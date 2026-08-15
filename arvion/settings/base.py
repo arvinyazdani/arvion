@@ -56,6 +56,7 @@ TEMPLATES = [{
         "django.contrib.messages.context_processors.messages",
         "core.context_processors.assessment_flags",
         "core.context_processors.seo_context",
+        "management_portal.context_processors.management_alerts",
     ]},
 }]
 WSGI_APPLICATION = "arvion.wsgi.application"
@@ -105,6 +106,11 @@ MELIPAYAMAK_SENDER_NUMBER = os.getenv("MELIPAYAMAK_SENDER_NUMBER", "")
 MELIPAYAMAK_BODY_ID = os.getenv("MELIPAYAMAK_BODY_ID", "")
 MELIPAYAMAK_OTP_MODE = os.getenv("MELIPAYAMAK_OTP_MODE", "text").strip().lower()
 SMS_HTTP_TIMEOUT = int(os.getenv("SMS_HTTP_TIMEOUT", "10"))
+MANAGEMENT_ALERT_SMS_RECIPIENTS = [value.strip() for value in os.getenv("MANAGEMENT_ALERT_SMS_RECIPIENTS", "").split(",") if value.strip()]
+WEB_PUSH_VAPID_PRIVATE_KEY = os.getenv("WEB_PUSH_VAPID_PRIVATE_KEY", "")
+WEB_PUSH_VAPID_PUBLIC_KEY = os.getenv("WEB_PUSH_VAPID_PUBLIC_KEY", "")
+WEB_PUSH_VAPID_SUBJECT = os.getenv("WEB_PUSH_VAPID_SUBJECT", "mailto:admin@rvionai.com")
+MANAGEMENT_REMINDER_SECONDS = int(os.getenv("MANAGEMENT_REMINDER_SECONDS", "3600"))
 OTP_TTL_SECONDS = int(os.getenv("OTP_TTL_SECONDS", "300"))
 OTP_REQUEST_LIMIT = int(os.getenv("OTP_REQUEST_LIMIT", "3"))
 OTP_REQUEST_WINDOW_SECONDS = int(os.getenv("OTP_REQUEST_WINDOW_SECONDS", "600"))

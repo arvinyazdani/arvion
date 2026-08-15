@@ -11,4 +11,5 @@ self.addEventListener("fetch", event => {
     return response;
   }).catch(() => caches.match(event.request).then(cached => cached || (event.request.mode === "navigate" ? caches.match("/fa/") : Response.error()))));
 });
-self.addEventListener("notificationclick", event => { event.notification.close(); event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(items => items[0] ? items[0].focus() : clients.openWindow("/fa/management/"))); });
+self.addEventListener("push", event => { const data = event.data ? event.data.json() : {}; event.waitUntil(self.registration.showNotification(data.title || "آرویون", {body:data.body || "رویداد تازه‌ای نیازمند بررسی است.",tag:data.tag || "rvion-management",icon:"/static/core/favicon.svg",badge:"/static/core/favicon.svg",data:{url:data.url || "/fa/management/notifications/"},requireInteraction:Boolean(data.urgent)})); });
+self.addEventListener("notificationclick", event => { const url=event.notification.data?.url || "/fa/management/notifications/"; event.notification.close(); event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(items => { const match=items.find(item=>item.url.includes("/management/")); return match ? match.focus().then(()=>match.navigate(url)) : clients.openWindow(url); })); });

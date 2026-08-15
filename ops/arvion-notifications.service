@@ -1,0 +1,11 @@
+[Unit]
+Description=Dispatch Rvion management push notifications and urgent SMS
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=arvion
+Group=arvion
+WorkingDirectory=/srv/arvion
+EnvironmentFile=/srv/arvion/.env.production
+ExecStart=/srv/arvion/.venv/bin/python manage.py process_management_notifications

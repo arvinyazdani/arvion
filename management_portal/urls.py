@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, dashboard, notification_feed, notification_list, notification_status, payment_review, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, ticket_status
+from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, dashboard, notification_feed, notification_list, notification_status, payment_review, push_subscribe, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, ticket_status
 from contracts.views import proposal_clauses, proposal_create, proposal_detail, proposal_list, proposal_publish
 
 urlpatterns = [
@@ -10,6 +10,7 @@ urlpatterns = [
     path("staff/<int:user_id>/", staff_edit, name="staff_edit"),
     path("notifications/", notification_list, name="notification_list"),
     path("notifications/feed/", notification_feed, name="notification_feed"),
+    path("notifications/push/subscribe/", push_subscribe, name="push_subscribe"),
     path("notifications/<int:notification_id>/<str:status>/", notification_status, name="notification_status"),
     path("sms/", sms_send, name="sms_send"),
     path("requests/", request_list, name="request_list"),
