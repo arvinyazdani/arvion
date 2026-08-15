@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import translation
 
 from accounts.models import User
 from accounts.staff_roles import group_name
@@ -12,6 +13,7 @@ from unittest.mock import patch
 
 class ManagementDashboardTests(TestCase):
     def setUp(self):
+        translation.activate("fa")
         self.url = reverse("management_portal:dashboard")
 
     def test_anonymous_user_is_redirected(self):
@@ -39,6 +41,22 @@ class ManagementDashboardTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, "مرکز مدیریت")
         self.assertContains(response, "صندوق کار")
+
+    def test_new_dashboard_is_language_scoped_and_does_not_link_to_django_admin(self):
+        root = User.objects.create_superuser(username="root-lang", email="root-lang@example.com", password="safe-password")
+        self.client.force_login(root)
+        fa = self.client.get("/fa/management/")
+        self.assertContains(fa, "خانه مدیریت")
+        self.assertNotContains(fa, 'href="/admin/')
+        en = self.client.get("/en/management/")
+        self.assertContains(en, "Today’s priorities")
+        self.assertContains(en, "Team &amp; Access", html=True)
+        self.assertNotContains(en, 'href="/admin/')
+
+    def test_legacy_management_redirects_to_persian_workspace(self):
+        response = self.client.get("/management/")
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/fa/management/")
 
     def test_only_superuser_can_manage_staff(self):
         staff = User.objects.create_user(username="staff", email="staff@example.com", password="safe-password", is_staff=True)

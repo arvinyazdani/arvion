@@ -76,8 +76,37 @@ def dashboard(request):
         metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("contracts:proposal_list"), "positive"))
         metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
         metrics.insert(3, _metric("ارسال پیامک", SMSDispatch.objects.filter(status="sent").count(), "ارسال تکی یا گروهی و مشاهده سابقه", reverse("management_portal:sms_send")))
-    return render(request, "management_portal/dashboard.html", {
-        "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online,
+    # V2 never sends managers back to Django Admin. Modules are replaced phase by phase.
+    for item in metrics:
+        if item.get("url", "").startswith("/admin/"):
+            item["url"] = ""
+    for item in queues:
+        if item.get("url", "").startswith("/admin/"):
+            item["url"] = ""
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    if lang == "en":
+        labels = {
+            "اعلان خوانده‌نشده": ("Unread alerts", "New events related to your role"),
+            "قراردادها": ("Contracts", "Create, share and track acceptance"),
+            "مدیران و مسئولان": ("Team members", "Manage staff roles and access"),
+            "ارسال پیامک": ("SMS messages", "Send and review delivery history"),
+            "حساب نیازمند تأیید": ("Accounts awaiting approval", "Review and activate registrations"),
+            "درخواست همکاری جدید": ("New enquiries", "Waiting for first contact"),
+            "نیازسنجی CRM": ("CRM discoveries", "New requests awaiting review"),
+            "نیازسنجی کلینیک": ("Clinic discoveries", "New requests awaiting review"),
+            "پرداخت منتظر بررسی": ("Payments awaiting review", "Verify transfer and grant access"),
+            "تیکت باز": ("Open tickets", "Waiting for a response"), "آزمون در حال اجرا": ("Active assessments", "Sessions currently in progress"),
+            "بازدید امروز": ("Views today", "Public page views"), "کاربر آنلاین": ("Online users", "Active in the last five minutes"),
+        }
+        kinds = {"حساب": "Account", "همکاری": "Enquiry", "کلینیک": "Clinic", "پرداخت": "Payment"}
+        for item in metrics:
+            if item["label"] in labels:
+                item["label"], item["description"] = labels[item["label"]]
+        for item in queues:
+            item["kind"] = kinds.get(item["kind"], item["kind"])
+    return render(request, "management_portal/v2/dashboard.html", {
+        "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
+        "unread_count": notifications.filter(status="unread").count(),
     })
 
 

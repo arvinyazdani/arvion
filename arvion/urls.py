@@ -36,12 +36,18 @@ def favicon(request):
     return HttpResponsePermanentRedirect("/static/core/favicon.svg")
 
 
+def legacy_management(request, path=""):
+    suffix = f"{path}/" if path else ""
+    return HttpResponsePermanentRedirect(f"/fa/management/{suffix}")
+
+
 urlpatterns = [
     path("", default_language, name="language_root"),
     path("health/", HealthCheckView.as_view(), name="health"),
     path("admin/operations/", operations_dashboard, name="admin_operations"),
     path("admin/", admin.site.urls),
-    path("management/", include(("management_portal.urls", "management_portal"), namespace="management_portal")),
+    path("management/", legacy_management, name="legacy_management"),
+    path("management/<path:path>", legacy_management),
     path("contract/", include(("contracts.urls", "contracts"), namespace="contracts")),
     path("robots.txt", robots_txt, name="robots"),
     path("favicon.ico", favicon, name="favicon"),
@@ -50,6 +56,7 @@ urlpatterns = [
 ]
 
 urlpatterns += i18n_patterns(
+    path("management/", include(("management_portal.urls", "management_portal"), namespace="management_portal")),
     path("account/", include(("accounts.urls", "accounts"), namespace="accounts")),
     path("assessments/", include(("assessments.urls", "assessments"), namespace="assessments")),
     path("", HomeView.as_view(), name="home"),
