@@ -43,28 +43,28 @@ def dashboard(request):
     queues = []
     if user.has_perm("accounts.change_user"):
         pending_users = User.objects.filter(is_active=False).order_by("-date_joined")
-        metrics.append(_metric("حساب نیازمند تأیید", pending_users.count(), "فعال‌سازی و کنترل ثبت‌نام", reverse("admin:accounts_user_changelist") + "?is_active__exact=0", "warning"))
-        queues += [{"kind": "حساب", "title": item.email, "meta": "منتظر فعال‌سازی", "date": item.date_joined, "url": reverse("admin:accounts_user_change", args=[item.pk])} for item in pending_users[:4]]
+        metrics.append(_metric("حساب نیازمند تأیید", pending_users.count(), "فعال‌سازی و کنترل ثبت‌نام", reverse("management_portal:approvals"), "warning"))
+        queues += [{"kind": "حساب", "title": item.email, "meta": "منتظر فعال‌سازی", "date": item.date_joined, "url": reverse("management_portal:approvals")} for item in pending_users[:4]]
     if user.has_perm("leads.view_lead"):
         new_leads = Lead.objects.filter(status="new").order_by("-created_at")
-        metrics.append(_metric("درخواست همکاری جدید", new_leads.count(), "نیازمند اولین تماس", reverse("admin:leads_lead_changelist") + "?status__exact=new", "warning"))
-        queues += [{"kind": "همکاری", "title": item.name, "meta": item.business_name or item.tracking_code, "date": item.created_at, "url": reverse("admin:leads_lead_change", args=[item.pk])} for item in new_leads[:4]]
+        metrics.append(_metric("درخواست همکاری جدید", new_leads.count(), "نیازمند اولین تماس", reverse("management_portal:request_list") + "?kind=lead", "warning"))
+        queues += [{"kind": "همکاری", "title": item.name, "meta": item.business_name or item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["lead", item.pk])} for item in new_leads[:4]]
     if user.has_perm("crm_orders.view_crmorder"):
         crm = CrmOrder.objects.filter(status="new").order_by("-created_at")
-        metrics.append(_metric("نیازسنجی CRM", crm.count(), "سفارش‌های تحلیل‌نشده", reverse("admin:crm_orders_crmorder_changelist") + "?status__exact=new", "warning"))
-        queues += [{"kind": "CRM", "title": item.organization_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("admin:crm_orders_crmorder_change", args=[item.pk])} for item in crm[:4]]
+        metrics.append(_metric("نیازسنجی CRM", crm.count(), "سفارش‌های تحلیل‌نشده", reverse("management_portal:request_list") + "?kind=crm", "warning"))
+        queues += [{"kind": "CRM", "title": item.organization_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["crm", item.pk])} for item in crm[:4]]
     if user.has_perm("clinic_orders.view_clinicorder"):
         clinics = ClinicOrder.objects.filter(status="new").order_by("-created_at")
-        metrics.append(_metric("نیازسنجی کلینیک", clinics.count(), "درخواست‌های تحلیل‌نشده", reverse("admin:clinic_orders_clinicorder_changelist") + "?status__exact=new", "warning"))
-        queues += [{"kind": "کلینیک", "title": item.clinic_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("admin:clinic_orders_clinicorder_change", args=[item.pk])} for item in clinics[:4]]
+        metrics.append(_metric("نیازسنجی کلینیک", clinics.count(), "درخواست‌های تحلیل‌نشده", reverse("management_portal:request_list") + "?kind=clinic", "warning"))
+        queues += [{"kind": "کلینیک", "title": item.clinic_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["clinic", item.pk])} for item in clinics[:4]]
     if user.has_perm("assessments.view_manualpaymentsubmission"):
         payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("-created_at")
-        metrics.append(_metric("پرداخت منتظر بررسی", payments.count(), "تأیید بانکی و دسترسی آزمون", reverse("admin:assessments_manualpaymentsubmission_changelist") + "?status__exact=pending", "danger"))
-        queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.created_at, "url": reverse("admin:assessments_manualpaymentsubmission_change", args=[item.pk])} for item in payments[:4]]
+        metrics.append(_metric("پرداخت منتظر بررسی", payments.count(), "تأیید بانکی و دسترسی آزمون", reverse("management_portal:approvals"), "danger"))
+        queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.created_at, "url": reverse("management_portal:approvals")} for item in payments[:4]]
     if user.has_perm("assessments.view_supportticket"):
-        metrics.append(_metric("تیکت باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("admin:assessments_supportticket_changelist")))
+        metrics.append(_metric("تیکت باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("management_portal:assessment_support")))
     if user.has_perm("assessments.view_attempt"):
-        metrics.append(_metric("آزمون در حال اجرا", Attempt.objects.filter(status="in_progress").count(), "نشست‌های فعال آزمون", reverse("admin:assessments_attempt_changelist")))
+        metrics.append(_metric("آزمون در حال اجرا", Attempt.objects.filter(status="in_progress").count(), "نشست‌های فعال آزمون", reverse("management_portal:assessment_support")))
 
     chart = []
     online = None
