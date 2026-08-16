@@ -40,6 +40,7 @@ Before each release, run the non-destructive acceptance gate locally:
 ```
 
 Project architecture, delivery history and current blockers are maintained in `PROJECT_STATUS.md`. Use `FINAL_RELEASE_CHECKLIST.md` for the staging and go-live handoff, `QUESTION_BANK_AUDIT.md` for assessment quality boundaries and `CRM_DISCOVERY_GUIDE.md` for the enterprise CRM intake rationale.
+For the repeatable production release, health verification and safe rollback procedure, use [`docs/OPERATIONS_RUNBOOK_FA.md`](docs/OPERATIONS_RUNBOOK_FA.md).
 
 After deployment, configure the platform health probe to request `GET /health/`. A healthy instance returns HTTP 200 with `{"status":"ok"}`; loss of database connectivity returns HTTP 503 without exposing internal errors.
 
