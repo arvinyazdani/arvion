@@ -39,6 +39,9 @@ local_settings.py
 # Static files cache
 staticfiles/
 
+# Local production backups — encrypted/off-repository storage only
+backups/
+
 # Coverage reports
 htmlcov/
 .coverage
