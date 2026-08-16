@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_workspace, dashboard, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, ticket_status
-from contracts.views import proposal_clauses, proposal_create, proposal_detail, proposal_list, proposal_publish
+from contracts.views import contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
@@ -30,8 +30,13 @@ urlpatterns = [
     path("requests/<str:kind>/<int:object_id>/", request_detail, name="request_detail"),
     path("requests/<str:kind>/<int:object_id>/update/", request_update, name="request_update"),
     path("contracts/", proposal_list, name="contract_list"),
+    path("contracts/settings/", contract_settings, name="contract_settings"),
     path("contracts/new/", proposal_create, name="contract_create"),
     path("contracts/<int:proposal_id>/", proposal_detail, name="contract_detail"),
+    path("contracts/<int:proposal_id>/edit/", proposal_edit, name="contract_edit"),
+    path("contracts/<int:proposal_id>/preview/", proposal_preview, name="contract_preview"),
+    path("contracts/<int:proposal_id>/revoke/", proposal_revoke, name="contract_revoke"),
+    path("contracts/<int:proposal_id>/delete/", proposal_delete, name="contract_delete"),
     path("contracts/<int:proposal_id>/clauses/", proposal_clauses, name="contract_clauses"),
     path("contracts/<int:proposal_id>/publish/", proposal_publish, name="contract_publish"),
     path("approvals/", approvals, name="approvals"),

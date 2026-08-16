@@ -18,9 +18,10 @@ from django.utils import timezone
 from core.sms import send_otp
 from core.sms.backends import SMSDeliveryError
 from management_portal.models import Customer, CustomerContact
-from .forms import ClauseSelectionForm, ContractReviewForm, OtpRequestForm, OtpVerifyForm, ProposalForm
+from core.models import CompanyProfile
+from .forms import ClauseSelectionForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, OtpVerifyForm, ProposalForm
 from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, ContractProposal, ContractReview
-from .services import add_default_clauses, publish_version
+from .services import add_default_clauses, proposal_snapshot, publish_version
 
 
 def _require_contract_manager(request):
@@ -49,7 +50,21 @@ def _link_customer(proposal):
 def proposal_list(request):
     _require_contract_manager(request)
     rows = [{"item": item, "url": _manager_url(request, "proposal_detail", "contract_detail", item.pk)} for item in ContractProposal.objects.select_related("created_by")]
-    return render(request, "contracts/proposal_list_v2.html", {"proposal_rows": rows, "create_url": _manager_url(request, "proposal_create", "contract_create"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "contracts/proposal_list_v2.html", {"proposal_rows": rows, "create_url": _manager_url(request, "proposal_create", "contract_create"), "settings_url": _manager_url(request, "contract_settings", "contract_settings"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+def contract_settings(request):
+    _require_contract_manager(request)
+    company = CompanyProfile.objects.first()
+    if company is None:
+        raise ImproperlyConfigured("Company profile must be configured before contract publishing.")
+    form = ContractSettingsForm(request.POST or None, instance=company)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "تنظیمات مجری قرارداد ذخیره شد؛ فقط نسخه‌های جدید از آن استفاده می‌کنند.")
+        return redirect(_manager_url(request, "proposal_list", "contract_list"))
+    return render(request, "contracts/contract_settings.html", {"form": form, "list_url": _manager_url(request, "proposal_list", "contract_list"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -70,11 +85,62 @@ def proposal_create(request):
 
 
 @staff_member_required(login_url="accounts:login")
+@transaction.atomic
+def proposal_edit(request, proposal_id):
+    _require_contract_manager(request)
+    proposal = get_object_or_404(ContractProposal, pk=proposal_id)
+    if proposal.status == "accepted":
+        raise PermissionDenied
+    form = ProposalForm(request.POST or None, instance=proposal, language=getattr(request, "LANGUAGE_CODE", "fa"))
+    if request.method == "POST" and form.is_valid():
+        proposal = form.save(commit=False)
+        if form.cleaned_data.get("needs_assessment"):
+            form.apply_assessment()
+        _link_customer(proposal)
+        proposal.save()
+        messages.success(request, "پیش‌نویس ذخیره شد. برای مشتری نسخه تازه بسازید.")
+        return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
+    return render(request, "contracts/proposal_form_v2.html", {"form": form, "assessment_data": form.assessment_data, "list_url": _manager_url(request, "proposal_list", "contract_list"), "proposal": proposal, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+def proposal_preview(request, proposal_id):
+    _require_contract_manager(request)
+    proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses"), pk=proposal_id)
+    return render(request, "contracts/proposal_preview.html", {"proposal": proposal, "snapshot": proposal_snapshot(proposal), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def proposal_revoke(request, proposal_id):
+    _require_contract_manager(request)
+    proposal = get_object_or_404(ContractProposal, pk=proposal_id)
+    if proposal.status == "accepted":
+        raise PermissionDenied
+    proposal.status = "revoked"
+    proposal.save(update_fields=("status", "updated_at"))
+    messages.success(request, "لینک مشتری غیرفعال شد؛ اطلاعات و نسخه‌ها حفظ شده‌اند.")
+    return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def proposal_delete(request, proposal_id):
+    _require_contract_manager(request)
+    proposal = get_object_or_404(ContractProposal, pk=proposal_id)
+    if proposal.current_version or proposal.status not in {"draft", "revoked"}:
+        raise PermissionDenied
+    proposal.delete()
+    messages.success(request, "پیش‌نویس بدون نسخه حذف شد.")
+    return redirect(_manager_url(request, "proposal_list", "contract_list"))
+
+
+@staff_member_required(login_url="accounts:login")
 def proposal_detail(request, proposal_id):
     _require_contract_manager(request)
     proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses", "versions"), pk=proposal_id)
     public_url = request.build_absolute_uri(reverse("contracts:public_contract", args=[proposal.token]))
-    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "public_url": public_url, "list_url": _manager_url(request, "proposal_list", "contract_list"), "clauses_url": _manager_url(request, "proposal_clauses", "contract_clauses", proposal.pk), "publish_url": _manager_url(request, "proposal_publish", "contract_publish", proposal.pk), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "public_url": public_url, "list_url": _manager_url(request, "proposal_list", "contract_list"), "clauses_url": _manager_url(request, "proposal_clauses", "contract_clauses", proposal.pk), "publish_url": _manager_url(request, "proposal_publish", "contract_publish", proposal.pk), "edit_url": _manager_url(request, "proposal_edit", "contract_edit", proposal.pk), "preview_url": _manager_url(request, "proposal_preview", "contract_preview", proposal.pk), "revoke_url": _manager_url(request, "proposal_revoke", "contract_revoke", proposal.pk), "delete_url": _manager_url(request, "proposal_delete", "contract_delete", proposal.pk), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
 @staff_member_required(login_url="accounts:login")

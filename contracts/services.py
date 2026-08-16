@@ -3,6 +3,7 @@ import json
 
 from django.db import transaction
 from django.utils import timezone
+from core.models import CompanyProfile
 
 from .models import ContractClause, ContractVersion
 
@@ -31,12 +32,22 @@ def add_default_clauses(proposal):
 
 
 def proposal_snapshot(proposal):
+    company = CompanyProfile.objects.first()
     return {
         "title": proposal.title, "customer_name": proposal.customer_name,
         "customer_phone": proposal.customer_phone, "customer_email": proposal.customer_email,
         "project_title": proposal.project_title, "project_scope": proposal.project_scope,
         "amount_irr": proposal.amount_irr, "payment_terms": proposal.payment_terms,
         "delivery_terms": proposal.delivery_terms, "client_details": proposal.client_details,
+        "provider": {
+            "legal_name": company.legal_name_fa if company else "آرویون (Rvion)",
+            "brand_name": company.brand_name if company else "Rvion",
+            "registration_number": company.registration_number if company else "",
+            "national_id": company.national_id if company else "",
+            "representative": company.chief_executive_fa if company else "",
+            "address": company.address_fa if company else "",
+            "phone": company.phone if company else "",
+        },
         "clauses": [{"id": clause.id, "title": clause.title, "body": clause.body} for clause in proposal.clauses.filter(is_enabled=True)],
     }
 

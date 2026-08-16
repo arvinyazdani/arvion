@@ -3,6 +3,7 @@ from django import forms
 from core.sms.backends import normalize_iran_mobile
 from crm_orders.models import CrmOrder
 from clinic_orders.models import ClinicOrder
+from core.models import CompanyProfile
 from .models import ContractProposal
 
 
@@ -77,6 +78,14 @@ class ProposalForm(forms.ModelForm):
         self.instance.project_scope = "\n\n".join(filter(None, [source.current_process, source.main_pain_points, source.required_integrations, source.security_requirements, specialist]))
         location = f"صنعت: {source.industry}" if kind == "crm" else f"شهر: {source.city}"
         self.instance.client_details = f"نام مجموعه: {name}\n{location}\nکد نیازسنجی: {source.tracking_code}\nمعیارهای موفقیت: {source.success_metrics}"
+
+
+class ContractSettingsForm(forms.ModelForm):
+    class Meta:
+        model = CompanyProfile
+        fields = ("legal_name_fa", "brand_name", "registration_number", "national_id", "chief_executive_fa", "phone", "address_fa")
+        widgets = {"address_fa": forms.Textarea(attrs={"rows": 4})}
+        labels = {"legal_name_fa": "نام حقوقی مجری", "brand_name": "نام برند", "registration_number": "شماره ثبت", "national_id": "شناسه ملی", "chief_executive_fa": "نماینده مجاز", "phone": "تلفن", "address_fa": "نشانی قرارداد"}
 
 
 class ContractReviewForm(forms.Form):
