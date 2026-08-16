@@ -378,6 +378,16 @@ class ManagementDashboardTests(TestCase):
         self.assertIsNotNone(first_receipt.seen_at)
         self.assertIsNone(second_receipt.seen_at)
 
+    def test_legacy_notification_opens_the_matching_management_path(self):
+        root = User.objects.create_superuser(username="legacy-open", email="legacy-open@example.com", password="safe-password")
+        item = ManagementNotification.objects.create(category="payments", title="رسید", target_url="/admin/assessments/manualpaymentsubmission/", role="", source_key="legacy:payment")
+        NotificationReceipt.objects.create(user=root, notification=item)
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:notification_open", args=[item.pk]))
+        self.assertRedirects(response, reverse("management_portal:approvals"))
+        page = self.client.get(reverse("management_portal:notification_list"))
+        self.assertEqual(page.status_code, 200)
+
     def test_sms_page_is_restricted_to_superuser(self):
         staff = User.objects.create_user(username="sms-staff", email="sms-staff@example.com", password="safe-password", is_staff=True)
         self.client.force_login(staff)

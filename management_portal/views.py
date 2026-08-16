@@ -640,7 +640,16 @@ def notification_status(request, notification_id, status):
 def notification_open(request, notification_id):
     notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
     NotificationReceipt.objects.filter(user=request.user, notification=notification, seen_at__isnull=True).update(seen_at=timezone.now())
-    return redirect(notification.target_url or "management_portal:notification_list")
+    target = notification.target_url or ""
+    legacy_targets = {
+        "/admin/assessments/manualpaymentsubmission/": reverse("management_portal:approvals"),
+        "/admin/accounts/user/": reverse("management_portal:approvals"),
+        "/admin/assessments/supportticket/": reverse("management_portal:assessment_support"),
+        "/admin/crm_orders/crmorder/": reverse("management_portal:request_list") + "?kind=crm",
+        "/admin/clinic_orders/clinicorder/": reverse("management_portal:request_list") + "?kind=clinic",
+        "/admin/leads/lead/": reverse("management_portal:request_list") + "?kind=lead",
+    }
+    return redirect(legacy_targets.get(target, target) or reverse("management_portal:notification_list"))
 
 
 def _require_superuser(request):
