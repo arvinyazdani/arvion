@@ -1,7 +1,10 @@
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from datetime import timedelta
+
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from assessments.models import ManualPaymentSubmission, SupportTicket
@@ -15,10 +18,18 @@ from .notifications import create_receipts
 from .cases import link_customer_event, link_document, resolve_customer, sync_source_case
 
 
-def notify(*, category, title, description, target_url, role, source_key):
+def notify(*, category, title, description, target_url, role, source_key, due_at=None):
+    if due_at is None:
+        due_at = timezone.now() + timedelta(seconds={
+            "payments": 30 * 60,
+            "support": 4 * 60 * 60,
+            "sales": 24 * 60 * 60,
+            "contracts": 24 * 60 * 60,
+            "accounts": 24 * 60 * 60,
+        }.get(category, 24 * 60 * 60))
     notification, created = ManagementNotification.objects.get_or_create(source_key=source_key, defaults={
         "category": category, "title": title, "description": description,
-        "target_url": target_url, "role": role,
+        "target_url": target_url, "role": role, "due_at": due_at,
     })
     if created:
         transaction.on_commit(lambda: create_receipts(notification))

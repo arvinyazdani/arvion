@@ -154,6 +154,8 @@ class ManagementNotification(models.Model):
     target_url = models.CharField(max_length=300)
     role = models.CharField(max_length=24, blank=True, db_index=True)
     source_key = models.CharField(max_length=120, unique=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name="owned_management_notifications")
+    due_at = models.DateTimeField(blank=True, null=True, db_index=True)
     status = models.CharField(max_length=12, choices=STATUSES, default="unread", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)

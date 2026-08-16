@@ -607,18 +607,39 @@ def _visible_notifications(user):
 @staff_member_required(login_url="accounts:login")
 def notification_list(request):
     status, category = request.GET.get("status", ""), request.GET.get("category", "")
-    queryset = _visible_notifications(request.user)
+    queryset = _visible_notifications(request.user).select_related("owner")
     if status in dict(ManagementNotification.STATUSES):
         queryset = queryset.filter(status=status)
     if category in dict(ManagementNotification.CATEGORIES):
         queryset = queryset.filter(category=category)
     visible_ids = list(queryset.values_list("pk", flat=True)[:100])
     NotificationReceipt.objects.filter(user=request.user, notification_id__in=visible_ids, seen_at__isnull=True).update(seen_at=timezone.now())
+    now = timezone.now()
+    active = queryset.exclude(status="resolved")
+    urgent = active.filter(Q(category="payments") | Q(due_at__lt=now)).order_by("due_at", "-created_at")
+    today = active.filter(due_at__gte=now, due_at__date=timezone.localdate()).exclude(pk__in=urgent.values("pk")).order_by("due_at", "-created_at")
+    information = active.exclude(pk__in=urgent.values("pk")).exclude(pk__in=today.values("pk")).order_by("due_at", "-created_at")
     return render(request, "management_portal/notifications.html", {
-        "notifications": queryset[:100], "statuses": ManagementNotification.STATUSES,
+        "notifications": queryset[:100], "urgent_notifications": urgent[:30], "today_notifications": today[:30], "information_notifications": information[:30], "statuses": ManagementNotification.STATUSES,
         "categories": ManagementNotification.CATEGORIES, "active_status": status, "active_category": category,
         "lang": getattr(request, "LANGUAGE_CODE", "fa"),
     })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def notification_claim(request, notification_id):
+    notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
+    if notification.status == "resolved":
+        messages.warning(request, "این مورد مختومه شده است.")
+        return redirect(request.POST.get("next") or "management_portal:notification_list")
+    notification.owner = request.user
+    if notification.status == "unread":
+        notification.status = "read"
+    notification.save(update_fields=["owner", "status", "updated_at"])
+    OperationalAudit.objects.create(actor=request.user, action="notification_claimed", target_type="management_notification", target_id=str(notification.pk), summary=notification.title)
+    messages.success(request, "مسئولیت این مورد به شما واگذار شد.")
+    return redirect(request.POST.get("next") or "management_portal:notification_list")
 
 
 @staff_member_required(login_url="accounts:login")
