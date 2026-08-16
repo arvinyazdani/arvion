@@ -64,6 +64,13 @@ class CrmOrderThanksView(LanguageViewMixin, DetailView):
 
 def specialist_discovery(request, code, section=None):
     order = get_object_or_404(CrmOrder, tracking_code=code)
+    room_token = request.GET.get("room", "")
+    room_proposal = None
+    if room_token:
+        from contracts.models import ContractProposal
+        room_proposal = get_object_or_404(ContractProposal, token=room_token, crm_order=order)
+        if not room_proposal.current_version or request.session.get(f"contract-access:{room_proposal.current_version}") != room_proposal.customer_phone:
+            return redirect("contracts:contract_access", token=room_token)
     discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
     keys = [item[0] for item in SECTIONS]
     section = section or keys[0]
@@ -78,10 +85,13 @@ def specialist_discovery(request, code, section=None):
         if index == len(keys) - 1:
             discovery.status = "submitted"
             discovery.save(update_fields=["answers", "status", "updated_at"])
+            if room_proposal:
+                return redirect("contracts:public_contract", token=room_token)
             return redirect("crm_orders:specialist_done", code=code)
         discovery.save(update_fields=["answers", "updated_at"])
-        return redirect("crm_orders:specialist_section", code=code, section=keys[index + 1])
-    return render(request, "crm_orders/specialist_wizard.html", {"order": order, "discovery": discovery, "form": form, "section": next(item for item in SECTIONS if item[0] == section), "sections": SECTIONS, "index": index, "total": len(keys)})
+        url = reverse("crm_orders:specialist_section", kwargs={"code": code, "section": keys[index + 1]})
+        return redirect(f"{url}?room={room_token}" if room_token else url)
+    return render(request, "crm_orders/specialist_wizard.html", {"order": order, "discovery": discovery, "form": form, "section": next(item for item in SECTIONS if item[0] == section), "sections": SECTIONS, "index": index, "total": len(keys), "room_proposal": room_proposal})
 
 
 def specialist_done(request, code):

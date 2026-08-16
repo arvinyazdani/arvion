@@ -20,7 +20,7 @@ from core.sms.backends import SMSDeliveryError
 from management_portal.models import Customer, CustomerContact
 from core.models import CompanyProfile
 from .forms import ClauseSelectionForm, ContractAccessForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, OtpVerifyForm, ProposalForm
-from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, ContractProposal, ContractReview
+from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from .services import add_default_clauses, proposal_snapshot, publish_version
 
 
@@ -185,7 +185,8 @@ def public_contract(request, token):
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
         return redirect("contracts:contract_access", token=token)
     discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
-    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery})
+    acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
+    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery, "acknowledgements": acknowledgements})
 
 
 @never_cache
@@ -213,15 +214,53 @@ def contract_document(request, token):
         proposal.status = "review"
         proposal.save(update_fields=["status", "updated_at"])
         return redirect("contracts:contract_document", token=token)
-    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing})
+    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing, "acknowledgements": set(version.room_acknowledgements.values_list("document", flat=True))})
 
 
-def _acceptance_version(token):
+@never_cache
+@require_POST
+def contract_acknowledge(request, token, document):
+    proposal = get_object_or_404(ContractProposal, token=token)
+    if document not in {"general", "private"} or not proposal.is_publicly_available or not proposal.current_version:
+        raise Http404
+    version = proposal.versions.get(number=proposal.current_version)
+    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+        return redirect("contracts:contract_access", token=token)
+    if not version.snapshot.get(f"{document}_terms"):
+        raise Http404
+    ip = request.META.get("REMOTE_ADDR", "")
+    ContractRoomAcknowledgement.objects.get_or_create(
+        version=version, document=document,
+        defaults={"ip_hash": hashlib.sha256(ip.encode()).hexdigest() if ip else "", "user_agent": request.META.get("HTTP_USER_AGENT", "")[:240]},
+    )
+    messages.success(request, f"بررسی «{'شرایط عمومی پیمان' if document == 'general' else 'شرایط خصوصی پیمان'}» ثبت شد.")
+    return redirect("contracts:public_contract", token=token)
+
+
+@never_cache
+@require_POST
+def contract_logout(request, token):
+    proposal = get_object_or_404(ContractProposal, token=token)
+    if proposal.current_version:
+        version = proposal.versions.filter(number=proposal.current_version).first()
+        if version:
+            request.session.pop(f"contract-access:{version.pk}", None)
+    request.session.modified = True
+    messages.success(request, "از اتاق قرارداد خارج شدید.")
+    return redirect("contracts:contract_access", token=token)
+
+
+def _acceptance_version(request, token):
     proposal = get_object_or_404(ContractProposal, token=token)
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
+    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+        raise PermissionDenied
     review = getattr(version, "review", None)
+    acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
+    if acknowledgements != {"general", "private"}:
+        raise PermissionDenied
     if not review or review.rejected_clause_ids or review.suggested_clause:
         raise PermissionDenied
     return proposal, version
@@ -229,7 +268,7 @@ def _acceptance_version(token):
 
 @never_cache
 def contract_accept(request, token):
-    proposal, version = _acceptance_version(token)
+    proposal, version = _acceptance_version(request, token)
     acceptance = getattr(version, "acceptance", None)
     active = version.otp_challenges.filter(purpose="acceptance", used_at__isnull=True, expires_at__gt=timezone.now()).first()
     return render(request, "contracts/contract_accept.html", {
@@ -241,7 +280,7 @@ def contract_accept(request, token):
 @never_cache
 @require_POST
 def contract_request_otp(request, token):
-    proposal, version = _acceptance_version(token)
+    proposal, version = _acceptance_version(request, token)
     if hasattr(version, "acceptance"):
         return redirect("contracts:contract_accept", token=token)
     form = OtpRequestForm(request.POST)
@@ -274,7 +313,7 @@ def contract_request_otp(request, token):
 @require_POST
 @transaction.atomic
 def contract_verify_otp(request, token):
-    proposal, version = _acceptance_version(token)
+    proposal, version = _acceptance_version(request, token)
     if hasattr(version, "acceptance"):
         return redirect("contracts:contract_accept", token=token)
     form = OtpVerifyForm(request.POST)

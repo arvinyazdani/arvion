@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from accounts.models import User
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
-from contracts.models import ContractProposal, ContractReview
+from contracts.models import ContractProposal, ContractReview, ContractRoomAcknowledgement
 from contracts.services import add_default_clauses, publish_version
 from django.utils import timezone
 
@@ -144,6 +144,9 @@ class ContractWorkflowTests(TestCase):
     @patch("contracts.views.secrets.randbelow", return_value=123456)
     def test_otp_acceptance_is_hashed_single_use_and_bound_to_version(self, _random):
         version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
         ContractReview.objects.create(
             version=version,
             accepted_clause_ids=[str(item["id"]) for item in version.snapshot["clauses"]],

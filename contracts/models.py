@@ -112,3 +112,20 @@ class ContractAcceptance(models.Model):
 
     class Meta:
         ordering = ("-accepted_at",)
+
+
+class ContractRoomAcknowledgement(models.Model):
+    """Auditable acknowledgement of the fixed documents in a contract room."""
+
+    DOCUMENTS = (
+        ("general", "شرایط عمومی پیمان"),
+        ("private", "شرایط خصوصی پیمان"),
+    )
+    version = models.ForeignKey(ContractVersion, on_delete=models.PROTECT, related_name="room_acknowledgements")
+    document = models.CharField(max_length=12, choices=DOCUMENTS)
+    acknowledged_at = models.DateTimeField(auto_now_add=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=240, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("version", "document"), name="unique_contract_room_ack")]
