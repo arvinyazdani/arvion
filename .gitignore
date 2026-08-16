@@ -16,6 +16,9 @@ media/
 # Virtual environment
 venv/
 .env
+.env.production
+.env.production.*
+.secrets/
 .server-secrets.txt
 ops/arvan-user-data-private.sh
 .venv/
@@ -26,6 +29,7 @@ ops/arvan-user-data-private.sh
 
 # macOS
 .DS_Store
+._*
 
 # Byte-compiled / optimized / DLL files
 *.so
