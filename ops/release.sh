@@ -7,6 +7,7 @@ BACKUP_DIR="${BACKUP_DIR:-$APP_DIR/backups}"
 BACKUP_DATABASE="${BACKUP_DATABASE:-arvion}"
 RELEASE_STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_FILE="$BACKUP_DIR/pre-release-$RELEASE_STAMP.dump"
+RELEASE_LOG="$BACKUP_DIR/release-history.log"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run this release script with sudo so it can create the PostgreSQL snapshot." >&2
@@ -20,6 +21,7 @@ test -s "$BACKUP_FILE"
 echo "Pre-release database snapshot: $BACKUP_FILE"
 
 cd "$APP_DIR"
+RELEASE_COMMIT="$(git rev-parse --short HEAD)"
 run_manage() {
   sudo -u arvion bash -c "set -a; source '$ENV_FILE'; set +a; DJANGO_SETTINGS_MODULE=arvion.settings.production '$APP_DIR/.venv/bin/python' '$APP_DIR/manage.py' $*"
 }
@@ -43,3 +45,21 @@ systemctl daemon-reload
 systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer arvion-backup.timer arvion-restore-check.timer
 systemctl restart arvion
 systemctl is-active --quiet arvion
+
+# The application is deliberately probed locally: DNS/CDN failures must not make
+# a healthy deployment look unsuccessful, while the Host header still exercises
+# Django's production host and HTTPS-aware settings.
+set -a
+source "$ENV_FILE"
+set +a
+HEALTH_HOST="${DJANGO_ALLOWED_HOSTS%%,*}"
+curl --fail --silent --show-error --connect-timeout 10 \
+  --header "Host: $HEALTH_HOST" \
+  --header "X-Forwarded-Proto: https" \
+  http://127.0.0.1:8000/health/ >/dev/null
+
+printf '%s commit=%s snapshot=%s health=ok\n' \
+  "$(date --iso-8601=seconds)" "$RELEASE_COMMIT" "$BACKUP_FILE" >> "$RELEASE_LOG"
+chown arvion:arvion "$RELEASE_LOG"
+chmod 0640 "$RELEASE_LOG"
+echo "Release completed: commit=$RELEASE_COMMIT health=ok"
