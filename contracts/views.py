@@ -195,12 +195,17 @@ def contract_document(request, token):
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
+    acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
+    ready_for_review = acknowledgements == {"general", "private"}
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
         return redirect("contracts:contract_access", token=token)
     existing = getattr(version, "review", None)
     if request.method == "GET" and existing and not existing.rejected_clause_ids and not existing.suggested_clause:
         return redirect("contracts:contract_accept", token=token)
     form = ContractReviewForm(request.POST or None, version=version)
+    if request.method == "POST" and not ready_for_review:
+        messages.error(request, "ابتدا شرایط عمومی و خصوصی پیمان را در همین پرونده بررسی و تأیید کنید.")
+        return redirect("contracts:public_contract", token=token)
     if request.method == "POST" and not existing and form.is_valid():
         all_ids = {str(item["id"]) for item in version.snapshot["clauses"]}
         accepted = set(form.cleaned_data["accepted_clauses"])
@@ -214,7 +219,7 @@ def contract_document(request, token):
         proposal.status = "review"
         proposal.save(update_fields=["status", "updated_at"])
         return redirect("contracts:contract_document", token=token)
-    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing, "acknowledgements": set(version.room_acknowledgements.values_list("document", flat=True))})
+    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing, "acknowledgements": acknowledgements, "ready_for_review": ready_for_review})
 
 
 @never_cache

@@ -100,6 +100,8 @@ class ContractWorkflowTests(TestCase):
     def test_customer_can_reject_clause_only_with_reason_and_suggest_clause(self):
         version = publish_version(self.proposal, self.root)
         self.grant_contract_access(version)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
         accepted = [str(item["id"]) for item in version.snapshot["clauses"]][1:]
         url = reverse("contracts:contract_document", args=[self.proposal.token])
         invalid = self.client.post(url, {"accepted_clauses": accepted, "suggested_clause": "بند پیشنهادی"})
