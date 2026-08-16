@@ -20,7 +20,9 @@ from accounts.models import User
 from assessments.models import Attempt, AttemptResult, Certificate, Exam, ManualPaymentSubmission, Order, SupportTicket
 from clinic_orders.models import ClinicOrder
 from crm_orders.models import CrmOrder
+from crm_orders.text_export import render_crm_order_text
 from leads.models import Lead
+from clinic_orders.text_export import render_clinic_order_text
 from traffic.models import ActiveVisitor, TrafficDay
 from contracts.models import ContractProposal
 from blog.models import Post
@@ -375,10 +377,13 @@ def request_detail(request, kind, object_id):
     item = get_object_or_404(model, pk=object_id)
     if kind == "lead":
         title, contact, phone, email, code, summary = item.business_name or item.name, item.name, item.phone or "—", item.email_or_telegram, item.tracking_code, item.message
+        full_report = "\n".join(("گزارش کامل درخواست همکاری آرویون", "=" * 38, f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"شماره تماس: {item.phone or '—'}", f"ایمیل / تلگرام: {item.email_or_telegram}", f"نوع درخواست: {item.get_request_type_display()}", f"بودجه: {item.get_budget_range_display()}", f"زمان‌بندی: {item.get_timeline_display()}", f"روش تماس: {item.get_preferred_contact_display()}", "", "شرح درخواست", "-" * 20, item.message))
     elif kind == "crm":
         title, contact, phone, email, code, summary = item.organization_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
+        full_report = render_crm_order_text(item)
     else:
         title, contact, phone, email, code, summary = item.clinic_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
+        full_report = render_clinic_order_text(item)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
     status_choices = list(model.STATUSES)
     if lang == "en" and kind in {"crm", "clinic"}:
@@ -387,9 +392,29 @@ def request_detail(request, kind, object_id):
     status_display = dict(status_choices).get(item.status, item.status)
     return render(request, "management_portal/v2/request_detail.html", {
         "item": item, "kind": kind, "title": title, "contact": contact, "phone": phone,
-        "email": email, "code": code, "summary": summary, "lang": lang, "status_choices": status_choices, "status_display": status_display,
+        "email": email, "code": code, "summary": summary, "full_report": full_report, "lang": lang, "status_choices": status_choices, "status_display": status_display,
         "can_change": request.user.is_superuser or request.user.has_perm({"lead": "leads.change_lead", "crm": "crm_orders.change_crmorder", "clinic": "clinic_orders.change_clinicorder"}[kind]),
     })
+
+
+@staff_member_required(login_url="accounts:login")
+def request_export(request, kind, object_id):
+    _require_sales_access(request.user)
+    models = {"lead": Lead, "crm": CrmOrder, "clinic": ClinicOrder}
+    model = models.get(kind)
+    if not model:
+        raise Http404
+    permission = {"lead": "leads.view_lead", "crm": "crm_orders.view_crmorder", "clinic": "clinic_orders.view_clinicorder"}[kind]
+    if not request.user.is_superuser and not request.user.has_perm(permission):
+        raise PermissionDenied
+    item = get_object_or_404(model, pk=object_id)
+    if kind == "crm": report = render_crm_order_text(item)
+    elif kind == "clinic": report = render_clinic_order_text(item)
+    else: report = "\n".join(("گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"تماس: {item.phone or item.email_or_telegram}", "", item.message)) + "\n"
+    OperationalAudit.objects.create(actor=request.user, action="request_exported", target_type=kind, target_id=str(item.pk), summary=getattr(item, "tracking_code", str(item.pk)))
+    response = HttpResponse(report, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="rvion-{kind}-{item.pk}.txt"'
+    return response
 
 
 @staff_member_required(login_url="accounts:login")
