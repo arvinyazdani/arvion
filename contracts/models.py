@@ -83,8 +83,10 @@ class ContractReview(models.Model):
 
 
 class ContractOtpChallenge(models.Model):
+    PURPOSES = (("access", "ورود به اتاق قرارداد"), ("acceptance", "تأیید نهایی قرارداد"))
     version = models.ForeignKey(ContractVersion, on_delete=models.PROTECT, related_name="otp_challenges")
     phone = models.CharField(max_length=12)
+    purpose = models.CharField(max_length=12, choices=PURPOSES, default="acceptance")
     code_hash = models.CharField(max_length=128)
     provider_reference = models.CharField(max_length=120, blank=True)
     expires_at = models.DateTimeField()

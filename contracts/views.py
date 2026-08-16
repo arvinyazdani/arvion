@@ -19,7 +19,7 @@ from core.sms import send_otp
 from core.sms.backends import SMSDeliveryError
 from management_portal.models import Customer, CustomerContact
 from core.models import CompanyProfile
-from .forms import ClauseSelectionForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, OtpVerifyForm, ProposalForm
+from .forms import ClauseSelectionForm, ContractAccessPhoneForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, OtpVerifyForm, ProposalForm
 from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, ContractProposal, ContractReview
 from .services import add_default_clauses, proposal_snapshot, publish_version
 
@@ -182,6 +182,8 @@ def public_contract(request, token):
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
+    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+        return redirect("contracts:contract_access", token=token)
     existing = getattr(version, "review", None)
     if request.method == "GET" and existing and not existing.rejected_clause_ids and not existing.suggested_clause:
         return redirect("contracts:contract_accept", token=token)
@@ -217,7 +219,7 @@ def _acceptance_version(token):
 def contract_accept(request, token):
     proposal, version = _acceptance_version(token)
     acceptance = getattr(version, "acceptance", None)
-    active = version.otp_challenges.filter(used_at__isnull=True, expires_at__gt=timezone.now()).first()
+    active = version.otp_challenges.filter(purpose="acceptance", used_at__isnull=True, expires_at__gt=timezone.now()).first()
     return render(request, "contracts/contract_accept.html", {
         "proposal": proposal, "version": version, "acceptance": acceptance, "active_challenge": active,
         "request_form": OtpRequestForm(), "verify_form": OtpVerifyForm(),
@@ -241,6 +243,7 @@ def contract_request_otp(request, token):
     code = f"{secrets.randbelow(1_000_000):06d}"
     challenge = ContractOtpChallenge.objects.create(
         version=version, phone=proposal.customer_phone, code_hash=make_password(code),
+        purpose="acceptance",
         expires_at=timezone.now() + timedelta(seconds=settings.OTP_TTL_SECONDS),
     )
     try:
@@ -263,7 +266,7 @@ def contract_verify_otp(request, token):
     if hasattr(version, "acceptance"):
         return redirect("contracts:contract_accept", token=token)
     form = OtpVerifyForm(request.POST)
-    challenge = version.otp_challenges.select_for_update().filter(used_at__isnull=True).order_by("-created_at").first()
+    challenge = version.otp_challenges.select_for_update().filter(purpose="acceptance", used_at__isnull=True).order_by("-created_at").first()
     if not form.is_valid() or not challenge or challenge.expires_at <= timezone.now() or challenge.attempts >= settings.OTP_MAX_VERIFY_ATTEMPTS:
         messages.error(request, "کد معتبر یا فعال نیست؛ کد تازه درخواست کنید.")
         return redirect("contracts:contract_accept", token=token)
@@ -282,3 +285,69 @@ def contract_verify_otp(request, token):
     proposal.status = "accepted"
     proposal.save(update_fields=["status", "updated_at"])
     return redirect("contracts:contract_accept", token=token)
+
+
+@never_cache
+def contract_access(request, token):
+    proposal = get_object_or_404(ContractProposal, token=token)
+    if not proposal.is_publicly_available or not proposal.current_version:
+        raise Http404
+    version = proposal.versions.get(number=proposal.current_version)
+    if request.session.get(f"contract-access:{version.pk}") == proposal.customer_phone:
+        return redirect("contracts:public_contract", token=token)
+    challenge = version.otp_challenges.filter(purpose="access", used_at__isnull=True, expires_at__gt=timezone.now()).first()
+    return render(request, "contracts/contract_access.html", {"proposal": proposal, "challenge": challenge, "phone_form": ContractAccessPhoneForm(), "verify_form": OtpVerifyForm()})
+
+
+@never_cache
+@require_POST
+def contract_access_request(request, token):
+    proposal = get_object_or_404(ContractProposal, token=token)
+    if not proposal.is_publicly_available or not proposal.current_version:
+        raise Http404
+    form = ContractAccessPhoneForm(request.POST)
+    if not form.is_valid() or form.cleaned_data["phone"] != proposal.customer_phone:
+        messages.error(request, "این شماره برای مشاهدهٔ این قرارداد مجاز نیست.")
+        return redirect("contracts:contract_access", token=token)
+    version = proposal.versions.get(number=proposal.current_version)
+    window_start = timezone.now() - timedelta(seconds=settings.OTP_REQUEST_WINDOW_SECONDS)
+    if version.otp_challenges.filter(purpose="access", created_at__gte=window_start).count() >= settings.OTP_REQUEST_LIMIT:
+        messages.error(request, "تعداد درخواست کد بیش از حد مجاز است؛ کمی بعد دوباره تلاش کنید.")
+        return redirect("contracts:contract_access", token=token)
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    challenge = ContractOtpChallenge.objects.create(version=version, phone=proposal.customer_phone, purpose="access", code_hash=make_password(code), expires_at=timezone.now() + timedelta(seconds=settings.OTP_TTL_SECONDS))
+    try:
+        result = send_otp(proposal.customer_phone, code)
+    except (SMSDeliveryError, ValueError, ImproperlyConfigured):
+        challenge.delete()
+        messages.error(request, "ارسال کد انجام نشد؛ چند دقیقه بعد دوباره تلاش کنید.")
+        return redirect("contracts:contract_access", token=token)
+    challenge.provider_reference = result.reference
+    challenge.save(update_fields=["provider_reference"])
+    messages.success(request, "کد ورود برای شمارهٔ مجاز ارسال شد.")
+    return redirect("contracts:contract_access", token=token)
+
+
+@never_cache
+@require_POST
+@transaction.atomic
+def contract_access_verify(request, token):
+    proposal = get_object_or_404(ContractProposal, token=token)
+    if not proposal.is_publicly_available or not proposal.current_version:
+        raise Http404
+    version = proposal.versions.get(number=proposal.current_version)
+    form = OtpVerifyForm(request.POST)
+    challenge = version.otp_challenges.select_for_update().filter(purpose="access", used_at__isnull=True).order_by("-created_at").first()
+    if not form.is_valid() or not challenge or challenge.expires_at <= timezone.now() or challenge.attempts >= settings.OTP_MAX_VERIFY_ATTEMPTS:
+        messages.error(request, "کد معتبر یا فعال نیست؛ کد تازه درخواست کنید.")
+        return redirect("contracts:contract_access", token=token)
+    challenge.attempts += 1
+    challenge.save(update_fields=["attempts"])
+    if not check_password(form.cleaned_data["code"], challenge.code_hash):
+        messages.error(request, "کد واردشده صحیح نیست.")
+        return redirect("contracts:contract_access", token=token)
+    challenge.used_at = timezone.now()
+    challenge.save(update_fields=["used_at"])
+    request.session[f"contract-access:{version.pk}"] = proposal.customer_phone
+    request.session.set_expiry(settings.OTP_TTL_SECONDS)
+    return redirect("contracts:public_contract", token=token)

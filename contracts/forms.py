@@ -139,3 +139,10 @@ class OtpRequestForm(forms.Form):
 
 class OtpVerifyForm(forms.Form):
     code = forms.RegexField(label="کد تأیید شش‌رقمی", regex=r"^\d{6}$", max_length=6, min_length=6)
+
+
+class ContractAccessPhoneForm(forms.Form):
+    phone = forms.CharField(label="شماره همراه مجاز", max_length=24)
+
+    def clean_phone(self):
+        return normalize_iran_mobile(self.cleaned_data["phone"])

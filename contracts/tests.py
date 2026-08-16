@@ -20,6 +20,11 @@ class ContractWorkflowTests(TestCase):
         )
         add_default_clauses(self.proposal)
 
+    def grant_contract_access(self, version):
+        session = self.client.session
+        session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
+        session.save()
+
     def test_public_link_is_hidden_before_publish(self):
         response = self.client.get(reverse("contracts:public_contract", args=[self.proposal.token]))
         self.assertEqual(response.status_code, 404)
@@ -79,6 +84,7 @@ class ContractWorkflowTests(TestCase):
 
     def test_publish_creates_immutable_snapshot_and_public_noindex_page(self):
         version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
         original = version.snapshot["project_scope"]
         self.proposal.project_scope = "متن تغییر یافته"
         self.proposal.save()
@@ -93,6 +99,7 @@ class ContractWorkflowTests(TestCase):
 
     def test_customer_can_reject_clause_only_with_reason_and_suggest_clause(self):
         version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
         accepted = [str(item["id"]) for item in version.snapshot["clauses"]][1:]
         url = reverse("contracts:public_contract", args=[self.proposal.token])
         invalid = self.client.post(url, {"accepted_clauses": accepted, "suggested_clause": "بند پیشنهادی"})
@@ -102,6 +109,20 @@ class ContractWorkflowTests(TestCase):
         review = ContractReview.objects.get(version=version)
         self.assertEqual(review.suggested_clause, "بند پیشنهادی")
         self.assertEqual(len(review.rejected_clause_ids), 1)
+
+    @override_settings(SMS_BACKEND="core.sms.backends.ConsoleSMSBackend")
+    @patch("contracts.views.secrets.randbelow", return_value=123456)
+    def test_phone_access_requires_matching_number_and_one_time_code(self, _random):
+        version = publish_version(self.proposal, self.root)
+        url = reverse("contracts:contract_access", args=[self.proposal.token])
+        self.assertRedirects(self.client.get(reverse("contracts:public_contract", args=[self.proposal.token])), url)
+        self.client.post(reverse("contracts:contract_access_request", args=[self.proposal.token]), {"phone": "09120000000"})
+        self.assertFalse(version.otp_challenges.filter(purpose="access").exists())
+        self.client.post(reverse("contracts:contract_access_request", args=[self.proposal.token]), {"phone": "09120373271"})
+        challenge = version.otp_challenges.get(purpose="access")
+        self.assertNotIn("123456", challenge.code_hash)
+        response = self.client.post(reverse("contracts:contract_access_verify", args=[self.proposal.token]), {"code": "123456"})
+        self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
 
     def test_non_superuser_cannot_manage_contracts(self):
         staff = User.objects.create_user(username="staff-c", email="staff-c@example.com", password="safe-password", is_staff=True)
