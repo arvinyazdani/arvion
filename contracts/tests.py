@@ -142,6 +142,27 @@ class ContractWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
         self.assertTrue(ContractRoomAcknowledgement.objects.filter(version=version, document="general").exists())
 
+    @override_settings(SMS_BACKEND="core.sms.backends.ConsoleSMSBackend")
+    def test_final_otp_request_accepts_secure_csrf_post(self):
+        version = publish_version(self.proposal, self.root)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
+        ContractReview.objects.create(version=version, accepted_clause_ids=[str(item["id"]) for item in version.snapshot["clauses"]])
+        client = Client(enforce_csrf_checks=True)
+        session = client.session
+        session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
+        session.save()
+        accept_url = reverse("contracts:contract_accept", args=[self.proposal.token])
+        response = client.get(accept_url, secure=True)
+        token = response.cookies["csrftoken"].value
+        response = client.post(
+            reverse("contracts:contract_request_otp", args=[self.proposal.token]),
+            {"csrfmiddlewaretoken": token, "agreement": "on"}, secure=True,
+            HTTP_REFERER=f"https://testserver{accept_url}",
+        )
+        self.assertRedirects(response, accept_url)
+        self.assertEqual(version.otp_challenges.filter(purpose="acceptance").count(), 1)
+
     def test_non_superuser_cannot_manage_contracts(self):
         staff = User.objects.create_user(username="staff-c", email="staff-c@example.com", password="safe-password", is_staff=True)
         self.client.force_login(staff)
