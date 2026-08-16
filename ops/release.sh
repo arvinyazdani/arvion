@@ -21,7 +21,7 @@ test -s "$BACKUP_FILE"
 echo "Pre-release database snapshot: $BACKUP_FILE"
 
 cd "$APP_DIR"
-RELEASE_COMMIT="$(git rev-parse --short HEAD)"
+RELEASE_COMMIT="$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse --short HEAD)"
 run_manage() {
   sudo -u arvion bash -c "set -a; source '$ENV_FILE'; set +a; DJANGO_SETTINGS_MODULE=arvion.settings.production '$APP_DIR/.venv/bin/python' '$APP_DIR/manage.py' $*"
 }
