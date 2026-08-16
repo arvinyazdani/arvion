@@ -184,6 +184,18 @@ def public_contract(request, token):
     version = proposal.versions.get(number=proposal.current_version)
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
         return redirect("contracts:contract_access", token=token)
+    discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
+    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery})
+
+
+@never_cache
+def contract_document(request, token):
+    proposal = get_object_or_404(ContractProposal, token=token)
+    if not proposal.is_publicly_available or not proposal.current_version:
+        raise Http404
+    version = proposal.versions.get(number=proposal.current_version)
+    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+        return redirect("contracts:contract_access", token=token)
     existing = getattr(version, "review", None)
     if request.method == "GET" and existing and not existing.rejected_clause_ids and not existing.suggested_clause:
         return redirect("contracts:contract_accept", token=token)
@@ -200,7 +212,7 @@ def public_contract(request, token):
         )
         proposal.status = "review"
         proposal.save(update_fields=["status", "updated_at"])
-        return redirect("contracts:public_contract", token=token)
+        return redirect("contracts:contract_document", token=token)
     return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing})
 
 
