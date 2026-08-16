@@ -1,6 +1,5 @@
 import hashlib
 import secrets
-from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
@@ -12,15 +11,10 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.conf import settings
-from django.contrib.auth.hashers import check_password, make_password
-from django.utils import timezone
-
-from core.sms import send_otp
-from core.sms.backends import SMSDeliveryError
 from management_portal.models import Customer, CustomerContact
 from core.models import CompanyProfile
-from .forms import ClauseSelectionForm, ContractAccessForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, OtpVerifyForm, ProposalForm
-from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, ContractProposal, ContractReview, ContractRoomAcknowledgement
+from .forms import ClauseSelectionForm, ContractAccessForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, ProposalForm
+from .models import ContractAcceptance, ContractClause, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from .services import add_default_clauses, proposal_snapshot, publish_version
 
 
@@ -275,71 +269,30 @@ def _acceptance_version(request, token):
 def contract_accept(request, token):
     proposal, version = _acceptance_version(request, token)
     acceptance = getattr(version, "acceptance", None)
-    active = version.otp_challenges.filter(purpose="acceptance", used_at__isnull=True, expires_at__gt=timezone.now()).first()
     return render(request, "contracts/contract_accept.html", {
-        "proposal": proposal, "version": version, "acceptance": acceptance, "active_challenge": active,
-        "request_form": OtpRequestForm(), "verify_form": OtpVerifyForm(),
+        "proposal": proposal, "version": version, "acceptance": acceptance, "confirmation_form": OtpRequestForm(),
     })
 
 
 @never_cache
 @require_POST
-def contract_request_otp(request, token):
+@transaction.atomic
+def contract_confirm(request, token):
     proposal, version = _acceptance_version(request, token)
     if hasattr(version, "acceptance"):
         return redirect("contracts:contract_accept", token=token)
     form = OtpRequestForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "برای دریافت کد، موافقت با نسخه را علامت بزنید.")
+        messages.error(request, "برای ثبت تأیید نهایی، موافقت با نسخه را علامت بزنید.")
         return redirect("contracts:contract_accept", token=token)
-    window_start = timezone.now() - timedelta(seconds=settings.OTP_REQUEST_WINDOW_SECONDS)
-    if version.otp_challenges.filter(created_at__gte=window_start).count() >= settings.OTP_REQUEST_LIMIT:
-        messages.error(request, "تعداد درخواست کد بیش از حد مجاز است؛ کمی بعد دوباره تلاش کنید.")
-        return redirect("contracts:contract_accept", token=token)
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    challenge = ContractOtpChallenge.objects.create(
-        version=version, phone=proposal.customer_phone, code_hash=make_password(code),
-        purpose="acceptance",
-        expires_at=timezone.now() + timedelta(seconds=settings.OTP_TTL_SECONDS),
-    )
-    try:
-        result = send_otp(proposal.customer_phone, code)
-    except (SMSDeliveryError, ValueError, ImproperlyConfigured):
-        challenge.delete()
-        messages.error(request, "ارسال کد تأیید انجام نشد؛ تنظیمات قالب پیامک را بررسی کنید.")
-        return redirect("contracts:contract_accept", token=token)
-    challenge.provider_reference = result.reference
-    challenge.save(update_fields=["provider_reference"])
-    messages.success(request, "کد تأیید برای شماره ثبت‌شده ارسال شد.")
-    return redirect("contracts:contract_accept", token=token)
-
-
-@never_cache
-@require_POST
-@transaction.atomic
-def contract_verify_otp(request, token):
-    proposal, version = _acceptance_version(request, token)
-    if hasattr(version, "acceptance"):
-        return redirect("contracts:contract_accept", token=token)
-    form = OtpVerifyForm(request.POST)
-    challenge = version.otp_challenges.select_for_update().filter(purpose="acceptance", used_at__isnull=True).order_by("-created_at").first()
-    if not form.is_valid() or not challenge or challenge.expires_at <= timezone.now() or challenge.attempts >= settings.OTP_MAX_VERIFY_ATTEMPTS:
-        messages.error(request, "کد معتبر یا فعال نیست؛ کد تازه درخواست کنید.")
-        return redirect("contracts:contract_accept", token=token)
-    challenge.attempts += 1
-    challenge.save(update_fields=["attempts"])
-    if not check_password(form.cleaned_data["code"], challenge.code_hash):
-        messages.error(request, "کد واردشده صحیح نیست.")
-        return redirect("contracts:contract_accept", token=token)
-    challenge.used_at = timezone.now()
-    challenge.save(update_fields=["used_at"])
     ip = request.META.get("REMOTE_ADDR", "")
     ContractAcceptance.objects.create(
-        version=version, verified_phone=challenge.phone, provider_reference=challenge.provider_reference,
+        version=version, verified_phone=proposal.customer_phone, provider_reference="",
         ip_hash=hashlib.sha256(ip.encode()).hexdigest() if ip else "", user_agent=request.META.get("HTTP_USER_AGENT", "")[:240],
     )
     proposal.status = "accepted"
     proposal.save(update_fields=["status", "updated_at"])
+    messages.success(request, "تأیید نهایی قرارداد ثبت شد.")
     return redirect("contracts:contract_accept", token=token)
 
 

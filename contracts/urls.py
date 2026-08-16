@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import contract_accept, contract_access, contract_acknowledge, contract_document, contract_logout, contract_request_otp, contract_settings, contract_verify_otp, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke, public_contract
+from .views import contract_accept, contract_access, contract_acknowledge, contract_confirm, contract_document, contract_logout, contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke, public_contract
 
 urlpatterns = [
     path("manage/", proposal_list, name="proposal_list"),
@@ -19,6 +19,5 @@ urlpatterns = [
     path("<str:token>/logout/", contract_logout, name="contract_logout"),
     path("<str:token>/access/", contract_access, name="contract_access"),
     path("<str:token>/accept/", contract_accept, name="contract_accept"),
-    path("<str:token>/accept/request-code/", contract_request_otp, name="contract_request_otp"),
-    path("<str:token>/accept/verify/", contract_verify_otp, name="contract_verify_otp"),
+    path("<str:token>/accept/confirm/", contract_confirm, name="contract_confirm"),
 ]

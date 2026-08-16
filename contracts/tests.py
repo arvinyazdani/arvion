@@ -1,11 +1,9 @@
-from unittest.mock import patch
-
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
-from contracts.models import ContractProposal, ContractReview, ContractRoomAcknowledgement
+from contracts.models import ContractAcceptance, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from contracts.services import add_default_clauses, publish_version
 from django.utils import timezone
 
@@ -142,8 +140,7 @@ class ContractWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
         self.assertTrue(ContractRoomAcknowledgement.objects.filter(version=version, document="general").exists())
 
-    @override_settings(SMS_BACKEND="core.sms.backends.ConsoleSMSBackend")
-    def test_final_otp_request_accepts_secure_csrf_post(self):
+    def test_final_confirmation_accepts_secure_csrf_post(self):
         version = publish_version(self.proposal, self.root)
         ContractRoomAcknowledgement.objects.create(version=version, document="general")
         ContractRoomAcknowledgement.objects.create(version=version, document="private")
@@ -156,12 +153,12 @@ class ContractWorkflowTests(TestCase):
         response = client.get(accept_url, secure=True)
         token = response.cookies["csrftoken"].value
         response = client.post(
-            reverse("contracts:contract_request_otp", args=[self.proposal.token]),
+            reverse("contracts:contract_confirm", args=[self.proposal.token]),
             {"csrfmiddlewaretoken": token, "agreement": "on"}, secure=True,
             HTTP_REFERER=f"https://testserver{accept_url}",
         )
         self.assertRedirects(response, accept_url)
-        self.assertEqual(version.otp_challenges.filter(purpose="acceptance").count(), 1)
+        self.assertTrue(hasattr(version, "acceptance"))
 
     def test_non_superuser_cannot_manage_contracts(self):
         staff = User.objects.create_user(username="staff-c", email="staff-c@example.com", password="safe-password", is_staff=True)
@@ -183,9 +180,7 @@ class ContractWorkflowTests(TestCase):
         self.assertEqual(len(second.snapshot["clauses"]), old_count)
         self.assertEqual(second.snapshot["clauses"][-1]["title"], "بند اختصاصی")
 
-    @override_settings(SMS_BACKEND="core.sms.backends.ConsoleSMSBackend")
-    @patch("contracts.views.secrets.randbelow", return_value=123456)
-    def test_otp_acceptance_is_hashed_single_use_and_bound_to_version(self, _random):
+    def test_final_confirmation_is_bound_to_version_and_single_use(self):
         version = publish_version(self.proposal, self.root)
         self.grant_contract_access(version)
         ContractRoomAcknowledgement.objects.create(version=version, document="general")
@@ -195,19 +190,13 @@ class ContractWorkflowTests(TestCase):
             accepted_clause_ids=[str(item["id"]) for item in version.snapshot["clauses"]],
             rejected_clause_ids=[],
         )
-        request_url = reverse("contracts:contract_request_otp", args=[self.proposal.token])
+        confirm_url = reverse("contracts:contract_confirm", args=[self.proposal.token])
         accept_url = reverse("contracts:contract_accept", args=[self.proposal.token])
-        response = self.client.post(request_url, {"agreement": "on"})
+        response = self.client.post(confirm_url, {"agreement": "on"})
         self.assertRedirects(response, accept_url)
-        challenge = version.otp_challenges.get()
-        self.assertNotIn("123456", challenge.code_hash)
-        verify_url = reverse("contracts:contract_verify_otp", args=[self.proposal.token])
-        self.client.post(verify_url, {"code": "123456"})
-        challenge.refresh_from_db()
         self.proposal.refresh_from_db()
-        self.assertIsNotNone(challenge.used_at)
         self.assertEqual(self.proposal.status, "accepted")
         self.assertEqual(version.acceptance.verified_phone, self.proposal.customer_phone)
-        second = self.client.post(verify_url, {"code": "123456"})
+        second = self.client.post(confirm_url, {"agreement": "on"})
         self.assertRedirects(second, accept_url)
-        self.assertEqual(version.otp_challenges.filter(used_at__isnull=False).count(), 1)
+        self.assertEqual(ContractAcceptance.objects.filter(version=version).count(), 1)
