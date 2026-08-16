@@ -24,6 +24,9 @@ from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, Co
 from .services import add_default_clauses, proposal_snapshot, publish_version
 
 
+ACCESS_RESEND_SECONDS = 120
+
+
 def _require_contract_manager(request):
     if not request.user.is_superuser:
         raise PermissionDenied
@@ -296,7 +299,10 @@ def contract_access(request, token):
     if request.session.get(f"contract-access:{version.pk}") == proposal.customer_phone:
         return redirect("contracts:public_contract", token=token)
     challenge = version.otp_challenges.filter(purpose="access", used_at__isnull=True, expires_at__gt=timezone.now()).first()
-    return render(request, "contracts/contract_access.html", {"proposal": proposal, "challenge": challenge, "phone_form": ContractAccessPhoneForm(), "verify_form": OtpVerifyForm()})
+    retry_after_seconds = 0
+    if challenge:
+        retry_after_seconds = max(0, ACCESS_RESEND_SECONDS - int((timezone.now() - challenge.created_at).total_seconds()))
+    return render(request, "contracts/contract_access.html", {"proposal": proposal, "challenge": challenge, "retry_after_seconds": retry_after_seconds, "phone_form": ContractAccessPhoneForm(), "verify_form": OtpVerifyForm()})
 
 
 @never_cache
@@ -310,6 +316,10 @@ def contract_access_request(request, token):
         messages.error(request, "این شماره برای مشاهدهٔ این قرارداد مجاز نیست.")
         return redirect("contracts:contract_access", token=token)
     version = proposal.versions.get(number=proposal.current_version)
+    latest = version.otp_challenges.filter(purpose="access").order_by("-created_at").first()
+    if latest and (timezone.now() - latest.created_at).total_seconds() < ACCESS_RESEND_SECONDS:
+        messages.error(request, "برای دریافت کد جدید، زمان‌سنج دو دقیقه‌ای را کامل کنید.")
+        return redirect("contracts:contract_access", token=token)
     window_start = timezone.now() - timedelta(seconds=settings.OTP_REQUEST_WINDOW_SECONDS)
     if version.otp_challenges.filter(purpose="access", created_at__gte=window_start).count() >= settings.OTP_REQUEST_LIMIT:
         messages.error(request, "تعداد درخواست کد بیش از حد مجاز است؛ کمی بعد دوباره تلاش کنید.")
