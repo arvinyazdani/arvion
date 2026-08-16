@@ -110,18 +110,14 @@ class ContractWorkflowTests(TestCase):
         self.assertEqual(review.suggested_clause, "بند پیشنهادی")
         self.assertEqual(len(review.rejected_clause_ids), 1)
 
-    @override_settings(SMS_BACKEND="core.sms.backends.ConsoleSMSBackend")
-    @patch("contracts.views.secrets.randbelow", return_value=123456)
-    def test_phone_access_requires_matching_number_and_one_time_code(self, _random):
+    @override_settings(CONTRACT_ACCESS_PASSWORD="test-contract-password")
+    def test_phone_access_requires_matching_number_and_password(self):
         version = publish_version(self.proposal, self.root)
         url = reverse("contracts:contract_access", args=[self.proposal.token])
         self.assertRedirects(self.client.get(reverse("contracts:public_contract", args=[self.proposal.token])), url)
-        self.client.post(reverse("contracts:contract_access_request", args=[self.proposal.token]), {"phone": "09120000000"})
-        self.assertFalse(version.otp_challenges.filter(purpose="access").exists())
-        self.client.post(reverse("contracts:contract_access_request", args=[self.proposal.token]), {"phone": "09120373271"})
-        challenge = version.otp_challenges.get(purpose="access")
-        self.assertNotIn("123456", challenge.code_hash)
-        response = self.client.post(reverse("contracts:contract_access_verify", args=[self.proposal.token]), {"code": "123456"})
+        invalid = self.client.post(url, {"phone": "09120000000", "password": "test-contract-password"})
+        self.assertContains(invalid, "شماره همراه یا رمز ورود صحیح نیست")
+        response = self.client.post(url, {"phone": "09120373271", "password": "test-contract-password"})
         self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
 
     def test_non_superuser_cannot_manage_contracts(self):

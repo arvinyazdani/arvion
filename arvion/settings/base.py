@@ -97,6 +97,7 @@ AUTH_LOGIN_ATTEMPTS = int(os.getenv("AUTH_LOGIN_ATTEMPTS", "5"))
 AUTH_LOGIN_WINDOW_SECONDS = int(os.getenv("AUTH_LOGIN_WINDOW_SECONDS", "900"))
 AUTH_EMAIL_REQUESTS = int(os.getenv("AUTH_EMAIL_REQUESTS", "4"))
 AUTH_EMAIL_WINDOW_SECONDS = int(os.getenv("AUTH_EMAIL_WINDOW_SECONDS", "3600"))
+CONTRACT_ACCESS_PASSWORD = os.getenv("CONTRACT_ACCESS_PASSWORD", "")
 
 # SMS delivery. The console backend is intentionally the safe local/test default.
 SMS_BACKEND = os.getenv("SMS_BACKEND", "core.sms.backends.ConsoleSMSBackend")
