@@ -72,6 +72,24 @@ def customer_workspace(request):
 
 
 @staff_member_required(login_url="accounts:login")
+def customer_duplicates(request):
+    """Read-only comparison surface. A later explicit merge action will live separately."""
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    field = request.GET.get("field", "")
+    value = request.GET.get("value", "").strip()
+    if field not in {"phone", "email"}:
+        field, value = "", ""
+    groups = []
+    for candidate_field in ("phone", "email"):
+        rows = Customer.objects.exclude(**{candidate_field: ""}).values(candidate_field).annotate(total=Count("pk")).filter(total__gt=1).order_by("-total", candidate_field)
+        groups.extend({"field": candidate_field, "value": row[candidate_field], "total": row["total"]} for row in rows)
+    compared_customers = Customer.objects.none()
+    if field and value:
+        compared_customers = Customer.objects.filter(**{field: value}).prefetch_related("contacts", "cases", "contracts", "assessment_orders").order_by("name")
+    return render(request, "management_portal/v2/customer_duplicates.html", {"lang": lang, "groups": groups, "field": field, "value": value, "compared_customers": compared_customers})
+
+
+@staff_member_required(login_url="accounts:login")
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")

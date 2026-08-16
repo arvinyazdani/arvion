@@ -100,6 +100,17 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "same@example.com")
         self.assertEqual(Customer.objects.count(), 3)
 
+    def test_duplicate_review_compares_records_without_merging_them(self):
+        staff = User.objects.create_user(username="duplicate-staff", email="duplicate-staff@example.com", password="safe-password", is_staff=True)
+        first = Customer.objects.create(name="شرکت اول", phone="09120008888")
+        second = Customer.objects.create(name="شرکت دوم", phone="09120008888")
+        self.client.force_login(staff)
+        response = self.client.get(reverse("management_portal:customer_duplicates"), {"field": "phone", "value": "09120008888"})
+        self.assertContains(response, "پیش از ادغام، پرونده‌ها را کنار هم ببینید")
+        self.assertContains(response, first.name)
+        self.assertContains(response, second.name)
+        self.assertEqual(Customer.objects.filter(phone="09120008888").count(), 2)
+
     def test_customer_record_collects_linked_contract_and_order(self):
         root = User.objects.create_superuser(username="customer-root", email="customer-root@example.com", password="safe-password")
         customer_user = User.objects.create_user(username="customer-finance", email="finance@example.com", password="safe-password")
