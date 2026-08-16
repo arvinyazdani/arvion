@@ -27,8 +27,8 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Compile Python sources
-        run: python -m compileall -q accounts arvion assessments blog core leads projects services
+      - name: Compile every Django application
+        run: python -m compileall -q accounts arvion assessments blog clinic_orders contracts core crm_orders leads management_portal projects services traffic
       - name: Django checks and migration drift
         run: |
           python manage.py check
