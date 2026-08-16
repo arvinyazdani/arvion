@@ -232,7 +232,9 @@ def _metric(label, value, description, url="", tone=""):
 def dashboard(request):
     """Permission-aware command centre outside Django's model administration UI."""
     user = request.user
+    now = timezone.now()
     metrics = []
+    sla_cards = []
     queues = []
     if user.has_perm("accounts.change_user"):
         pending_users = User.objects.filter(is_active=False).order_by("-date_joined")
@@ -254,8 +256,12 @@ def dashboard(request):
         payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("-created_at")
         metrics.append(_metric("پرداخت منتظر بررسی", payments.count(), "تأیید بانکی و دسترسی آزمون", reverse("management_portal:approvals"), "danger"))
         queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.created_at, "url": reverse("management_portal:approvals")} for item in payments[:4]]
+        overdue_payments = payments.filter(created_at__lte=now - timedelta(seconds=settings.PAYMENT_REVIEW_SLA_SECONDS)).count()
+        sla_cards.append(_metric("پرداخت خارج از مهلت", overdue_payments, "بیش از ۳۰ دقیقه در انتظار تأیید", reverse("management_portal:approvals"), "danger"))
     if user.has_perm("assessments.view_supportticket"):
         metrics.append(_metric("تیکت باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("management_portal:assessment_support")))
+        overdue_tickets = SupportTicket.objects.filter(status="open", created_at__lte=now - timedelta(seconds=settings.SUPPORT_FIRST_RESPONSE_SLA_SECONDS)).count()
+        sla_cards.append(_metric("تیکت خارج از مهلت", overdue_tickets, "پاسخ اولیه بیش از ۴ ساعت عقب افتاده", reverse("management_portal:assessment_support"), "warning"))
     if user.has_perm("assessments.view_attempt"):
         metrics.append(_metric("آزمون در حال اجرا", Attempt.objects.filter(status="in_progress").count(), "نشست‌های فعال آزمون", reverse("management_portal:assessment_support")))
 
@@ -272,6 +278,20 @@ def dashboard(request):
         ]
     queues.sort(key=lambda item: item["date"], reverse=True)
     notifications = _visible_notifications(user)
+    if user.is_superuser or user.has_perm("leads.view_lead") or user.has_perm("crm_orders.view_crmorder") or user.has_perm("clinic_orders.view_clinicorder"):
+        sales_cutoff = now - timedelta(seconds=settings.SALES_FOLLOW_UP_SLA_SECONDS)
+        overdue_sales = 0
+        if user.is_superuser or user.has_perm("leads.view_lead"):
+            overdue_sales += Lead.objects.filter(status="new", created_at__lte=sales_cutoff).count()
+        if user.is_superuser or user.has_perm("crm_orders.view_crmorder"):
+            overdue_sales += CrmOrder.objects.filter(status="new", created_at__lte=sales_cutoff).count()
+        if user.is_superuser or user.has_perm("clinic_orders.view_clinicorder"):
+            overdue_sales += ClinicOrder.objects.filter(status="new", created_at__lte=sales_cutoff).count()
+        if user.is_superuser:
+            overdue_sales += ContractProposal.objects.filter(status__in=("sent", "review"), created_at__lte=sales_cutoff).count()
+        sla_cards.append(_metric("پیگیری فروش سررسیدشده", overdue_sales, "فرم یا قرارداد بیش از یک روز بدون پیگیری", reverse("management_portal:notification_list"), "warning"))
+        overdue_tasks = CaseTask.objects.filter(status="open", due_at__lt=now).count()
+        sla_cards.append(_metric("وظیفه CRM عقب‌افتاده", overdue_tasks, "موعد پیگیری مشتری گذشته است", reverse("management_portal:crm_workspace"), "danger"))
     metrics.insert(0, _metric("اعلان خوانده‌نشده", notifications.filter(status="unread").count(), "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
     if user.is_superuser:
         metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("management_portal:contract_list"), "positive"))
@@ -324,6 +344,7 @@ def dashboard(request):
     return render(request, "management_portal/v2/operations_dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
         "unread_count": notifications.filter(status="unread").count(),
+        "sla_cards": sla_cards,
         "recent_customers": recent_customers, "open_tasks": open_tasks, "inbox_items": inbox_items,
         "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
     })

@@ -462,3 +462,16 @@ class ManagementDashboardTests(TestCase):
         self.assertTrue(OperationalAudit.objects.filter(action="notification_claimed", target_id=str(today.pk)).exists())
         self.assertEqual(payment.category, "payments")
         self.assertEqual(later.owner, None)
+
+    def test_dashboard_shows_role_scoped_sla_cards(self):
+        root = User.objects.create_superuser(username="sla-dashboard", email="sla-dashboard@example.com", password="safe-password")
+        user = User.objects.create_user(username="sla-customer", email="sla-customer@example.com", password="safe-password")
+        exam = Exam.objects.create(slug="sla-dashboard-exam", title_fa="آزمون SLA", title_en="SLA test", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
+        order = Order.objects.create(user=user, exam=exam, amount_irr=100000)
+        payment = ManualPaymentSubmission.objects.create(order=order, payer_name="مشتری", reference_number="SLA-DASH", paid_at=timezone.now())
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(created_at=timezone.now() - timedelta(minutes=31))
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:dashboard"))
+        self.assertContains(response, "مواردی که از SLA عبور کرده‌اند")
+        self.assertContains(response, "پرداخت خارج از مهلت")
+        self.assertContains(response, ">1<")
