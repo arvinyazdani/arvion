@@ -37,6 +37,7 @@ class Order(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="assessment_orders")
+    customer = models.ForeignKey("management_portal.Customer", on_delete=models.PROTECT, blank=True, null=True, related_name="assessment_orders")
     exam = models.ForeignKey(Exam, on_delete=models.PROTECT, related_name="orders")
     subtotal_irr = models.PositiveIntegerField(default=0)
     discount_irr = models.PositiveIntegerField(default=0)

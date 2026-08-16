@@ -61,7 +61,10 @@ def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
     events = CaseActivity.objects.filter(case__customer=customer).select_related("case", "actor").order_by("-created_at")[:30]
-    return render(request, "management_portal/v2/customer_detail.html", {"customer": customer, "contact_form": CustomerContactForm(lang=lang), "events": events, "lang": lang})
+    contracts = customer.contracts.select_related("created_by").order_by("-updated_at")[:10]
+    orders = customer.assessment_orders.select_related("exam", "user", "manual_payment").order_by("-created_at")[:10]
+    tickets = SupportTicket.objects.filter(Q(order__customer=customer) | Q(user__customer_contact_profiles__customer=customer)).select_related("order__exam", "user").distinct().order_by("-updated_at")[:10]
+    return render(request, "management_portal/v2/customer_detail.html", {"customer": customer, "contact_form": CustomerContactForm(lang=lang), "events": events, "contracts": contracts, "orders": orders, "tickets": tickets, "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")

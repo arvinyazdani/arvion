@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from core.sms import send_otp
 from core.sms.backends import SMSDeliveryError
+from management_portal.models import Customer, CustomerContact
 from .forms import ClauseSelectionForm, ContractReviewForm, OtpRequestForm, OtpVerifyForm, ProposalForm
 from .models import ContractAcceptance, ContractClause, ContractOtpChallenge, ContractProposal, ContractReview
 from .services import add_default_clauses, publish_version
@@ -30,6 +31,18 @@ def _require_contract_manager(request):
 def _manager_url(request, old_name, new_name, *args):
     namespace = getattr(getattr(request, "resolver_match", None), "namespace", "")
     return reverse(f"management_portal:{new_name}" if namespace == "management_portal" else f"contracts:{old_name}", args=args)
+
+
+def _link_customer(proposal):
+    customer = Customer.objects.filter(phone=proposal.customer_phone).first()
+    if customer is None and proposal.customer_email:
+        customer = Customer.objects.filter(email__iexact=proposal.customer_email).first()
+    if customer is None:
+        customer = Customer.objects.filter(name__iexact=proposal.customer_name).first()
+    if customer is None:
+        customer = Customer.objects.create(name=proposal.customer_name, kind="company", phone=proposal.customer_phone, email=proposal.customer_email)
+    proposal.customer = customer
+    CustomerContact.objects.get_or_create(customer=customer, name=proposal.customer_name, phone=proposal.customer_phone, email=proposal.customer_email, defaults={"is_primary": not customer.contacts.filter(is_primary=True).exists()})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -48,6 +61,7 @@ def proposal_create(request):
         proposal = form.save(commit=False)
         form.apply_assessment()
         proposal.created_by = request.user
+        _link_customer(proposal)
         proposal.save()
         add_default_clauses(proposal)
         messages.success(request, "پیش‌نویس قرارداد ساخته شد؛ بندها را بررسی و سپس لینک را فعال کنید.")

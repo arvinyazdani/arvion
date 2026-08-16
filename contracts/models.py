@@ -16,6 +16,7 @@ class ContractProposal(models.Model):
     customer_name = models.CharField(max_length=160)
     customer_phone = models.CharField(max_length=16)
     customer_email = models.EmailField(blank=True)
+    customer = models.ForeignKey("management_portal.Customer", on_delete=models.PROTECT, blank=True, null=True, related_name="contracts")
     project_title = models.CharField(max_length=200)
     project_scope = models.TextField()
     amount_irr = models.PositiveBigIntegerField()

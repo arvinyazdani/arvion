@@ -8,6 +8,7 @@ from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
+from contracts.models import ContractProposal
 from management_portal.models import CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
 from management_portal.notifications import process_notifications
 from services.models import Service
@@ -86,6 +87,19 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(detail, "مینا رضایی")
         self.assertContains(detail, "حساب سایت متصل")
         self.assertContains(detail, case.code)
+
+    def test_customer_record_collects_linked_contract_and_order(self):
+        root = User.objects.create_superuser(username="customer-root", email="customer-root@example.com", password="safe-password")
+        customer_user = User.objects.create_user(username="customer-finance", email="finance@example.com", password="safe-password")
+        customer = Customer.objects.create(name="مشتری مالی", phone="09120000002", email="finance@example.com")
+        CustomerContact.objects.create(customer=customer, name="مدیر مالی", phone="09120000002", email="finance@example.com", user=customer_user, is_primary=True)
+        exam = Exam.objects.create(slug="customer-link-exam", title_fa="آزمون مالی", title_en="Finance test", description_fa="", description_en="", language_mode="bilingual")
+        Order.objects.create(user=customer_user, customer=customer, exam=exam, amount_irr=500_000, status="paid")
+        ContractProposal.objects.create(customer=customer, customer_name="مشتری مالی", customer_phone="09120000002", customer_email="finance@example.com", project_title="پروژه مالی", project_scope="دامنه", amount_irr=1_000_000, delivery_terms="دو هفته", created_by=root)
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(response, "پروژه مالی")
+        self.assertContains(response, "آزمون مالی")
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):
         user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)

@@ -19,6 +19,7 @@ from django.views.generic.edit import FormView
 
 from core.i18n_numbers import normalize_digits
 from core.views.lang import LanguageViewMixin
+from management_portal.models import Customer, CustomerContact
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import ManualPaymentSubmissionForm, SupportTicketForm
@@ -27,6 +28,19 @@ from .services import AttemptLimitError, ExamContentError, finalize_expired_atte
 
 
 logger = logging.getLogger(__name__)
+
+
+def _customer_for_user(user):
+    customer = CustomerContact.objects.filter(user=user).values_list("customer", flat=True).first()
+    if customer:
+        return Customer.objects.get(pk=customer)
+    customer = Customer.objects.filter(email__iexact=user.email).first()
+    if customer is None and user.mobile:
+        customer = Customer.objects.filter(phone=user.mobile).first()
+    if customer is None:
+        customer = Customer.objects.create(name=user.get_full_name() or user.email, kind="person", phone=user.mobile or "", email=user.email)
+    CustomerContact.objects.get_or_create(customer=customer, user=user, defaults={"name": user.get_full_name() or user.email, "phone": user.mobile or "", "email": user.email, "is_primary": not customer.contacts.filter(is_primary=True).exists()})
+    return customer
 
 
 class ExamListView(LanguageViewMixin, ListView):
@@ -108,9 +122,11 @@ class CreateOrderView(LoginRequiredMixin, View):
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
         is_free = settings.ASSESSMENT_FREE_CHECKOUT
+        customer = _customer_for_user(request.user)
         order, _ = Order.objects.get_or_create(
             user=request.user, exam=exam, status="pending",
             defaults={
+                "customer": customer,
                 "subtotal_irr": exam.price_irr,
                 "discount_irr": exam.price_irr if is_free else 0,
                 "discount_percent": 100 if is_free else 0,
@@ -118,6 +134,9 @@ class CreateOrderView(LoginRequiredMixin, View):
                 "gateway": "free" if is_free else settings.PAYMENT_GATEWAY,
             },
         )
+        if order.customer_id is None:
+            order.customer = customer
+            order.save(update_fields=["customer", "updated_at"])
         if is_free and order.status == "pending" and (
             order.amount_irr or order.discount_percent != 100 or order.subtotal_irr != exam.price_irr
         ):
