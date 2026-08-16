@@ -53,10 +53,21 @@ set -a
 source "$ENV_FILE"
 set +a
 HEALTH_HOST="${DJANGO_ALLOWED_HOSTS%%,*}"
-curl --fail --silent --show-error --connect-timeout 10 \
-  --header "Host: $HEALTH_HOST" \
-  --header "X-Forwarded-Proto: https" \
-  http://127.0.0.1:8000/health/ >/dev/null
+HEALTH_URL="http://127.0.0.1:8000/health/"
+for attempt in {1..15}; do
+  if curl --fail --silent --show-error --connect-timeout 3 \
+    --header "Host: $HEALTH_HOST" \
+    --header "X-Forwarded-Proto: https" \
+    "$HEALTH_URL" >/dev/null; then
+    break
+  fi
+
+  if [[ "$attempt" -eq 15 ]]; then
+    echo "Application health check failed after restart." >&2
+    exit 1
+  fi
+  sleep 1
+done
 
 printf '%s commit=%s snapshot=%s health=ok\n' \
   "$(date --iso-8601=seconds)" "$RELEASE_COMMIT" "$BACKUP_FILE" >> "$RELEASE_LOG"
