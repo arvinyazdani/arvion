@@ -7,6 +7,11 @@ from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import User
+from assessments.models import ManualPaymentSubmission, SupportTicket
+from clinic_orders.models import ClinicOrder
+from contracts.models import ContractProposal
+from crm_orders.models import CrmOrder
+from leads.models import Lead
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .models import CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, PushSubscription
@@ -59,8 +64,47 @@ def _send_user_push(user, payload):
     return "; ".join(errors)[:240]
 
 
+def _create_sla_alerts(now):
+    """Escalate genuinely overdue work once, without creating a notification loop."""
+    payment_cutoff = now - timedelta(seconds=settings.PAYMENT_REVIEW_SLA_SECONDS)
+    for payment in ManualPaymentSubmission.objects.filter(status="pending", created_at__lte=payment_cutoff):
+        item, created = ManagementNotification.objects.get_or_create(
+            source_key=f"sla:payment:{payment.pk}",
+            defaults={"category": "payments", "title": "تأیید پرداخت از مهلت عبور کرده است", "description": f"شماره پیگیری: {payment.reference_number}", "target_url": reverse("management_portal:approvals"), "role": "assessments"},
+        )
+        if created:
+            create_receipts(item)
+
+    support_cutoff = now - timedelta(seconds=settings.SUPPORT_FIRST_RESPONSE_SLA_SECONDS)
+    for ticket in SupportTicket.objects.filter(status="open", created_at__lte=support_cutoff):
+        item, created = ManagementNotification.objects.get_or_create(
+            source_key=f"sla:support:{ticket.pk}",
+            defaults={"category": "support", "title": "تیکت بدون پاسخ مانده است", "description": ticket.subject, "target_url": reverse("management_portal:assessment_support"), "role": "support"},
+        )
+        if created:
+            create_receipts(item)
+
+    sales_cutoff = now - timedelta(seconds=settings.SALES_FOLLOW_UP_SLA_SECONDS)
+    sales_sources = (
+        (Lead.objects.filter(status="new", created_at__lte=sales_cutoff), "lead", lambda item: item.business_name or item.name),
+        (CrmOrder.objects.filter(status="new", created_at__lte=sales_cutoff), "crm", lambda item: item.organization_name),
+        (ClinicOrder.objects.filter(status="new", created_at__lte=sales_cutoff), "clinic", lambda item: item.clinic_name),
+        (ContractProposal.objects.filter(status__in=("sent", "review"), created_at__lte=sales_cutoff), "contract", lambda item: item.customer_name),
+    )
+    for queryset, source, label in sales_sources:
+        for item in queryset:
+            target = reverse("management_portal:contract_detail", args=[item.pk]) if source == "contract" else reverse("management_portal:request_detail", args=[source, item.pk])
+            notification, created = ManagementNotification.objects.get_or_create(
+                source_key=f"sla:{source}:{item.pk}",
+                defaults={"category": "sales" if source != "contract" else "contracts", "title": "پیگیری قرارداد از مهلت عبور کرده است" if source == "contract" else "فرم جدید نیازمند پیگیری است", "description": label(item), "target_url": target, "role": "sales" if source != "contract" else ""},
+            )
+            if created:
+                create_receipts(notification)
+
+
 def process_notifications(now=None):
     now = now or timezone.now()
+    _create_sla_alerts(now)
     if not settings.WEB_PUSH_VAPID_PRIVATE_KEY:
         return {"push": 0, "sms": 0, "reminders": 0}
     push_count = sms_count = reminder_count = 0

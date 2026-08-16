@@ -3,12 +3,31 @@ set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/srv/arvion}"
 ENV_FILE="${ENV_FILE:-$APP_DIR/.env.production}"
-set -a
-source "$ENV_FILE"
-set +a
+BACKUP_DIR="${BACKUP_DIR:-$APP_DIR/backups}"
+BACKUP_DATABASE="${BACKUP_DATABASE:-arvion}"
+RELEASE_STAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP_FILE="$BACKUP_DIR/pre-release-$RELEASE_STAMP.dump"
+
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Run this release script with sudo so it can create the PostgreSQL snapshot." >&2
+  exit 1
+fi
+
+install -d -m 0750 -o arvion -g arvion "$BACKUP_DIR"
+sudo -u postgres pg_dump --format=custom --no-owner --no-privileges "$BACKUP_DATABASE" > "$BACKUP_FILE"
+chown arvion:arvion "$BACKUP_FILE"
+test -s "$BACKUP_FILE"
+echo "Pre-release database snapshot: $BACKUP_FILE"
+
 cd "$APP_DIR"
-"$APP_DIR/.venv/bin/python" manage.py check --deploy
-"$APP_DIR/.venv/bin/python" manage.py migrate --noinput
-"$APP_DIR/.venv/bin/python" manage.py setup_staff_roles
-"$APP_DIR/.venv/bin/python" manage.py seed_assessment_banks
-"$APP_DIR/.venv/bin/python" manage.py collectstatic --noinput
+run_manage() {
+  sudo -u arvion bash -c "set -a; source '$ENV_FILE'; set +a; DJANGO_SETTINGS_MODULE=arvion.settings.production '$APP_DIR/.venv/bin/python' '$APP_DIR/manage.py' $*"
+}
+
+run_manage check --deploy
+run_manage migrate --noinput
+run_manage setup_staff_roles
+run_manage seed_assessment_banks
+run_manage collectstatic --noinput
+systemctl restart arvion
+systemctl is-active --quiet arvion

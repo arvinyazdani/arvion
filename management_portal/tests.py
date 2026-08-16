@@ -165,6 +165,18 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
         self.assertTrue(OperationalAudit.objects.filter(action="payment_approve", target_id=str(payment.pk)).exists())
 
+    @override_settings(PAYMENT_REVIEW_SLA_SECONDS=1800, WEB_PUSH_VAPID_PRIVATE_KEY="")
+    def test_overdue_payment_creates_one_sla_alert_before_push_is_configured(self):
+        customer = User.objects.create_user(username="sla-buyer", email="sla-buyer@example.com", password="safe-password", is_active=True)
+        exam = Exam.objects.create(slug="sla-payment", title_fa="آزمون", title_en="Exam", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
+        order = Order.objects.create(user=customer, exam=exam, amount_irr=100000)
+        payment = ManualPaymentSubmission.objects.create(order=order, payer_name="خریدار", reference_number="SLA-PAYMENT-1", paid_at=timezone.now())
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(created_at=timezone.now() - timedelta(minutes=31))
+        process_notifications(now=timezone.now())
+        self.assertTrue(ManagementNotification.objects.filter(source_key=f"sla:payment:{payment.pk}", category="payments").exists())
+        process_notifications(now=timezone.now())
+        self.assertEqual(ManagementNotification.objects.filter(source_key=f"sla:payment:{payment.pk}").count(), 1)
+
     def test_support_staff_can_update_ticket_without_admin(self):
         staff = User.objects.create_user(username="support", email="support@example.com", password="safe-password", is_staff=True)
         staff.user_permissions.add(Permission.objects.get(codename="view_supportticket"), Permission.objects.get(codename="change_supportticket"))
