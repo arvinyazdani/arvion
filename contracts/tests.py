@@ -120,6 +120,23 @@ class ContractWorkflowTests(TestCase):
         response = self.client.post(url, {"phone": "09120373271", "password": "test-contract-password"})
         self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
 
+    def test_contract_logout_accepts_secure_csrf_post(self):
+        version = publish_version(self.proposal, self.root)
+        client = Client(enforce_csrf_checks=True)
+        session = client.session
+        session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
+        session.save()
+        room_url = reverse("contracts:public_contract", args=[self.proposal.token])
+        response = client.get(room_url, secure=True)
+        token = response.cookies["csrftoken"].value
+        response = client.post(
+            reverse("contracts:contract_logout", args=[self.proposal.token]),
+            {"csrfmiddlewaretoken": token}, secure=True,
+            HTTP_REFERER=f"https://testserver{room_url}",
+        )
+        self.assertRedirects(response, reverse("contracts:contract_access", args=[self.proposal.token]))
+        self.assertNotIn(f"contract-access:{version.pk}", client.session)
+
     def test_document_acknowledgement_accepts_secure_csrf_post(self):
         self.proposal.general_terms = "شرایط عمومی نمونه"
         self.proposal.private_terms = "شرایط خصوصی نمونه"
