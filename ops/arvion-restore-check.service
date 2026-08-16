@@ -1,0 +1,8 @@
+[Unit]
+Description=Verify the latest Rvion PostgreSQL backup can be restored
+After=postgresql.service arvion-backup.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/arvion-restore-check
