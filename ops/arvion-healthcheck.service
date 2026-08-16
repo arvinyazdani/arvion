@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Rvion operational health and create management alerts
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=arvion
+Group=arvion
+WorkingDirectory=/srv/arvion
+EnvironmentFile=/srv/arvion/.env.production
+ExecStart=/srv/arvion/.venv/bin/python manage.py check_operations_health

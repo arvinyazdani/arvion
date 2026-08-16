@@ -29,5 +29,11 @@ run_manage migrate --noinput
 run_manage setup_staff_roles
 run_manage seed_assessment_banks
 run_manage collectstatic --noinput
+install -m 0644 "$APP_DIR/ops/arvion-notifications.service" /etc/systemd/system/arvion-notifications.service
+install -m 0644 "$APP_DIR/ops/arvion-notifications.timer" /etc/systemd/system/arvion-notifications.timer
+install -m 0644 "$APP_DIR/ops/arvion-healthcheck.service" /etc/systemd/system/arvion-healthcheck.service
+install -m 0644 "$APP_DIR/ops/arvion-healthcheck.timer" /etc/systemd/system/arvion-healthcheck.timer
+systemctl daemon-reload
+systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer
 systemctl restart arvion
 systemctl is-active --quiet arvion
