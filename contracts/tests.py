@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
@@ -121,6 +121,26 @@ class ContractWorkflowTests(TestCase):
         self.assertContains(invalid, "شماره همراه یا رمز ورود صحیح نیست")
         response = self.client.post(url, {"phone": "09120373271", "password": "test-contract-password"})
         self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
+
+    def test_document_acknowledgement_accepts_secure_csrf_post(self):
+        self.proposal.general_terms = "شرایط عمومی نمونه"
+        self.proposal.private_terms = "شرایط خصوصی نمونه"
+        self.proposal.save()
+        version = publish_version(self.proposal, self.root)
+        client = Client(enforce_csrf_checks=True)
+        session = client.session
+        session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
+        session.save()
+        document_url = reverse("contracts:contract_document", args=[self.proposal.token])
+        response = client.get(document_url, secure=True)
+        token = response.cookies["csrftoken"].value
+        response = client.post(
+            reverse("contracts:contract_acknowledge", args=[self.proposal.token, "general"]),
+            {"csrfmiddlewaretoken": token}, secure=True,
+            HTTP_REFERER=f"https://testserver{document_url}",
+        )
+        self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
+        self.assertTrue(ContractRoomAcknowledgement.objects.filter(version=version, document="general").exists())
 
     def test_non_superuser_cannot_manage_contracts(self):
         staff = User.objects.create_user(username="staff-c", email="staff-c@example.com", password="safe-password", is_staff=True)
