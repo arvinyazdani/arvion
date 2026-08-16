@@ -88,6 +88,18 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(detail, "حساب سایت متصل")
         self.assertContains(detail, case.code)
 
+    def test_customer_workspace_surfaces_data_quality_without_changing_records(self):
+        staff = User.objects.create_user(username="quality-staff", email="quality-staff@example.com", password="safe-password", is_staff=True)
+        Customer.objects.create(name="بدون مخاطب", phone="09120007777")
+        Customer.objects.create(name="تکراری اول", email="same@example.com")
+        Customer.objects.create(name="تکراری دوم", email="same@example.com")
+        self.client.force_login(staff)
+        response = self.client.get(reverse("management_portal:customer_workspace"))
+        self.assertContains(response, "کنترل کیفیت داده")
+        self.assertContains(response, "مشتری بدون مخاطب")
+        self.assertContains(response, "same@example.com")
+        self.assertEqual(Customer.objects.count(), 3)
+
     def test_customer_record_collects_linked_contract_and_order(self):
         root = User.objects.create_superuser(username="customer-root", email="customer-root@example.com", password="safe-password")
         customer_user = User.objects.create_user(username="customer-finance", email="finance@example.com", password="safe-password")

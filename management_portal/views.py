@@ -9,7 +9,7 @@ from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
-from assessments.models import Attempt, AttemptResult, Certificate, Exam, ManualPaymentSubmission, SupportTicket
+from assessments.models import Attempt, AttemptResult, Certificate, Exam, ManualPaymentSubmission, Order, SupportTicket
 from clinic_orders.models import ClinicOrder
 from crm_orders.models import CrmOrder
 from leads.models import Lead
@@ -45,8 +45,23 @@ def customer_workspace(request):
         customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query) | Q(contacts__name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).distinct()
     page = Paginator(customers, 30).get_page(request.GET.get("page"))
     now = timezone.now()
+    no_contact = Customer.objects.annotate(contact_count=Count("contacts")).filter(contact_count=0).order_by("-updated_at")
+    no_identity = Customer.objects.filter(phone="", email="").order_by("-updated_at")
+    duplicate_phones = list(Customer.objects.exclude(phone="").values("phone").annotate(total=Count("pk")).filter(total__gt=1).order_by("-total")[:4])
+    duplicate_emails = list(Customer.objects.exclude(email="").values("email").annotate(total=Count("pk")).filter(total__gt=1).order_by("-total")[:4])
+    duplicate_candidates = ([{"label": row["phone"], "total": row["total"], "kind": "phone"} for row in duplicate_phones] + [{"label": row["email"], "total": row["total"], "kind": "email"} for row in duplicate_emails])[:6]
+    data_quality = {
+        "cases_without_customer": CustomerCase.objects.filter(customer__isnull=True).count(),
+        "orders_without_customer": Order.objects.filter(customer__isnull=True).count(),
+        "customers_without_contact": no_contact.count(),
+        "customers_without_identity": no_identity.count(),
+        "duplicate_count": len(duplicate_candidates),
+        "needs_attention": no_contact[:4],
+        "duplicate_candidates": duplicate_candidates,
+    }
     return render(request, "management_portal/v2/customer_workspace.html", {
         "customers": page, "page_obj": page, "query": query, "lang": lang,
+        "data_quality": data_quality,
         "stats": {
             "customers": Customer.objects.count(),
             "contacts": CustomerContact.objects.count(),
