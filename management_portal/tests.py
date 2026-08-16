@@ -111,6 +111,21 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, second.name)
         self.assertEqual(Customer.objects.filter(phone="09120008888").count(), 2)
 
+    def test_superuser_can_merge_only_confirmed_duplicate_records_with_audit(self):
+        root = User.objects.create_superuser(username="merge-root", email="merge-root@example.com", password="safe-password")
+        target = Customer.objects.create(name="پرونده مرجع", phone="09120009999")
+        source = Customer.objects.create(name="پرونده تکراری", phone="09120009999")
+        case = CustomerCase.objects.create(customer=source, kind="crm", customer_name=source.name, phone=source.phone)
+        CustomerContact.objects.create(customer=source, name="مخاطب", phone="09120009999", is_primary=True)
+        self.client.force_login(root)
+        response = self.client.post(reverse("management_portal:customer_merge", args=[source.pk]), {"target_id": target.pk, "confirmation": "MERGE"})
+        self.assertRedirects(response, reverse("management_portal:customer_detail", args=[target.pk]))
+        self.assertFalse(Customer.objects.filter(pk=source.pk).exists())
+        case.refresh_from_db()
+        self.assertEqual(case.customer_id, target.pk)
+        self.assertTrue(CustomerContact.objects.filter(customer=target, name="مخاطب").exists())
+        self.assertTrue(OperationalAudit.objects.filter(action="customer_merged", target_id=str(target.pk)).exists())
+
     def test_customer_record_collects_linked_contract_and_order(self):
         root = User.objects.create_superuser(username="customer-root", email="customer-root@example.com", password="safe-password")
         customer_user = User.objects.create_user(username="customer-finance", email="finance@example.com", password="safe-password")

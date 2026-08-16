@@ -90,6 +90,48 @@ def customer_duplicates(request):
 
 
 @staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_merge(request, source_id):
+    """Merge only records proven equal by an exact phone number or email match."""
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    target_id = request.POST.get("target_id", "")
+    if request.POST.get("confirmation") != "MERGE" or not target_id.isdigit() or int(target_id) == source_id:
+        messages.error(request, "برای ادغام، عبارت MERGE و مشتری مقصد معتبر لازم است." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "A valid target and the word MERGE are required.")
+        return redirect("management_portal:customer_duplicates")
+    with transaction.atomic():
+        source = get_object_or_404(Customer.objects.select_for_update(), pk=source_id)
+        target = get_object_or_404(Customer.objects.select_for_update(), pk=int(target_id))
+        shared_phone = bool(source.phone and source.phone == target.phone)
+        shared_email = bool(source.email and source.email.lower() == target.email.lower())
+        if not (shared_phone or shared_email):
+            raise PermissionDenied
+        moved_case_ids = list(source.cases.values_list("pk", flat=True))
+        moved_contacts = moved_contracts = moved_orders = 0
+        for contact in source.contacts.all():
+            duplicate = CustomerContact.objects.filter(customer=target, name=contact.name, phone=contact.phone, email=contact.email).first()
+            if duplicate:
+                if contact.user_id and not duplicate.user_id:
+                    duplicate.user = contact.user
+                    duplicate.save(update_fields=("user", "updated_at"))
+                contact.delete()
+            else:
+                contact.customer = target
+                contact.save(update_fields=("customer", "updated_at"))
+                moved_contacts += 1
+        moved_cases = CustomerCase.objects.filter(pk__in=moved_case_ids).update(customer=target)
+        moved_contracts = ContractProposal.objects.filter(customer=source).update(customer=target)
+        moved_orders = Order.objects.filter(customer=source).update(customer=target)
+        source_name = source.name
+        source.delete()
+        for case_id in moved_case_ids:
+            CaseActivity.objects.create(case_id=case_id, actor=request.user, kind="system", title="پرونده مشتری ادغام شد", body=f"پرونده «{source_name}» در «{target.name}» ادغام شد.")
+        OperationalAudit.objects.create(actor=request.user, action="customer_merged", target_type="customer", target_id=str(target.pk), summary=f"{source_name} → {target.name}", metadata={"source_customer_id": source_id, "target_customer_id": target.pk, "shared_by": "phone" if shared_phone else "email", "contacts": moved_contacts, "cases": moved_cases, "contracts": moved_contracts, "orders": moved_orders})
+    messages.success(request, "ادغام با موفقیت ثبت شد و سابقه آن نگه‌داری می‌شود." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "The merge was completed and recorded in the audit log.")
+    return redirect("management_portal:customer_detail", customer_id=target.pk)
+
+
+@staff_member_required(login_url="accounts:login")
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
