@@ -9,7 +9,7 @@ from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
 from contracts.models import ContractProposal
-from management_portal.models import CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
 from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -358,3 +358,25 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         mocked_send.assert_not_called()
         self.assertContains(response, "شماره نامعتبر")
+
+    def test_payment_and_ticket_are_saved_in_the_customer_timeline(self):
+        user = User.objects.create_user(username="timeline-user", email="timeline@example.com", mobile="09120003344", password="safe-password")
+        customer = Customer.objects.create(name="مشتری آزمون", kind="person", phone=user.mobile, email=user.email)
+        CustomerContact.objects.create(customer=customer, name="مشتری آزمون", phone=user.mobile, email=user.email, user=user, is_primary=True)
+        exam = Exam.objects.create(slug="timeline-exam", title_fa="آزمون", title_en="Exam", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
+        order = Order.objects.create(user=user, customer=customer, exam=exam, amount_irr=100000)
+        payment = ManualPaymentSubmission.objects.create(order=order, payer_name="مشتری آزمون", reference_number="TIMELINE-REF-1", paid_at=timezone.now())
+        ticket = SupportTicket.objects.create(user=user, order=order, category="technical", subject="اشکال ورود", message="نمونه پیام")
+        case = CustomerCase.objects.get(customer=customer)
+        self.assertTrue(case.documents.filter(object_id=payment.pk, kind="payment").exists())
+        self.assertTrue(case.documents.filter(object_id=ticket.pk, kind="attachment").exists())
+        self.assertTrue(CaseActivity.objects.filter(case=case, title="رسید پرداخت ارسال شد").exists())
+        self.assertTrue(CaseActivity.objects.filter(case=case, title="تیکت پشتیبانی جدید").exists())
+
+    def test_operations_dashboard_displays_operational_inbox(self):
+        root = User.objects.create_superuser(username="inbox-root", email="inbox-root@example.com", password="safe-password")
+        ManagementNotification.objects.create(category="payments", title="رسید پرداخت جدید", description="REF-INBOX", target_url=reverse("management_portal:approvals"), role="", source_key="inbox:payment")
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:dashboard"))
+        self.assertContains(response, "صندوق عملیاتی")
+        self.assertContains(response, "رسید پرداخت جدید")

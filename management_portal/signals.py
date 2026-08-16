@@ -10,9 +10,9 @@ from contracts.models import ContractAcceptance, ContractProposal, ContractRevie
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from leads.models import Lead
 
-from .models import ManagementNotification
+from .models import CustomerContact, ManagementNotification
 from .notifications import create_receipts
-from .cases import link_document, sync_source_case
+from .cases import link_customer_event, link_document, resolve_customer, sync_source_case
 
 
 def notify(*, category, title, description, target_url, role, source_key):
@@ -62,30 +62,50 @@ def new_clinic(sender, instance, created, **kwargs):
 @receiver(post_save, sender=ManualPaymentSubmission)
 def new_payment(sender, instance, created, **kwargs):
     if created:
+        order = instance.order
+        customer = order.customer or resolve_customer(
+            customer_name=order.user.get_full_name() or order.user.email,
+            contact_name=order.user.get_full_name() or order.user.email,
+            phone=getattr(order.user, "mobile", ""), email=order.user.email, kind="person", user=order.user,
+        )
+        if not order.customer_id:
+            order.customer = customer
+            order.save(update_fields=("customer",))
+        link_customer_event(customer, instance, kind="payment", title="رسید پرداخت ارسال شد", body=f"شماره پیگیری: {instance.reference_number}", customer_name=customer.name)
         notify(category="payments", title="رسید پرداخت جدید", description=instance.reference_number, target_url=reverse("management_portal:approvals"), role="assessments", source_key=f"payment:{instance.pk}")
 
 
 @receiver(post_save, sender=SupportTicket)
 def new_ticket(sender, instance, created, **kwargs):
     if created:
+        customer = instance.order.customer if instance.order_id and instance.order.customer_id else None
+        if not customer:
+            contact = CustomerContact.objects.filter(user=instance.user).select_related("customer").first()
+            customer = contact.customer if contact else resolve_customer(
+                customer_name=instance.user.get_full_name() or instance.user.email,
+                contact_name=instance.user.get_full_name() or instance.user.email,
+                phone=getattr(instance.user, "mobile", ""), email=instance.user.email, kind="person", user=instance.user,
+            )
+        link_customer_event(customer, instance, kind="attachment", title="تیکت پشتیبانی جدید", body=instance.subject, customer_name=customer.name)
         notify(category="support", title="تیکت پشتیبانی جدید", description=str(instance), target_url=reverse("management_portal:assessment_support"), role="support", source_key=f"support:{instance.pk}")
 
 
 @receiver(post_save, sender=ContractProposal)
 def contract_proposal_created(sender, instance, created, **kwargs):
     if created:
-        from .models import CustomerCase
-        case = CustomerCase.objects.filter(phone=instance.customer_phone).first() or (CustomerCase.objects.filter(email__iexact=instance.customer_email).first() if instance.customer_email else None)
-        if case: link_document(case, instance, kind="contract", title=f"پیش‌نویس قرارداد: {instance.project_title}", actor=instance.created_by)
+        customer = instance.customer or resolve_customer(customer_name=instance.customer_name, contact_name=instance.customer_name, phone=instance.customer_phone, email=instance.customer_email)
+        if not instance.customer_id:
+            instance.customer = customer
+            instance.save(update_fields=("customer",))
+        link_customer_event(customer, instance, kind="contract", title=f"پیش‌نویس قرارداد: {instance.project_title}", actor=instance.created_by, customer_name=instance.customer_name, phone=instance.customer_phone, email=instance.customer_email)
 
 
 @receiver(post_save, sender=ContractReview)
 def contract_review(sender, instance, created, **kwargs):
     if created:
         proposal = instance.version.proposal
-        from .models import CustomerCase
-        case = CustomerCase.objects.filter(phone=proposal.customer_phone).first() or (CustomerCase.objects.filter(email__iexact=proposal.customer_email).first() if proposal.customer_email else None)
-        if case: link_document(case, proposal, kind="contract", title=f"قرارداد: {proposal.project_title}", actor=proposal.created_by)
+        customer = proposal.customer or resolve_customer(customer_name=proposal.customer_name, phone=proposal.customer_phone, email=proposal.customer_email)
+        link_customer_event(customer, instance, kind="attachment", title="بازخورد قرارداد ثبت شد", body=proposal.project_title, actor=proposal.created_by, customer_name=proposal.customer_name)
         notify(category="contracts", title="بازخورد قرارداد ثبت شد", description=proposal.customer_name, target_url=reverse("management_portal:contract_detail", args=[proposal.pk]), role="", source_key=f"contract-review:{instance.pk}")
 
 
@@ -93,9 +113,7 @@ def contract_review(sender, instance, created, **kwargs):
 def contract_acceptance(sender, instance, created, **kwargs):
     if created:
         proposal = instance.version.proposal
-        from .models import CustomerCase
-        case = CustomerCase.objects.filter(phone=proposal.customer_phone).first() or (CustomerCase.objects.filter(email__iexact=proposal.customer_email).first() if proposal.customer_email else None)
-        if case:
-            link_document(case, proposal, kind="contract", title=f"قرارداد تأییدشده: {proposal.project_title}", actor=proposal.created_by)
-            case.stage = "won"; case.save(update_fields=("stage", "updated_at"))
+        customer = proposal.customer or resolve_customer(customer_name=proposal.customer_name, phone=proposal.customer_phone, email=proposal.customer_email)
+        case = link_customer_event(customer, instance, kind="attachment", title="قرارداد تأیید شد", body=proposal.project_title, actor=proposal.created_by, customer_name=proposal.customer_name)
+        case.stage = "won"; case.save(update_fields=("stage", "updated_at"))
         notify(category="contracts", title="قرارداد تأیید شد", description=proposal.customer_name, target_url=reverse("management_portal:contract_detail", args=[proposal.pk]), role="", source_key=f"contract-acceptance:{instance.pk}")

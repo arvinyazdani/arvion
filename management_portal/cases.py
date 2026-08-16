@@ -4,7 +4,9 @@ import json
 from django.contrib.contenttypes.models import ContentType
 from django.forms.models import model_to_dict
 
-from .models import CaseActivity, CaseDocument, CustomerCase
+from accounts.models import User
+
+from .models import CaseActivity, CaseDocument, Customer, CustomerCase, CustomerContact
 
 
 STAGE_MAP = {"contacted": "discovery", "review": "proposal", "accepted": "won", "expired": "lost", "revoked": "lost"}
@@ -23,18 +25,76 @@ def snapshot(instance):
     return json.loads(json.dumps(data, default=_json_value, ensure_ascii=False))
 
 
+def resolve_customer(*, customer_name, contact_name="", phone="", email="", kind="company", user=None):
+    """Return the canonical customer and make sure the submitted contact is retained.
+
+    Forms use different vocabulary for the same organisation.  Phone and email are
+    stronger identifiers than the display name, while the latter remains a useful
+    fallback for legacy submissions.
+    """
+    phone, email = (phone or "").strip(), (email or "").strip().lower()
+    customer = None
+    if phone:
+        customer = Customer.objects.filter(phone=phone).first()
+    if not customer and email:
+        customer = Customer.objects.filter(email__iexact=email).first()
+    if not customer and customer_name:
+        customer = Customer.objects.filter(name__iexact=customer_name.strip()).first()
+    if not customer:
+        customer = Customer.objects.create(name=(customer_name or contact_name or email or phone or "مشتری جدید").strip(), kind=kind, phone=phone, email=email)
+    else:
+        changed = []
+        if phone and not customer.phone:
+            customer.phone = phone; changed.append("phone")
+        if email and not customer.email:
+            customer.email = email; changed.append("email")
+        if changed:
+            changed.append("updated_at")
+            customer.save(update_fields=changed)
+
+    contact_name = (contact_name or customer_name or customer.name).strip()
+    linked_user = user
+    if linked_user is None and (email or phone):
+        query = User.objects.all()
+        if email:
+            linked_user = query.filter(email__iexact=email).first()
+        if linked_user is None and phone:
+            linked_user = query.filter(mobile=phone).first()
+    if contact_name:
+        contact = CustomerContact.objects.filter(customer=customer, name=contact_name, phone=phone, email=email).first()
+        if not contact:
+            CustomerContact.objects.create(customer=customer, name=contact_name, phone=phone, email=email, user=linked_user, is_primary=not customer.contacts.exists())
+        elif linked_user and not contact.user_id:
+            contact.user = linked_user; contact.save(update_fields=("user", "updated_at"))
+    return customer
+
+
+def case_for_customer(customer, *, customer_name="", contact_name="", phone="", email=""):
+    """Use the newest live case, or create a small operational case for service events."""
+    case = customer.cases.exclude(stage__in=("won", "lost")).order_by("-updated_at").first() or customer.cases.order_by("-updated_at").first()
+    if case:
+        return case
+    return CustomerCase.objects.create(
+        customer=customer, kind="general", customer_name=customer_name or customer.name,
+        contact_name=contact_name, phone=phone or customer.phone, email=email or customer.email,
+        summary="پرونده عملیاتی ایجادشده از رویداد خدمات مشتری",
+    )
+
+
 def sync_source_case(instance, *, kind, customer_name, contact_name="", phone="", email="", summary="", document_title="نیازسنجی اولیه"):
     content_type = ContentType.objects.get_for_model(instance)
     stage = STAGE_MAP.get(getattr(instance, "status", "new"), getattr(instance, "status", "new"))
     if stage not in dict(CustomerCase.STAGES): stage = "new"
+    customer = resolve_customer(customer_name=customer_name, contact_name=contact_name, phone=phone, email=email, kind="person" if kind == "lead" else "company")
     case, created = CustomerCase.objects.get_or_create(source_content_type=content_type, source_object_id=instance.pk, defaults={
+        "customer": customer,
         "kind": kind, "customer_name": customer_name, "contact_name": contact_name, "phone": phone or "", "email": email or "",
         "stage": stage, "summary": summary or "",
     })
     if not created:
-        case.customer_name, case.contact_name, case.phone, case.email, case.stage = customer_name, contact_name, phone or "", email or "", stage
+        case.customer, case.customer_name, case.contact_name, case.phone, case.email, case.stage = customer, customer_name, contact_name, phone or "", email or "", stage
         if summary: case.summary = summary
-        case.save(update_fields=("customer_name", "contact_name", "phone", "email", "stage", "summary", "updated_at"))
+        case.save(update_fields=("customer", "customer_name", "contact_name", "phone", "email", "stage", "summary", "updated_at"))
     data = snapshot(instance)
     raw = json.dumps(data, sort_keys=True, ensure_ascii=False).encode()
     document, document_created = CaseDocument.objects.update_or_create(case=case, content_type=content_type, object_id=instance.pk, kind="initial", defaults={"title": document_title, "snapshot": data, "checksum": hashlib.sha256(raw).hexdigest()})
@@ -49,3 +109,14 @@ def link_document(case, instance, *, kind, title, actor=None):
     document, created = CaseDocument.objects.update_or_create(case=case, content_type=content_type, object_id=instance.pk, kind=kind, defaults={"title": title, "snapshot": data, "checksum": hashlib.sha256(raw).hexdigest(), "created_by": actor})
     if created: CaseActivity.objects.create(case=case, kind="document", title="سند جدید", body=title, actor=actor)
     return document
+
+
+def link_customer_event(customer, instance, *, kind, title, body="", actor=None, customer_name="", contact_name="", phone="", email=""):
+    """Attach a service event (payment, ticket, contract) to the customer timeline."""
+    case = case_for_customer(customer, customer_name=customer_name, contact_name=contact_name, phone=phone, email=email)
+    document = link_document(case, instance, kind=kind, title=title, actor=actor)
+    CaseActivity.objects.get_or_create(
+        case=case, kind="system", title=title, body=body or title,
+        metadata={"content_type": document.content_type_id, "object_id": instance.pk, "kind": kind},
+    )
+    return case

@@ -243,10 +243,11 @@ def dashboard(request):
             item["kind"] = kinds.get(item["kind"], item["kind"])
     recent_customers = Customer.objects.prefetch_related("contacts", "cases").order_by("-updated_at")[:8]
     open_tasks = CaseTask.objects.filter(status="open").select_related("case__customer", "assigned_to").order_by("due_at", "-created_at")[:8]
+    inbox_items = notifications.select_related().filter(status="unread").order_by("-created_at")[:6]
     return render(request, "management_portal/v2/operations_dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
         "unread_count": notifications.filter(status="unread").count(),
-        "recent_customers": recent_customers, "open_tasks": open_tasks,
+        "recent_customers": recent_customers, "open_tasks": open_tasks, "inbox_items": inbox_items,
         "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
     })
 
