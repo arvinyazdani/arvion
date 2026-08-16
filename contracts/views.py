@@ -184,7 +184,7 @@ def public_contract(request, token):
 
 
 @never_cache
-def contract_document(request, token):
+def contract_document(request, token, document=None):
     proposal = get_object_or_404(ContractProposal, token=token)
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
@@ -193,6 +193,20 @@ def contract_document(request, token):
     ready_for_review = acknowledgements == {"general", "private"}
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
         return redirect("contracts:contract_access", token=token)
+    if document not in {"general", "private", "final"}:
+        return redirect("contracts:public_contract", token=token)
+    if document == "private" and "general" not in acknowledgements:
+        messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
+        return redirect("contracts:public_contract", token=token)
+    if document in {"general", "private"}:
+        return render(request, "contracts/public_contract.html", {
+            "proposal": proposal, "version": version, "snapshot": version.snapshot,
+            "document": document, "terms": version.snapshot.get(f"{document}_terms", ""),
+            "acknowledged": document in acknowledgements,
+        })
+    if not ready_for_review:
+        messages.info(request, "برای ورود به تأیید نهایی، ابتدا دو سند قرارداد را کامل کنید.")
+        return redirect("contracts:public_contract", token=token)
     existing = getattr(version, "review", None)
     if request.method == "GET" and existing and not existing.rejected_clause_ids and not existing.suggested_clause:
         return redirect("contracts:contract_accept", token=token)
@@ -212,8 +226,8 @@ def contract_document(request, token):
         )
         proposal.status = "review"
         proposal.save(update_fields=["status", "updated_at"])
-        return redirect("contracts:contract_document", token=token)
-    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing, "acknowledgements": acknowledgements, "ready_for_review": ready_for_review})
+        return redirect("contracts:contract_document", token=token, document="final")
+    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing, "document": "final"})
 
 
 @never_cache
@@ -227,6 +241,9 @@ def contract_acknowledge(request, token, document):
         return redirect("contracts:contract_access", token=token)
     if not version.snapshot.get(f"{document}_terms"):
         raise Http404
+    if document == "private" and not version.room_acknowledgements.filter(document="general").exists():
+        messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
+        return redirect("contracts:public_contract", token=token)
     ip = request.META.get("REMOTE_ADDR", "")
     ContractRoomAcknowledgement.objects.get_or_create(
         version=version, document=document,

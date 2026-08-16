@@ -24,7 +24,7 @@ class ContractWorkflowTests(TestCase):
         session.save()
 
     def test_public_link_is_hidden_before_publish(self):
-        response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token]))
+        response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "general"]))
         self.assertEqual(response.status_code, 404)
 
     def test_proposal_form_can_prefill_from_crm_assessment(self):
@@ -88,11 +88,12 @@ class ContractWorkflowTests(TestCase):
         self.proposal.save()
         version.refresh_from_db()
         self.assertEqual(version.snapshot["project_scope"], original)
-        response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token]))
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
+        response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "final"]))
         self.assertContains(response, "noindex,nofollow,noarchive")
-        self.assertContains(response, "پیشنهاد همکاری سامانه نمونه | آرویون")
-        self.assertContains(response, "share-contract-v1.png")
-        self.assertContains(response, "سامانه نمونه")
+        self.assertContains(response, "قرارداد مشتری نمونه | آرویون")
+        self.assertContains(response, "بررسی نهایی پیشنهاد")
         self.assertNotContains(response, "متن تغییر یافته")
 
     def test_customer_can_reject_clause_only_with_reason_and_suggest_clause(self):
@@ -101,7 +102,7 @@ class ContractWorkflowTests(TestCase):
         ContractRoomAcknowledgement.objects.create(version=version, document="general")
         ContractRoomAcknowledgement.objects.create(version=version, document="private")
         accepted = [str(item["id"]) for item in version.snapshot["clauses"]][1:]
-        url = reverse("contracts:contract_document", args=[self.proposal.token])
+        url = reverse("contracts:contract_document", args=[self.proposal.token, "final"])
         invalid = self.client.post(url, {"accepted_clauses": accepted, "suggested_clause": "بند پیشنهادی"})
         self.assertContains(invalid, "برای بندهای مورد تأیید نبود")
         valid = self.client.post(url, {"accepted_clauses": accepted, "rejection_notes": "این بند نیازمند مذاکره است.", "suggested_clause": "بند پیشنهادی"})
@@ -146,7 +147,7 @@ class ContractWorkflowTests(TestCase):
         session = client.session
         session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
         session.save()
-        document_url = reverse("contracts:contract_document", args=[self.proposal.token])
+        document_url = reverse("contracts:contract_document", args=[self.proposal.token, "general"])
         response = client.get(document_url, secure=True)
         token = response.cookies["csrftoken"].value
         response = client.post(
