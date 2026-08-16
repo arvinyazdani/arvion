@@ -69,7 +69,8 @@ def specialist_discovery(request, code, section=None):
     if room_token:
         from contracts.models import ContractProposal
         room_proposal = get_object_or_404(ContractProposal, token=room_token, crm_order=order)
-        if not room_proposal.current_version or request.session.get(f"contract-access:{room_proposal.current_version}") != room_proposal.customer_phone:
+        room_version = room_proposal.versions.filter(number=room_proposal.current_version).first()
+        if not room_version or request.session.get(f"contract-access:{room_version.pk}") != room_proposal.customer_phone:
             return redirect("contracts:contract_access", token=room_token)
     discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
     keys = [item[0] for item in SECTIONS]
