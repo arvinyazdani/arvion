@@ -39,6 +39,7 @@ def proposal_snapshot(proposal):
         "project_title": proposal.project_title, "project_scope": proposal.project_scope,
         "amount_irr": proposal.amount_irr, "payment_terms": proposal.payment_terms,
         "delivery_terms": proposal.delivery_terms, "client_details": proposal.client_details,
+        "general_terms": proposal.general_terms, "private_terms": proposal.private_terms,
         "provider": {
             "legal_name": company.legal_name_fa if company else "آرویون (Rvion)",
             "brand_name": company.brand_name if company else "Rvion",
