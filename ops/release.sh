@@ -55,7 +55,7 @@ set +a
 HEALTH_HOST="${DJANGO_ALLOWED_HOSTS%%,*}"
 HEALTH_URL="http://127.0.0.1:8000/health/"
 for attempt in {1..15}; do
-  if curl --fail --silent --show-error --connect-timeout 3 \
+  if curl --fail --silent --connect-timeout 3 \
     --header "Host: $HEALTH_HOST" \
     --header "X-Forwarded-Proto: https" \
     "$HEALTH_URL" >/dev/null; then
