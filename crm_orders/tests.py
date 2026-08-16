@@ -9,6 +9,7 @@ from django.utils import timezone
 from accounts.models import User
 from .forms import CrmOrderForm
 from .models import CrmOrder
+from .specialist import SECTIONS
 from .text_export import render_crm_order_text
 
 
@@ -141,3 +142,10 @@ class CrmOrderTests(TestCase):
         self.assertTrue(group.permissions.filter(codename="view_crmorder").exists())
         self.assertTrue(group.permissions.filter(codename="change_crmorder").exists())
         self.assertFalse(group.permissions.filter(codename="delete_crmorder").exists())
+
+    def test_specialist_discovery_excludes_accounting_integration_questions(self):
+        section_keys = [key for key, *_ in SECTIONS]
+        question_text = " ".join(question for _, _, _, questions in SECTIONS for _, question, _ in questions)
+        self.assertNotIn("integrations", section_keys)
+        self.assertNotIn("هلو", question_text)
+        self.assertNotIn("حسابداری", question_text)
