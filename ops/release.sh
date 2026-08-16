@@ -33,7 +33,10 @@ install -m 0644 "$APP_DIR/ops/arvion-notifications.service" /etc/systemd/system/
 install -m 0644 "$APP_DIR/ops/arvion-notifications.timer" /etc/systemd/system/arvion-notifications.timer
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.service" /etc/systemd/system/arvion-healthcheck.service
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.timer" /etc/systemd/system/arvion-healthcheck.timer
+install -m 0750 "$APP_DIR/ops/backup-local.sh" /usr/local/sbin/arvion-backup-local
+install -m 0644 "$APP_DIR/ops/arvion-backup.service" /etc/systemd/system/arvion-backup.service
+install -m 0644 "$APP_DIR/ops/arvion-backup.timer" /etc/systemd/system/arvion-backup.timer
 systemctl daemon-reload
-systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer
+systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer arvion-backup.timer
 systemctl restart arvion
 systemctl is-active --quiet arvion
