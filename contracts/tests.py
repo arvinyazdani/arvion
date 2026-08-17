@@ -5,6 +5,7 @@ from accounts.models import User
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from contracts.models import ContractAcceptance, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from contracts.services import add_default_clauses, publish_version
+from contracts.templatetags.contract_extras import contract_terms_html, persian_amount
 from django.utils import timezone
 
 
@@ -22,6 +23,16 @@ class ContractWorkflowTests(TestCase):
         session = self.client.session
         session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
         session.save()
+
+    def test_contract_amount_uses_persian_three_digit_groups(self):
+        self.assertEqual(persian_amount(380_000_000), "۳۸۰,۰۰۰,۰۰۰")
+
+    def test_contract_terms_are_grouped_into_closable_articles(self):
+        html = contract_terms_html("مقدمه\nماده ۱ ـ موضوع\n۱-۱. متن نخست\nماده ۲ ـ مدت\n۲-۱. متن دوم")
+        self.assertEqual(html.count('class="legal-article"'), 2)
+        self.assertIn('data-legal-article', html)
+        self.assertIn('data-legal-close', html)
+        self.assertIn('بستن ماده', html)
 
     def test_public_link_is_hidden_before_publish(self):
         response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "general"]))
