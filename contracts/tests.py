@@ -27,6 +27,15 @@ class ContractWorkflowTests(TestCase):
         response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "general"]))
         self.assertEqual(response.status_code, 404)
 
+    @override_settings(SITE_URL="https://rvionai.example")
+    def test_contract_access_has_private_share_metadata(self):
+        version = publish_version(self.proposal, self.root)
+        response = self.client.get(reverse("contracts:contract_access", args=[self.proposal.token]))
+        access_url = f"https://rvionai.example{reverse('contracts:contract_access', args=[self.proposal.token])}"
+        self.assertContains(response, 'property="og:title" content="پروندهٔ اختصاصی قرارداد | آرویون"')
+        self.assertContains(response, access_url)
+        self.assertContains(response, "contracts/images/share-contract-room-v1.png", html=False)
+
     def test_proposal_form_can_prefill_from_crm_assessment(self):
         crm = CrmOrder.objects.create(
             organization_name="شرکت نمونه", industry="فناوری", organization_size="under_10",

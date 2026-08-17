@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.templatetags.static import static
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -307,4 +308,13 @@ def contract_access(request, token):
             request.session[f"contract-access:{version.pk}"] = proposal.customer_phone
             request.session.set_expiry(3600)
             return redirect("contracts:public_contract", token=token)
-    return render(request, "contracts/contract_access.html", {"proposal": proposal, "form": form})
+    access_url = f"{settings.SITE_URL.rstrip('/')}{reverse('contracts:contract_access', args=[proposal.token])}"
+    share_image_url = f"{settings.SITE_URL.rstrip('/')}{static('contracts/images/share-contract-room-v1.png')}"
+    return render(request, "contracts/contract_access.html", {
+        "proposal": proposal,
+        "form": form,
+        # The access URL is deliberately the share target: legal documents stay
+        # behind the phone/password gate while messengers still receive a rich card.
+        "canonical_url": access_url,
+        "share_image_url": share_image_url,
+    })
