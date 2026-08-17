@@ -81,6 +81,8 @@ class ContractWorkflowTests(TestCase):
         self.assertIn("مدیر سیستم", proposal.project_scope)
 
     def test_publish_creates_immutable_snapshot_and_public_noindex_page(self):
+        self.proposal.general_terms = "شرایط عمومی نمونه"
+        self.proposal.save()
         version = publish_version(self.proposal, self.root)
         self.grant_contract_access(version)
         original = version.snapshot["project_scope"]
@@ -88,28 +90,19 @@ class ContractWorkflowTests(TestCase):
         self.proposal.save()
         version.refresh_from_db()
         self.assertEqual(version.snapshot["project_scope"], original)
-        ContractRoomAcknowledgement.objects.create(version=version, document="general")
-        ContractRoomAcknowledgement.objects.create(version=version, document="private")
-        response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "final"]))
+        response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "general"]))
         self.assertContains(response, "noindex,nofollow,noarchive")
         self.assertContains(response, "قرارداد مشتری نمونه | آرویون")
-        self.assertContains(response, "بررسی نهایی پیشنهاد")
+        self.assertContains(response, "شرایط عمومی پیمان")
         self.assertNotContains(response, "متن تغییر یافته")
 
-    def test_customer_can_reject_clause_only_with_reason_and_suggest_clause(self):
+    def test_legacy_final_document_returns_to_contract_room(self):
         version = publish_version(self.proposal, self.root)
         self.grant_contract_access(version)
         ContractRoomAcknowledgement.objects.create(version=version, document="general")
         ContractRoomAcknowledgement.objects.create(version=version, document="private")
-        accepted = [str(item["id"]) for item in version.snapshot["clauses"]][1:]
         url = reverse("contracts:contract_document", args=[self.proposal.token, "final"])
-        invalid = self.client.post(url, {"accepted_clauses": accepted, "suggested_clause": "بند پیشنهادی"})
-        self.assertContains(invalid, "برای بندهای مورد تأیید نبود")
-        valid = self.client.post(url, {"accepted_clauses": accepted, "rejection_notes": "این بند نیازمند مذاکره است.", "suggested_clause": "بند پیشنهادی"})
-        self.assertRedirects(valid, url)
-        review = ContractReview.objects.get(version=version)
-        self.assertEqual(review.suggested_clause, "بند پیشنهادی")
-        self.assertEqual(len(review.rejected_clause_ids), 1)
+        self.assertRedirects(self.client.get(url), reverse("contracts:public_contract", args=[self.proposal.token]))
 
     @override_settings(CONTRACT_ACCESS_PASSWORD="test-contract-password")
     def test_phone_access_requires_matching_number_and_password(self):
@@ -162,7 +155,6 @@ class ContractWorkflowTests(TestCase):
         version = publish_version(self.proposal, self.root)
         ContractRoomAcknowledgement.objects.create(version=version, document="general")
         ContractRoomAcknowledgement.objects.create(version=version, document="private")
-        ContractReview.objects.create(version=version, accepted_clause_ids=[str(item["id"]) for item in version.snapshot["clauses"]])
         client = Client(enforce_csrf_checks=True)
         session = client.session
         session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
@@ -175,7 +167,7 @@ class ContractWorkflowTests(TestCase):
             {"csrfmiddlewaretoken": token, "agreement": "on"}, secure=True,
             HTTP_REFERER=f"https://testserver{accept_url}",
         )
-        self.assertRedirects(response, accept_url)
+        self.assertRedirects(response, reverse("contracts:contract_access", args=[self.proposal.token]))
         self.assertTrue(hasattr(version, "acceptance"))
 
     def test_non_superuser_cannot_manage_contracts(self):
@@ -203,18 +195,13 @@ class ContractWorkflowTests(TestCase):
         self.grant_contract_access(version)
         ContractRoomAcknowledgement.objects.create(version=version, document="general")
         ContractRoomAcknowledgement.objects.create(version=version, document="private")
-        ContractReview.objects.create(
-            version=version,
-            accepted_clause_ids=[str(item["id"]) for item in version.snapshot["clauses"]],
-            rejected_clause_ids=[],
-        )
         confirm_url = reverse("contracts:contract_confirm", args=[self.proposal.token])
-        accept_url = reverse("contracts:contract_accept", args=[self.proposal.token])
         response = self.client.post(confirm_url, {"agreement": "on"})
-        self.assertRedirects(response, accept_url)
+        self.assertRedirects(response, reverse("contracts:contract_access", args=[self.proposal.token]))
         self.proposal.refresh_from_db()
         self.assertEqual(self.proposal.status, "accepted")
         self.assertEqual(version.acceptance.verified_phone, self.proposal.customer_phone)
+        self.grant_contract_access(version)
         second = self.client.post(confirm_url, {"agreement": "on"})
-        self.assertRedirects(second, accept_url)
+        self.assertRedirects(second, reverse("contracts:contract_accept", args=[self.proposal.token]))
         self.assertEqual(ContractAcceptance.objects.filter(version=version).count(), 1)

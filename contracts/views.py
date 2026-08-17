@@ -180,7 +180,8 @@ def public_contract(request, token):
         return redirect("contracts:contract_access", token=token)
     discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
-    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery, "acknowledgements": acknowledgements})
+    ready_to_confirm = acknowledgements == {"general", "private"} and (not proposal.crm_order_id or bool(discovery and discovery.status == "submitted"))
+    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery, "acknowledgements": acknowledgements, "ready_to_confirm": ready_to_confirm})
 
 
 @never_cache
@@ -193,7 +194,7 @@ def contract_document(request, token, document=None):
     ready_for_review = acknowledgements == {"general", "private"}
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
         return redirect("contracts:contract_access", token=token)
-    if document not in {"general", "private", "final"}:
+    if document not in {"general", "private"}:
         return redirect("contracts:public_contract", token=token)
     if document == "private" and "general" not in acknowledgements:
         messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
@@ -204,30 +205,6 @@ def contract_document(request, token, document=None):
             "document": document, "terms": version.snapshot.get(f"{document}_terms", ""),
             "acknowledged": document in acknowledgements,
         })
-    if not ready_for_review:
-        messages.info(request, "برای ورود به تأیید نهایی، ابتدا دو سند قرارداد را کامل کنید.")
-        return redirect("contracts:public_contract", token=token)
-    existing = getattr(version, "review", None)
-    if request.method == "GET" and existing and not existing.rejected_clause_ids and not existing.suggested_clause:
-        return redirect("contracts:contract_accept", token=token)
-    form = ContractReviewForm(request.POST or None, version=version)
-    if request.method == "POST" and not ready_for_review:
-        messages.error(request, "ابتدا شرایط عمومی و خصوصی پیمان را در همین پرونده بررسی و تأیید کنید.")
-        return redirect("contracts:public_contract", token=token)
-    if request.method == "POST" and not existing and form.is_valid():
-        all_ids = {str(item["id"]) for item in version.snapshot["clauses"]}
-        accepted = set(form.cleaned_data["accepted_clauses"])
-        ip = request.META.get("REMOTE_ADDR", "")
-        ContractReview.objects.create(
-            version=version, accepted_clause_ids=sorted(accepted), rejected_clause_ids=sorted(all_ids - accepted),
-            rejection_notes=form.cleaned_data["rejection_notes"].strip(), suggested_clause=form.cleaned_data["suggested_clause"].strip(),
-            ip_hash=hashlib.sha256(ip.encode()).hexdigest() if ip else "",
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:240],
-        )
-        proposal.status = "review"
-        proposal.save(update_fields=["status", "updated_at"])
-        return redirect("contracts:contract_document", token=token, document="final")
-    return render(request, "contracts/public_contract.html", {"proposal": proposal, "version": version, "snapshot": version.snapshot, "form": form, "review": existing, "document": "final"})
 
 
 @never_cache
@@ -273,11 +250,9 @@ def _acceptance_version(request, token):
     version = proposal.versions.get(number=proposal.current_version)
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
         raise PermissionDenied
-    review = getattr(version, "review", None)
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
-    if acknowledgements != {"general", "private"}:
-        raise PermissionDenied
-    if not review or review.rejected_clause_ids or review.suggested_clause:
+    discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
+    if acknowledgements != {"general", "private"} or (proposal.crm_order_id and (not discovery or discovery.status != "submitted")):
         raise PermissionDenied
     return proposal, version
 
@@ -309,8 +284,10 @@ def contract_confirm(request, token):
     )
     proposal.status = "accepted"
     proposal.save(update_fields=["status", "updated_at"])
-    messages.success(request, "تأیید نهایی قرارداد ثبت شد.")
-    return redirect("contracts:contract_accept", token=token)
+    request.session.pop(f"contract-access:{version.pk}", None)
+    request.session.modified = True
+    messages.success(request, "تأیید نهایی ثبت شد. از پرونده خارج شدید؛ تیم آرویون برای مرحله بعد با شما هماهنگ می‌شود.")
+    return redirect("contracts:contract_access", token=token)
 
 
 @never_cache
