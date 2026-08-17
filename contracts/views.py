@@ -250,17 +250,23 @@ def _acceptance_version(request, token):
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
     if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
-        raise PermissionDenied
+        messages.info(request, "نسخهٔ پرونده به‌روزرسانی شده است؛ برای ادامه، دوباره وارد پرونده شوید.")
+        return proposal, version, "access"
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
     discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
     if acknowledgements != {"general", "private"} or (proposal.crm_order_id and (not discovery or discovery.status != "submitted")):
-        raise PermissionDenied
-    return proposal, version
+        messages.info(request, "پیش از تأیید نهایی، فرم تخصصی و هر دو سند قرارداد را کامل کنید.")
+        return proposal, version, "steps"
+    return proposal, version, None
 
 
 @never_cache
 def contract_accept(request, token):
-    proposal, version = _acceptance_version(request, token)
+    proposal, version, blocked = _acceptance_version(request, token)
+    if blocked == "access":
+        return redirect("contracts:contract_access", token=token)
+    if blocked:
+        return redirect("contracts:public_contract", token=token)
     acceptance = getattr(version, "acceptance", None)
     return render(request, "contracts/contract_accept.html", {
         "proposal": proposal, "version": version, "acceptance": acceptance, "confirmation_form": OtpRequestForm(),
@@ -271,7 +277,11 @@ def contract_accept(request, token):
 @require_POST
 @transaction.atomic
 def contract_confirm(request, token):
-    proposal, version = _acceptance_version(request, token)
+    proposal, version, blocked = _acceptance_version(request, token)
+    if blocked == "access":
+        return redirect("contracts:contract_access", token=token)
+    if blocked:
+        return redirect("contracts:public_contract", token=token)
     if hasattr(version, "acceptance"):
         return redirect("contracts:contract_accept", token=token)
     form = OtpRequestForm(request.POST)

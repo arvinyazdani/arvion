@@ -34,6 +34,18 @@ class ContractWorkflowTests(TestCase):
         self.assertIn('data-legal-close', html)
         self.assertIn('بستن ماده', html)
 
+    def test_stale_contract_version_redirects_instead_of_403_on_confirmation(self):
+        self.proposal.general_terms = "شرایط عمومی نمونه"
+        self.proposal.private_terms = "شرایط خصوصی نمونه"
+        self.proposal.save()
+        old_version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(old_version)
+        ContractRoomAcknowledgement.objects.create(version=old_version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=old_version, document="private")
+        publish_version(self.proposal, self.root)
+        response = self.client.post(reverse("contracts:contract_confirm", args=[self.proposal.token]), {"agreement": "on"})
+        self.assertRedirects(response, reverse("contracts:contract_access", args=[self.proposal.token]))
+
     def test_public_link_is_hidden_before_publish(self):
         response = self.client.get(reverse("contracts:contract_document", args=[self.proposal.token, "general"]))
         self.assertEqual(response.status_code, 404)
