@@ -1,0 +1,45 @@
+@font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700 800;font-style:normal;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Black.woff2") format("woff2");font-weight:900;font-style:normal;font-display:swap}
+:root{
+  --color-brand-orange:#ff6b35;--color-brand-orange-text:#a92f08;--color-brand-orange-2:#ff9f1c;
+  --color-mint:#b8f2e6;
+  --color-status-green:#1f9d70;--color-status-green-text:#0f7a54;
+  --color-status-red:#d92d20;--color-status-red-text:#a51d14;
+  --color-ink:#0b1220;--color-ink-2:#172136;--color-paper:#f4f1ea;--color-white:#fff;
+  --color-muted:#5f6878;--color-line:rgba(11,18,32,.16);--color-surface:var(--color-white);
+  --surface-glass:rgba(244,241,234,.88);
+  --radius-sm:10px;--radius-md:14px;--radius-lg:22px;--radius-pill:999px;
+  --shadow-sm:0 8px 20px rgba(11,18,32,.08);--shadow-md:0 22px 60px rgba(11,18,32,.12);
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;
+  --font-family-base:Vazirmatn,Tahoma,sans-serif;
+  --font-size-sm:.875rem;--font-size-base:1rem;--font-size-lg:1.125rem;--font-size-xl:1.5rem;--font-size-2xl:2rem;
+
+  /* alias های عقب‌سازگار — هر فایل CSS قدیمی تا زمان مهاجرت کامل بدون تغییر کار می‌کند */
+  --accent:var(--color-brand-orange);--accent-text:var(--color-brand-orange-text);--accent-2:var(--color-brand-orange-2);
+  --orange:var(--color-brand-orange);--m-orange:var(--color-brand-orange);
+  --green:var(--color-status-green);--m-green:var(--color-status-green);--m-red:var(--color-status-red);
+  --mint:var(--color-mint);
+  --ink:var(--color-ink);--ink-2:var(--color-ink-2);--m-ink:var(--color-ink);
+  --paper:var(--color-paper);--m-paper:var(--color-paper);--white:var(--color-white);--m-white:var(--color-white);
+  --muted:var(--color-muted);--m-muted:var(--color-muted);
+  --radius:var(--radius-lg);--m-radius:var(--radius-lg);
+  --shadow:var(--shadow-md);--m-shadow:var(--shadow-md);
+  --line:var(--color-line);--m-line:var(--color-line);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --color-ink:#f4f1ea;--color-ink-2:#e3e0d8;--color-paper:#12161f;--color-surface:#1a2030;
+    --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);
+    --shadow-md:0 22px 60px rgba(0,0,0,.45);--shadow-sm:0 8px 20px rgba(0,0,0,.35);
+    --color-brand-orange-text:#ff9f7a;--color-status-green-text:#4fd8a3;--color-status-red-text:#ff8a80;
+    --surface-glass:rgba(18,22,31,.86);
+  }
+}
+:root[data-theme="dark"]{
+  --color-ink:#f4f1ea;--color-ink-2:#e3e0d8;--color-paper:#12161f;--color-surface:#1a2030;
+  --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);
+  --shadow-md:0 22px 60px rgba(0,0,0,.45);--shadow-sm:0 8px 20px rgba(0,0,0,.35);
+  --color-brand-orange-text:#ff9f7a;--color-status-green-text:#4fd8a3;--color-status-red-text:#ff8a80;
+  --surface-glass:rgba(18,22,31,.86);
+}

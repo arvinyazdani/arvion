@@ -32,12 +32,12 @@ class ClinicOrderTests(TestCase):
         response = self.client.get(reverse("clinic_orders:create"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "CLINIC WEBSITE DISCOVERY")
-        self.assertContains(response, 'data-clinic-wizard', html=False)
-        self.assertContains(response, "بعدی: هدف و فرآیند")
+        self.assertContains(response, 'data-wizard="clinic-order"', html=False)
+        self.assertContains(response, "ادامه")
         self.assertContains(response, "clinic-wizard.css")
         self.assertContains(response, "crm-options")
         self.assertContains(response, 'aria-label="مراحل نیازسنجی کلینیک"', html=False)
-        self.assertEqual(response.content.decode().count("data-step-indicator="), 5)
+        self.assertEqual(response.content.decode().count("data-step-indicator="), 6)
 
     def test_valid_submission_persists_and_returns_tracking_code(self):
         response = self.client.post(reverse("clinic_orders:create"), valid_payload(), follow=True)
@@ -65,7 +65,7 @@ class ClinicOrderTests(TestCase):
         response = self.client.post(reverse("clinic_orders:create"), payload)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(ClinicOrder.objects.exists())
-        self.assertContains(response, 'data-error-step="3"', html=False)
+        self.assertContains(response, 'data-error-step="4"', html=False)
 
     def test_internal_webinar_requires_capacity(self):
         payload = valid_payload()

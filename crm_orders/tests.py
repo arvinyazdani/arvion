@@ -54,7 +54,7 @@ class CrmOrderTests(TestCase):
         response = self.client.get(reverse("crm_orders:create"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ENTERPRISE CRM DISCOVERY")
-        self.assertContains(response, 'data-crm-wizard', html=False)
+        self.assertContains(response, 'data-wizard="crm-order"', html=False)
         self.assertContains(response, 'aria-label="مراحل سفارش"')
 
     def test_valid_submission_persists_structured_discovery_and_emails_team(self):
@@ -106,7 +106,7 @@ class CrmOrderTests(TestCase):
         self.assertFormError(response.context["form"], "critical_workflows", "لطفاً حداقل ۲۰ کاراکتر توضیح دهید.")
         self.assertFalse(CrmOrder.objects.exists())
         self.assertContains(response, "فرم هنوز ثبت نشده است")
-        self.assertContains(response, 'data-error-step="3"', html=False)
+        self.assertContains(response, 'data-error-step="4"', html=False)
 
     def test_browser_receives_same_minimum_length_as_server(self):
         response = self.client.get(reverse("crm_orders:create"))

@@ -2,4 +2,4 @@
 {% block title %}{{ title }} | مدیریت آرویون{% endblock %}
 {% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}"><b>R</b><span>مدیریت آرویون</span></a></div>{% endblock %}
 {% block nav-global %}{% if user.is_staff %}<a class="operations-link" href="{% url 'management_portal:dashboard' %}">مرکز مدیریت آرویون</a>{% endif %}{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=1"><script src="{% static 'core/js/admin-persian.js' %}?v=1" defer></script>{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=1"><link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=2"><script src="{% static 'core/js/admin-persian.js' %}?v=1" defer></script>{% endblock %}

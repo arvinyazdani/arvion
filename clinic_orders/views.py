@@ -18,9 +18,10 @@ class ClinicOrderCreateView(LanguageViewMixin, FormView):
     field_steps = {
         **dict.fromkeys(("clinic_name", "clinic_type", "city", "branch_count", "specialties", "practitioner_count", "website", "contact_name", "job_title", "work_email", "phone"), 1),
         **dict.fromkeys(("primary_goals", "target_audiences", "current_channels", "current_process", "main_pain_points", "success_metrics"), 2),
-        **dict.fromkeys(("visit_modes", "schedule_model", "appointment_rules", "intake_requirements", "reminder_channels", "waitlist_requirement", "practitioner_features", "patient_account_features", "payment_methods", "pricing_model", "insurance_requirement", "cancellation_refund_rules", "financial_documents"), 3),
-        **dict.fromkeys(("content_types", "content_access", "publishing_workflow", "media_requirements", "webinar_features", "webinar_platform", "expected_live_attendees"), 4),
-        **dict.fromkeys(("system_roles", "record_scope", "notification_channels", "integration_types", "required_integrations", "migration_sources", "security_requirements", "hosting_preference", "delivery_strategy", "requested_services", "budget_range", "expected_timeline", "decision_process", "additional_notes", "privacy_accept"), 5),
+        **dict.fromkeys(("hosting_preference", "delivery_strategy", "budget_range", "expected_timeline"), 3),
+        **dict.fromkeys(("visit_modes", "schedule_model", "appointment_rules", "intake_requirements", "reminder_channels", "waitlist_requirement", "practitioner_features", "patient_account_features"), 4),
+        **dict.fromkeys(("payment_methods", "pricing_model", "insurance_requirement", "cancellation_refund_rules", "financial_documents"), 5),
+        **dict.fromkeys(("content_types", "content_access", "publishing_workflow", "media_requirements", "webinar_features", "webinar_platform", "expected_live_attendees", "system_roles", "record_scope", "notification_channels", "integration_types", "required_integrations", "migration_sources", "security_requirements", "requested_services", "decision_process", "additional_notes", "privacy_accept"), 6),
     }
 
     def form_invalid(self, form):

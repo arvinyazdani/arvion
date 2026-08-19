@@ -22,9 +22,9 @@ class CrmOrderCreateView(LanguageViewMixin, FormView):
     field_steps = {
         **dict.fromkeys(("organization_name", "industry", "organization_size", "website", "contact_name", "job_title", "work_email", "phone"), 1),
         **dict.fromkeys(("primary_goals", "departments", "customer_types", "lead_sources", "crm_user_count", "current_data_sources", "current_tools", "current_process", "main_pain_points", "success_metrics"), 2),
-        **dict.fromkeys(("required_capabilities", "assignment_model", "notification_channels", "critical_workflows", "correspondence_features", "ai_use_cases", "reports_needed", "permission_requirements"), 3),
-        **dict.fromkeys(("mobile_requirement", "hosting_preference", "integration_types", "required_integrations", "migration_types", "migration_sources", "approximate_record_count", "audit_requirement", "security_requirements"), 4),
-        **dict.fromkeys(("delivery_strategy", "budget_range", "expected_timeline", "requested_services", "decision_process", "additional_notes", "privacy_accept"), 5),
+        **dict.fromkeys(("delivery_strategy", "budget_range", "expected_timeline"), 3),
+        **dict.fromkeys(("required_capabilities", "assignment_model", "notification_channels", "critical_workflows", "correspondence_features", "ai_use_cases", "reports_needed", "permission_requirements"), 4),
+        **dict.fromkeys(("mobile_requirement", "hosting_preference", "integration_types", "required_integrations", "migration_types", "migration_sources", "approximate_record_count", "audit_requirement", "security_requirements", "requested_services", "decision_process", "additional_notes", "privacy_accept"), 5),
     }
 
     def form_invalid(self, form):

@@ -34,9 +34,13 @@
   <link rel="apple-touch-icon" href="{% static 'core/icons/icon-192.png' %}">
   <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
   <script>try{if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=28">
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=29">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=5" defer></script>
+  <script src="{% static 'core/js/theme-toggle.js' %}?v=1" defer></script>
+  <script src="{% static 'core/js/wizard-engine.js' %}?v=1" defer></script>
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=1" defer></script>{% endif %}
   {% block extra_head %}{% endblock %}
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
@@ -74,6 +78,7 @@
         {% endif %}
         <a class="nav-cta" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Let's talk{% endif %}</a>
         <a class="lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن/تیره{% else %}Toggle light/dark mode{% endif %}">◐</button>
       </nav>
       <button class="nav-scrim" type="button" tabindex="-1" aria-hidden="true"></button>
     </div>
@@ -86,6 +91,7 @@
     <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><b aria-hidden="true">✓</b><span>{% if lang == 'fa' %}آزمون{% else %}Tests{% endif %}</span></a>
     <a href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><b aria-hidden="true">↗</b><span>{% if lang == 'fa' %}همکاری{% else %}Contact{% endif %}</span></a>
     <a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><b aria-hidden="true">●</b><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>
+    {% if request.user.is_staff %}<a data-admin-shortcut href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><b aria-hidden="true">▣</b><span>{% if lang == 'fa' %}داشبورد ادمین{% else %}Admin dashboard{% endif %}</span></a>{% endif %}
   </nav>
   <footer class="site-footer">
     <div class="shell footer-grid">
@@ -117,4 +123,3 @@
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>
-{% if request.user.is_staff %}<script>document.addEventListener('DOMContentLoaded',()=>{const label=document.documentElement.lang==='fa'?'داشبورد ادمین':'Admin dashboard';document.querySelectorAll('a[href*="/management/"]').forEach(a=>{if(a.textContent.trim()==='مرکز مدیریت'||a.textContent.trim()==='Management')a.textContent=label});const bar=document.querySelector('.mobile-tabbar');if(bar&&!bar.querySelector('[data-admin-shortcut]')){const a=document.createElement('a');a.dataset.adminShortcut='true';a.href='/management/';a.innerHTML='<b aria-hidden="true">▣</b><span>'+label+'</span>';bar.appendChild(a)}})</script>{% endif %}
