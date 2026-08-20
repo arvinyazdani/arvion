@@ -14,6 +14,7 @@ from core.views import (
     AboutView, CompanyInfoView, CRMProductView, HomeView, PrivacyView,
     RefundPolicyView, ServiceTermsView,
 )
+from core.views.client_logging import report_js_error
 
 
 def default_language(request):
@@ -53,6 +54,7 @@ urlpatterns = [
     path("favicon.ico", favicon, name="favicon"),
     path("service-worker.js", TemplateView.as_view(template_name="core/service-worker.js", content_type="application/javascript"), name="service_worker"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
+    path("log/js-error/", report_js_error, name="report_js_error"),
 ]
 
 urlpatterns += i18n_patterns(

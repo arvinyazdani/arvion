@@ -223,3 +223,25 @@ class NotificationReceipt(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=("user", "notification"), name="unique_user_notification_receipt")]
+
+
+class SystemLog(models.Model):
+    """رویدادهای فنی سیستم (خطای سرور، خطای مرورگر کاربر) با شرح فارسی، مستقل از سابقه عملیات مدیریتی."""
+    LEVELS = (("error", "خطا"), ("warning", "هشدار"), ("info", "اطلاعات"))
+    CATEGORIES = (
+        ("server", "خطای سرور"), ("frontend", "خطای مرورگر کاربر"),
+        ("wizard", "رفتار ویزارد"), ("other", "سایر"),
+    )
+
+    level = models.CharField(max_length=10, choices=LEVELS, default="error", db_index=True)
+    category = models.CharField(max_length=12, choices=CATEGORIES, default="other", db_index=True)
+    message_fa = models.CharField(max_length=300)
+    detail = models.TextField(blank=True)
+    path = models.CharField(max_length=300, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="system_logs")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "رویداد سیستمی"
+        verbose_name_plural = "لاگ‌های سیستم"

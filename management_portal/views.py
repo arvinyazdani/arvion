@@ -34,7 +34,7 @@ from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
 from assessments.services import PaymentVerificationError, verify_gateway_payment
-from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
 
 
 @staff_member_required(login_url="accounts:login")
@@ -615,6 +615,23 @@ def audit_log(request):
         from django.db.models import Q
         events = events.filter(Q(summary__icontains=query) | Q(action__icontains=query) | Q(actor__email__icontains=query))
     return render(request, "management_portal/v2/audit_log.html", {"events": events[:200], "query": query, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+def system_log(request):
+    _require_superuser(request)
+    level = request.GET.get("level", "")
+    category = request.GET.get("category", "")
+    logs = SystemLog.objects.select_related("user")
+    if level in dict(SystemLog.LEVELS):
+        logs = logs.filter(level=level)
+    if category in dict(SystemLog.CATEGORIES):
+        logs = logs.filter(category=category)
+    return render(request, "management_portal/v2/system_log.html", {
+        "logs": logs[:200], "level": level, "category": category,
+        "levels": SystemLog.LEVELS, "categories": SystemLog.CATEGORIES,
+        "lang": getattr(request, "LANGUAGE_CODE", "fa"),
+    })
 
 
 def _visible_notifications(user):

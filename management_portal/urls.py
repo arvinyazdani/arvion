@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, ticket_status
+from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
 from contracts.views import contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke
 
 urlpatterns = [
@@ -49,4 +49,5 @@ urlpatterns = [
     path("content/", content_center, name="content_center"),
     path("content/<str:kind>/<int:object_id>/toggle/", content_toggle, name="content_toggle"),
     path("audit/", audit_log, name="audit_log"),
+    path("system-log/", system_log, name="system_log"),
 ]

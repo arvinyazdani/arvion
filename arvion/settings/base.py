@@ -134,3 +134,15 @@ ASSESSMENT_ATTEMPTS_PER_DAY = int(os.getenv("ASSESSMENT_ATTEMPTS_PER_DAY", "5"))
 ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD = int(os.getenv("ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD", "80"))
 ASSESSMENT_TERMS_VERSION = os.getenv("ASSESSMENT_TERMS_VERSION", "2026-08-05")
 ASSESSMENT_SUPPORT_TICKETS_PER_HOUR = int(os.getenv("ASSESSMENT_SUPPORT_TICKETS_PER_HOUR", "5"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+        "system_log": {"class": "management_portal.logging_handlers.PersianSystemLogHandler", "level": "ERROR"},
+    },
+    "loggers": {
+        "django.request": {"handlers": ["console", "system_log"], "level": "ERROR", "propagate": False},
+    },
+}
