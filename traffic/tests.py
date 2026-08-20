@@ -24,6 +24,10 @@ class TrafficMiddlewareTests(TestCase):
         self.client.get(reverse("admin:index"))
         self.assertFalse(TrafficDay.objects.exists())
 
+    def test_private_account_route_is_excluded(self):
+        self.client.get(reverse("accounts:login"))
+        self.assertFalse(TrafficDay.objects.exists())
+
     def test_cleanup_removes_identifiers_not_aggregates(self):
         old = timezone.localdate() - timedelta(days=31)
         TrafficDay.objects.create(date=old, page_views=10, unique_visitors=4)

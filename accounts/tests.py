@@ -11,12 +11,33 @@ from django.core.management import call_command
 from django.contrib.auth.models import Group
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order, PaymentTransaction
+from accounts.security import client_address
 
 
 User = get_user_model()
+
+
+class ClientAddressTests(TestCase):
+    @override_settings(TRUSTED_PROXY_IPS={"127.0.0.1"})
+    def test_trusted_local_proxy_supplies_validated_real_ip(self):
+        request = SimpleNamespace(META={"REMOTE_ADDR": "127.0.0.1", "HTTP_X_REAL_IP": "203.0.113.17"})
+        self.assertEqual(client_address(request), "203.0.113.17")
+
+    @override_settings(TRUSTED_PROXY_IPS={"127.0.0.1"})
+    def test_untrusted_peer_cannot_spoof_real_ip_header(self):
+        request = SimpleNamespace(META={"REMOTE_ADDR": "198.51.100.8", "HTTP_X_REAL_IP": "203.0.113.17"})
+        self.assertEqual(client_address(request), "198.51.100.8")
+
+    @override_settings(TRUSTED_PROXY_IPS={"127.0.0.1"})
+    def test_invalid_proxy_value_fails_closed(self):
+        request = SimpleNamespace(META={"REMOTE_ADDR": "127.0.0.1", "HTTP_X_REAL_IP": "not-an-ip"})
+        self.assertEqual(client_address(request), "unknown")
 
 
 class StaffRoleTests(TestCase):
@@ -117,6 +138,9 @@ class StaffRoleTests(TestCase):
 class AccountFlowTests(TestCase):
     def setUp(self):
         cache.clear()
+        previous_language = translation.get_language()
+        translation.activate("fa")
+        self.addCleanup(translation.activate, previous_language)
 
     def registration_payload(self):
         return {
@@ -215,6 +239,25 @@ class AccountFlowTests(TestCase):
         self.client.post(reverse("accounts:register"), self.registration_payload())
         response = self.client.post(reverse("accounts:login"), {"username": "arvin@example.com", "password": "A-secure-test-password-42"})
         self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_legacy_email_link_cannot_bypass_mobile_otp(self):
+        user = User.objects.create_user(
+            username="legacy-pending@example.com",
+            email="legacy-pending@example.com",
+            mobile="989120000001",
+            password="A-secure-test-password-42",
+            is_active=False,
+        )
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+
+        response = self.client.get(reverse("accounts:verify", args=[uid, token]))
+
+        self.assertEqual(response.status_code, 400)
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertIsNone(user.mobile_verified_at)
         self.assertNotIn("_auth_user_id", self.client.session)
 
     @override_settings(AUTH_LOGIN_ATTEMPTS=2, AUTH_LOGIN_WINDOW_SECONDS=60)

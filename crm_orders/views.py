@@ -1,16 +1,19 @@
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView, FormView
+from django.views.decorators.cache import never_cache
 
 from accounts.security import client_address, normalized_fingerprint
 from core.views.lang import LanguageViewMixin
 from .forms import CrmOrderForm
 from .models import CrmOrder, CrmSpecialistDiscovery
-from .specialist import SECTIONS
+from .specialist import SECTIONS, is_specialist_discovery_complete
 from .specialist_forms import SpecialistDiscoveryForm
 from django.shortcuts import get_object_or_404, render
 
@@ -27,6 +30,11 @@ class CrmOrderCreateView(LanguageViewMixin, FormView):
         **dict.fromkeys(("mobile_requirement", "hosting_preference", "integration_types", "required_integrations", "migration_types", "migration_sources", "approximate_record_count", "audit_requirement", "security_requirements", "requested_services", "decision_process", "additional_notes", "privacy_accept"), 5),
     }
 
+    def dispatch(self, request, *args, **kwargs):
+        if getattr(request, "LANGUAGE_CODE", "fa") == "en":
+            return redirect("/fa/crm-order/")
+        return super().dispatch(request, *args, **kwargs)
+
     def form_invalid(self, form):
         error_fields = [name for name in form.errors if name != "__all__"]
         error_step = min((self.field_steps.get(name, 1) for name in error_fields), default=1)
@@ -42,6 +50,7 @@ class CrmOrderCreateView(LanguageViewMixin, FormView):
         order = form.save(commit=False)
         order.privacy_accepted_at = timezone.now()
         order.save()
+        CrmSpecialistDiscovery.objects.get_or_create(order=order)
         self.order = order
         send_mail(
             f"New CRM discovery [{order.tracking_code}]",
@@ -62,17 +71,29 @@ class CrmOrderThanksView(LanguageViewMixin, DetailView):
     slug_url_kwarg = "code"
 
 
+@never_cache
 def specialist_discovery(request, code, section=None):
-    order = get_object_or_404(CrmOrder, tracking_code=code)
     room_token = request.GET.get("room", "")
     room_proposal = None
     if room_token:
         from contracts.models import ContractProposal
+        order = get_object_or_404(CrmOrder, tracking_code=code)
         room_proposal = get_object_or_404(ContractProposal, token=room_token, crm_order=order)
         room_version = room_proposal.versions.filter(number=room_proposal.current_version).first()
-        if not room_version or request.session.get(f"contract-access:{room_version.pk}") != room_proposal.customer_phone:
+        expected_phone = (room_version.snapshot or {}).get("customer_phone", room_proposal.customer_phone) if room_version else ""
+        if not room_version or request.session.get(f"contract-access:{room_version.pk}") != expected_phone:
             return redirect("contracts:contract_access", token=room_token)
-    discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
+        discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
+    elif request.user.is_authenticated and request.user.is_staff and (
+        request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")
+    ):
+        order = get_object_or_404(CrmOrder, tracking_code=code)
+        discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
+    else:
+        discovery = get_object_or_404(
+            CrmSpecialistDiscovery.objects.select_related("order"), token=code,
+        )
+        order = discovery.order
     keys = [item[0] for item in SECTIONS]
     section = section or keys[0]
     if section not in keys:
@@ -80,22 +101,54 @@ def specialist_discovery(request, code, section=None):
     index = keys.index(section)
     form = SpecialistDiscoveryForm(request.POST or None, section_key=section, initial=discovery.answers.get(section, {}))
     if request.method == "POST" and form.is_valid():
-        answers = dict(discovery.answers)
-        answers[section] = form.cleaned_data
-        discovery.answers = answers
-        if index == len(keys) - 1:
-            discovery.status = "submitted"
-            discovery.save(update_fields=["answers", "status", "updated_at"])
+        with transaction.atomic():
+            # Use the same proposal -> discovery lock order as final contract
+            # acceptance.  This prevents a last-millisecond answer edit from
+            # racing with the evidence snapshot recorded on acceptance.
+            from contracts.models import ContractProposal
+            linked_proposals = list(
+                ContractProposal.objects.select_for_update()
+                .filter(crm_order=order)
+                .order_by("pk")
+            )
+            if any(item.status == "accepted" for item in linked_proposals):
+                raise PermissionDenied
+            locked = CrmSpecialistDiscovery.objects.select_for_update().get(pk=discovery.pk)
+            answers = dict(locked.answers)
+            answers[section] = form.cleaned_data
+            locked.answers = answers
+            update_fields = ["answers", "updated_at"]
+            completed = is_specialist_discovery_complete(locked)
+            if completed:
+                locked.status = "submitted"
+                update_fields.insert(1, "status")
+            elif locked.status != "draft":
+                locked.status = "draft"
+                update_fields.insert(1, "status")
+            locked.save(update_fields=update_fields)
+            discovery = locked
+        if completed:
             if room_proposal:
                 return redirect("contracts:public_contract", token=room_token)
             return redirect("crm_orders:specialist_done", code=code)
-        discovery.save(update_fields=["answers", "updated_at"])
-        url = reverse("crm_orders:specialist_section", kwargs={"code": code, "section": keys[index + 1]})
+        next_key = keys[index + 1] if index < len(keys) - 1 else next(
+            key for key in keys if key not in discovery.answers or not discovery.answers[key]
+        )
+        url = reverse("crm_orders:specialist_section", kwargs={"code": code, "section": next_key})
         return redirect(f"{url}?room={room_token}" if room_token else url)
     return render(request, "crm_orders/specialist_wizard.html", {"order": order, "discovery": discovery, "form": form, "section": next(item for item in SECTIONS if item[0] == section), "sections": SECTIONS, "index": index, "total": len(keys), "room_proposal": room_proposal})
 
 
+@never_cache
 def specialist_done(request, code):
-    order = get_object_or_404(CrmOrder, tracking_code=code)
-    discovery = get_object_or_404(CrmSpecialistDiscovery, order=order)
+    if request.user.is_authenticated and request.user.is_staff and (
+        request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")
+    ):
+        order = get_object_or_404(CrmOrder, tracking_code=code)
+        discovery = get_object_or_404(CrmSpecialistDiscovery, order=order)
+    else:
+        discovery = get_object_or_404(
+            CrmSpecialistDiscovery.objects.select_related("order"), token=code,
+        )
+        order = discovery.order
     return render(request, "crm_orders/specialist_done.html", {"order": order, "discovery": discovery})

@@ -72,6 +72,26 @@ class ManualPaymentSubmissionForm(forms.ModelForm):
         return cleaned
 
 
+class FinishAttemptForm(forms.Form):
+    confirm_submission = forms.BooleanField(
+        required=True,
+        widget=forms.CheckboxInput(attrs={"value": "yes", "required": True}),
+    )
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["confirm_submission"].label = (
+            "تأیید می‌کنم که آماده ثبت نهایی هستم."
+            if lang == "fa"
+            else "I confirm that I am ready to submit."
+        )
+        self.fields["confirm_submission"].error_messages["required"] = (
+            "برای ثبت نهایی، تأیید این گزینه الزامی است."
+            if lang == "fa"
+            else "Confirm this checkbox before submitting the assessment."
+        )
+
+
 class SupportTicketForm(forms.ModelForm):
     website = forms.CharField(required=False, widget=forms.HiddenInput)
 

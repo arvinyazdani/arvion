@@ -272,8 +272,15 @@ class AttemptQuestion(models.Model):
     question_snapshot = models.JSONField(default=dict)
     choices_snapshot = models.JSONField(default=list)
     selected_choice = models.ForeignKey(Choice, on_delete=models.PROTECT, blank=True, null=True, related_name="selected_in_attempts")
+    selected_choice_snapshot_id = models.PositiveBigIntegerField(blank=True, null=True, editable=False)
     answered_at = models.DateTimeField(blank=True, null=True)
     audio_play_count = models.PositiveSmallIntegerField(default=0)
+
+    @property
+    def effective_selected_choice_id(self):
+        if self.selected_choice_snapshot_id is not None:
+            return self.selected_choice_snapshot_id
+        return self.selected_choice_id
 
     class Meta:
         ordering = ("position",)

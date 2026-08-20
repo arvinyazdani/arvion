@@ -3,19 +3,24 @@ from django.urls import reverse
 
 from accounts.models import User
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
+from crm_orders.specialist import SECTIONS
 from contracts.models import ContractAcceptance, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from contracts.services import add_default_clauses, publish_version
 from contracts.templatetags.contract_extras import contract_terms_html, persian_amount
 from django.utils import timezone
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
 
 
 class ContractWorkflowTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.root = User.objects.create_superuser(username="contract-root", email="contracts@example.com", password="safe-password")
         self.proposal = ContractProposal.objects.create(
             customer_name="مشتری نمونه", customer_phone="989120373271", project_title="سامانه نمونه",
             project_scope="تحلیل و توسعه نسخه اول", amount_irr=1_000_000_000,
-            delivery_terms="۸ هفته", created_by=self.root,
+            delivery_terms="۸ هفته", general_terms="ماده ۱ ـ شرایط عمومی\n۱-۱. متن عمومی",
+            private_terms="ماده ۱ ـ شرایط خصوصی\n۱-۱. متن خصوصی", created_by=self.root,
         )
         add_default_clauses(self.proposal)
 
@@ -177,11 +182,48 @@ class ContractWorkflowTests(TestCase):
         token = response.cookies["csrftoken"].value
         response = client.post(
             reverse("contracts:contract_acknowledge", args=[self.proposal.token, "general"]),
-            {"csrfmiddlewaretoken": token}, secure=True,
+            {"csrfmiddlewaretoken": token, "acknowledge": "on"}, secure=True,
             HTTP_REFERER=f"https://testserver{document_url}",
         )
         self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
         self.assertTrue(ContractRoomAcknowledgement.objects.filter(version=version, document="general").exists())
+
+    def test_document_acknowledgement_requires_explicit_checkbox(self):
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        response = self.client.post(
+            reverse("contracts:contract_acknowledge", args=[self.proposal.token, "general"]),
+            {},
+        )
+        self.assertRedirects(
+            response,
+            reverse("contracts:contract_document", args=[self.proposal.token, "general"]),
+        )
+        self.assertFalse(ContractRoomAcknowledgement.objects.filter(version=version).exists())
+
+    def test_room_confirmation_control_posts_the_server_required_field(self):
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
+
+        response = self.client.get(reverse("contracts:public_contract", args=[self.proposal.token]))
+
+        self.assertContains(response, 'name="agreement"', html=False)
+        self.assertContains(response, 'value="on"', html=False)
+
+    def test_private_document_shows_dynamic_customer_and_snapshot_clauses(self):
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+
+        response = self.client.get(
+            reverse("contracts:contract_document", args=[self.proposal.token, "private"]),
+        )
+
+        self.assertContains(response, self.proposal.customer_name)
+        self.assertNotContains(response, "نور بینان")
+        self.assertContains(response, version.snapshot["clauses"][0]["title"])
 
     def test_final_confirmation_accepts_secure_csrf_post(self):
         version = publish_version(self.proposal, self.root)
@@ -233,7 +275,146 @@ class ContractWorkflowTests(TestCase):
         self.proposal.refresh_from_db()
         self.assertEqual(self.proposal.status, "accepted")
         self.assertEqual(version.acceptance.verified_phone, self.proposal.customer_phone)
+        self.assertEqual(len(version.acceptance.evidence_hash), 64)
         self.grant_contract_access(version)
         second = self.client.post(confirm_url, {"agreement": "on"})
         self.assertRedirects(second, reverse("contracts:contract_accept", args=[self.proposal.token]))
         self.assertEqual(ContractAcceptance.objects.filter(version=version).count(), 1)
+
+    def test_accepted_room_shows_receipt_instead_of_a_second_confirmation_form(self):
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
+        ContractAcceptance.objects.create(
+            version=version,
+            verified_phone=self.proposal.customer_phone,
+            evidence_hash=version.snapshot_hash,
+        )
+        ContractProposal.objects.filter(pk=self.proposal.pk).update(status="accepted")
+
+        response = self.client.get(
+            reverse("contracts:public_contract", args=[self.proposal.token]),
+        )
+
+        self.assertContains(response, "تأیید این نسخه ثبت شده است")
+        self.assertContains(response, "مشاهده رسید تأیید")
+        self.assertNotContains(response, 'name="agreement"', html=False)
+
+    def test_acceptance_captures_specialist_answers_and_freezes_customer_edits(self):
+        crm = CrmOrder.objects.create(
+            organization_name="سازمان نمونه", industry="فناوری", organization_size="under_10",
+            contact_name="مدیر نمونه", job_title="مدیر", work_email="manager@example.com",
+            phone="09120373271", crm_user_count="1_5", current_process="فرآیند اولیه",
+            main_pain_points="پیگیری دستی", success_metrics="کاهش زمان",
+            critical_workflows="فروش", reports_needed="", permission_requirements="",
+            budget_range="estimate", expected_timeline="1_2", decision_process="مدیرعامل",
+            privacy_accepted_at=timezone.now(),
+        )
+        answers = {
+            section_key: {
+                key: "پاسخ کامل و معتبر مشتری برای این پرسش تخصصی"
+                for key, _question, _help_text in questions
+            }
+            for section_key, _title, _description, questions in SECTIONS
+        }
+        discovery = CrmSpecialistDiscovery.objects.create(
+            order=crm, status="submitted",
+            answers={"users_access": {"roles": "پاسخ ناقص قدیمی"}},
+        )
+        self.proposal.crm_order = crm
+        self.proposal.save(update_fields=["crm_order"])
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        ContractRoomAcknowledgement.objects.create(version=version, document="general")
+        ContractRoomAcknowledgement.objects.create(version=version, document="private")
+
+        blocked = self.client.post(
+            reverse("contracts:contract_confirm", args=[self.proposal.token]),
+            {"agreement": "on"},
+        )
+        self.assertRedirects(
+            blocked, reverse("contracts:public_contract", args=[self.proposal.token]),
+        )
+        self.assertFalse(ContractAcceptance.objects.filter(version=version).exists())
+        discovery.answers = answers
+        discovery.save(update_fields=["answers", "updated_at"])
+
+        response = self.client.post(
+            reverse("contracts:contract_confirm", args=[self.proposal.token]),
+            {"agreement": "on"},
+        )
+
+        self.assertRedirects(response, reverse("contracts:contract_access", args=[self.proposal.token]))
+        acceptance = ContractAcceptance.objects.get(version=version)
+        self.assertEqual(acceptance.discovery_snapshot["answers"], discovery.answers)
+        self.assertEqual(len(acceptance.evidence_hash), 64)
+
+        self.client.force_login(self.root)
+        edit = self.client.post(
+            reverse("crm_orders:specialist_section", args=[crm.tracking_code, "users_access"]),
+            {
+                "roles": "نقش تازه بعد از امضا",
+                "permissions": "دسترسی کامل برای مدیر سیستم",
+                "approval": "جانشین مدیر فروش درخواست را تأیید می‌کند",
+            },
+        )
+        self.assertEqual(edit.status_code, 403)
+        acceptance.refresh_from_db()
+        self.assertEqual(acceptance.discovery_snapshot["answers"], discovery.answers)
+
+    def test_sent_proposal_must_be_revoked_before_editing(self):
+        publish_version(self.proposal, self.root)
+        self.client.force_login(self.root)
+
+        response = self.client.get(
+            reverse("contracts:proposal_edit", args=[self.proposal.pk]),
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_accepted_contract_archive_remains_available_after_expiry(self):
+        version = publish_version(self.proposal, self.root)
+        ContractAcceptance.objects.create(
+            version=version, verified_phone=self.proposal.customer_phone,
+        )
+        ContractProposal.objects.filter(pk=self.proposal.pk).update(
+            status="accepted", expires_at=timezone.now() - timezone.timedelta(days=1),
+        )
+
+        response = self.client.get(
+            reverse("contracts:contract_access", args=[self.proposal.token]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_publish_rejects_missing_legal_documents(self):
+        self.proposal.private_terms = ""
+        self.proposal.save(update_fields=["private_terms"])
+        with self.assertRaises(ValidationError):
+            publish_version(self.proposal, self.root)
+
+    @override_settings(CONTRACT_ACCESS_PASSWORD="test-contract-password", CONTRACT_ACCESS_ATTEMPTS=2)
+    def test_contract_access_is_rate_limited(self):
+        publish_version(self.proposal, self.root)
+        url = reverse("contracts:contract_access", args=[self.proposal.token])
+        for _ in range(2):
+            self.client.post(url, {"phone": "09120000000", "password": "wrong"})
+        blocked = self.client.post(url, {"phone": "09120373271", "password": "test-contract-password"})
+        self.assertEqual(blocked.status_code, 200)
+        self.assertContains(blocked, "تلاش‌های ورود بیش از حد مجاز")
+        self.assertFalse(any(key.startswith("contract-access:") for key in self.client.session.keys()))
+
+    @override_settings(CONTRACT_ACCESS_PASSWORD="test-contract-password")
+    def test_access_identity_is_bound_to_published_snapshot(self):
+        version = publish_version(self.proposal, self.root)
+        self.proposal.customer_phone = "989111111111"
+        self.proposal.save(update_fields=["customer_phone"])
+        url = reverse("contracts:contract_access", args=[self.proposal.token])
+
+        response = self.client.post(url, {
+            "phone": "09120373271", "password": "test-contract-password",
+        })
+
+        self.assertRedirects(response, reverse("contracts:public_contract", args=[self.proposal.token]))
+        self.assertEqual(self.client.session[f"contract-access:{version.pk}"], "989120373271")

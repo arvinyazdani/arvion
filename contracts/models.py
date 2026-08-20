@@ -42,7 +42,9 @@ class ContractProposal(models.Model):
 
     @property
     def is_publicly_available(self):
-        return self.status in {"sent", "review", "accepted"} and (not self.expires_at or self.expires_at > timezone.now())
+        if self.status == "accepted":
+            return True
+        return self.status in {"sent", "review"} and (not self.expires_at or self.expires_at > timezone.now())
 
     def __str__(self):
         return f"{self.project_title} — {self.customer_name}"
@@ -106,6 +108,8 @@ class ContractAcceptance(models.Model):
     version = models.OneToOneField(ContractVersion, on_delete=models.PROTECT, related_name="acceptance")
     verified_phone = models.CharField(max_length=12)
     provider_reference = models.CharField(max_length=120, blank=True)
+    discovery_snapshot = models.JSONField(default=dict, blank=True)
+    evidence_hash = models.CharField(max_length=64, blank=True)
     accepted_at = models.DateTimeField(auto_now_add=True)
     ip_hash = models.CharField(max_length=64, blank=True)
     user_agent = models.CharField(max_length=240, blank=True)

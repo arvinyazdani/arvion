@@ -122,7 +122,15 @@ def process_notifications(now=None):
         receipt.save(update_fields=["push_sent_at", "last_error"])
         push_count += 1
 
-    urgent = ManagementNotification.objects.filter(category__in=URGENT_SMS_CATEGORIES, status="unread", receipts__sms_sent_at__isnull=True).distinct()
+    # If every recipient has already opened the alert, an SMS would only repeat
+    # information the manager has acted on. Keep the immediate SMS path solely
+    # for urgent receipts that are still unseen.
+    urgent = ManagementNotification.objects.filter(
+        category__in=URGENT_SMS_CATEGORIES,
+        status="unread",
+        receipts__sms_sent_at__isnull=True,
+        receipts__seen_at__isnull=True,
+    ).distinct()
     for item in urgent:
         if not settings.MANAGEMENT_ALERT_SMS_RECIPIENTS:
             continue

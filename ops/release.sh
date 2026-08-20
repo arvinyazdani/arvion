@@ -35,6 +35,8 @@ install -m 0644 "$APP_DIR/ops/arvion-notifications.service" /etc/systemd/system/
 install -m 0644 "$APP_DIR/ops/arvion-notifications.timer" /etc/systemd/system/arvion-notifications.timer
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.service" /etc/systemd/system/arvion-healthcheck.service
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.timer" /etc/systemd/system/arvion-healthcheck.timer
+install -m 0644 "$APP_DIR/ops/arvion-system-log-cleanup.service" /etc/systemd/system/arvion-system-log-cleanup.service
+install -m 0644 "$APP_DIR/ops/arvion-system-log-cleanup.timer" /etc/systemd/system/arvion-system-log-cleanup.timer
 install -m 0750 "$APP_DIR/ops/backup-local.sh" /usr/local/sbin/arvion-backup-local
 install -m 0644 "$APP_DIR/ops/arvion-backup.service" /etc/systemd/system/arvion-backup.service
 install -m 0644 "$APP_DIR/ops/arvion-backup.timer" /etc/systemd/system/arvion-backup.timer
@@ -42,7 +44,7 @@ install -m 0750 "$APP_DIR/ops/restore-check.sh" /usr/local/sbin/arvion-restore-c
 install -m 0644 "$APP_DIR/ops/arvion-restore-check.service" /etc/systemd/system/arvion-restore-check.service
 install -m 0644 "$APP_DIR/ops/arvion-restore-check.timer" /etc/systemd/system/arvion-restore-check.timer
 systemctl daemon-reload
-systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer arvion-backup.timer arvion-restore-check.timer
+systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer arvion-system-log-cleanup.timer arvion-backup.timer arvion-restore-check.timer
 systemctl restart arvion
 systemctl is-active --quiet arvion
 

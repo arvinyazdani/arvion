@@ -31,7 +31,7 @@
         menuButton.focus();
       }
       if (event.key === "Tab" && nav.classList.contains("is-open")) {
-        const focusable = [menuButton, ...nav.querySelectorAll("a")];
+        const focusable = [menuButton, ...nav.querySelectorAll("a,button:not([disabled])")];
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {
@@ -49,18 +49,27 @@
   }
 
   const welcome = document.querySelector("[data-app-welcome]");
+  const navigationBackground = [...document.querySelectorAll(".site-header,main,.mobile-tabbar,.site-footer")];
+  const setNavigationBusy = busy => {
+    navigationBackground.forEach(item => {
+      item.toggleAttribute("inert", busy);
+      if (item.tagName === "MAIN") item.setAttribute("aria-busy", busy ? "true" : "false");
+    });
+  };
   let navigationFailsafe = null;
   const hideNavigationLoader = () => {
     if (navigationFailsafe) window.clearTimeout(navigationFailsafe);
     navigationFailsafe = null;
     document.documentElement.classList.remove("navigation-pending");
     if (welcome) welcome.setAttribute("aria-hidden", "true");
+    setNavigationBusy(false);
   };
   const showNavigationLoader = () => {
     if (!welcome) return;
     welcome.classList.remove("is-leaving");
     welcome.setAttribute("aria-hidden", "false");
     document.documentElement.classList.add("navigation-pending");
+    setNavigationBusy(true);
     navigationFailsafe = window.setTimeout(hideNavigationLoader, 15000);
   };
   if (document.documentElement.classList.contains("welcome-pending") && welcome) {
@@ -106,6 +115,10 @@
   const guideButtons = [...document.querySelectorAll("[data-install-guide]")];
   const dialog = document.querySelector("[data-install-dialog]");
   if (!dialog) return;
+  guideButtons.forEach(button => {
+    button.setAttribute("aria-haspopup", "dialog");
+    button.setAttribute("aria-controls", dialog.id);
+  });
 
   const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   let installedRemembered = false;
@@ -154,17 +167,21 @@
     hideGuideEntry();
   });
 
-  const focusable = () => [...dialog.querySelectorAll("button:not([hidden])")].filter(item => !item.closest("[hidden]"));
+  const focusable = () => [...dialog.querySelectorAll(".install-sheet button:not([hidden]):not([disabled]):not([tabindex='-1'])")].filter(item => !item.closest("[hidden]"));
+  const dialogBackground = [...document.querySelectorAll(".site-header,main,.mobile-tabbar,.site-footer")];
+  const setDialogBackgroundInert = inert => dialogBackground.forEach(item => item.toggleAttribute("inert", inert));
   const openDialog = event => {
     trigger = event.currentTarget;
     dialog.hidden = false;
     document.body.classList.add("install-open");
+    setDialogBackgroundInert(true);
     dialog.querySelector(".install-close").focus();
   };
   function closeDialog() {
     if (dialog.hidden) return;
     dialog.hidden = true;
     document.body.classList.remove("install-open");
+    setDialogBackgroundInert(false);
     trigger?.focus();
   }
   guideButtons.forEach(button => button.addEventListener("click", openDialog));

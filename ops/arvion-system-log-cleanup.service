@@ -1,0 +1,12 @@
+[Unit]
+Description=Delete expired Rvion application SystemLog rows
+
+[Service]
+Type=oneshot
+User=arvion
+Group=arvion
+WorkingDirectory=/srv/arvion
+EnvironmentFile=/srv/arvion/.env.production
+ExecStart=/srv/arvion/.venv/bin/python manage.py cleanup_system_logs
+NoNewPrivileges=true
+PrivateTmp=true

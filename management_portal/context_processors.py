@@ -14,8 +14,14 @@ def management_alerts(request):
     language_switch_url = "/".join(path_parts)
     if request.META.get("QUERY_STRING"):
         language_switch_url += "?" + request.META["QUERY_STRING"]
+    unread_count = getattr(request, "_management_unread_count", None)
+    if unread_count is None:
+        unread_count = request.user.notification_receipts.filter(
+            seen_at__isnull=True,
+            notification__status="unread",
+        ).count()
     return {
         "web_push_public_key": settings.WEB_PUSH_VAPID_PUBLIC_KEY,
-        "unread_count": request.user.notification_receipts.filter(seen_at__isnull=True, notification__status="unread").count(),
+        "unread_count": unread_count,
         "language_switch_url": language_switch_url,
     }

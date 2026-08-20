@@ -1,12 +1,116 @@
 {% extends "management_portal/v2/base.html" %}
 {% load static %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/dashboard.css' %}?v=1">{% endblock %}
+{% block title %}{% if lang == 'fa' %}مرکز عملیات{% else %}Operations center{% endif %} | Rvion{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}مرکز عملیات{% else %}Operations center{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/dashboard.css' %}?v=4">{% endblock %}
 {% block content %}
-<section class="m-command-hero"><div class="m-command-copy"><span>{% if lang == 'fa' %}نمای کلی امروز{% else %}Today at a glance{% endif %}</span><h1>{% if lang == 'fa' %}سلام {{ request.user.first_name|default:"مدیر" }}؛ از همین‌جا روز کاری را پیش ببرید.{% else %}Hello {{ request.user.first_name|default:"Manager" }}. Start your workday from one clear place.{% endif %}</h1><p>{% if lang == 'fa' %}موارد فوری، مشتری‌ها، قرارداد و پیگیری‌ها در یک مسیر متصل قرار دارند.{% else %}Urgent work, customers, contracts and follow-ups are connected in one workflow.{% endif %}</p><div class="m-command-actions"><a class="primary" href="{% url 'management_portal:customer_workspace' %}">{% if lang == 'fa' %}باز کردن مشتری‌ها{% else %}Open customers{% endif %}</a>{% if request.user.is_superuser %}<a href="{% url 'management_portal:contract_create' %}">{% if lang == 'fa' %}ساخت قرارداد جدید{% else %}Create a contract{% endif %}</a>{% endif %}</div></div><div class="m-command-stats"><article><i></i><strong>{{ online|default:0 }}</strong><span>{% if lang == 'fa' %}کاربر آنلاین{% else %}online users{% endif %}</span></article><article><strong>{{ unread_count }}</strong><span>{% if lang == 'fa' %}اعلان خوانده‌نشده{% else %}unread alerts{% endif %}</span></article></div></section>
-<section class="m-alert-setup" data-notification-panel><div><span class="m-eyebrow">{% if lang == 'fa' %}اعلان موبایل و دسکتاپ{% else %}Mobile & desktop alerts{% endif %}</span><h2>{% if lang == 'fa' %}هیچ رویداد مهمی را از دست ندهید{% else %}Never miss an important event{% endif %}</h2><p data-notification-help>{% if lang == 'fa' %}برای دریافت رویدادهای جدید روی همین دستگاه، اعلان را فعال کنید.{% else %}Enable alerts to receive new events on this device.{% endif %}</p></div><button class="m-alert-enable" type="button">{% if lang == 'fa' %}بررسی و فعال‌سازی اعلان{% else %}Check & enable alerts{% endif %}</button></section>
-<section class="m-document-vault"><div><span class="m-eyebrow">{% if lang == 'fa' %}بایگانی اسناد مشتری{% else %}Customer document archive{% endif %}</span><h2>{% if lang == 'fa' %}هر مشتری یک پرونده، هر تصمیم قابل پیگیری{% else %}One customer record, every decision traceable{% endif %}</h2><p>{% if lang == 'fa' %}فرم اولیه و تخصصی، یادداشت‌ها، خروجی متنی و قرارداد در طول چرخه پروژه کنار هم نگهداری می‌شوند.{% else %}Initial and specialist forms, notes, text exports and contracts stay together throughout the project lifecycle.{% endif %}</p></div><a href="{% url 'management_portal:request_list' %}"><b>{{ document_counts.discoveries }}</b><span>{% if lang == 'fa' %}فرم و نیازسنجی ذخیره‌شده{% else %}saved forms & discoveries{% endif %}</span></a>{% if request.user.is_superuser %}<a href="{% url 'management_portal:contract_list' %}"><b>{{ document_counts.contracts }}</b><span>{% if lang == 'fa' %}قرارداد بایگانی‌شده{% else %}archived contracts{% endif %}</span></a>{% endif %}</section>
-<section class="m-section-head"><div><span>{% if lang == 'fa' %}اول از اینجا شروع کنید{% else %}Start here{% endif %}</span><h2>{% if lang == 'fa' %}کارهای امروز و وضعیت کسب‌وکار{% else %}Today’s work and business status{% endif %}</h2></div><a href="{% url 'management_portal:notification_list' %}">{% if lang == 'fa' %}مشاهده همه اعلان‌ها ←{% else %}View all alerts →{% endif %}</a></section>
-<section class="m-metrics">{% for item in metrics %}{% if item.url %}<a class="m-metric {{ item.tone }}" href="{{ item.url }}">{% else %}<article class="m-metric {{ item.tone }}">{% endif %}<div><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div><p>{{ item.description }}</p>{% if item.url %}<b>{% if lang == 'fa' %}بررسی مورد ←{% else %}Review item →{% endif %}</b></a>{% else %}</article>{% endif %}{% endfor %}</section>
-<section class="m-grid"><div class="m-panel"><header><div><span>{% if lang == 'fa' %}صندوق کار{% else %}Work inbox{% endif %}</span><h2>{% if lang == 'fa' %}آخرین موارد عملیاتی{% else %}Latest operational items{% endif %}</h2></div><em>{{ queues|length }}</em></header><div class="m-queue">{% for item in queues %}<a href="{{ item.url }}"><b>{{ item.kind }}</b><div><strong>{{ item.title }}</strong><span>{{ item.meta }}</span></div><time>{{ item.date|date:"Y/m/d H:i" }}</time><i>←</i></a>{% empty %}<div class="m-empty">{% if lang == 'fa' %}در حال حاضر کار جدیدی در صف نیست.{% else %}No new work is waiting.{% endif %}</div>{% endfor %}</div></div><aside class="m-panel m-tools"><header><div><span>{% if lang == 'fa' %}ابزارهای اصلی{% else %}Core tools{% endif %}</span><h2>{% if lang == 'fa' %}دسترسی سریع{% else %}Quick access{% endif %}</h2></div></header><a href="{% url 'management_portal:contract_list' %}"><i>◫</i><div><strong>{% if lang == 'fa' %}قراردادها{% else %}Contracts{% endif %}</strong><span>{% if lang == 'fa' %}ساخت، ارسال و پذیرش{% else %}Create, share and accept{% endif %}</span></div></a><a href="{% url 'management_portal:request_list' %}"><i>↗</i><div><strong>{% if lang == 'fa' %}اسناد نیازسنجی{% else %}Discovery records{% endif %}</strong><span>{% if lang == 'fa' %}مشاهده و خروجی مشتری{% else %}Review and export customer data{% endif %}</span></div></a>{% if request.user.is_superuser %}<a href="{% url 'management_portal:sms_send' %}"><i>✉</i><div><strong>{% if lang == 'fa' %}مرکز پیامک{% else %}SMS center{% endif %}</strong><span>{% if lang == 'fa' %}ارسال و سابقه{% else %}Send and history{% endif %}</span></div></a>{% endif %}</aside></section>
-{% if chart %}<section class="m-panel m-traffic"><header><div><span>{% if lang == 'fa' %}هفت روز اخیر{% else %}Last 7 days{% endif %}</span><h2>{% if lang == 'fa' %}روند بازدید سایت{% else %}Traffic trend{% endif %}</h2></div></header><div class="m-chart">{% for item in chart %}<div><span><i style="--value:{{ item.views }}"></i><i class="visitor" style="--value:{{ item.visitors }}"></i></span><small>{{ item.label }}</small><b>{{ item.views }}</b></div>{% endfor %}</div></section>{% endif %}
+<section class="m-command-hero">
+  <div class="m-command-copy">
+    <span>{% if lang == 'fa' %}نمای کلی امروز{% else %}Today at a glance{% endif %}</span>
+    <h1>{% if lang == 'fa' %}امروز چه چیزی نیاز به تصمیم شما دارد؟{% else %}What needs your decision today?{% endif %}</h1>
+    <p>{% if lang == 'fa' %}موارد فوری، مشتری‌ها، قرارداد و پیگیری‌ها در یک مسیر متصل قرار دارند.{% else %}Urgent work, customers, contracts and follow-ups are connected in one workflow.{% endif %}</p>
+    <div class="m-command-actions">
+      <a class="primary" href="{% url 'management_portal:customer_workspace' %}">{% if lang == 'fa' %}باز کردن مشتری‌ها{% else %}Open customers{% endif %}</a>
+      {% if request.user.is_superuser %}<a href="{% url 'management_portal:contract_create' %}">{% if lang == 'fa' %}ساخت قرارداد جدید{% else %}Create a contract{% endif %}</a>{% endif %}
+    </div>
+  </div>
+  <div class="m-command-stats">
+    <article><i aria-hidden="true"></i><strong>{{ online|default:0 }}</strong><span>{% if lang == 'fa' %}کاربر آنلاین{% else %}online users{% endif %}</span></article>
+    <article><strong>{{ unread_count }}</strong><span>{% if lang == 'fa' %}اعلان خوانده‌نشده{% else %}unread alerts{% endif %}</span></article>
+  </div>
+</section>
+
+<section class="m-alert-setup" data-notification-panel>
+  <div>
+    <span class="m-eyebrow">{% if lang == 'fa' %}اعلان موبایل و دسکتاپ{% else %}Mobile & desktop alerts{% endif %}</span>
+    <h2>{% if lang == 'fa' %}هیچ رویداد مهمی را از دست ندهید{% else %}Never miss an important event{% endif %}</h2>
+    <p id="notification-help" data-notification-help role="status" aria-live="polite" aria-atomic="true">{% if lang == 'fa' %}برای دریافت رویدادهای جدید روی همین دستگاه، اعلان را فعال کنید.{% else %}Enable alerts to receive new events on this device.{% endif %}</p>
+  </div>
+  <button class="m-alert-enable" type="button" aria-describedby="notification-help notification-status">{% if lang == 'fa' %}بررسی و فعال‌سازی اعلان{% else %}Check & enable alerts{% endif %}</button>
+</section>
+
+<section class="m-document-vault">
+  <div>
+    <span class="m-eyebrow">{% if lang == 'fa' %}بایگانی اسناد مشتری{% else %}Customer document archive{% endif %}</span>
+    <h2>{% if lang == 'fa' %}هر مشتری یک پرونده، هر تصمیم قابل پیگیری{% else %}One customer record, every decision traceable{% endif %}</h2>
+    <p>{% if lang == 'fa' %}فرم اولیه و تخصصی، یادداشت‌ها، خروجی متنی و قرارداد در طول چرخه پروژه کنار هم نگهداری می‌شوند.{% else %}Initial and specialist forms, notes, text exports and contracts stay together throughout the project lifecycle.{% endif %}</p>
+  </div>
+  <a href="{% url 'management_portal:request_list' %}"><b>{{ document_counts.discoveries }}</b><span>{% if lang == 'fa' %}فرم و نیازسنجی ذخیره‌شده{% else %}saved forms & discoveries{% endif %}</span></a>
+  {% if request.user.is_superuser %}<a href="{% url 'management_portal:contract_list' %}"><b>{{ document_counts.contracts }}</b><span>{% if lang == 'fa' %}قرارداد بایگانی‌شده{% else %}archived contracts{% endif %}</span></a>{% endif %}
+</section>
+
+<section class="m-section-head">
+  <div><span>{% if lang == 'fa' %}اول از اینجا شروع کنید{% else %}Start here{% endif %}</span><h2>{% if lang == 'fa' %}کارهای امروز و وضعیت کسب‌وکار{% else %}Today’s work and business status{% endif %}</h2></div>
+  <a href="{% url 'management_portal:notification_list' %}">{% if lang == 'fa' %}مشاهده همه اعلان‌ها <span aria-hidden="true">←</span>{% else %}View all alerts <span aria-hidden="true">→</span>{% endif %}</a>
+</section>
+
+<section class="m-metrics">
+  {% for item in metrics %}
+    {% if item.url %}<a class="m-metric {{ item.tone }}" href="{{ item.url }}">{% else %}<article class="m-metric {{ item.tone }}">{% endif %}
+      <div><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+      <p>{{ item.description }}</p>
+      {% if item.url %}<b>{% if lang == 'fa' %}بررسی مورد <span aria-hidden="true">←</span>{% else %}Review item <span aria-hidden="true">→</span>{% endif %}</b></a>{% else %}</article>{% endif %}
+  {% endfor %}
+</section>
+
+{% if sla_cards %}
+<section class="m-sla" aria-labelledby="sla-title">
+  <header>
+    <div><span class="m-eyebrow">{% if lang == 'fa' %}کنترل زمان پاسخ{% else %}Response targets{% endif %}</span><h2 id="sla-title">{% if lang == 'fa' %}مواردی که از SLA عبور کرده‌اند{% else %}Items that have passed their SLA{% endif %}</h2></div>
+    <a href="{% url 'management_portal:notification_list' %}">{% if lang == 'fa' %}باز کردن صندوق عملیات <span aria-hidden="true">←</span>{% else %}Open operational inbox <span aria-hidden="true">→</span>{% endif %}</a>
+  </header>
+  <div>{% for item in sla_cards %}<a class="{{ item.tone }}" href="{{ item.url }}"><b>{{ item.value }}</b><strong>{{ item.label }}</strong><span>{{ item.description }}</span></a>{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="m-grid">
+  <div class="m-panel">
+    <header><div><span>{% if lang == 'fa' %}صندوق کار{% else %}Work inbox{% endif %}</span><h2>{% if lang == 'fa' %}آخرین موارد عملیاتی{% else %}Latest operational items{% endif %}</h2></div><em>{{ queues|length }}</em></header>
+    <div class="m-queue">
+      {% for item in queues %}
+        <a href="{{ item.url }}"><b>{{ item.kind }}</b><div><strong>{{ item.title }}</strong><span>{{ item.meta }}</span></div><time datetime="{{ item.date|date:'c' }}">{{ item.date|date:"Y/m/d H:i" }}</time><i aria-hidden="true">{% if lang == 'fa' %}←{% else %}→{% endif %}</i></a>
+      {% empty %}
+        <div class="m-empty">{% if lang == 'fa' %}در حال حاضر کار جدیدی در صف نیست.{% else %}No new work is waiting.{% endif %}</div>
+      {% endfor %}
+    </div>
+  </div>
+  <aside class="m-panel m-tools" aria-labelledby="core-tools-title">
+    <header><div><span>{% if lang == 'fa' %}ابزارهای اصلی{% else %}Core tools{% endif %}</span><h2 id="core-tools-title">{% if lang == 'fa' %}دسترسی سریع{% else %}Quick access{% endif %}</h2></div></header>
+    <a href="{% url 'management_portal:contract_list' %}"><i aria-hidden="true">◫</i><div><strong>{% if lang == 'fa' %}قراردادها{% else %}Contracts{% endif %}</strong><span>{% if lang == 'fa' %}ساخت، ارسال و پذیرش{% else %}Create, share and accept{% endif %}</span></div></a>
+    <a href="{% url 'management_portal:request_list' %}"><i aria-hidden="true">{% if lang == 'fa' %}←{% else %}→{% endif %}</i><div><strong>{% if lang == 'fa' %}اسناد نیازسنجی{% else %}Discovery records{% endif %}</strong><span>{% if lang == 'fa' %}مشاهده و خروجی مشتری{% else %}Review and export customer data{% endif %}</span></div></a>
+    {% if request.user.is_superuser %}<a href="{% url 'management_portal:sms_send' %}"><i aria-hidden="true">✉</i><div><strong>{% if lang == 'fa' %}مرکز پیامک{% else %}SMS center{% endif %}</strong><span>{% if lang == 'fa' %}ارسال و سابقه{% else %}Send and history{% endif %}</span></div></a>{% endif %}
+  </aside>
+</section>
+
+<section class="m-unified-grid">
+  <article class="m-panel" aria-labelledby="recent-customers-title">
+    <header><div><span>{% if lang == 'fa' %}پرونده واحد مشتری{% else %}Unified customer record{% endif %}</span><h2 id="recent-customers-title">{% if lang == 'fa' %}مشتریان با فعالیت اخیر{% else %}Recently active customers{% endif %}</h2></div><a href="{% url 'management_portal:customer_workspace' %}">{% if lang == 'fa' %}همه مشتری‌ها{% else %}All customers{% endif %}</a></header>
+    <div class="m-customer-list">
+      {% for customer in recent_customers %}
+        <a href="{% url 'management_portal:customer_detail' customer.pk %}"><b aria-hidden="true">{{ customer.name|slice:":1" }}</b><span><strong>{{ customer.name }}</strong><small>{% if customer.contacts.count %}{{ customer.contacts.count }} {% if lang == 'fa' %}مخاطب ·{% else %}contacts ·{% endif %} {{ customer.cases.count }} {% if lang == 'fa' %}پرونده{% else %}cases{% endif %}{% else %}{% if lang == 'fa' %}اطلاعات تماس نیازمند تکمیل است{% else %}Contact information needs completion{% endif %}{% endif %}</small></span><time datetime="{{ customer.updated_at|date:'c' }}">{{ customer.updated_at|date:"Y/m/d H:i" }}</time><i aria-hidden="true">{% if lang == 'fa' %}←{% else %}→{% endif %}</i></a>
+      {% empty %}<div class="m-empty">{% if lang == 'fa' %}هنوز پرونده مشتری برای نمایش وجود ندارد.{% else %}No customer records are available yet.{% endif %}</div>{% endfor %}
+    </div>
+  </article>
+  <div class="m-action-stack">
+    <article class="m-panel" aria-labelledby="open-tasks-title"><header><div><span>{% if lang == 'fa' %}مسئولیت‌ها{% else %}Ownership{% endif %}</span><h2 id="open-tasks-title">{% if lang == 'fa' %}وظایف باز{% else %}Open tasks{% endif %}</h2></div><a href="{% url 'management_portal:crm_workspace' %}">{% if lang == 'fa' %}همه وظایف{% else %}All tasks{% endif %}</a></header><div class="m-compact-list">{% for task in open_tasks %}<a href="{% url 'management_portal:crm_case_detail' task.case.pk %}"><strong>{{ task.title }}</strong><small>{{ task.case.customer.name|default:task.case.customer_name }} · {{ task.due_at|date:"Y/m/d H:i"|default:"—" }}</small></a>{% empty %}<div class="m-empty">{% if lang == 'fa' %}وظیفه بازی وجود ندارد.{% else %}There are no open tasks.{% endif %}</div>{% endfor %}</div></article>
+    <article class="m-panel" aria-labelledby="inbox-title"><header><div><span>{% if lang == 'fa' %}رویدادهای تازه{% else %}New events{% endif %}</span><h2 id="inbox-title">{% if lang == 'fa' %}صندوق عملیاتی{% else %}Operational inbox{% endif %}</h2></div></header><div class="m-compact-list">{% for item in inbox_items %}<a href="{% url 'management_portal:notification_open' item.pk %}"><strong>{{ item.title }}</strong><small>{{ item.description }}</small></a>{% empty %}<div class="m-empty">{% if lang == 'fa' %}اعلان خوانده‌نشده‌ای ندارید.{% else %}You have no unread alerts.{% endif %}</div>{% endfor %}</div></article>
+  </div>
+</section>
+
+{% if chart %}
+<section class="m-panel m-traffic" aria-labelledby="traffic-title">
+  <header>
+    <div><span>{% if lang == 'fa' %}هفت روز اخیر{% else %}Last 7 days{% endif %}</span><h2 id="traffic-title">{% if lang == 'fa' %}روند بازدید سایت{% else %}Traffic trend{% endif %}</h2></div>
+    <div class="m-chart-legend" aria-hidden="true"><span><i></i>{% if lang == 'fa' %}بازدید{% else %}Views{% endif %}</span><span><i class="visitor"></i>{% if lang == 'fa' %}بازدیدکننده{% else %}Visitors{% endif %}</span></div>
+  </header>
+  <div class="m-chart" aria-hidden="true">
+    {% for item in chart %}<div><span><i style="--value:{{ item.views }}"></i><i class="visitor" style="--value:{{ item.visitors }}"></i></span><small>{{ item.label }}</small><b>{{ item.views }}</b></div>{% endfor %}
+  </div>
+  <table class="m-sr-only m-chart-data">
+    <caption>{% if lang == 'fa' %}جدول بازدید و بازدیدکنندگان هفت روز اخیر{% else %}Views and visitors during the last seven days{% endif %}</caption>
+    <thead><tr><th scope="col">{% if lang == 'fa' %}روز{% else %}Day{% endif %}</th><th scope="col">{% if lang == 'fa' %}بازدید{% else %}Views{% endif %}</th><th scope="col">{% if lang == 'fa' %}بازدیدکننده{% else %}Visitors{% endif %}</th></tr></thead>
+    <tbody>{% for item in chart %}<tr><th scope="row">{{ item.label }}</th><td>{{ item.views }}</td><td>{{ item.visitors }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
 {% endblock %}

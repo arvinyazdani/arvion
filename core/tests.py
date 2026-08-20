@@ -74,6 +74,23 @@ class CorePagesTests(TestCase):
         self.assertContains(response, 'aria-controls="site-nav"')
         self.assertContains(response, 'aria-expanded="false"')
 
+    def test_public_responses_apply_browser_security_boundaries(self):
+        response = self.client.get("/fa/")
+        policy = response["Content-Security-Policy"]
+        self.assertIn("object-src 'none'", policy)
+        self.assertIn("frame-ancestors 'none'", policy)
+        self.assertIn("form-action 'self'", policy)
+        self.assertEqual(response["X-Permitted-Cross-Domain-Policies"], "none")
+        self.assertIn("camera=()", response["Permissions-Policy"])
+
+    def test_saved_theme_is_bootstrapped_before_stylesheets(self):
+        response = self.client.get("/fa/")
+        html = response.content.decode()
+        bootstrap = html.index("localStorage.getItem('rvion-theme')")
+        tokens = html.index("core/css/tokens.css")
+        self.assertLess(bootstrap, tokens)
+        self.assertContains(response, 'data-theme-toggle', html=False)
+
     def test_company_identity_is_seeded_once(self):
         company = CompanyProfile.objects.get()
         self.assertEqual(company.legal_name_fa, "آروین توسعه تجارت هوشمند")
@@ -171,8 +188,8 @@ class CorePagesTests(TestCase):
     def test_service_worker_is_served_from_root_for_full_app_scope(self):
         response = self.client.get(reverse("service_worker"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Type"], "application/javascript")
-        self.assertContains(response, 'const CACHE = "rvion-shell-v2"')
+        self.assertIn("application/javascript", response["Content-Type"])
+        self.assertContains(response, 'const CACHE = "rvion-shell-v3"')
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")

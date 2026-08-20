@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import Http404
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -22,7 +22,7 @@ from core.views.lang import LanguageViewMixin
 from management_portal.models import Customer, CustomerContact
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
-from .forms import ManualPaymentSubmissionForm, SupportTicketForm
+from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket
 from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
@@ -168,10 +168,20 @@ class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
 
 
 class ManualPaymentSubmitView(LoginRequiredMixin, View):
+    @transaction.atomic
     def post(self, request, pk):
         lang = request.GET.get("lang", "fa")
-        order = get_object_or_404(Order, pk=pk, user=request.user, status="pending", gateway="card_transfer")
-        form = ManualPaymentSubmissionForm(request.POST, lang=lang)
+        order = get_object_or_404(
+            Order.objects.select_for_update(),
+            pk=pk, user=request.user, status="pending", gateway="card_transfer",
+        )
+        existing = ManualPaymentSubmission.objects.select_for_update().filter(order=order).first()
+        if existing and existing.status != "rejected":
+            messages.info(request, "اطلاعات پرداخت این سفارش قبلاً ثبت شده است." if lang == "fa" else "Payment details were already submitted.")
+            return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
+        form = ManualPaymentSubmissionForm(
+            request.POST, instance=existing if existing else None, lang=lang,
+        )
         if not form.is_valid():
             messages.error(request, "اطلاعات پرداخت را اصلاح کنید." if lang == "fa" else "Please correct the payment details.")
             view = CheckoutView()
@@ -181,15 +191,18 @@ class ManualPaymentSubmitView(LoginRequiredMixin, View):
             context = view.get_context_data(object=order)
             context["manual_payment_form"] = form
             return view.render_to_response(context)
-        if hasattr(order, "manual_payment"):
-            messages.info(request, "اطلاعات پرداخت این سفارش قبلاً ثبت شده است." if lang == "fa" else "Payment details were already submitted.")
-            return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
         order.terms_version = settings.ASSESSMENT_TERMS_VERSION
         order.terms_accepted_at = timezone.now()
         order.save(update_fields=["terms_version", "terms_accepted_at", "updated_at"])
         submission = form.save(commit=False)
         submission.order = order
         submission.paid_at = form.cleaned_data["paid_at"]
+        # A rejected receipt is edited in place (the one-to-one relation is
+        # audit-preserving) and explicitly returned to the pending queue.
+        submission.status = "pending"
+        submission.reviewed_by = None
+        submission.reviewed_at = None
+        submission.review_note = ""
         submission.save()
         try:
             send_mail(
@@ -199,7 +212,12 @@ class ManualPaymentSubmitView(LoginRequiredMixin, View):
             )
         except Exception:
             logger.exception("Manual payment notification failed for order %s", order.pk)
-        messages.success(request, "اطلاعات واریز ثبت شد و پس از تأیید ادمین دسترسی فعال می‌شود." if lang == "fa" else "Payment details were submitted. Access will be enabled after admin approval.")
+        messages.success(
+            request,
+            ("اطلاعات اصلاح‌شده واریز دوباره برای بررسی ارسال شد." if existing else "اطلاعات واریز ثبت شد و پس از تأیید ادمین دسترسی فعال می‌شود.")
+            if lang == "fa" else
+            ("Your corrected payment details were resubmitted for review." if existing else "Payment details were submitted. Access will be enabled after admin approval."),
+        )
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
 
 
@@ -319,15 +337,30 @@ class AttemptView(LanguageViewMixin, LoginRequiredMixin, DetailView):
             attempt=attempt,
             position=position,
         )
-        choices = {choice.id: choice for choice in Choice.objects.filter(question=item.question)}
+        question_snapshot = item.question_snapshot if isinstance(item.question_snapshot, dict) else {}
+        choices_snapshot = item.choices_snapshot if isinstance(item.choices_snapshot, list) else []
+        choices = {
+            str(choice.get("id")): choice
+            for choice in choices_snapshot
+            if isinstance(choice, dict) and choice.get("id") is not None
+        }
+        ordered_choices = [
+            choices[str(choice_id)]
+            for choice_id in item.choice_order
+            if str(choice_id) in choices
+        ]
         context.update({
             "item": item,
-            "ordered_choices": [choices[choice_id] for choice_id in item.choice_order],
+            "question_snapshot": question_snapshot,
+            "ordered_choices": ordered_choices,
+            "snapshot_error": not question_snapshot or len(ordered_choices) != len(item.choice_order),
             "position": position,
             "progress_percent": round(position / attempt.exam.question_count * 100),
             "previous_position": position - 1 if position > 1 else None,
             "next_position": position + 1 if position < attempt.exam.question_count else None,
-            "answered_count": attempt.attempt_questions.filter(selected_choice__isnull=False).count(),
+            "answered_count": attempt.attempt_questions.filter(
+                Q(selected_choice_snapshot_id__isnull=False) | Q(selected_choice__isnull=False)
+            ).count(),
         })
         if attempt.current_position != position:
             attempt.current_position = position
@@ -356,12 +389,15 @@ class AttemptReviewView(LanguageViewMixin, LoginRequiredMixin, DetailView):
         if attempt.status != "in_progress":
             context["attempt_closed"] = True
             return context
-        items = list(attempt.attempt_questions.only("position", "selected_choice_id"))
-        answered_count = sum(item.selected_choice_id is not None for item in items)
+        items = list(attempt.attempt_questions.only(
+            "position", "selected_choice_id", "selected_choice_snapshot_id",
+        ))
+        answered_count = sum(item.effective_selected_choice_id is not None for item in items)
         context.update({
             "items": items,
             "answered_count": answered_count,
             "unanswered_count": len(items) - answered_count,
+            "finish_form": FinishAttemptForm(lang=self.lang),
         })
         return context
 
@@ -381,11 +417,23 @@ class SaveAnswerView(LoginRequiredMixin, View):
         item = get_object_or_404(
             AttemptQuestion.objects.select_for_update(), pk=item_pk, attempt=attempt,
         )
-        choice = get_object_or_404(Choice, pk=request.POST.get("choice"), question=item.question)
+        choice_id = request.POST.get("choice")
+        allowed_choice_ids = {
+            str(choice.get("id"))
+            for choice in item.choices_snapshot
+            if isinstance(choice, dict) and choice.get("id") is not None
+        }
+        if choice_id not in allowed_choice_ids:
+            raise Http404
+        choice = Choice.objects.filter(pk=choice_id, question_id=item.question_id).first()
+        item.selected_choice_snapshot_id = int(choice_id)
         item.selected_choice = choice
         item.answered_at = timezone.now()
-        item.save(update_fields=["selected_choice", "answered_at"])
-        return JsonResponse({"ok": True, "answered": attempt.attempt_questions.filter(selected_choice__isnull=False).count()})
+        item.save(update_fields=["selected_choice_snapshot_id", "selected_choice", "answered_at"])
+        answered_count = attempt.attempt_questions.filter(
+            Q(selected_choice_snapshot_id__isnull=False) | Q(selected_choice__isnull=False)
+        ).count()
+        return JsonResponse({"ok": True, "answered": answered_count})
 
 
 class AudioPlayView(LoginRequiredMixin, View):
@@ -398,11 +446,12 @@ class AudioPlayView(LoginRequiredMixin, View):
             Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress",
         )
         item = get_object_or_404(
-            AttemptQuestion.objects.select_for_update().select_related("question"),
+            AttemptQuestion.objects.select_for_update(),
             pk=item_pk, attempt=attempt,
         )
-        max_plays = int(item.question_snapshot.get("max_plays", item.question.max_plays))
-        if not item.question_snapshot.get("audio_path", item.question.audio_path) or max_plays < 1:
+        snapshot = item.question_snapshot if isinstance(item.question_snapshot, dict) else {}
+        max_plays = int(snapshot.get("max_plays") or 0)
+        if not snapshot.get("audio_path") or max_plays < 1:
             return JsonResponse({"ok": False, "reason": "not_audio_question"}, status=400)
         if item.audio_play_count >= max_plays:
             return JsonResponse({"ok": False, "reason": "play_limit", "remaining": 0}, status=429)
@@ -448,6 +497,17 @@ class FinishAttemptView(LoginRequiredMixin, View):
         if expired_result:
             return redirect(f"{reverse('assessments:result', kwargs={'pk': expired_result.pk})}?lang={lang}")
         if attempt.status == "in_progress":
+            form = FinishAttemptForm(request.POST, lang=lang)
+            if not form.is_valid():
+                messages.error(
+                    request,
+                    "برای ثبت نهایی، ابتدا گزینه تأیید را علامت بزنید."
+                    if lang == "fa"
+                    else "Confirm that you are ready before submitting the assessment.",
+                )
+                return redirect(
+                    f"{reverse('assessments:attempt_review', kwargs={'pk': attempt.pk})}?lang={lang}"
+                )
             attempt.status = "submitted"
             attempt.completion_reason = "manual"
             attempt.submitted_at = timezone.now()
@@ -500,7 +560,8 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
                 }
                 for choice in row.question.choices.all()
             ]
-            selected = next((item for item in choices if item["id"] == row.selected_choice_id), None)
+            selected_choice_id = row.effective_selected_choice_id
+            selected = next((item for item in choices if item["id"] == selected_choice_id), None)
             correct = next((item for item in choices if item.get("is_correct")), None)
             status = "unanswered" if selected is None else ("correct" if selected.get("is_correct") else "incorrect")
             review.append({

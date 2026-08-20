@@ -17,10 +17,11 @@ class PostDetailView(LanguageViewMixin, DetailView):
 
     def get_object(self):
         slug = self.kwargs.get("slug")
+        queryset = Post.objects.published().prefetch_related("tags")
         if self.lang == "fa":
-            return get_object_or_404(Post, slug_fa=slug, is_published=True)
+            return get_object_or_404(queryset, slug_fa=slug)
         else:
-            return get_object_or_404(Post, slug_en=slug, is_published=True)
+            return get_object_or_404(queryset, slug_en=slug)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

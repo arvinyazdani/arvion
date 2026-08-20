@@ -1,15 +1,23 @@
 import hashlib
+import ipaddress
 
+from django.conf import settings
 from django.core.cache import cache
 
 
 def client_address(request):
     """Return the address supplied by the trusted application server.
 
-    X-Forwarded-For is deliberately ignored here: unless every proxy hop is
-    controlled it is attacker supplied and makes a poor throttling identity.
+    Only a validated X-Real-IP from an explicitly trusted reverse proxy is
+    accepted. X-Forwarded-For remains ignored because its hop chain is easy to
+    misconfigure and attacker-controlled at the public edge.
     """
-    return request.META.get("REMOTE_ADDR") or "unknown"
+    peer = request.META.get("REMOTE_ADDR") or ""
+    candidate = request.META.get("HTTP_X_REAL_IP", "") if peer in settings.TRUSTED_PROXY_IPS else peer
+    try:
+        return ipaddress.ip_address(candidate.strip()).compressed
+    except ValueError:
+        return "unknown"
 
 
 def normalized_fingerprint(value):

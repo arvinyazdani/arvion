@@ -6,3 +6,49 @@
 @media(max-width:760px){.m-sidebar{padding:14px 12px;box-shadow:0 18px 54px rgba(0,0,0,.32)}.m-sidebar-head{min-height:48px;padding:0 4px 8px}.m-brand{padding:0}.m-sidebar-close{display:grid;place-items:center;width:38px;height:38px;border:1px solid #3b4a60;border-radius:11px;background:#202c3e;color:#fff;font:400 1.8rem/1 Arial;cursor:pointer}.m-nav-context{display:none}.m-nav{gap:12px;padding:8px 0 14px}.m-nav-group{gap:3px}.m-nav-group>p,.m-nav-more>summary{padding:0 10px 3px;font-size:.61rem}.m-nav-more{padding:8px 2px;border-top:1px solid #2b3749}.m-nav-more>summary{display:block;padding:6px 8px;border-radius:10px;background:#172337}.m-nav-more[open]>summary{margin-bottom:6px}.m-nav>a{min-height:44px;padding:8px 10px;border-radius:12px;font-size:.79rem}.m-nav i{width:32px;min-width:32px;height:32px;border-radius:10px;font-size:.92rem}.m-sidebar-foot{margin-top:4px;padding:13px 10px 16px}.m-bottom{gap:2px;transition:transform .18s ease,opacity .18s ease}.m-menu-open .m-bottom{transform:translateY(105px);opacity:0;pointer-events:none}.m-menu{position:relative;gap:4px;padding:0;transition:background .18s,border-color .18s}.m-menu span{display:block;width:17px;height:2px;border-radius:3px;background:var(--color-panel-dark);transition:transform .18s,opacity .18s}.m-menu[aria-expanded=true]{border-color:#29364a;background:#101827}.m-menu[aria-expanded=true] span{background:var(--color-surface)}.m-menu[aria-expanded=true] span:first-child{transform:translateY(6px) rotate(45deg)}.m-menu[aria-expanded=true] span:nth-child(2){opacity:0}.m-menu[aria-expanded=true] span:last-child{transform:translateY(-6px) rotate(-45deg)}.m-bottom>a,.m-bottom-menu{display:grid;min-width:0;flex:1;gap:3px;justify-items:center;padding:6px 3px;border-radius:11px;background:transparent;color:var(--m-muted);font-size:.58rem;font-weight:900}.m-bottom>a.active{background:var(--color-panel-dark);color:#fff}.m-bottom b,.m-bottom-menu b{font-size:1.05rem;line-height:1}.m-bottom-menu{display:grid;cursor:pointer}.m-bottom-menu:focus-visible,.m-bottom>a:focus-visible,.m-sidebar-close:focus-visible,.m-nav-more>summary:focus-visible{outline:3px solid rgba(242,105,53,.65);outline-offset:2px}.m-nav>a.active::after{display:none}}
 @media(min-width:761px){.m-nav-more:not([open]) .m-nav-more-items{display:grid}.m-nav-more>summary{pointer-events:none}}
 @media(min-width:761px){.m-sidebar{width:286px}.m-topbar{inset-inline:286px 0}.m-workspace{margin-inline-start:286px}.m-nav>a{font-size:.76rem}.m-nav i{width:38px;min-width:38px}}
+
+/* Accessibility and theme safety for the management shell. */
+:root{--m-inverse-surface:#0b1220;--m-inverse-surface-2:#172136;--m-inverse-ink:#fff;--m-inverse-muted:#c6cdd8}
+.m-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.m-sidebar{background:var(--m-inverse-surface);color:var(--m-inverse-ink)}
+.m-brand{min-height:44px}.m-brand small{color:#b5becc;font-size:.75rem}
+.m-nav-context{background:var(--m-inverse-surface-2)}.m-nav-context span,.m-nav-group>p,.m-nav-more>summary{color:#b5becc;font-size:.75rem}
+.m-nav-context strong{font-size:.8125rem}
+.m-nav-group a{display:flex;align-items:center;gap:12px;min-height:48px;padding:9px 12px;border-radius:13px;color:#d1d7e0;font-size:.8125rem;font-weight:800}
+.m-nav-group a:hover,.m-nav-group a:focus-visible{background:#202c3e;color:var(--m-inverse-ink)}
+.m-nav-group a.active{position:relative;background:var(--m-orange);color:var(--color-on-brand);box-shadow:0 8px 18px rgba(0,0,0,.18)}
+.m-nav-group a.active i{background:rgba(16,24,39,.12);color:var(--color-on-brand)}
+.m-nav-group a.active::after{position:absolute;inset-inline-end:10px;width:6px;height:6px;border-radius:50%;background:var(--color-on-brand);content:""}
+.m-sidebar-foot small{color:#b5becc;font-size:.75rem}.m-sidebar-foot a{display:flex;align-items:center;min-height:44px;font-size:.8125rem}
+.m-top-title small{font-size:.75rem}.m-lang,.m-public{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-size:.75rem}
+.m-messages{display:grid;gap:8px;margin-bottom:16px}.m-messages>div{padding:12px 15px;border:1px solid var(--color-status-green);border-radius:12px;background:var(--color-success-surface);color:var(--color-status-green-text);font-size:.875rem;font-weight:800}
+.m-hero>div>span,.m-section-head>div>span,.m-panel header span,.m-online span{font-size:.75rem}
+.m-section-head>a{display:inline-flex;align-items:center;min-height:44px;color:var(--color-brand-orange-text);font-size:.8125rem}
+.m-panel>header em,.m-queue>a>b,.m-data-list>a>b{background:var(--color-accent-surface);color:var(--color-brand-orange-text)}
+.m-queue>a>b,.m-data-list>a>b{font-size:.75rem}
+.m-metric span,.m-metric p,.m-metric>b,.m-queue span,.m-queue time,.m-tools span,.m-data-list>header,.m-data-list div span,.m-data-list time,.m-data-list em,.m-page-head span,.m-detail-hero>div>span,.m-details dt{font-size:.75rem}
+.m-metric>b{color:var(--color-brand-orange-text)}
+.m-tools>a{min-height:52px}.m-tools>a>i{background:var(--color-surface-2);color:var(--m-ink)}
+.m-detail-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-size:.8125rem}.m-detail-actions a.primary{color:var(--color-on-brand)}
+.m-filters button{color:var(--m-inverse-ink)}
+.m-bottom>a,.m-bottom-menu{min-height:48px;font-size:.75rem}.m-bottom em{min-width:20px;height:20px;font-size:.6875rem}
+.m-bottom>a.active{background:var(--m-inverse-surface);color:var(--m-inverse-ink)}
+.m-skip{background:var(--m-inverse-surface);color:var(--m-inverse-ink)}
+
+@media(max-width:760px){
+  .m-menu,.m-sidebar-close{width:44px;height:44px}
+  .m-menu span{background:var(--m-ink)}
+  .m-sidebar-close{min-width:44px}
+  .m-nav-group a{min-height:44px;padding:8px 10px;font-size:.8125rem}
+  .m-nav-group a.active::after{display:none}
+  .m-nav-more>summary{display:flex;align-items:center;min-height:44px;font-size:.75rem}
+  .m-top-actions>.m-alert-enable{display:none}
+  .m-menu[aria-expanded=true] span{background:var(--m-inverse-ink)}
+  .m-menu-open{overflow:hidden}
+}
+@media(min-width:761px){
+  .m-nav-group a{font-size:.8125rem}
+}
+@media(prefers-reduced-motion:reduce){
+  .m-sidebar,.m-bottom,.m-menu,.m-menu span{transition:none!important}
+}

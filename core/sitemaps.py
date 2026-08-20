@@ -3,7 +3,9 @@ from django.urls import reverse
 from django.utils import translation
 
 from blog.models import Post
+from projects.models import Project
 from services.models import Service
+from assessments.models import Exam
 
 
 class LocalizedSitemap(Sitemap):
@@ -18,8 +20,18 @@ class StaticSitemap(LocalizedSitemap):
     changefreq = "monthly"
 
     def items(self):
-        names = ("home", "about", "company_info", "crm_product", "services:list", "projects:list", "blog:list", "assessments:list", "leads:contact", "crm_orders:create", "clinic_orders:create", "privacy", "service_terms", "refund_policy")
-        return [(language, name) for language in self.languages() for name in names]
+        bilingual_names = (
+            "home", "about", "company_info", "crm_product", "services:list",
+            "projects:list", "blog:list", "assessments:list", "leads:contact",
+            "privacy", "service_terms", "refund_policy",
+        )
+        # These two discovery wizards intentionally redirect English requests to
+        # Persian until their complete English copy is ready. Redirect targets do
+        # not belong in a sitemap.
+        persian_only_names = ("crm_orders:create", "clinic_orders:create")
+        items = [(language, name) for language in self.languages() for name in bilingual_names]
+        items.extend(("fa", name) for name in persian_only_names)
+        return items
 
     def location(self, item):
         language, name = item
@@ -63,4 +75,44 @@ class PostSitemap(LocalizedSitemap):
         return item[1].published_at
 
 
-sitemaps = {"static": StaticSitemap, "services": ServiceSitemap, "posts": PostSitemap}
+class ProjectSitemap(LocalizedSitemap):
+    priority = 0.7
+    changefreq = "monthly"
+
+    def items(self):
+        projects = Project.objects.filter(is_active=True).only("slug", "updated_at")
+        return [(language, project) for language in self.languages() for project in projects]
+
+    def location(self, item):
+        language, project = item
+        with translation.override(language):
+            return reverse("projects:detail", args=[project.slug])
+
+    def lastmod(self, item):
+        return item[1].updated_at
+
+
+class ExamSitemap(LocalizedSitemap):
+    priority = 0.7
+    changefreq = "monthly"
+
+    def items(self):
+        exams = Exam.objects.filter(is_active=True).only("slug", "updated_at")
+        return [(language, exam) for language in self.languages() for exam in exams]
+
+    def location(self, item):
+        language, exam = item
+        with translation.override(language):
+            return reverse("assessments:detail", args=[exam.slug])
+
+    def lastmod(self, item):
+        return item[1].updated_at
+
+
+sitemaps = {
+    "static": StaticSitemap,
+    "services": ServiceSitemap,
+    "posts": PostSitemap,
+    "projects": ProjectSitemap,
+    "assessments": ExamSitemap,
+}

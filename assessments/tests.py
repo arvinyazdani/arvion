@@ -194,6 +194,45 @@ class AssessmentCommerceTests(TestCase):
         self.assertFalse(ManualPaymentSubmission.objects.exists())
         self.assertFalse(ExamEntitlement.objects.exists())
 
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_rejected_card_transfer_can_be_corrected_and_resubmitted(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000,
+            amount_irr=500_000, gateway="card_transfer",
+        )
+        reviewer = User.objects.create_superuser(
+            username="payment-reviewer@example.com", email="payment-reviewer@example.com",
+            password="safe-password",
+        )
+        submission = ManualPaymentSubmission.objects.create(
+            order=order, payer_name="Old payer", reference_number="OLD1234",
+            paid_at=timezone.now(), status="rejected", reviewed_by=reviewer,
+            reviewed_at=timezone.now(), review_note="خوانا نیست",
+        )
+        self.client.force_login(self.user)
+        now = timezone.localtime()
+
+        response = self.client.post(
+            reverse("assessments:manual_payment_submit", args=[order.pk]) + "?lang=fa",
+            {
+                "payer_name": "نام اصلاح‌شده", "reference_number": "NEW5678",
+                "payment_date": format_jalali(now.date()),
+                "payment_time": now.strftime("%H:%M"), "note": "رسید جدید",
+                "accept_terms": "on",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("assessments:checkout", args=[order.pk]) + "?lang=fa",
+        )
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, "pending")
+        self.assertEqual(submission.reference_number, "NEW5678")
+        self.assertIsNone(submission.reviewed_by)
+        self.assertIsNone(submission.reviewed_at)
+        self.assertEqual(submission.review_note, "")
+
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False)
     def test_order_price_is_copied_from_exam_on_server(self):
         self.client.force_login(self.user)
@@ -704,6 +743,17 @@ class AssessmentEngineTests(TestCase):
 
         self.assertEqual(attempt.entitlement, self.entitlement)
 
+    def test_expired_entitlement_cannot_start_and_is_not_consumed(self):
+        self.entitlement.expires_at = timezone.now() - timedelta(seconds=1)
+        self.entitlement.save(update_fields=["expires_at"])
+
+        with self.assertRaisesMessage(ExamContentError, "entitlement has expired"):
+            self.start()
+
+        self.assertFalse(Attempt.objects.filter(entitlement=self.entitlement).exists())
+        self.entitlement.refresh_from_db()
+        self.assertEqual(self.entitlement.attempts_remaining, 1)
+
     def test_start_view_requires_complete_certificate_identity(self):
         self.user.last_name = ""
         self.user.save(update_fields=["last_name"])
@@ -731,6 +781,79 @@ class AssessmentEngineTests(TestCase):
         self.client.force_login(other)
         self.assertEqual(self.client.get(reverse("assessments:attempt", args=[attempt.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("assessments:attempt_review", args=[attempt.pk])).status_code, 404)
+
+    def test_deleted_live_choice_remains_answerable_and_scores_from_snapshot(self):
+        Question.objects.filter(pk__in=[question.pk for question in self.questions]).update(
+            question_type="listening",
+            audio_path="assessments/audio/clip01.wav",
+            max_plays=2,
+        )
+        attempt = self.start()
+        row = attempt.attempt_questions.first()
+        snapshot_prompt = row.question_snapshot["prompt_en"]
+        snapshot_choices = {choice["id"]: choice["text_en"] for choice in row.choices_snapshot}
+        deleted_choice_id = next(
+            choice["id"] for choice in row.choices_snapshot if choice["is_correct"]
+        )
+        deleted_choice_text = snapshot_choices[deleted_choice_id]
+
+        row.question.prompt_en = "MUTATED LIVE QUESTION"
+        row.question.audio_path = "assessments/audio/mutated.wav"
+        row.question.max_plays = 0
+        row.question.save(update_fields=["prompt_en", "audio_path", "max_plays"])
+        remaining_choice = row.question.choices.exclude(pk=deleted_choice_id).first()
+        remaining_choice.text_en = "MUTATED LIVE CHOICE"
+        remaining_choice.save(update_fields=["text_en"])
+        row.question.choices.get(pk=deleted_choice_id).delete()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("assessments:attempt", args=[attempt.pk]) + f"?q={row.position}&lang=en"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, snapshot_prompt)
+        self.assertContains(response, deleted_choice_text)
+        self.assertContains(response, "assessments/audio/clip01.wav")
+        self.assertNotContains(response, "MUTATED LIVE QUESTION")
+        self.assertNotContains(response, "MUTATED LIVE CHOICE")
+        self.assertNotContains(response, "assessments/audio/mutated.wav")
+        audio_response = self.client.post(
+            reverse("assessments:audio_play", args=[attempt.pk, row.pk])
+        )
+        self.assertEqual(audio_response.status_code, 200)
+        self.assertEqual(audio_response.json()["remaining"], 1)
+        save_response = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, row.pk]),
+            {"choice": deleted_choice_id},
+        )
+        self.assertEqual(save_response.status_code, 200)
+        self.assertEqual(save_response.json()["answered"], 1)
+        row.refresh_from_db()
+        self.assertEqual(row.selected_choice_snapshot_id, deleted_choice_id)
+        self.assertIsNone(row.selected_choice_id)
+
+        review = self.client.get(
+            reverse("assessments:attempt_review", args=[attempt.pk]) + "?lang=en"
+        )
+        self.assertEqual(review.context["answered_count"], 1)
+        finish = self.client.post(
+            reverse("assessments:finish_attempt", args=[attempt.pk]) + "?lang=en",
+            {"confirm_submission": "yes"},
+        )
+        result = AttemptResult.objects.get(attempt=attempt)
+        self.assertRedirects(
+            finish,
+            reverse("assessments:result", args=[result.pk]) + "?lang=en",
+        )
+        self.assertEqual(result.correct_count, 1)
+        self.assertEqual(result.incorrect_count, 0)
+        self.assertEqual(result.unanswered_count, 1)
+        self.assertEqual(result.percentage, 50)
+        result_page = self.client.get(
+            reverse("assessments:result", args=[result.pk]) + "?lang=en"
+        )
+        self.assertContains(result_page, deleted_choice_text)
 
     def test_attempt_review_shows_answered_and_unanswered_questions(self):
         attempt = self.start()
@@ -821,13 +944,35 @@ class AssessmentEngineTests(TestCase):
     def test_finish_submits_attempt(self):
         attempt = self.start()
         self.client.force_login(self.user)
-        response = self.client.post(reverse("assessments:finish_attempt", args=[attempt.pk]))
+        response = self.client.post(
+            reverse("assessments:finish_attempt", args=[attempt.pk]),
+            {"confirm_submission": "yes"},
+        )
         result = AttemptResult.objects.get(attempt=attempt)
         self.assertRedirects(response, reverse("assessments:result", args=[result.pk]) + "?lang=fa")
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, "completed")
         self.assertEqual(attempt.completion_reason, "manual")
         self.assertTrue(Certificate.objects.filter(result=result).exists())
+
+    def test_finish_requires_named_confirmation_on_server(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        review_url = reverse("assessments:attempt_review", args=[attempt.pk]) + "?lang=en"
+
+        review = self.client.get(review_url)
+        invalid = self.client.post(
+            reverse("assessments:finish_attempt", args=[attempt.pk]) + "?lang=en",
+            {},
+            follow=True,
+        )
+
+        self.assertContains(review, 'name="confirm_submission"')
+        self.assertContains(review, 'value="yes"')
+        self.assertContains(invalid, "Confirm that you are ready before submitting")
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, "in_progress")
+        self.assertFalse(AttemptResult.objects.filter(attempt=attempt).exists())
 
     def test_expired_attempt_cannot_accept_answers(self):
         attempt = self.start()
@@ -1067,7 +1212,10 @@ class AssessmentEngineTests(TestCase):
                 reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": choice.pk}
             )
             self.assertEqual(answer_response.status_code, 200)
-        finish_response = self.client.post(reverse("assessments:finish_attempt", args=[attempt.pk]))
+        finish_response = self.client.post(
+            reverse("assessments:finish_attempt", args=[attempt.pk]),
+            {"confirm_submission": "yes"},
+        )
         result = AttemptResult.objects.get(attempt=attempt)
         self.assertRedirects(finish_response, reverse("assessments:result", args=[result.pk]) + "?lang=fa")
         report = self.client.get(reverse("assessments:result", args=[result.pk]))

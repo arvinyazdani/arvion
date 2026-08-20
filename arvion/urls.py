@@ -5,7 +5,6 @@ from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap
 from django.http import HttpResponse, HttpResponsePermanentRedirect
 from django.urls import include, path
-from django.views.generic import TemplateView
 
 from core.health import HealthCheckView
 from core.admin_dashboard import operations_dashboard
@@ -15,6 +14,7 @@ from core.views import (
     RefundPolicyView, ServiceTermsView,
 )
 from core.views.client_logging import report_js_error
+from core.views.pwa import offline, service_worker
 
 
 def default_language(request):
@@ -26,11 +26,23 @@ def robots_txt(request):
         "User-agent: *",
         "Allow: /",
         "Disallow: /admin/",
+        "Disallow: /contract/",
+        "Disallow: /fa/management/",
+        "Disallow: /en/management/",
         "Disallow: /fa/account/",
         "Disallow: /en/account/",
+        "Disallow: /fa/assessments/order/",
+        "Disallow: /en/assessments/order/",
+        "Disallow: /fa/assessments/attempt/",
+        "Disallow: /en/assessments/attempt/",
+        "Disallow: /fa/assessments/result/",
+        "Disallow: /en/assessments/result/",
         f"Sitemap: {settings.SITE_URL}/sitemap.xml",
     ))
-    return HttpResponse(content, content_type="text/plain")
+    response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+    response["Cache-Control"] = "public, max-age=3600"
+    response["X-Robots-Tag"] = "noindex"
+    return response
 
 
 def favicon(request):
@@ -52,7 +64,8 @@ urlpatterns = [
     path("contract/", include(("contracts.urls", "contracts"), namespace="contracts")),
     path("robots.txt", robots_txt, name="robots"),
     path("favicon.ico", favicon, name="favicon"),
-    path("service-worker.js", TemplateView.as_view(template_name="core/service-worker.js", content_type="application/javascript"), name="service_worker"),
+    path("service-worker.js", service_worker, name="service_worker"),
+    path("offline/", offline, name="offline"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
     path("log/js-error/", report_js_error, name="report_js_error"),
 ]

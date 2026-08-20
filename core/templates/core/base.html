@@ -33,15 +33,15 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'core/icons/icon-192.png' %}">
   <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
-  <script>try{if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=1">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=1">
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=29">
+  <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme);if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=30">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=5" defer></script>
-  <script src="{% static 'core/js/error-report.js' %}?v=1" defer></script>
-  <script src="{% static 'core/js/theme-toggle.js' %}?v=1" defer></script>
-  <script src="{% static 'core/js/wizard-engine.js' %}?v=1" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=6" defer></script>
+  <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/wizard-engine.js' %}?v=2" defer></script>
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=1" defer></script>{% endif %}
   {% block extra_head %}{% endblock %}
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
@@ -102,11 +102,11 @@
     </div>
     <div class="shell footer-bottom"><a href="{% url 'company_info' %}">{% if lang == 'fa' %}شرکت ثبت‌شده · شناسه ملی {{ company.national_id }}{% else %}Registered company · {{ company.national_id }}{% endif %}</a><nav><a href="{% url 'privacy' %}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}">{% if lang == 'fa' %}شرایط خدمات{% else %}Terms{% endif %}</a><a href="{% url 'refund_policy' %}">{% if lang == 'fa' %}بازپرداخت{% else %}Refunds{% endif %}</a></nav><span>© {% now "Y" %} Rvion</span></div>
   </footer>
-  <div class="install-dialog" data-install-dialog hidden>
-    <button class="install-backdrop" type="button" data-install-close tabindex="-1" aria-label="{% if lang == 'fa' %}بستن راهنما{% else %}Close guide{% endif %}"></button>
-    <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title">
+  <div class="install-dialog" id="install-dialog" data-install-dialog hidden>
+    <button class="install-backdrop" type="button" data-install-close tabindex="-1" aria-hidden="true"></button>
+    <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title" aria-describedby="install-description">
       <button class="install-close" type="button" data-install-close aria-label="{% if lang == 'fa' %}بستن{% else %}Close{% endif %}">×</button>
-      <header class="install-head"><span class="install-logo">R</span><div><span class="install-kicker" data-device-label>RVION WEB APP</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p>{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
+      <header class="install-head"><span class="install-logo">R</span><div><span class="install-kicker" data-device-label>RVION WEB APP</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p id="install-description">{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
       <div class="install-panel" data-install-panel="ios" hidden>
         <ol><li><b>۱</b><span>{% if lang == 'fa' %}در نوار Safari روی دکمه <strong>اشتراک‌گذاری</strong> بزنید.<i class="share-symbol" aria-hidden="true">↑</i>{% else %}Tap Safari's <strong>Share</strong> button.<i class="share-symbol" aria-hidden="true">↑</i>{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}گزینه <strong>Add to Home Screen / افزودن به صفحه اصلی</strong> را انتخاب کنید.{% else %}Choose <strong>Add to Home Screen</strong>.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}بالای صفحه روی <strong>Add / افزودن</strong> بزنید.{% else %}Confirm with <strong>Add</strong>.{% endif %}</span></li></ol>
         <p class="install-browser-note" data-ios-browser-note hidden>{% if lang == 'fa' %}برای افزودن روی آیفون، ابتدا این صفحه را در Safari باز کنید.{% else %}Open this page in Safari first to add it on iPhone.{% endif %}</p>

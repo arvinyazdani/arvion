@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,25 +16,63 @@ concurrency:
 jobs:
   django:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: arvion_ci
+          POSTGRES_USER: arvion_ci
+          POSTGRES_PASSWORD: arvion_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U arvion_ci -d arvion_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: arvion.settings.ci
+      DATABASE_URL: postgresql://arvion_ci:arvion_ci@127.0.0.1:5432/arvion_ci
+      DJANGO_SECRET_KEY: ci-only-not-a-production-secret
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Verify dependency consistency
+        run: python -m pip check
       - name: Compile every Django application
         run: python -m compileall -q accounts arvion assessments blog clinic_orders contracts core crm_orders leads management_portal projects services traffic
       - name: Django checks and migration drift
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
-      - name: Test application
-        run: python manage.py test --parallel 2
+      - name: Test application in parallel
+        run: python manage.py test --parallel 4 --verbosity 1
+      - name: Test application in shuffled sequential order
+        run: python manage.py test --shuffle=58291 --parallel 1 --verbosity 1
       - name: Audit assessment sources
         run: python manage.py audit_question_banks --strict-editorial
+      - name: Check repository JavaScript syntax
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(git ls-files -z -- '*.js')
+      - name: Check operations shell syntax
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(git ls-files -z -- 'ops/*.sh')

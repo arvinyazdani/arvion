@@ -24,6 +24,11 @@ class ClinicOrderCreateView(LanguageViewMixin, FormView):
         **dict.fromkeys(("content_types", "content_access", "publishing_workflow", "media_requirements", "webinar_features", "webinar_platform", "expected_live_attendees", "system_roles", "record_scope", "notification_channels", "integration_types", "required_integrations", "migration_sources", "security_requirements", "requested_services", "decision_process", "additional_notes", "privacy_accept"), 6),
     }
 
+    def dispatch(self, request, *args, **kwargs):
+        if getattr(request, "LANGUAGE_CODE", "fa") == "en":
+            return redirect("/fa/clinic-order/")
+        return super().dispatch(request, *args, **kwargs)
+
     def form_invalid(self, form):
         fields = [name for name in form.errors if name != "__all__"]
         step = min((self.field_steps.get(name, 1) for name in fields), default=1)

@@ -50,7 +50,7 @@ class ContractOtpChallengeAdmin(admin.ModelAdmin):
 @admin.register(ContractAcceptance)
 class ContractAcceptanceAdmin(admin.ModelAdmin):
     list_display = ("version", "verified_phone", "accepted_at", "provider_reference")
-    readonly_fields = ("version", "verified_phone", "provider_reference", "accepted_at", "ip_hash", "user_agent")
+    readonly_fields = ("version", "verified_phone", "provider_reference", "discovery_snapshot", "evidence_hash", "accepted_at", "ip_hash", "user_agent")
     def has_add_permission(self, request): return False
     def has_change_permission(self, request, obj=None): return False
     def has_delete_permission(self, request, obj=None): return False

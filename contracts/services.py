@@ -2,6 +2,7 @@ import hashlib
 import json
 
 from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from core.models import CompanyProfile
 
@@ -39,6 +40,7 @@ def proposal_snapshot(proposal):
         "project_title": proposal.project_title, "project_scope": proposal.project_scope,
         "amount_irr": proposal.amount_irr, "payment_terms": proposal.payment_terms,
         "delivery_terms": proposal.delivery_terms, "client_details": proposal.client_details,
+        "crm_order_id": proposal.crm_order_id,
         "general_terms": proposal.general_terms, "private_terms": proposal.private_terms,
         "provider": {
             "legal_name": company.legal_name_fa if company else "آرویون (Rvion)",
@@ -55,6 +57,14 @@ def proposal_snapshot(proposal):
 
 @transaction.atomic
 def publish_version(proposal, actor):
+    source_proposal = proposal
+    proposal = proposal.__class__.objects.select_for_update().get(pk=proposal.pk)
+    if proposal.status == "accepted":
+        raise ValidationError("قرارداد پذیرفته‌شده قابل انتشار مجدد نیست.")
+    if not proposal.general_terms.strip() or not proposal.private_terms.strip():
+        raise ValidationError("شرایط عمومی و خصوصی باید پیش از فعال‌سازی لینک کامل شوند.")
+    if not proposal.clauses.filter(is_enabled=True).exists():
+        raise ValidationError("حداقل یک بند قراردادی فعال لازم است.")
     snapshot = proposal_snapshot(proposal)
     canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     number = proposal.current_version + 1
@@ -67,4 +77,10 @@ def publish_version(proposal, actor):
     if not proposal.expires_at:
         proposal.expires_at = timezone.now() + timezone.timedelta(days=14)
     proposal.save(update_fields=["current_version", "status", "expires_at", "updated_at"])
+    # Preserve the public service contract for callers that continue using the
+    # instance they passed in.  The row lock intentionally requires a fresh
+    # database instance, but leaving the caller's instance stale can later
+    # overwrite status/current_version with pre-publish values on a normal
+    # Model.save().
+    source_proposal.refresh_from_db()
     return version

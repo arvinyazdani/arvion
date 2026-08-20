@@ -37,7 +37,9 @@ def notify(*, category, title, description, target_url, role, source_key, due_at
 
 @receiver(post_save, sender=User)
 def new_user(sender, instance, created, **kwargs):
-    if created and not instance.is_staff:
+    # Registration is not complete until the mobile OTP has been verified.
+    # get_or_create inside notify keeps subsequent profile saves idempotent.
+    if not instance.is_staff and instance.is_active and instance.mobile_verified_at:
         notify(category="accounts", title="عضویت کاربر جدید", description=instance.email, target_url=reverse("management_portal:approvals"), role="", source_key=f"user:{instance.pk}")
 
 
@@ -72,7 +74,7 @@ def new_clinic(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=ManualPaymentSubmission)
 def new_payment(sender, instance, created, **kwargs):
-    if created:
+    if created or instance.status == "pending":
         order = instance.order
         customer = order.customer or resolve_customer(
             customer_name=order.user.get_full_name() or order.user.email,
@@ -82,8 +84,10 @@ def new_payment(sender, instance, created, **kwargs):
         if not order.customer_id:
             order.customer = customer
             order.save(update_fields=("customer",))
-        link_customer_event(customer, instance, kind="payment", title="رسید پرداخت ارسال شد", body=f"شماره پیگیری: {instance.reference_number}", customer_name=customer.name)
-        notify(category="payments", title="رسید پرداخت جدید", description=instance.reference_number, target_url=reverse("management_portal:approvals"), role="assessments", source_key=f"payment:{instance.pk}")
+        title = "رسید پرداخت ارسال شد" if created else "رسید پرداخت اصلاح و دوباره ارسال شد"
+        link_customer_event(customer, instance, kind="payment", title=title, body=f"شماره پیگیری: {instance.reference_number}", customer_name=customer.name)
+        source_key = f"payment:{instance.pk}" if created else f"payment:{instance.pk}:resubmitted:{int(instance.updated_at.timestamp())}"
+        notify(category="payments", title="رسید پرداخت جدید" if created else "رسید پرداخت اصلاح‌شده", description=instance.reference_number, target_url=reverse("management_portal:approvals"), role="assessments", source_key=source_key)
 
 
 @receiver(post_save, sender=SupportTicket)

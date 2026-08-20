@@ -1,15 +1,68 @@
-const CACHE = "rvion-shell-v2";
-const SHELL = ["/fa/", "/static/core/css/site.css", "/static/core/js/site-shell.js", "/static/core/favicon.svg"];
-self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
-self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) return;
-  const url = new URL(event.request.url);
-  if (url.pathname.startsWith("/admin/") || url.pathname.includes("/account/") || url.pathname.includes("/checkout/")) return;
-  event.respondWith(fetch(event.request).then(response => {
-    if (response.ok && (url.pathname.startsWith("/static/") || event.request.mode === "navigate")) caches.open(CACHE).then(cache => cache.put(event.request, response.clone()));
+const CACHE = "rvion-shell-v3";
+const OFFLINE_URL = "/offline/";
+const SHELL = [
+  OFFLINE_URL,
+  "/static/core/favicon.svg",
+  "/static/core/icons/icon-192.png",
+  "/static/core/icons/app-icon-maskable.svg",
+  "/static/core/manifest.webmanifest",
+];
+const CACHEABLE_DESTINATIONS = new Set(["font", "image", "manifest", "script", "style"]);
+
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith("rvion-shell-") && key !== CACHE).map(key => caches.delete(key)));
+    if (self.registration.navigationPreload) await self.registration.navigationPreload.enable();
+    await self.clients.claim();
+  })());
+});
+
+async function staticAsset(event) {
+  const request = event.request;
+  const cached = await caches.match(request);
+  const refreshed = fetch(request).then(async response => {
+    if (response.ok && response.type === "basic") {
+      const cache = await caches.open(CACHE);
+      await cache.put(request, response.clone());
+    }
     return response;
-  }).catch(() => caches.match(event.request).then(cached => cached || (event.request.mode === "navigate" ? caches.match("/fa/") : Response.error()))));
+  }).catch(error => {
+    if (cached) return cached;
+    throw error;
+  });
+  if (cached) {
+    event.waitUntil(refreshed.then(() => undefined));
+    return cached;
+  }
+  return refreshed;
+}
+
+self.addEventListener("fetch", event => {
+  if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith((async () => {
+      try {
+        return (await event.preloadResponse) || (await fetch(event.request));
+      } catch (error) {
+        return (await caches.match(OFFLINE_URL)) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  if (url.pathname.startsWith("/static/") && CACHEABLE_DESTINATIONS.has(event.request.destination)) {
+    event.respondWith(staticAsset(event));
+  }
 });
 self.addEventListener("push", event => { let data={};try{data=event.data?event.data.json():{}}catch(error){data={body:event.data?event.data.text():""}}event.waitUntil(self.registration.showNotification(data.title || "آرویون", {body:data.body || "رویداد تازه‌ای نیازمند بررسی است.",tag:data.tag || "rvion-management",icon:"/static/core/icons/icon-192.png",badge:"/static/core/icons/icon-192.png",data:{url:data.url || "/fa/management/notifications/"},requireInteraction:Boolean(data.urgent)})); });
-self.addEventListener("notificationclick", event => { const url=event.notification.data?.url || "/fa/management/notifications/"; event.notification.close(); event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(items => { const match=items.find(item=>item.url.includes("/management/")); return match ? match.focus().then(()=>match.navigate(url)) : clients.openWindow(url); })); });
+self.addEventListener("notificationclick", event => { const fallback="/fa/management/notifications/";let target;try{target=new URL(event.notification.data?.url || fallback,self.location.origin)}catch(error){target=new URL(fallback,self.location.origin)}if(target.origin!==self.location.origin)target=new URL(fallback,self.location.origin);event.notification.close();event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(items => { const match=items.find(item=>item.url.includes("/management/")); return match ? match.focus().then(()=>match.navigate(target.href)) : clients.openWindow(target.href); })); });

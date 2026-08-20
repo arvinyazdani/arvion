@@ -12,7 +12,33 @@ logger = logging.getLogger(__name__)
 
 
 class TrafficAnalyticsMiddleware:
-    EXCLUDED_PREFIXES = ("/admin/", "/health/", "/static/", "/media/", "/favicon.ico", "/robots.txt")
+    EXCLUDED_PREFIXES = (
+        "/admin/", "/health/", "/static/", "/media/", "/favicon.ico",
+        "/robots.txt", "/sitemap.xml", "/service-worker.js", "/offline/",
+    )
+    PRIVATE_NAMESPACES = {"accounts", "contracts", "management_portal"}
+    PRIVATE_ROUTE_NAMES = {
+        ("assessments", "checkout"),
+        ("assessments", "sandbox_pay"),
+        ("assessments", "manual_payment_submit"),
+        ("assessments", "manual_payment_status"),
+        ("assessments", "start_attempt"),
+        ("assessments", "attempt"),
+        ("assessments", "attempt_review"),
+        ("assessments", "save_answer"),
+        ("assessments", "audio_play"),
+        ("assessments", "integrity_event"),
+        ("assessments", "finish_attempt"),
+        ("assessments", "result"),
+        ("assessments", "support_create"),
+        ("assessments", "support_history"),
+        ("crm_orders", "thanks"),
+        ("crm_orders", "specialist"),
+        ("crm_orders", "specialist_section"),
+        ("crm_orders", "specialist_done"),
+        ("clinic_orders", "thanks"),
+        ("leads", "thanks"),
+    }
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -25,7 +51,21 @@ class TrafficAnalyticsMiddleware:
 
     def _eligible(self, request, response):
         content_type = response.get("Content-Type", "")
-        return request.method == "GET" and response.status_code < 400 and "text/html" in content_type and not request.path.startswith(self.EXCLUDED_PREFIXES)
+        match = getattr(request, "resolver_match", None)
+        route_identity = (getattr(match, "namespace", ""), getattr(match, "url_name", ""))
+        is_private_route = bool(
+            match and (
+                match.namespace in self.PRIVATE_NAMESPACES
+                or route_identity in self.PRIVATE_ROUTE_NAMES
+            )
+        )
+        return (
+            request.method == "GET"
+            and response.status_code < 400
+            and "text/html" in content_type
+            and not request.path.startswith(self.EXCLUDED_PREFIXES)
+            and not is_private_route
+        )
 
     def _record(self, request):
         try:

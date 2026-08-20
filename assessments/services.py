@@ -130,10 +130,13 @@ def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
     entitlement = ExamEntitlement.objects.select_for_update().select_related("exam").get(pk=entitlement_id, user=user)
     if hasattr(entitlement, "attempt"):
         return entitlement.attempt, False
+    now = timezone.now()
+    if entitlement.expires_at is not None and entitlement.expires_at <= now:
+        raise ExamContentError("Assessment entitlement has expired")
     if entitlement.attempts_remaining < 1:
         raise ExamContentError("No attempts remaining")
     get_user_model().objects.select_for_update().get(pk=user.pk)
-    since = timezone.now() - timedelta(hours=24)
+    since = now - timedelta(hours=24)
     recent_count = Attempt.objects.filter(
         user_id=user.pk, exam=entitlement.exam, started_at__gte=since,
     ).count()
@@ -170,7 +173,6 @@ def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
         .select_related("section", "skill")
         .prefetch_related("choices")
     }
-    now = timezone.now()
     attempt = Attempt.objects.create(
         user=user,
         exam=entitlement.exam,
@@ -197,7 +199,10 @@ def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
             "audio_path": question.audio_path, "transcript": question.transcript,
             "max_plays": question.max_plays,
             "explanation_fa": question.explanation_fa, "explanation_en": question.explanation_en,
-            "section_code": question.section.code, "skill_code": question.skill.code,
+            "section_code": question.section.code,
+            "section_title_fa": question.section.title_fa,
+            "section_title_en": question.section.title_en,
+            "skill_code": question.skill.code,
         }
         choices_snapshot = [
             {
@@ -277,22 +282,27 @@ def score_attempt(attempt_id):
         skill = row.question.skill
         stats = skill_totals.setdefault(skill.pk, {"skill": skill, "correct": 0, "total": 0})
         stats["total"] += 1
-        if row.selected_choice_id is None:
+        selected_choice_id = row.effective_selected_choice_id
+        if selected_choice_id is None:
             unanswered += 1
         else:
             snapshot_choice = next(
-                (choice for choice in row.choices_snapshot if choice["id"] == row.selected_choice_id),
+                (choice for choice in row.choices_snapshot if choice["id"] == selected_choice_id),
                 None,
             )
-            is_correct = snapshot_choice["is_correct"] if snapshot_choice else row.selected_choice.is_correct
-        if row.selected_choice_id is not None and is_correct:
+            is_correct = (
+                snapshot_choice["is_correct"]
+                if snapshot_choice
+                else bool(row.selected_choice and row.selected_choice.is_correct)
+            )
+        if selected_choice_id is not None and is_correct:
             correct += 1
             stats["correct"] += 1
             earned += Decimal(row.question_snapshot.get("weight", str(row.question.weight)))
             Question.objects.filter(pk=row.question_id).update(
                 correct_response_count=F("correct_response_count") + 1,
             )
-        elif row.selected_choice_id is not None:
+        elif selected_choice_id is not None:
             incorrect += 1
     percentage = ((earned / maximum * 100) if maximum else Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     level_code, level_fa, level_en = _level_for(attempt.exam, percentage)

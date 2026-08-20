@@ -1,18 +1,41 @@
 {
+  "id": "/fa/",
   "name": "Rvion — Intelligent Trade Development",
   "short_name": "Rvion",
   "start_url": "/fa/",
+  "lang": "fa",
+  "dir": "rtl",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "description": "طراحی CRM، وب‌سایت و سامانه اختصاصی آرویون",
   "background_color": "#ff6b35",
   "theme_color": "#ff6b35",
   "scope": "/",
-  "icons": [
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "shortcuts": [
     {
-      "src": "/static/core/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"
+      "name": "خدمات آرویون",
+      "short_name": "خدمات",
+      "url": "/fa/services/",
+      "icons": [{"src": "/static/core/icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
     },
     {
-      "src": "/static/core/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"
+      "name": "شروع همکاری",
+      "short_name": "همکاری",
+      "url": "/fa/contact/",
+      "icons": [{"src": "/static/core/icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]
+    }
+  ],
+  "icons": [
+    {
+      "src": "/static/core/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"
+    },
+    {
+      "src": "/static/core/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"
+    },
+    {
+      "src": "/static/core/icons/app-icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable"
     }
   ]
 }

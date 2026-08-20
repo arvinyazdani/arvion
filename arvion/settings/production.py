@@ -5,11 +5,13 @@ import dj_database_url
 from .base import *  # noqa: F403
 
 ASSESSMENT_FREE_CHECKOUT = False
+if CONTENT_SECURITY_POLICY and "upgrade-insecure-requests" not in CONTENT_SECURITY_POLICY:
+    CONTENT_SECURITY_POLICY = f"{CONTENT_SECURITY_POLICY}; upgrade-insecure-requests"
 
 required = [
     "DJANGO_SECRET_KEY", "DATABASE_URL", "DJANGO_ALLOWED_HOSTS",
     "DEFAULT_FROM_EMAIL", "CONTACT_NOTIFICATION_EMAIL",
-    "PAYMENT_GATEWAY",
+    "PAYMENT_GATEWAY", "CONTRACT_ACCESS_PASSWORD",
 ]
 USE_S3_STORAGE = os.getenv("USE_S3_STORAGE", "1") == "1"
 USE_SMTP_EMAIL = os.getenv("USE_SMTP_EMAIL", "1") == "1"
@@ -42,6 +44,34 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+
+# Security throttles must be shared by every Gunicorn worker.  Redis is the
+# preferred production backend when CACHE_URL is configured; the file backend
+# remains a dependency-free, cross-process fallback for the current single-VM
+# deployment and also survives worker restarts.
+CACHE_URL = os.getenv("CACHE_URL", "").strip()
+CACHE_COMMON = {
+    "TIMEOUT": int(os.getenv("CACHE_DEFAULT_TIMEOUT", "3600")),
+    "KEY_PREFIX": os.getenv("CACHE_KEY_PREFIX", "rvion-production"),
+    "OPTIONS": {"MAX_ENTRIES": int(os.getenv("CACHE_MAX_ENTRIES", "10000"))},
+}
+if CACHE_URL:
+    CACHES = {
+        "default": {
+            **CACHE_COMMON,
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": CACHE_URL,
+            "OPTIONS": {},
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            **CACHE_COMMON,
+            "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+            "LOCATION": os.getenv("CACHE_FILE_LOCATION", "/var/tmp/rvion-django-cache"),
+        }
+    }
 
 if USE_S3_STORAGE:
     STORAGES = {

@@ -1,9 +1,10 @@
 import hashlib
+import json
 import secrets
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,7 +14,10 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.conf import settings
 from management_portal.models import Customer, CustomerContact
+from accounts.security import AttemptThrottle, client_address
 from core.models import CompanyProfile
+from crm_orders.models import CrmSpecialistDiscovery
+from crm_orders.specialist import is_specialist_discovery_complete
 from .forms import ClauseSelectionForm, ContractAccessForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, ProposalForm
 from .models import ContractAcceptance, ContractClause, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from .services import add_default_clauses, proposal_snapshot, publish_version
@@ -22,6 +26,25 @@ from .services import add_default_clauses, proposal_snapshot, publish_version
 def _require_contract_manager(request):
     if not request.user.is_superuser:
         raise PermissionDenied
+
+
+def _version_phone(proposal, version):
+    return str((version.snapshot or {}).get("customer_phone") or proposal.customer_phone)
+
+
+def _discovery_evidence(proposal):
+    discovery = CrmSpecialistDiscovery.objects.filter(
+        order_id=proposal.crm_order_id,
+    ).first() if proposal.crm_order_id else None
+    if not discovery:
+        return {}
+    return {
+        "order_id": proposal.crm_order_id,
+        "tracking_code": proposal.crm_order.tracking_code,
+        "status": discovery.status,
+        "answers": discovery.answers,
+        "updated_at": discovery.updated_at.isoformat(),
+    }
 
 
 def _manager_url(request, old_name, new_name, *args):
@@ -84,7 +107,7 @@ def proposal_create(request):
 def proposal_edit(request, proposal_id):
     _require_contract_manager(request)
     proposal = get_object_or_404(ContractProposal, pk=proposal_id)
-    if proposal.status == "accepted":
+    if proposal.status not in {"draft", "revoked"}:
         raise PermissionDenied
     form = ProposalForm(request.POST or None, instance=proposal, language=getattr(request, "LANGUAGE_CODE", "fa"))
     if request.method == "POST" and form.is_valid():
@@ -166,7 +189,11 @@ def proposal_publish(request, proposal_id):
     proposal = get_object_or_404(ContractProposal, pk=proposal_id)
     if proposal.status == "accepted":
         raise PermissionDenied
-    version = publish_version(proposal, request.user)
+    try:
+        version = publish_version(proposal, request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+        return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
     messages.success(request, f"نسخه {version.number} ثبت و لینک مشتری فعال شد.")
     return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
 
@@ -177,12 +204,22 @@ def public_contract(request, token):
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         return redirect("contracts:contract_access", token=token)
-    discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
+    discovery = CrmSpecialistDiscovery.objects.filter(
+        order_id=proposal.crm_order_id,
+    ).first() if proposal.crm_order_id else None
+    discovery_complete = bool(
+        discovery
+        and discovery.status in {"submitted", "reviewed"}
+        and is_specialist_discovery_complete(discovery)
+    )
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
-    ready_to_confirm = acknowledgements == {"general", "private"} and (not proposal.crm_order_id or bool(discovery and discovery.status == "submitted"))
-    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery, "acknowledgements": acknowledgements, "ready_to_confirm": ready_to_confirm})
+    acceptance = getattr(version, "acceptance", None)
+    ready_to_confirm = acceptance is None and acknowledgements == {"general", "private"} and (
+        not proposal.crm_order_id or discovery_complete
+    )
+    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery, "discovery_complete": discovery_complete, "acknowledgements": acknowledgements, "acceptance": acceptance, "ready_to_confirm": ready_to_confirm})
 
 
 @never_cache
@@ -193,7 +230,7 @@ def contract_document(request, token, document=None):
     version = proposal.versions.get(number=proposal.current_version)
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
     ready_for_review = acknowledgements == {"general", "private"}
-    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         return redirect("contracts:contract_access", token=token)
     if document not in {"general", "private"}:
         return redirect("contracts:public_contract", token=token)
@@ -215,14 +252,17 @@ def contract_acknowledge(request, token, document):
     if document not in {"general", "private"} or not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         return redirect("contracts:contract_access", token=token)
+    if request.POST.get("acknowledge") != "on":
+        messages.error(request, "برای ثبت این مرحله، مطالعه کامل سند را تأیید کنید.")
+        return redirect("contracts:contract_document", token=token, document=document)
     if not version.snapshot.get(f"{document}_terms"):
         raise Http404
     if document == "private" and not version.room_acknowledgements.filter(document="general").exists():
         messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
         return redirect("contracts:public_contract", token=token)
-    ip = request.META.get("REMOTE_ADDR", "")
+    ip = client_address(request)
     ContractRoomAcknowledgement.objects.get_or_create(
         version=version, document=document,
         defaults={"ip_hash": hashlib.sha256(ip.encode()).hexdigest() if ip else "", "user_agent": request.META.get("HTTP_USER_AGENT", "")[:240]},
@@ -244,17 +284,33 @@ def contract_logout(request, token):
     return redirect("contracts:contract_access", token=token)
 
 
-def _acceptance_version(request, token):
-    proposal = get_object_or_404(ContractProposal, token=token)
+def _acceptance_version(request, token, *, lock=False):
+    proposal_queryset = ContractProposal.objects.select_for_update() if lock else ContractProposal.objects
+    proposal = get_object_or_404(proposal_queryset, token=token)
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
-    version = proposal.versions.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") != proposal.customer_phone:
+    version_queryset = proposal.versions.select_for_update() if lock else proposal.versions
+    version = version_queryset.get(number=proposal.current_version)
+    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         messages.info(request, "نسخهٔ پرونده به‌روزرسانی شده است؛ برای ادامه، دوباره وارد پرونده شوید.")
         return proposal, version, "access"
+    if hasattr(version, "acceptance"):
+        return proposal, version, None
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
-    discovery = getattr(proposal.crm_order, "specialist_discovery", None) if proposal.crm_order_id else None
-    if acknowledgements != {"general", "private"} or (proposal.crm_order_id and (not discovery or discovery.status != "submitted")):
+    discovery = None
+    if proposal.crm_order_id:
+        discovery_queryset = (
+            CrmSpecialistDiscovery.objects.select_for_update()
+            if lock else CrmSpecialistDiscovery.objects
+        )
+        discovery = discovery_queryset.filter(order_id=proposal.crm_order_id).first()
+    if acknowledgements != {"general", "private"} or (
+        proposal.crm_order_id and (
+            not discovery
+            or discovery.status not in {"submitted", "reviewed"}
+            or not is_specialist_discovery_complete(discovery)
+        )
+    ):
         messages.info(request, "پیش از تأیید نهایی، فرم تخصصی و هر دو سند قرارداد را کامل کنید.")
         return proposal, version, "steps"
     return proposal, version, None
@@ -277,7 +333,7 @@ def contract_accept(request, token):
 @require_POST
 @transaction.atomic
 def contract_confirm(request, token):
-    proposal, version, blocked = _acceptance_version(request, token)
+    proposal, version, blocked = _acceptance_version(request, token, lock=True)
     if blocked == "access":
         return redirect("contracts:contract_access", token=token)
     if blocked:
@@ -287,10 +343,19 @@ def contract_confirm(request, token):
     form = OtpRequestForm(request.POST)
     if not form.is_valid():
         messages.error(request, "برای ثبت تأیید نهایی، موافقت با نسخه را علامت بزنید.")
-        return redirect("contracts:contract_accept", token=token)
-    ip = request.META.get("REMOTE_ADDR", "")
+        return redirect("contracts:public_contract", token=token)
+    discovery_snapshot = _discovery_evidence(proposal)
+    evidence_payload = {
+        "contract_snapshot_hash": version.snapshot_hash,
+        "specialist_discovery": discovery_snapshot,
+    }
+    evidence_hash = hashlib.sha256(
+        json.dumps(evidence_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    ip = client_address(request)
     ContractAcceptance.objects.create(
-        version=version, verified_phone=proposal.customer_phone, provider_reference="",
+        version=version, verified_phone=_version_phone(proposal, version), provider_reference="",
+        discovery_snapshot=discovery_snapshot, evidence_hash=evidence_hash,
         ip_hash=hashlib.sha256(ip.encode()).hexdigest() if ip else "", user_agent=request.META.get("HTTP_USER_AGENT", "")[:240],
     )
     proposal.status = "accepted"
@@ -307,21 +372,34 @@ def contract_access(request, token):
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") == proposal.customer_phone:
+    expected_phone = _version_phone(proposal, version)
+    if request.session.get(f"contract-access:{version.pk}") == expected_phone:
         return redirect("contracts:public_contract", token=token)
     form = ContractAccessForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
+    throttle = AttemptThrottle(
+        "contract-access", request, token,
+        getattr(settings, "CONTRACT_ACCESS_ATTEMPTS", 5),
+        getattr(settings, "CONTRACT_ACCESS_WINDOW_SECONDS", 900),
+    )
+    if request.method == "POST" and throttle.blocked():
+        form.add_error(None, "تلاش‌های ورود بیش از حد مجاز است؛ کمی بعد دوباره امتحان کنید.")
+    elif request.method == "POST" and form.is_valid():
         configured_password = getattr(settings, "CONTRACT_ACCESS_PASSWORD", "")
-        if not configured_password or form.cleaned_data["phone"] != proposal.customer_phone or not secrets.compare_digest(form.cleaned_data["password"], configured_password):
+        if not configured_password or form.cleaned_data["phone"] != expected_phone or not secrets.compare_digest(form.cleaned_data["password"], configured_password):
+            throttle.failure()
             messages.error(request, "شماره همراه یا رمز ورود صحیح نیست.")
         else:
-            request.session[f"contract-access:{version.pk}"] = proposal.customer_phone
+            throttle.success()
+            request.session[f"contract-access:{version.pk}"] = expected_phone
             request.session.set_expiry(3600)
             return redirect("contracts:public_contract", token=token)
+    elif request.method == "POST":
+        throttle.failure()
     access_url = f"{settings.SITE_URL.rstrip('/')}{reverse('contracts:contract_access', args=[proposal.token])}"
     share_image_url = f"{settings.SITE_URL.rstrip('/')}{static('contracts/images/share-contract-room-v1.png')}"
     return render(request, "contracts/contract_access.html", {
         "proposal": proposal,
+        "version": version,
         "form": form,
         # The access URL is deliberately the share target: legal documents stay
         # behind the phone/password gate while messengers still receive a rich card.

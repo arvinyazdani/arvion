@@ -72,3 +72,30 @@ curl -fsS https://rvionai.com/health/
 - restore drill ماهانه روی دیتابیس موقت اجرا می‌شود و دیتابیس اصلی را تغییر نمی‌دهد.
 - کنترل سلامت هر ۱۵ دقیقه PostgreSQL، دیسک و تازگی backup را بررسی می‌کند؛ پرداخت فوری SMS می‌گیرد و موارد عادی در Inbox/Push مدیریت می‌شوند.
 - تا زمان تعیین Object Storage آروان، backup خارج از سرور وجود ندارد؛ این یک ریسک پذیرفته‌شده و تصمیم باز مالک است.
+
+## نگه‌داری لاگ‌های سیستم
+
+رویدادهای فنی جدول `SystemLog` به‌صورت پیش‌فرض ۹۰ روز نگه‌داری می‌شوند. این بازه با متغیر زیر در `.env.production` قابل تغییر است و باید حداقل یک روز باشد:
+
+```text
+SYSTEM_LOG_RETENTION_DAYS=90
+```
+
+پیش از حذف دستی می‌توان تعداد رکوردهای مشمول را بدون تغییر دیتابیس دید:
+
+```bash
+sudo -u arvion bash -c 'set -a; source /srv/arvion/.env.production; set +a; /srv/arvion/.venv/bin/python /srv/arvion/manage.py cleanup_system_logs --dry-run'
+```
+
+اجرای واقعی همان فرمان بدون `--dry-run` است. برای بررسی timer روزانه نیز از `systemctl status arvion-system-log-cleanup.timer` و برای مشاهدهٔ آخرین اجرا از `journalctl -u arvion-system-log-cleanup.service -n 50` استفاده کنید. command حذف را در batchهای ۱۰۰۰تایی انجام می‌دهد؛ `--retention-days` و `--batch-size` فقط برای اجرای دستی و کنترل‌شده در دسترس‌اند.
+
+## Cache مشترک محدودسازی امنیتی
+
+محدودسازی تلاش ورود، OTP و اتاق قرارداد باید میان همه workerهای Gunicorn مشترک باشد. برای production پایدار، یک Redis خصوصی و غیرقابل‌دسترسی از اینترنت بسازید و در `.env.production` تنظیم کنید:
+
+```text
+CACHE_URL=redis://127.0.0.1:6379/1
+CACHE_KEY_PREFIX=rvion-production
+```
+
+اگر `CACHE_URL` خالی باشد، سامانه بدون توقف از cache فایل‌محور مشترک در `/var/tmp/rvion-django-cache` استفاده می‌کند. این fallback برای یک VM قابل استفاده است، اما Redis به‌دلیل شمارنده اتمیک و رفتار بهتر زیر بار، گزینه توصیه‌شده است. پس از تغییر backend، سرویس را restart و محدودسازی ورود اشتباه را با حساب آزمایشی بررسی کنید.

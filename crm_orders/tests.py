@@ -5,10 +5,11 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils import translation
 
 from accounts.models import User
 from .forms import CrmOrderForm
-from .models import CrmOrder
+from .models import CrmOrder, CrmSpecialistDiscovery
 from .specialist import SECTIONS
 from .text_export import render_crm_order_text
 
@@ -49,6 +50,7 @@ def valid_payload():
 class CrmOrderTests(TestCase):
     def setUp(self):
         cache.clear()
+        translation.activate("fa")
 
     def test_wizard_is_separate_public_flow_with_accessible_steps(self):
         response = self.client.get(reverse("crm_orders:create"))
@@ -56,6 +58,10 @@ class CrmOrderTests(TestCase):
         self.assertContains(response, "ENTERPRISE CRM DISCOVERY")
         self.assertContains(response, 'data-wizard="crm-order"', html=False)
         self.assertContains(response, 'aria-label="مراحل سفارش"')
+
+    def test_english_url_redirects_to_persian_until_form_copy_is_translated(self):
+        response = self.client.get("/en/crm-order/")
+        self.assertRedirects(response, "/fa/crm-order/", fetch_redirect_response=False)
 
     def test_valid_submission_persists_structured_discovery_and_emails_team(self):
         response = self.client.post(reverse("crm_orders:create"), valid_payload(), follow=True)
@@ -67,7 +73,47 @@ class CrmOrderTests(TestCase):
         self.assertEqual(order.integration_types, ["website", "accounting"])
         self.assertEqual(order.phone, "09121234567")
         self.assertIsNotNone(order.privacy_accepted_at)
+        discovery = CrmSpecialistDiscovery.objects.get(order=order)
+        self.assertContains(response, reverse("crm_orders:specialist", args=[discovery.token]))
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_specialist_form_uses_private_token_not_tracking_code(self):
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        discovery = CrmSpecialistDiscovery.objects.create(order=order)
+
+        self.assertEqual(
+            self.client.get(reverse("crm_orders:specialist", args=[order.tracking_code])).status_code,
+            404,
+        )
+        response = self.client.get(reverse("crm_orders:specialist", args=[discovery.token]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-cache", response.headers["Cache-Control"])
+
+    def test_specialist_cannot_submit_by_skipping_to_last_section(self):
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        discovery = CrmSpecialistDiscovery.objects.create(order=order)
+        last_key, _title, _description, questions = SECTIONS[-1]
+        payload = {key: "پاسخ معتبر و کامل برای این پرسش" for key, _question, _help in questions}
+
+        response = self.client.post(
+            reverse("crm_orders:specialist_section", args=[discovery.token, last_key]),
+            payload,
+        )
+
+        discovery.refresh_from_db()
+        self.assertEqual(discovery.status, "draft")
+        self.assertRedirects(
+            response,
+            reverse("crm_orders:specialist_section", args=[discovery.token, SECTIONS[0][0]]),
+        )
 
     def test_complete_text_report_translates_structured_answers(self):
         form = CrmOrderForm(valid_payload())
@@ -107,6 +153,14 @@ class CrmOrderTests(TestCase):
         self.assertFalse(CrmOrder.objects.exists())
         self.assertContains(response, "فرم هنوز ثبت نشده است")
         self.assertContains(response, 'data-error-step="4"', html=False)
+        self.assertContains(response, 'aria-invalid="true"', html=False)
+        self.assertContains(response, 'aria-describedby="id_critical_workflows-help id_critical_workflows-errors"', html=False)
+        self.assertContains(response, 'href="#id_critical_workflows"', html=False)
+
+    def test_checkbox_groups_have_accessible_group_semantics(self):
+        response = self.client.get(reverse("crm_orders:create"))
+        self.assertContains(response, '<fieldset class="field crm-options" data-field-name="primary_goals" aria-required="true">', html=False)
+        self.assertContains(response, "<legend>هدف‌های اصلی CRM", html=False)
 
     def test_browser_receives_same_minimum_length_as_server(self):
         response = self.client.get(reverse("crm_orders:create"))

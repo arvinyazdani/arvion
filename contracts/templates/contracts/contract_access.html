@@ -34,10 +34,11 @@
       <div class="access-brand"><b>R</b><span>آرویون<small>فضای اختصاصی قرارداد</small></span></div>
       <span class="access-eyebrow">پروندهٔ محرمانه مشتری</span>
       <h1>ورود به پروندهٔ قرارداد</h1>
-      <p>پروندهٔ «{{ proposal.customer_name }}» فقط با شمارهٔ همراه مجاز و رمز اختصاصی قابل مشاهده است.</p>
-      <div class="access-project"><small>عنوان پروژه</small><strong>{{ proposal.project_title }}</strong></div>
+      <p>پروندهٔ «{{ version.snapshot.customer_name }}» فقط با شمارهٔ همراه مجاز و رمز اختصاصی قابل مشاهده است.</p>
+      <div class="access-project"><small>عنوان پروژه</small><strong>{{ version.snapshot.project_title }}</strong></div>
       <form method="post" class="otp-form" novalidate>
         {% csrf_token %}
+        {{ form.non_field_errors }}
         <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>{{ form.phone }}{{ form.phone.errors }}
         <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
         <div class="password-field">{{ form.password }}<button type="button" class="password-toggle" aria-label="نمایش رمز ورود">نمایش</button></div>{{ form.password.errors }}

@@ -1,1 +1,57 @@
-{% load static %}<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>فرم نیازسنجی تخصصی CRM | آرویون</title><link rel="stylesheet" href="{% static 'crm_orders/wizard.css' %}?v=6"></head><body><main class="specialist-shell"> <header class="specialist-head">{% if room_proposal %}<a class="brand" href="{% url 'contracts:public_contract' room_proposal.token %}"><b>R</b><span>آرویون<small>فضای اختصاصی قرارداد</small></span></a>{% else %}<a class="brand" href="{% url 'home' %}"><b>R</b><span>آرویون<small>فرم نیازسنجی تخصصی CRM</small></span></a>{% endif %}<div><strong>{{ order.organization_name }}</strong><span>{{ order.tracking_code }}</span></div></header>{% if room_proposal %}<a class="room-return" href="{% url 'contracts:public_contract' room_proposal.token %}">بازگشت امن به اتاق قرارداد</a>{% endif %}<section class="specialist-hero"><span>مرحله {{ index|add:1 }} از {{ total }}</span><h1>{{ section.1 }}</h1><p>{{ section.2 }}</p><div class="progress"><i style="width:{% widthratio index|add:1 total 100 %}%"></i></div></section><nav class="section-rail">{% for item in sections %}<span class="{% if forloop.counter0 == index %}active{% elif forloop.counter0 < index %}done{% endif %}">{{ forloop.counter }}</span>{% endfor %}</nav><form method="post" class="specialist-form" novalidate>{% csrf_token %}{% for field in form %}<article class="question-card"><div class="question-title"><label for="{{ field.id_for_label }}">{{ field.label }}</label><button type="button" class="help-button" aria-label="راهنمای سؤال" data-help="{{ field.help_text|escapejs }}">؟</button></div><p class="question-hint">پاسخ شما محرمانه و برای طراحی دقیق CRM استفاده می‌شود.</p>{{ field }}{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}<details><summary>چطور پاسخ بهتری بدهم؟</summary><p>{{ field.help_text }}</p></details></article>{% endfor %}<div class="form-actions"><button class="button" type="submit">{% if index|add:1 == total %}ثبت نیازسنجی تخصصی و بازگشت به قرارداد{% else %}ذخیره و رفتن به بخش بعد{% endif %} <span>←</span></button></div></form><div class="help-popover" hidden><button type="button" data-close-help>×</button><p></p></div></main><script>document.querySelectorAll('[data-help]').forEach(b=>b.addEventListener('click',()=>{const p=document.querySelector('.help-popover');p.querySelector('p').textContent=b.dataset.help;p.hidden=false}));document.querySelector('[data-close-help]').addEventListener('click',()=>document.querySelector('.help-popover').hidden=true)</script></body></html>
+{% load static %}<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="same-origin">
+<title>فرم نیازسنجی تخصصی CRM | آرویون</title>
+<link rel="stylesheet" href="{% static 'crm_orders/wizard.css' %}?v=8">
+</head>
+<body>
+<main class="specialist-shell"> <header class="specialist-head">{% if room_proposal %}<a class="brand" href="{% url 'contracts:public_contract' room_proposal.token %}">
+<b>R</b>
+<span>آرویون<small>فضای اختصاصی قرارداد</small>
+</span>
+</a>{% else %}<a class="brand" href="{% url 'home' %}">
+<b>R</b>
+<span>آرویون<small>فرم نیازسنجی تخصصی CRM</small>
+</span>
+</a>{% endif %}<div>
+<strong>{{ order.organization_name }}</strong>
+<span>{{ order.tracking_code }}</span>
+</div>
+</header>{% if room_proposal %}<a class="room-return" href="{% url 'contracts:public_contract' room_proposal.token %}">بازگشت امن به اتاق قرارداد</a>{% endif %}<section class="specialist-hero">
+<span>مرحله {{ index|add:1 }} از {{ total }}</span>
+<h1>{{ section.1 }}</h1>
+<p>{{ section.2 }}</p>
+<div class="progress">
+<i style="width:{% widthratio index|add:1 total 100 %}%">
+</i>
+</div>
+</section>
+<nav class="section-rail" aria-label="مراحل فرم">{% for item in sections %}<span class="{% if forloop.counter0 == index %}active{% elif forloop.counter0 < index %}done{% endif %}"{% if forloop.counter0 == index %} aria-current="step"{% endif %}>{{ forloop.counter }}</span>{% endfor %}</nav>
+<form method="post" class="specialist-form" novalidate>{% csrf_token %}{% for field in form %}<article class="question-card">
+<div class="question-title">
+<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+<button type="button" class="help-button" aria-label="راهنمای سؤال: {{ field.label }}" aria-controls="question-help" aria-expanded="false" data-help="{{ field.help_text|escapejs }}">؟</button>
+</div>
+<p class="question-hint">پاسخ شما محرمانه و برای طراحی دقیق CRM استفاده می‌شود.</p>{{ field }}{% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}<details>
+<summary>چطور پاسخ بهتری بدهم؟</summary>
+<p>{{ field.help_text }}</p>
+</details>
+</article>{% endfor %}<div class="form-actions">
+<button class="button" type="submit">{% if index|add:1 == total %}ثبت نیازسنجی تخصصی و بازگشت به قرارداد{% else %}ذخیره و رفتن به بخش بعد{% endif %} <span>←</span>
+</button>
+</div>
+</form>
+<div class="help-popover" id="question-help" role="dialog" aria-modal="true" aria-labelledby="question-help-title" hidden>
+<button type="button" aria-label="بستن راهنما" data-close-help>×</button>
+<h2 id="question-help-title">راهنمای پاسخ بهتر</h2>
+<p>
+</p>
+</div>
+</main>
+<script>(()=>{const popover=document.querySelector('.help-popover'),closeButton=popover.querySelector('[data-close-help]'),content=popover.querySelector('p');let opener=null;const close=()=>{if(popover.hidden)return;popover.hidden=true;document.body.classList.remove('help-open');if(opener){opener.setAttribute('aria-expanded','false');opener.focus()}opener=null};document.querySelectorAll('[data-help]').forEach(button=>button.addEventListener('click',()=>{if(opener&&opener!==button)opener.setAttribute('aria-expanded','false');opener=button;content.textContent=button.dataset.help;popover.hidden=false;document.body.classList.add('help-open');button.setAttribute('aria-expanded','true');closeButton.focus()}));closeButton.addEventListener('click',close);document.addEventListener('keydown',event=>{if(event.key==='Escape')close()})})();</script>
+</body>
+</html>

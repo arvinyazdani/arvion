@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Permission
 from datetime import timedelta
+import json
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -182,7 +183,7 @@ class ManagementDashboardTests(TestCase):
 
     def test_superuser_can_approve_customer_account_with_audit(self):
         root = User.objects.create_superuser(username="approval-root", email="approval-root@example.com", password="safe-password")
-        customer = User.objects.create_user(username="waiting", email="waiting@example.com", password="safe-password", is_active=False)
+        customer = User.objects.create_user(username="waiting", email="waiting@example.com", password="safe-password", is_active=False, mobile_verified_at=timezone.now())
         self.client.force_login(root)
         response = self.client.post(reverse("management_portal:account_approval", args=[customer.pk, "approve"]))
         self.assertRedirects(response, reverse("management_portal:approvals"))
@@ -190,6 +191,18 @@ class ManagementDashboardTests(TestCase):
         self.assertTrue(customer.is_active)
         self.assertTrue(customer.email_verified)
         self.assertTrue(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
+
+    def test_superuser_cannot_approve_account_before_mobile_otp(self):
+        root = User.objects.create_superuser(username="approval-safe-root", email="approval-safe-root@example.com", password="safe-password")
+        customer = User.objects.create_user(username="waiting-otp", email="waiting-otp@example.com", password="safe-password", is_active=False)
+        self.client.force_login(root)
+
+        response = self.client.post(reverse("management_portal:account_approval", args=[customer.pk, "approve"]))
+
+        self.assertRedirects(response, reverse("management_portal:approvals"))
+        customer.refresh_from_db()
+        self.assertFalse(customer.is_active)
+        self.assertFalse(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
 
     def test_payment_approval_grants_access_once_and_records_audit(self):
         root = User.objects.create_superuser(username="pay-root", email="pay-root@example.com", password="safe-password")
@@ -302,10 +315,30 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(self.client.get(reverse("management_portal:staff_edit", args=[other.pk])).status_code, 403)
 
     def test_new_customer_creates_account_notification(self):
-        customer = User.objects.create_user(username="new-customer", email="new-customer@example.com", password="safe-password")
+        customer = User.objects.create_user(
+            username="new-customer", email="new-customer@example.com",
+            password="safe-password", mobile_verified_at=timezone.now(),
+        )
         notification = ManagementNotification.objects.get(source_key=f"user:{customer.pk}")
         self.assertEqual(notification.category, "accounts")
         self.assertEqual(notification.status, "unread")
+
+    def test_incomplete_registration_does_not_create_stale_account_notification(self):
+        customer = User.objects.create_user(
+            username="pending-customer", email="pending-customer@example.com",
+            password="safe-password", is_active=False, mobile="989120000099",
+        )
+        self.assertFalse(
+            ManagementNotification.objects.filter(source_key=f"user:{customer.pk}").exists(),
+        )
+
+        customer.mobile_verified_at = timezone.now()
+        customer.is_active = True
+        customer.save(update_fields=["mobile_verified_at", "is_active"])
+
+        self.assertTrue(
+            ManagementNotification.objects.filter(source_key=f"user:{customer.pk}").exists(),
+        )
 
     def test_notifications_are_filtered_by_role_and_can_be_resolved(self):
         root = User.objects.create_superuser(username="notify-root", email="notify-root@example.com", password="safe-password")
@@ -363,10 +396,29 @@ class ManagementDashboardTests(TestCase):
     def test_staff_can_register_push_subscription(self):
         root = User.objects.create_superuser(username="push-root", email="push-root@example.com", password="safe-password")
         self.client.force_login(root)
-        with override_settings(WEB_PUSH_VAPID_PUBLIC_KEY="public-key"):
+        with override_settings(
+            WEB_PUSH_VAPID_PUBLIC_KEY="public-key",
+            WEB_PUSH_ALLOWED_HOST_SUFFIXES=("push.example",),
+        ):
             response = self.client.post(reverse("management_portal:push_subscribe"), data='{"endpoint":"https://push.example/sub","keys":{"p256dh":"key","auth":"auth"}}', content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(PushSubscription.objects.filter(user=root, is_active=True).exists())
+
+    @override_settings(WEB_PUSH_VAPID_PUBLIC_KEY="public-key")
+    def test_push_subscription_rejects_untrusted_or_internal_endpoint(self):
+        root = User.objects.create_superuser(
+            username="push-security-root", email="push-security-root@example.com",
+            password="safe-password",
+        )
+        self.client.force_login(root)
+        for endpoint in ("http://fcm.googleapis.com/sub", "https://127.0.0.1/sub", "https://attacker.example/sub"):
+            response = self.client.post(
+                reverse("management_portal:push_subscribe"),
+                data=json.dumps({"endpoint": endpoint, "keys": {"p256dh": "key", "auth": "auth"}}),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(user=root).exists())
 
     def test_opening_push_marks_only_that_notification_seen(self):
         root = User.objects.create_superuser(username="open-root", email="open-root@example.com", password="safe-password")
@@ -390,6 +442,25 @@ class ManagementDashboardTests(TestCase):
         self.assertRedirects(response, reverse("management_portal:approvals"))
         page = self.client.get(reverse("management_portal:notification_list"))
         self.assertEqual(page.status_code, 200)
+
+    def test_notification_redirects_cannot_leave_the_site(self):
+        root = User.objects.create_superuser(
+            username="redirect-root", email="redirect-root@example.com",
+            password="safe-password",
+        )
+        item = ManagementNotification.objects.create(
+            category="sales", title="ناامن", target_url="https://attacker.example/phish",
+            role="", source_key="redirect:external",
+        )
+        self.client.force_login(root)
+
+        opened = self.client.get(reverse("management_portal:notification_open", args=[item.pk]))
+        self.assertRedirects(opened, reverse("management_portal:notification_list"))
+        claimed = self.client.post(
+            reverse("management_portal:notification_claim", args=[item.pk]),
+            {"next": "https://attacker.example/phish"},
+        )
+        self.assertRedirects(claimed, reverse("management_portal:notification_list"))
 
     def test_sms_page_is_restricted_to_superuser(self):
         staff = User.objects.create_user(username="sms-staff", email="sms-staff@example.com", password="safe-password", is_staff=True)
@@ -438,7 +509,8 @@ class ManagementDashboardTests(TestCase):
 
     def test_operations_dashboard_displays_operational_inbox(self):
         root = User.objects.create_superuser(username="inbox-root", email="inbox-root@example.com", password="safe-password")
-        ManagementNotification.objects.create(category="payments", title="رسید پرداخت جدید", description="REF-INBOX", target_url=reverse("management_portal:approvals"), role="", source_key="inbox:payment")
+        notification = ManagementNotification.objects.create(category="payments", title="رسید پرداخت جدید", description="REF-INBOX", target_url=reverse("management_portal:approvals"), role="", source_key="inbox:payment")
+        NotificationReceipt.objects.create(user=root, notification=notification)
         self.client.force_login(root)
         response = self.client.get(reverse("management_portal:dashboard"))
         self.assertContains(response, "صندوق عملیاتی")

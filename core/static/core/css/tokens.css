@@ -6,8 +6,11 @@
   --color-mint:#b8f2e6;
   --color-status-green:#1f9d70;--color-status-green-text:#0f7a54;
   --color-status-red:#d92d20;--color-status-red-text:#a51d14;
+  --color-success-surface:#d9fbe9;--color-warning-surface:#fff0e2;--color-danger-surface:#fee4e2;
+  --color-info-surface:#e6f0ff;--color-info-text:#1d4ed8;--color-accent-surface:#fff0e9;
   --color-ink:#0b1220;--color-ink-2:#172136;--color-paper:#f4f1ea;--color-white:#fff;
   --color-muted:#5f6878;--color-line:rgba(11,18,32,.16);--color-surface:var(--color-white);
+  --color-control-border:#747f91;--color-focus:#b9380d;
   --color-surface-2:#f5f3ed;
   --surface-glass:rgba(244,241,234,.88);
   --color-panel-dark:#0b1220;--color-panel-dark-2:#172136;--color-on-brand:#0b1220;
@@ -32,16 +35,20 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --color-ink:#f4f1ea;--color-ink-2:#e3e0d8;--color-paper:#12161f;--color-surface:#1a2030;
-    --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);
+    --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);--color-control-border:#909aaa;--color-focus:#ff9f7a;
     --shadow-md:0 22px 60px rgba(0,0,0,.45);--shadow-sm:0 8px 20px rgba(0,0,0,.35);
     --color-brand-orange-text:#ff9f7a;--color-status-green-text:#4fd8a3;--color-status-red-text:#ff8a80;
+    --color-success-surface:#123a2e;--color-warning-surface:#3b2b17;--color-danger-surface:#43201e;
+    --color-info-surface:#182d4c;--color-info-text:#9cc2ff;--color-accent-surface:#3b271f;
     --surface-glass:rgba(18,22,31,.86);--color-surface-2:#1f2635;
   }
 }
 :root[data-theme="dark"]{
   --color-ink:#f4f1ea;--color-ink-2:#e3e0d8;--color-paper:#12161f;--color-surface:#1a2030;
-  --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);
+  --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);--color-control-border:#909aaa;--color-focus:#ff9f7a;
   --shadow-md:0 22px 60px rgba(0,0,0,.45);--shadow-sm:0 8px 20px rgba(0,0,0,.35);
   --color-brand-orange-text:#ff9f7a;--color-status-green-text:#4fd8a3;--color-status-red-text:#ff8a80;
+  --color-success-surface:#123a2e;--color-warning-surface:#3b2b17;--color-danger-surface:#43201e;
+  --color-info-surface:#182d4c;--color-info-text:#9cc2ff;--color-accent-surface:#3b271f;
   --surface-glass:rgba(18,22,31,.86);--color-surface-2:#1f2635;
 }

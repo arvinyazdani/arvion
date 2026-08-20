@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
@@ -14,6 +15,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
@@ -83,7 +85,7 @@ def customer_duplicates(request):
         field, value = "", ""
     groups = []
     for candidate_field in ("phone", "email"):
-        rows = Customer.objects.exclude(**{candidate_field: ""}).values(candidate_field).annotate(total=Count("pk")).filter(total__gt=1).order_by("-total", candidate_field)
+        rows = Customer.objects.exclude(**{candidate_field: ""}).values(candidate_field).annotate(total=Count("pk")).filter(total__gt=1).order_by("-total", candidate_field)[:100]
         groups.extend({"field": candidate_field, "value": row[candidate_field], "total": row["total"]} for row in rows)
     compared_customers = Customer.objects.none()
     if field and value:
@@ -278,6 +280,15 @@ def dashboard(request):
         ]
     queues.sort(key=lambda item: item["date"], reverse=True)
     notifications = _visible_notifications(user)
+    unread_notifications = notifications.filter(
+        status="unread",
+        receipts__user=user,
+        receipts__seen_at__isnull=True,
+    )
+    unread_count = unread_notifications.count()
+    # The management context processor runs during template rendering. Reuse
+    # this value there instead of issuing the same count query again.
+    request._management_unread_count = unread_count
     if user.is_superuser or user.has_perm("leads.view_lead") or user.has_perm("crm_orders.view_crmorder") or user.has_perm("clinic_orders.view_clinicorder"):
         sales_cutoff = now - timedelta(seconds=settings.SALES_FOLLOW_UP_SLA_SECONDS)
         overdue_sales = 0
@@ -292,7 +303,7 @@ def dashboard(request):
         sla_cards.append(_metric("پیگیری فروش سررسیدشده", overdue_sales, "فرم یا قرارداد بیش از یک روز بدون پیگیری", reverse("management_portal:notification_list"), "warning"))
         overdue_tasks = CaseTask.objects.filter(status="open", due_at__lt=now).count()
         sla_cards.append(_metric("وظیفه CRM عقب‌افتاده", overdue_tasks, "موعد پیگیری مشتری گذشته است", reverse("management_portal:crm_workspace"), "danger"))
-    metrics.insert(0, _metric("اعلان خوانده‌نشده", notifications.filter(status="unread").count(), "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
+    metrics.insert(0, _metric("اعلان خوانده‌نشده", unread_count, "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
     if user.is_superuser:
         metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("management_portal:contract_list"), "positive"))
         metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
@@ -332,18 +343,29 @@ def dashboard(request):
             "تیکت باز": ("Open tickets", "Waiting for a response"), "آزمون در حال اجرا": ("Active assessments", "Sessions currently in progress"),
             "بازدید امروز": ("Views today", "Public page views"), "کاربر آنلاین": ("Online users", "Active in the last five minutes"),
         }
+        sla_labels = {
+            "پرداخت خارج از مهلت": ("Overdue payment reviews", "Waiting beyond the 30-minute review target"),
+            "تیکت خارج از مهلت": ("Overdue support tickets", "Initial response is beyond the four-hour target"),
+            "پیگیری فروش سررسیدشده": ("Overdue sales follow-ups", "A form or contract has waited more than one day"),
+            "وظیفه CRM عقب‌افتاده": ("Overdue CRM tasks", "A customer follow-up date has passed"),
+        }
         kinds = {"حساب": "Account", "همکاری": "Enquiry", "کلینیک": "Clinic", "پرداخت": "Payment"}
         for item in metrics:
             if item["label"] in labels:
                 item["label"], item["description"] = labels[item["label"]]
+        for item in sla_cards:
+            if item["label"] in sla_labels:
+                item["label"], item["description"] = sla_labels[item["label"]]
         for item in queues:
             item["kind"] = kinds.get(item["kind"], item["kind"])
+            if item["meta"] == "منتظر فعال‌سازی":
+                item["meta"] = "Awaiting verification"
     recent_customers = Customer.objects.prefetch_related("contacts", "cases").order_by("-updated_at")[:8]
     open_tasks = CaseTask.objects.filter(status="open").select_related("case__customer", "assigned_to").order_by("due_at", "-created_at")[:8]
-    inbox_items = notifications.select_related().filter(status="unread").order_by("-created_at")[:6]
-    return render(request, "management_portal/v2/operations_dashboard.html", {
+    inbox_items = unread_notifications.select_related("owner").order_by("-created_at")[:6]
+    return render(request, "management_portal/v2/dashboard.html", {
         "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
-        "unread_count": notifications.filter(status="unread").count(),
+        "unread_count": unread_count,
         "sla_cards": sla_cards,
         "recent_customers": recent_customers, "open_tasks": open_tasks, "inbox_items": inbox_items,
         "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
@@ -491,6 +513,9 @@ def account_approval(request, user_id, decision):
         raise Http404
     customer = get_object_or_404(User.objects.select_for_update(), pk=user_id, is_staff=False)
     if decision == "approve":
+        if customer.mobile_verified_at is None:
+            messages.error(request, "این حساب هنوز کد تأیید پیامکی را وارد نکرده و قابل فعال‌سازی نیست.")
+            return redirect("management_portal:approvals")
         customer.is_active = True
         customer.email_verified = True
         customer.save(update_fields=["is_active", "email_verified"])
@@ -642,6 +667,17 @@ def _visible_notifications(user):
     return queryset.filter(role__in=roles)
 
 
+def _safe_notification_redirect(request, candidate):
+    fallback = reverse("management_portal:notification_list")
+    if candidate and url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return fallback
+
+
 @staff_member_required(login_url="accounts:login")
 def notification_list(request):
     status, category = request.GET.get("status", ""), request.GET.get("category", "")
@@ -670,14 +706,14 @@ def notification_claim(request, notification_id):
     notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
     if notification.status == "resolved":
         messages.warning(request, "این مورد مختومه شده است.")
-        return redirect(request.POST.get("next") or "management_portal:notification_list")
+        return redirect(_safe_notification_redirect(request, request.POST.get("next")))
     notification.owner = request.user
     if notification.status == "unread":
         notification.status = "read"
     notification.save(update_fields=["owner", "status", "updated_at"])
     OperationalAudit.objects.create(actor=request.user, action="notification_claimed", target_type="management_notification", target_id=str(notification.pk), summary=notification.title)
     messages.success(request, "مسئولیت این مورد به شما واگذار شد.")
-    return redirect(request.POST.get("next") or "management_portal:notification_list")
+    return redirect(_safe_notification_redirect(request, request.POST.get("next")))
 
 
 @staff_member_required(login_url="accounts:login")
@@ -687,7 +723,14 @@ def notification_feed(request):
     if since and since.isdigit():
         queryset = queryset.filter(pk__gt=int(since))
     items = list(queryset.order_by("pk")[:25])
-    return JsonResponse({"notifications": [{"id": item.pk, "title": item.title, "description": item.description, "url": item.target_url} for item in items]})
+    return JsonResponse({"notifications": [{
+        "id": item.pk,
+        "title": item.title,
+        "description": item.description,
+        # Always route through the audited opener.  A stored target URL must
+        # never become a client-side open redirect.
+        "url": reverse("management_portal:notification_open", args=[item.pk]),
+    } for item in items]})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -700,6 +743,20 @@ def push_subscribe(request):
         endpoint, keys = data["endpoint"], data["keys"]
         p256dh, auth = keys["p256dh"], keys["auth"]
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({"ok": False, "error": "invalid_subscription"}, status=400)
+    allowed_suffixes = tuple(getattr(settings, "WEB_PUSH_ALLOWED_HOST_SUFFIXES", ()))
+    try:
+        parsed = urlsplit(endpoint)
+        host = (parsed.hostname or "").lower().rstrip(".")
+        trusted_host = any(host == suffix or host.endswith(f".{suffix}") for suffix in allowed_suffixes)
+        valid_values = all(isinstance(value, str) and 1 <= len(value) <= 255 for value in (p256dh, auth))
+        if (
+            not isinstance(endpoint, str) or len(endpoint) > 1000
+            or parsed.scheme != "https" or not host or parsed.username or parsed.password
+            or not trusted_host or not valid_values
+        ):
+            raise ValueError
+    except (TypeError, ValueError):
         return JsonResponse({"ok": False, "error": "invalid_subscription"}, status=400)
     subscription, _ = PushSubscription.objects.update_or_create(endpoint=endpoint, defaults={"user": request.user, "p256dh": p256dh, "auth": auth, "user_agent": request.META.get("HTTP_USER_AGENT", "")[:240], "is_active": True})
     return JsonResponse({"ok": True, "id": subscription.pk})
@@ -717,7 +774,7 @@ def notification_status(request, notification_id, status):
     else:
         notification.resolved_by, notification.resolved_at = None, None
     notification.save(update_fields=["status", "resolved_by", "resolved_at", "updated_at"])
-    return redirect(request.POST.get("next") or "management_portal:notification_list")
+    return redirect(_safe_notification_redirect(request, request.POST.get("next")))
 
 
 @staff_member_required(login_url="accounts:login")
@@ -733,7 +790,7 @@ def notification_open(request, notification_id):
         "/admin/clinic_orders/clinicorder/": reverse("management_portal:request_list") + "?kind=clinic",
         "/admin/leads/lead/": reverse("management_portal:request_list") + "?kind=lead",
     }
-    return redirect(legacy_targets.get(target, target) or reverse("management_portal:notification_list"))
+    return redirect(_safe_notification_redirect(request, legacy_targets.get(target, target)))
 
 
 def _require_superuser(request):

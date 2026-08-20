@@ -36,6 +36,8 @@ install -m 0644 "$APP_DIR/ops/arvion-notifications.service" /etc/systemd/system/
 install -m 0644 "$APP_DIR/ops/arvion-notifications.timer" /etc/systemd/system/arvion-notifications.timer
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.service" /etc/systemd/system/arvion-healthcheck.service
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.timer" /etc/systemd/system/arvion-healthcheck.timer
+install -m 0644 "$APP_DIR/ops/arvion-system-log-cleanup.service" /etc/systemd/system/arvion-system-log-cleanup.service
+install -m 0644 "$APP_DIR/ops/arvion-system-log-cleanup.timer" /etc/systemd/system/arvion-system-log-cleanup.timer
 install -m 0750 "$APP_DIR/ops/backup-local.sh" /usr/local/sbin/arvion-backup-local
 install -m 0644 "$APP_DIR/ops/arvion-backup.service" /etc/systemd/system/arvion-backup.service
 install -m 0644 "$APP_DIR/ops/arvion-backup.timer" /etc/systemd/system/arvion-backup.timer
@@ -47,7 +49,7 @@ sudo -u "$APP_USER" env APP_DIR="$APP_DIR" ENV_FILE="$ENV_FILE" "$APP_DIR/ops/re
 find "$APP_DIR/staticfiles" -type d -exec chmod 755 {} +
 find "$APP_DIR/staticfiles" -type f -exec chmod 644 {} +
 systemctl daemon-reload
-systemctl enable --now arvion.service arvion-traffic-cleanup.timer arvion-notifications.timer arvion-healthcheck.timer arvion-backup.timer nginx
+systemctl enable --now arvion.service arvion-traffic-cleanup.timer arvion-notifications.timer arvion-healthcheck.timer arvion-system-log-cleanup.timer arvion-backup.timer nginx
 nginx -t
 systemctl reload nginx
 set -a

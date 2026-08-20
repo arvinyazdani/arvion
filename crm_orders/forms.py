@@ -1,6 +1,7 @@
 from django import forms
 
 from core.i18n_numbers import normalize_digits
+from core.form_accessibility import enhance_form_accessibility
 from .models import CrmOrder
 
 
@@ -114,6 +115,11 @@ class CrmOrderForm(forms.ModelForm):
         self.fields["ai_use_cases"].help_text = "انتخاب AI به معنی پیشنهاد قطعی آن نیست؛ هزینه، محرمانگی و دقت در جلسه بررسی می‌شود."
         for name in ("current_process", "main_pain_points", "critical_workflows", "decision_process"):
             self.fields[name].help_text = "حداقل ۲۰ کاراکتر؛ یک توضیح کوتاه و واقعی کافی است."
+        self.fields["phone"].widget.attrs["inputmode"] = "tel"
+        enhance_form_accessibility(self, autocomplete={
+            "organization_name": "organization", "website": "url", "contact_name": "name",
+            "job_title": "organization-title", "work_email": "email", "phone": "tel",
+        })
 
     def clean_company_fax(self):
         if self.cleaned_data.get("company_fax"):

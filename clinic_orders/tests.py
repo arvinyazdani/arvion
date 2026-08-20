@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils import translation
 
 from accounts.models import User
 from .forms import ClinicOrderForm
@@ -27,6 +28,7 @@ def valid_payload():
 class ClinicOrderTests(TestCase):
     def setUp(self):
         cache.clear()
+        translation.activate("fa")
 
     def test_wizard_is_public_and_has_five_accessible_steps(self):
         response = self.client.get(reverse("clinic_orders:create"))
@@ -38,6 +40,10 @@ class ClinicOrderTests(TestCase):
         self.assertContains(response, "crm-options")
         self.assertContains(response, 'aria-label="مراحل نیازسنجی کلینیک"', html=False)
         self.assertEqual(response.content.decode().count("data-step-indicator="), 6)
+
+    def test_english_url_redirects_to_persian_until_form_copy_is_translated(self):
+        response = self.client.get("/en/clinic-order/")
+        self.assertRedirects(response, "/fa/clinic-order/", fetch_redirect_response=False)
 
     def test_valid_submission_persists_and_returns_tracking_code(self):
         response = self.client.post(reverse("clinic_orders:create"), valid_payload(), follow=True)
@@ -66,6 +72,13 @@ class ClinicOrderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(ClinicOrder.objects.exists())
         self.assertContains(response, 'data-error-step="4"', html=False)
+        self.assertContains(response, 'aria-invalid="true"', html=False)
+        self.assertContains(response, 'href="#id_appointment_rules"', html=False)
+
+    def test_checkbox_groups_have_accessible_group_semantics(self):
+        response = self.client.get(reverse("clinic_orders:create"))
+        self.assertContains(response, '<fieldset class="field crm-options" data-field-name="primary_goals" aria-required="true">', html=False)
+        self.assertContains(response, "<legend>هدف‌های اصلی پروژه", html=False)
 
     def test_internal_webinar_requires_capacity(self):
         payload = valid_payload()

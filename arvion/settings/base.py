@@ -6,6 +6,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-local-arvion-key")
 DEBUG = False
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
+TRUSTED_PROXY_IPS = {
+    value.strip() for value in os.getenv("TRUSTED_PROXY_IPS", "127.0.0.1,::1").split(",") if value.strip()
+}
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -33,6 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "core.middleware.SecurityResponseHeadersMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -98,6 +102,19 @@ AUTH_LOGIN_WINDOW_SECONDS = int(os.getenv("AUTH_LOGIN_WINDOW_SECONDS", "900"))
 AUTH_EMAIL_REQUESTS = int(os.getenv("AUTH_EMAIL_REQUESTS", "4"))
 AUTH_EMAIL_WINDOW_SECONDS = int(os.getenv("AUTH_EMAIL_WINDOW_SECONDS", "3600"))
 CONTRACT_ACCESS_PASSWORD = os.getenv("CONTRACT_ACCESS_PASSWORD", "")
+CONTRACT_ACCESS_ATTEMPTS = int(os.getenv("CONTRACT_ACCESS_ATTEMPTS", "5"))
+CONTRACT_ACCESS_WINDOW_SECONDS = int(os.getenv("CONTRACT_ACCESS_WINDOW_SECONDS", "900"))
+CONTENT_SECURITY_POLICY = os.getenv(
+    "CONTENT_SECURITY_POLICY",
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; "
+    "form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; "
+    "worker-src 'self'",
+)
+PERMISSIONS_POLICY = os.getenv(
+    "PERMISSIONS_POLICY",
+    "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+)
 
 # SMS delivery. The console backend is intentionally the safe local/test default.
 SMS_BACKEND = os.getenv("SMS_BACKEND", "core.sms.backends.ConsoleSMSBackend")
@@ -111,12 +128,21 @@ MANAGEMENT_ALERT_SMS_RECIPIENTS = [value.strip() for value in os.getenv("MANAGEM
 WEB_PUSH_VAPID_PRIVATE_KEY = os.getenv("WEB_PUSH_VAPID_PRIVATE_KEY", "")
 WEB_PUSH_VAPID_PUBLIC_KEY = os.getenv("WEB_PUSH_VAPID_PUBLIC_KEY", "")
 WEB_PUSH_VAPID_SUBJECT = os.getenv("WEB_PUSH_VAPID_SUBJECT", "mailto:admin@rvionai.com")
+WEB_PUSH_ALLOWED_HOST_SUFFIXES = tuple(
+    value.strip().lower().rstrip(".")
+    for value in os.getenv(
+        "WEB_PUSH_ALLOWED_HOST_SUFFIXES",
+        "fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com",
+    ).split(",")
+    if value.strip()
+)
 MANAGEMENT_REMINDER_SECONDS = int(os.getenv("MANAGEMENT_REMINDER_SECONDS", "3600"))
 PAYMENT_REVIEW_SLA_SECONDS = int(os.getenv("PAYMENT_REVIEW_SLA_SECONDS", "1800"))
 SUPPORT_FIRST_RESPONSE_SLA_SECONDS = int(os.getenv("SUPPORT_FIRST_RESPONSE_SLA_SECONDS", "14400"))
 SALES_FOLLOW_UP_SLA_SECONDS = int(os.getenv("SALES_FOLLOW_UP_SLA_SECONDS", "86400"))
 OPERATIONS_DISK_ALERT_PERCENT = int(os.getenv("OPERATIONS_DISK_ALERT_PERCENT", "85"))
 OPERATIONS_BACKUP_MAX_AGE_HOURS = int(os.getenv("OPERATIONS_BACKUP_MAX_AGE_HOURS", "26"))
+SYSTEM_LOG_RETENTION_DAYS = int(os.getenv("SYSTEM_LOG_RETENTION_DAYS", "90"))
 OTP_TTL_SECONDS = int(os.getenv("OTP_TTL_SECONDS", "300"))
 OTP_RESEND_SECONDS = int(os.getenv("OTP_RESEND_SECONDS", "120"))
 OTP_REQUEST_LIMIT = int(os.getenv("OTP_REQUEST_LIMIT", "3"))

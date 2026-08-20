@@ -8,12 +8,12 @@ from django.contrib.auth.views import (
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
-from datetime import timedelta
 from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -26,7 +26,7 @@ from core.sms.backends import normalize_iran_mobile
 
 from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import PhoneVerification, User
-from .services import issue_phone_verification, send_verification_email
+from .services import issue_phone_verification
 from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
 
@@ -157,9 +157,21 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
                 messages.error(self.request, "ارسال پیامک ممکن نشد. اتصال را بررسی و دوباره تلاش کنید." if self.lang == "fa" else "We could not send the SMS. Check your connection and try again.")
         return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
 
+    @transaction.atomic
     def form_valid(self, form):
-        user = self._user()
-        challenge = user.phone_verifications.first()
+        user_id = self.request.session.get("phone_verification_user_id")
+        user = User.objects.select_for_update().filter(
+            pk=user_id, is_active=False, mobile_verified_at__isnull=True,
+        ).first()
+        if user is None:
+            messages.info(
+                self.request,
+                "این ثبت‌نام قبلاً تأیید شده یا دیگر معتبر نیست."
+                if self.lang == "fa" else
+                "This signup was already verified or is no longer valid.",
+            )
+            return redirect(f"{reverse('accounts:login')}?lang={self.lang}")
+        challenge = user.phone_verifications.select_for_update().first()
         if not challenge or challenge.expires_at <= timezone.now():
             form.add_error("code", "کد منقضی شده است؛ کد جدید بگیرید." if self.lang == "fa" else "This code has expired. Request a new one.")
             return self.form_invalid(form)
@@ -206,20 +218,9 @@ class ResendVerificationView(LanguageViewMixin, FormView):
 
     def form_valid(self, form):
         email = form.cleaned_data["email"]
-        if settings.MANUAL_ACCOUNT_APPROVAL:
-            self.request.session["verification_email"] = email
-            return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}")
-        throttle = AttemptThrottle(
-            "verification", self.request, email,
-            settings.AUTH_EMAIL_REQUESTS, settings.AUTH_EMAIL_WINDOW_SECONDS,
-        )
-        if throttle.blocked():
-            return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}&resent=1")
-        throttle.failure()
-        user = User.objects.filter(email__iexact=email, is_active=False, email_verified=False).first()
-        threshold = timezone.now() - timedelta(seconds=settings.EMAIL_VERIFICATION_RESEND_SECONDS)
-        if user and (user.verification_sent_at is None or user.verification_sent_at <= threshold):
-            send_verification_email(user, self.request, self.lang)
+        # Email activation is retained only as a generic legacy landing page.
+        # Account activation always requires the SMS flow bound to the pending
+        # registration session; an email link must never bypass mobile proof.
         self.request.session["verification_email"] = email
         return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}&resent=1")
 
@@ -357,6 +358,8 @@ def verify_email(request, uidb64, token):
     except (ValueError, TypeError, OverflowError):
         user = None
     if user and default_token_generator.check_token(user, token):
+        if user.mobile_verified_at is None:
+            return render(request, "accounts/verification_invalid.html", {"lang": lang}, status=400)
         user.email_verified = True
         user.is_active = True
         user.save(update_fields=["email_verified", "is_active"])

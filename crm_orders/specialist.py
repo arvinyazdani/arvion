@@ -46,3 +46,17 @@ SECTIONS = [
         ("changes", "درخواست تغییر بعد از تحویل چگونه قیمت‌گذاری شود؟", "چه کسی از طرف مشتری مجاز به ثبت تغییر است؟"),
     ]),
 ]
+
+
+def is_specialist_discovery_complete(discovery):
+    """Validate completion from the question schema, never from status alone."""
+    answers = discovery.answers if discovery and isinstance(discovery.answers, dict) else {}
+    for section_key, _title, _description, questions in SECTIONS:
+        section_answers = answers.get(section_key)
+        if not isinstance(section_answers, dict):
+            return False
+        for key, _question, _help_text in questions:
+            value = section_answers.get(key)
+            if not isinstance(value, str) or not value.strip():
+                return False
+    return True

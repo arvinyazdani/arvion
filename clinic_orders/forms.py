@@ -1,6 +1,7 @@
 from django import forms
 
 from core.i18n_numbers import normalize_digits
+from core.form_accessibility import enhance_form_accessibility
 from .models import ClinicOrder
 
 
@@ -88,6 +89,10 @@ class ClinicOrderForm(forms.ModelForm):
             self.fields[name].widget.attrs["placeholder"] = placeholder
         self.fields["work_email"].widget.attrs["autocomplete"] = "email"
         self.fields["phone"].widget.attrs.update({"autocomplete": "tel", "inputmode": "tel"})
+        enhance_form_accessibility(self, autocomplete={
+            "clinic_name": "organization", "website": "url", "contact_name": "name",
+            "job_title": "organization-title", "work_email": "email", "phone": "tel",
+        })
 
     def clean_company_fax(self):
         if self.cleaned_data.get("company_fax"):
