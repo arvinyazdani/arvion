@@ -6,10 +6,12 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.cache import patch_cache_control
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.conf import settings
@@ -18,9 +20,11 @@ from accounts.security import AttemptThrottle, client_address
 from core.models import CompanyProfile
 from crm_orders.models import CrmSpecialistDiscovery
 from crm_orders.specialist import is_specialist_discovery_complete
-from .forms import ClauseSelectionForm, ContractAccessForm, ContractReviewForm, ContractSettingsForm, OtpRequestForm, ProposalForm
-from .models import ContractAcceptance, ContractClause, ContractProposal, ContractReview, ContractRoomAcknowledgement
+from .forms import ClauseSelectionForm, ContractAccessForm, ContractReviewForm, ContractSettingsForm, DynamicQuestionnaireSectionForm, OtpRequestForm, ProposalForm
+from .models import ContractAcceptance, ContractClause, ContractProposal, ContractReview, ContractRoomAcknowledgement, RoomAccessGrant, SpecialistAssignment
+from .questionnaires import clean_answer, clean_section_answers, completion, merge_section_answers, normalize_schema, section_for_key
 from .services import add_default_clauses, proposal_snapshot, publish_version
+from .workspace_services import log_room_event
 
 
 STATUS_LABELS_EN = {
@@ -31,6 +35,8 @@ STATUS_LABELS_EN = {
     "expired": "Expired",
     "revoked": "Revoked",
 }
+
+QUESTIONNAIRE_AUTOSAVE_MAX_BYTES = 16 * 1024
 
 
 def _request_language(request):
@@ -54,8 +60,49 @@ def _version_phone(proposal, version):
     return str((version.snapshot or {}).get("customer_phone") or proposal.customer_phone)
 
 
+def _session_key(version):
+    return f"contract-access:{version.pk}"
+
+
+def _session_grant(request, proposal, version):
+    """Resolve a version-bound room session, including legacy phone sessions."""
+
+    value = request.session.get(_session_key(version), "")
+    if isinstance(value, str) and value.startswith("grant:"):
+        try:
+            _prefix, grant_id, credential_version = value.split(":", 2)
+            grant = RoomAccessGrant.objects.get(
+                pk=int(grant_id),
+                proposal=proposal,
+                credential_version=int(credential_version),
+                is_active=True,
+            )
+        except (RoomAccessGrant.DoesNotExist, TypeError, ValueError):
+            return None
+        if not grant.is_available:
+            return None
+        return grant
+    # Compatibility for links that were authenticated before per-room grants
+    # existed. Once a proposal has any grant, only a grant session is valid.
+    if not proposal.access_grants.exists() and value == _version_phone(proposal, version):
+        return "legacy"
+    return None
+
+
+def _has_room_access(request, proposal, version):
+    return _session_grant(request, proposal, version) is not None
+
+
+def _session_phone(request, proposal, version):
+    grant = _session_grant(request, proposal, version)
+    return grant.authorized_phone if grant not in (None, "legacy") else _version_phone(proposal, version)
+
+
 def _linked_discovery_state(proposal):
     """Return the linked CRM discovery and whether the contract may proceed."""
+    assignment = SpecialistAssignment.objects.filter(proposal=proposal).select_related("version").first()
+    if assignment:
+        return assignment, completion(assignment.version.schema, assignment.answers)["is_complete"]
     if not proposal.crm_order_id:
         return None, True
     discovery = CrmSpecialistDiscovery.objects.filter(
@@ -70,6 +117,18 @@ def _linked_discovery_state(proposal):
 
 
 def _discovery_evidence(proposal):
+    assignment = SpecialistAssignment.objects.filter(proposal=proposal).select_related("version__template").first()
+    if assignment:
+        return {
+            "assignment_id": assignment.pk,
+            "template": assignment.version.template.slug,
+            "template_version": assignment.version.number,
+            "schema_hash": assignment.version.schema_hash,
+            "status": assignment.status,
+            "revision": assignment.revision,
+            "answers": assignment.answers,
+            "updated_at": assignment.updated_at.isoformat(),
+        }
     discovery = CrmSpecialistDiscovery.objects.filter(
         order_id=proposal.crm_order_id,
     ).first() if proposal.crm_order_id else None
@@ -82,6 +141,100 @@ def _discovery_evidence(proposal):
         "answers": discovery.answers,
         "updated_at": discovery.updated_at.isoformat(),
     }
+
+
+def _questionnaire_locked(version):
+    return hasattr(version, "acceptance") or version.room_acknowledgements.exists()
+
+
+def _private_response(response):
+    """Keep customer-room data out of browser and intermediary caches."""
+
+    patch_cache_control(
+        response,
+        private=True,
+        no_cache=True,
+        no_store=True,
+        must_revalidate=True,
+        max_age=0,
+    )
+    response["Pragma"] = "no-cache"
+    return response
+
+
+def _questionnaire_section_index(schema, progress, section_key):
+    completed = set(progress["completed_sections"])
+    first_pending = next(
+        (index for index, item in enumerate(schema) if item["key"] not in completed),
+        len(schema),
+    )
+    current = next(
+        (index for index, item in enumerate(schema) if item["key"] == section_key),
+        None,
+    )
+    if current is None:
+        raise Http404
+    return current, first_pending
+
+
+def _questionnaire_section_url(proposal, section_key):
+    return reverse(
+        "contracts:customer_questionnaire_section",
+        args=[proposal.token, section_key],
+    )
+
+
+def _questionnaire_context(proposal, version, assignment, section, form, *, locked=False):
+    schema = normalize_schema(assignment.version.schema)
+    progress = completion(schema, assignment.answers)
+    current_index, first_pending = _questionnaire_section_index(
+        schema,
+        progress,
+        section["key"],
+    )
+    completed = set(progress["completed_sections"])
+    navigation = []
+    for index, item in enumerate(schema):
+        navigation.append({
+            "key": item["key"],
+            "title": item["title"],
+            "number": index + 1,
+            "is_current": item["key"] == section["key"],
+            "is_complete": item["key"] in completed,
+            # Completed sections remain reviewable.  A new section is opened only
+            # after every preceding required section has been completed.
+            "is_available": locked or item["key"] in completed or index <= first_pending,
+            "url": _questionnaire_section_url(proposal, item["key"]),
+        })
+    return {
+        "proposal": proposal,
+        "version": version,
+        "assignment": assignment,
+        "section": section,
+        "section_number": current_index + 1,
+        "section_count": len(schema),
+        "form": form,
+        "progress": progress,
+        "navigation": navigation,
+        "previous_section": schema[current_index - 1] if current_index else None,
+        "next_section": schema[current_index + 1] if current_index + 1 < len(schema) else None,
+        "locked": locked,
+        "autosave_url": reverse("contracts:questionnaire_autosave", args=[proposal.token]),
+    }
+
+
+def _room_proposal_version(request, token, *, lock=False):
+    proposal_queryset = ContractProposal.objects.select_for_update() if lock else ContractProposal.objects
+    proposal = get_object_or_404(proposal_queryset, token=token)
+    if not proposal.is_publicly_available or not proposal.current_version:
+        raise Http404
+    version_queryset = proposal.versions.select_for_update() if lock else proposal.versions
+    version = version_queryset.get(number=proposal.current_version)
+    if not _has_room_access(request, proposal, version):
+        return proposal, version, None
+    assignment_queryset = SpecialistAssignment.objects.select_for_update() if lock else SpecialistAssignment.objects
+    assignment = get_object_or_404(assignment_queryset.select_related("version__template"), proposal=proposal)
+    return proposal, version, assignment
 
 
 def _manager_url(request, old_name, new_name, *args):
@@ -258,15 +411,514 @@ def public_contract(request, token):
     if not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
+    if not _has_room_access(request, proposal, version):
         return redirect("contracts:contract_access", token=token)
     discovery, discovery_complete = _linked_discovery_state(proposal)
+    assignment = discovery if isinstance(discovery, SpecialistAssignment) else None
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
     acceptance = getattr(version, "acceptance", None)
-    ready_to_confirm = acceptance is None and acknowledgements == {"general", "private"} and (
-        not proposal.crm_order_id or discovery_complete
+    ready_to_confirm = acceptance is None and acknowledgements == {"general", "private"} and discovery_complete
+    return render(request, "contracts/contract_room.html", {
+        "proposal": proposal,
+        "version": version,
+        "discovery": discovery,
+        "assignment": assignment,
+        "discovery_complete": discovery_complete,
+        "questionnaire_progress": completion(assignment.version.schema, assignment.answers) if assignment else None,
+        "acknowledgements": acknowledgements,
+        "acceptance": acceptance,
+        "ready_to_confirm": ready_to_confirm,
+    })
+
+
+def _first_questionnaire_section(schema, progress):
+    completed = set(progress["completed_sections"])
+    return next(
+        (item for item in schema if item["key"] not in completed),
+        schema[0],
     )
-    return render(request, "contracts/contract_room.html", {"proposal": proposal, "version": version, "discovery": discovery, "discovery_complete": discovery_complete, "acknowledgements": acknowledgements, "acceptance": acceptance, "ready_to_confirm": ready_to_confirm})
+
+
+def _render_questionnaire(
+    request,
+    proposal,
+    version,
+    assignment,
+    section,
+    *,
+    form=None,
+    status=200,
+    server_conflict=False,
+):
+    section_answers = (assignment.answers or {}).get(section["key"], {})
+    if form is None:
+        form = DynamicQuestionnaireSectionForm(
+            section=section,
+            initial=section_answers if isinstance(section_answers, dict) else {},
+        )
+    locked = _questionnaire_locked(version)
+    if locked:
+        for field in form.fields.values():
+            field.disabled = True
+    context = _questionnaire_context(
+        proposal,
+        version,
+        assignment,
+        section,
+        form,
+        locked=locked,
+    )
+    context["server_conflict"] = server_conflict
+    response = render(
+        request,
+        "contracts/customer_questionnaire.html",
+        context,
+        status=status,
+    )
+    return _private_response(response)
+
+
+def _questionnaire_access_redirect(proposal):
+    return redirect("contracts:contract_access", token=proposal.token)
+
+
+@never_cache
+def customer_questionnaire(request, token, section_key=None):
+    """Render and save one ordered section of the frozen specialist form."""
+
+    if request.method not in {"GET", "POST"}:
+        response = JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+        response["Allow"] = "GET, POST"
+        return _private_response(response)
+
+    if request.method == "POST":
+        with transaction.atomic():
+            proposal, version, assignment = _room_proposal_version(
+                request,
+                token,
+                lock=True,
+            )
+            if assignment is None:
+                return _questionnaire_access_redirect(proposal)
+            schema = normalize_schema(assignment.version.schema)
+            progress = completion(schema, assignment.answers)
+            if section_key is None:
+                return redirect(
+                    _questionnaire_section_url(
+                        proposal,
+                        _first_questionnaire_section(schema, progress)["key"],
+                    )
+                )
+            try:
+                section = section_for_key(schema, section_key)
+            except ValidationError as exc:
+                raise Http404 from exc
+            current_index, first_pending = _questionnaire_section_index(
+                schema,
+                progress,
+                section_key,
+            )
+            if (
+                not progress["is_complete"]
+                and section_key not in set(progress["completed_sections"])
+                and current_index > first_pending
+            ):
+                messages.info(request, "ابتدا بخش قبلی فرم را کامل کنید.")
+                return redirect(
+                    _questionnaire_section_url(proposal, schema[first_pending]["key"])
+                )
+            if _questionnaire_locked(version):
+                messages.info(
+                    request,
+                    "پس از ثبت مطالعه اسناد قرارداد، پاسخ‌های فرم فقط قابل مشاهده‌اند.",
+                )
+                return redirect(_questionnaire_section_url(proposal, section_key))
+
+            form = DynamicQuestionnaireSectionForm(request.POST, section=section)
+            try:
+                submitted_revision = int(request.POST.get("revision", ""))
+                if submitted_revision < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                submitted_revision = None
+                form.add_error(None, "نسخه ذخیره فرم معتبر نیست؛ صفحه را تازه‌سازی کنید.")
+
+            if submitted_revision is not None and submitted_revision != assignment.revision:
+                form.add_error(
+                    None,
+                    "پاسخ‌های این فرم در دستگاه یا صفحه دیگری تغییر کرده‌اند. برای جلوگیری از حذف اطلاعات، صفحه را تازه‌سازی کنید.",
+                )
+                session_grant = _session_grant(request, proposal, version)
+                log_room_event(
+                    proposal,
+                    "form_conflict",
+                    request=request,
+                    access_grant=session_grant if session_grant != "legacy" else None,
+                    assignment=assignment,
+                    metadata={
+                        "section": section_key,
+                        "client_revision": submitted_revision,
+                        "server_revision": assignment.revision,
+                        "source": "section_submit",
+                    },
+                )
+                return _render_questionnaire(
+                    request,
+                    proposal,
+                    version,
+                    assignment,
+                    section,
+                    form=form,
+                    status=409,
+                    server_conflict=True,
+                )
+
+            if form.is_valid() and submitted_revision is not None:
+                values = {
+                    question["key"]: form.cleaned_data.get(question["key"])
+                    for question in section["questions"]
+                }
+                try:
+                    cleaned = clean_section_answers(
+                        schema,
+                        section_key,
+                        values,
+                        enforce_required=True,
+                    )
+                except ValidationError as exc:
+                    form.add_error(None, "; ".join(exc.messages))
+                    return _render_questionnaire(
+                        request,
+                        proposal,
+                        version,
+                        assignment,
+                        section,
+                        form=form,
+                        status=400,
+                    )
+                was_complete = completion(schema, assignment.answers)["is_complete"]
+                now = timezone.now()
+                assignment.answers = merge_section_answers(
+                    assignment.answers,
+                    section_key,
+                    cleaned,
+                )
+                assignment.progress = completion(schema, assignment.answers)
+                assignment.revision += 1
+                assignment.started_at = assignment.started_at or now
+                assignment.last_saved_at = now
+                assignment.status = "submitted" if assignment.progress["is_complete"] else "draft"
+                assignment.submitted_at = (
+                    assignment.submitted_at or now
+                    if assignment.progress["is_complete"]
+                    else None
+                )
+                assignment.reviewed_at = None
+                assignment.save(update_fields=(
+                    "answers",
+                    "progress",
+                    "revision",
+                    "started_at",
+                    "last_saved_at",
+                    "status",
+                    "submitted_at",
+                    "reviewed_at",
+                    "updated_at",
+                ))
+                session_grant = _session_grant(request, proposal, version)
+                event_kwargs = {
+                    "request": request,
+                    "access_grant": session_grant if session_grant != "legacy" else None,
+                    "assignment": assignment,
+                }
+                log_room_event(
+                    proposal,
+                    "form_saved",
+                    metadata={
+                        "section": section_key,
+                        "revision": assignment.revision,
+                        "source": "section_submit",
+                    },
+                    **event_kwargs,
+                )
+                if assignment.progress["is_complete"] and not was_complete:
+                    log_room_event(
+                        proposal,
+                        "form_submitted",
+                        metadata={"revision": assignment.revision},
+                        **event_kwargs,
+                    )
+                    messages.success(
+                        request,
+                        "فرم تخصصی کامل و ذخیره شد. اکنون شرایط عمومی پیمان را بررسی کنید.",
+                    )
+                    return redirect("contracts:public_contract", token=proposal.token)
+
+                next_index = current_index + 1
+                messages.success(request, "پاسخ‌های این بخش با موفقیت ذخیره شد.")
+                if next_index < len(schema):
+                    return redirect(
+                        _questionnaire_section_url(proposal, schema[next_index]["key"])
+                    )
+                return redirect("contracts:public_contract", token=proposal.token)
+
+            return _render_questionnaire(
+                request,
+                proposal,
+                version,
+                assignment,
+                section,
+                form=form,
+                status=400,
+            )
+
+    proposal, version, assignment = _room_proposal_version(request, token)
+    if assignment is None:
+        return _questionnaire_access_redirect(proposal)
+    schema = normalize_schema(assignment.version.schema)
+    progress = completion(schema, assignment.answers)
+    if section_key is None:
+        return redirect(
+            _questionnaire_section_url(
+                proposal,
+                _first_questionnaire_section(schema, progress)["key"],
+            )
+        )
+    try:
+        section = section_for_key(schema, section_key)
+    except ValidationError as exc:
+        raise Http404 from exc
+    current_index, first_pending = _questionnaire_section_index(
+        schema,
+        progress,
+        section_key,
+    )
+    if (
+        not _questionnaire_locked(version)
+        and not progress["is_complete"]
+        and section_key not in set(progress["completed_sections"])
+        and current_index > first_pending
+    ):
+        messages.info(request, "ابتدا بخش قبلی فرم را کامل کنید.")
+        return redirect(_questionnaire_section_url(proposal, schema[first_pending]["key"]))
+    return _render_questionnaire(
+        request,
+        proposal,
+        version,
+        assignment,
+        section,
+    )
+
+
+def _json_private(payload, *, status=200):
+    return _private_response(JsonResponse(payload, status=status))
+
+
+@never_cache
+@require_POST
+def questionnaire_autosave(request, token):
+    """Persist one whitelisted answer with optimistic concurrency control."""
+
+    try:
+        content_length = int(request.META.get("CONTENT_LENGTH") or 0)
+    except (TypeError, ValueError):
+        content_length = 0
+    if content_length > QUESTIONNAIRE_AUTOSAVE_MAX_BYTES:
+        return _json_private(
+            {"ok": False, "code": "payload_too_large", "message": "حجم پاسخ بیش از حد مجاز است."},
+            status=413,
+        )
+    if request.content_type != "application/json":
+        return _json_private(
+            {"ok": False, "code": "invalid_content_type", "message": "نوع درخواست معتبر نیست."},
+            status=415,
+        )
+    try:
+        raw_body = request.body
+        if len(raw_body) > QUESTIONNAIRE_AUTOSAVE_MAX_BYTES:
+            raise OverflowError
+        payload = json.loads(raw_body.decode("utf-8"))
+    except OverflowError:
+        return _json_private(
+            {"ok": False, "code": "payload_too_large", "message": "حجم پاسخ بیش از حد مجاز است."},
+            status=413,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return _json_private(
+            {"ok": False, "code": "invalid_json", "message": "ساختار درخواست معتبر نیست."},
+            status=400,
+        )
+
+    allowed_keys = {"section", "field", "value", "revision"}
+    if not isinstance(payload, dict) or set(payload) != allowed_keys:
+        return _json_private(
+            {"ok": False, "code": "invalid_payload", "message": "فیلدهای درخواست معتبر نیستند."},
+            status=400,
+        )
+    section_key = payload.get("section")
+    field_key = payload.get("field")
+    revision = payload.get("revision")
+    if (
+        not isinstance(section_key, str)
+        or not isinstance(field_key, str)
+        or isinstance(revision, bool)
+        or not isinstance(revision, int)
+        or revision < 0
+    ):
+        return _json_private(
+            {"ok": False, "code": "invalid_payload", "message": "فیلدهای درخواست معتبر نیستند."},
+            status=400,
+        )
+
+    with transaction.atomic():
+        proposal, version, assignment = _room_proposal_version(request, token, lock=True)
+        if assignment is None:
+            return _json_private({
+                "ok": False,
+                "code": "authentication_required",
+                "message": "نشست شما پایان یافته است؛ دوباره وارد شوید.",
+                "redirect": reverse("contracts:contract_access", args=[proposal.token]),
+            }, status=401)
+        schema = normalize_schema(assignment.version.schema)
+        try:
+            section = section_for_key(schema, section_key)
+        except ValidationError:
+            return _json_private(
+                {"ok": False, "code": "unknown_section", "message": "بخش فرم معتبر نیست."},
+                status=400,
+            )
+        question = next(
+            (item for item in section["questions"] if item["key"] == field_key),
+            None,
+        )
+        if question is None:
+            return _json_private(
+                {"ok": False, "code": "unknown_field", "message": "سؤال انتخاب‌شده معتبر نیست."},
+                status=400,
+            )
+        existing_progress = completion(schema, assignment.answers)
+        current_index, first_pending = _questionnaire_section_index(
+            schema,
+            existing_progress,
+            section_key,
+        )
+        if (
+            not existing_progress["is_complete"]
+            and section_key not in set(existing_progress["completed_sections"])
+            and current_index > first_pending
+        ):
+            return _json_private({
+                "ok": False,
+                "code": "section_locked",
+                "message": "ابتدا بخش قبلی فرم را کامل کنید.",
+            }, status=403)
+        if _questionnaire_locked(version):
+            return _json_private({
+                "ok": False,
+                "code": "questionnaire_locked",
+                "message": "پس از ثبت مطالعه قرارداد، فرم فقط قابل مشاهده است.",
+            }, status=423)
+        if revision != assignment.revision:
+            session_grant = _session_grant(request, proposal, version)
+            log_room_event(
+                proposal,
+                "form_conflict",
+                request=request,
+                access_grant=session_grant if session_grant != "legacy" else None,
+                assignment=assignment,
+                metadata={
+                    "section": section_key,
+                    "field": field_key,
+                    "client_revision": revision,
+                    "server_revision": assignment.revision,
+                    "source": "autosave",
+                },
+            )
+            server_section = (assignment.answers or {}).get(section_key, {})
+            return _json_private({
+                "ok": False,
+                "code": "revision_conflict",
+                "message": "فرم در دستگاه دیگری تغییر کرده است؛ نسخه ذخیره‌شده را تازه‌سازی کنید.",
+                "revision": assignment.revision,
+                "server_value": server_section.get(field_key) if isinstance(server_section, dict) else None,
+                "progress": completion(schema, assignment.answers),
+            }, status=409)
+        try:
+            cleaned_value = clean_answer(
+                question,
+                payload.get("value"),
+                enforce_required=False,
+            )
+        except ValidationError as exc:
+            return _json_private({
+                "ok": False,
+                "code": "invalid_answer",
+                "message": "; ".join(exc.messages),
+            }, status=400)
+
+        was_complete = existing_progress["is_complete"]
+        section_answers = (assignment.answers or {}).get(section_key, {})
+        section_answers = dict(section_answers) if isinstance(section_answers, dict) else {}
+        section_answers[field_key] = cleaned_value
+        assignment.answers = merge_section_answers(
+            assignment.answers,
+            section_key,
+            section_answers,
+        )
+        assignment.progress = completion(schema, assignment.answers)
+        now = timezone.now()
+        assignment.revision += 1
+        assignment.started_at = assignment.started_at or now
+        assignment.last_saved_at = now
+        assignment.status = "submitted" if assignment.progress["is_complete"] else "draft"
+        assignment.submitted_at = (
+            assignment.submitted_at or now
+            if assignment.progress["is_complete"]
+            else None
+        )
+        assignment.reviewed_at = None
+        assignment.save(update_fields=(
+            "answers",
+            "progress",
+            "revision",
+            "started_at",
+            "last_saved_at",
+            "status",
+            "submitted_at",
+            "reviewed_at",
+            "updated_at",
+        ))
+        session_grant = _session_grant(request, proposal, version)
+        event_kwargs = {
+            "request": request,
+            "access_grant": session_grant if session_grant != "legacy" else None,
+            "assignment": assignment,
+        }
+        log_room_event(
+            proposal,
+            "form_saved",
+            metadata={
+                "section": section_key,
+                "field": field_key,
+                "revision": assignment.revision,
+                "source": "autosave",
+            },
+            **event_kwargs,
+        )
+        if assignment.progress["is_complete"] and not was_complete:
+            log_room_event(
+                proposal,
+                "form_submitted",
+                metadata={"revision": assignment.revision, "source": "autosave"},
+                **event_kwargs,
+            )
+
+        return _json_private({
+            "ok": True,
+            "revision": assignment.revision,
+            "saved_at": assignment.last_saved_at.isoformat(),
+            "progress": assignment.progress,
+        })
 
 
 @never_cache
@@ -276,7 +928,7 @@ def contract_document(request, token, document=None):
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
-    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
+    if not _has_room_access(request, proposal, version):
         return redirect("contracts:contract_access", token=token)
     if document not in {"general", "private"}:
         return redirect("contracts:public_contract", token=token)
@@ -288,6 +940,17 @@ def contract_document(request, token, document=None):
         messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
         return redirect("contracts:public_contract", token=token)
     if document in {"general", "private"}:
+        event_key = f"contract-document-viewed:{version.pk}:{document}"
+        if not request.session.get(event_key):
+            session_grant = _session_grant(request, proposal, version)
+            log_room_event(
+                proposal,
+                f"{document}_viewed",
+                request=request,
+                access_grant=session_grant if session_grant != "legacy" else None,
+                metadata={"contract_version": version.number},
+            )
+            request.session[event_key] = True
         return render(request, "contracts/public_contract.html", {
             "proposal": proposal, "version": version, "snapshot": version.snapshot,
             "document": document, "terms": version.snapshot.get(f"{document}_terms", ""),
@@ -302,7 +965,7 @@ def contract_acknowledge(request, token, document):
     if document not in {"general", "private"} or not proposal.is_publicly_available or not proposal.current_version:
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
+    if not _has_room_access(request, proposal, version):
         return redirect("contracts:contract_access", token=token)
     _discovery, discovery_complete = _linked_discovery_state(proposal)
     if not discovery_complete:
@@ -317,10 +980,19 @@ def contract_acknowledge(request, token, document):
         messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
         return redirect("contracts:public_contract", token=token)
     ip = client_address(request)
-    ContractRoomAcknowledgement.objects.get_or_create(
+    _acknowledgement, created = ContractRoomAcknowledgement.objects.get_or_create(
         version=version, document=document,
         defaults={"ip_hash": hashlib.sha256(ip.encode()).hexdigest() if ip else "", "user_agent": request.META.get("HTTP_USER_AGENT", "")[:240]},
     )
+    if created:
+        session_grant = _session_grant(request, proposal, version)
+        log_room_event(
+            proposal,
+            f"{document}_accepted",
+            request=request,
+            access_grant=session_grant if session_grant != "legacy" else None,
+            metadata={"contract_version": version.number},
+        )
     messages.success(request, f"بررسی «{'شرایط عمومی پیمان' if document == 'general' else 'شرایط خصوصی پیمان'}» ثبت شد.")
     return redirect("contracts:public_contract", token=token)
 
@@ -332,7 +1004,16 @@ def contract_logout(request, token):
     if proposal.current_version:
         version = proposal.versions.filter(number=proposal.current_version).first()
         if version:
-            request.session.pop(f"contract-access:{version.pk}", None)
+            session_grant = _session_grant(request, proposal, version)
+            if session_grant:
+                log_room_event(
+                    proposal,
+                    "logout",
+                    request=request,
+                    access_grant=session_grant if session_grant != "legacy" else None,
+                    metadata={"contract_version": version.number},
+                )
+            request.session.pop(_session_key(version), None)
     request.session.modified = True
     messages.success(request, "از اتاق قرارداد خارج شدید.")
     return redirect("contracts:contract_access", token=token)
@@ -345,26 +1026,34 @@ def _acceptance_version(request, token, *, lock=False):
         raise Http404
     version_queryset = proposal.versions.select_for_update() if lock else proposal.versions
     version = version_queryset.get(number=proposal.current_version)
-    if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
+    if not _has_room_access(request, proposal, version):
         messages.info(request, "نسخهٔ پرونده به‌روزرسانی شده است؛ برای ادامه، دوباره وارد پرونده شوید.")
         return proposal, version, "access"
     if hasattr(version, "acceptance"):
         return proposal, version, None
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
+    assignment_queryset = SpecialistAssignment.objects.select_for_update() if lock else SpecialistAssignment.objects
+    assignment = assignment_queryset.select_related("version").filter(proposal=proposal).first()
     discovery = None
-    if proposal.crm_order_id:
+    if assignment:
+        discovery = assignment
+    elif proposal.crm_order_id:
         discovery_queryset = (
             CrmSpecialistDiscovery.objects.select_for_update()
             if lock else CrmSpecialistDiscovery.objects
         )
         discovery = discovery_queryset.filter(order_id=proposal.crm_order_id).first()
-    if acknowledgements != {"general", "private"} or (
-        proposal.crm_order_id and (
-            not discovery
-            or discovery.status not in {"submitted", "reviewed"}
-            or not is_specialist_discovery_complete(discovery)
+    if assignment:
+        discovery_incomplete = not completion(assignment.version.schema, assignment.answers)["is_complete"]
+    else:
+        discovery_incomplete = bool(
+            proposal.crm_order_id and (
+                not discovery
+                or discovery.status not in {"submitted", "reviewed"}
+                or not is_specialist_discovery_complete(discovery)
+            )
         )
-    ):
+    if acknowledgements != {"general", "private"} or discovery_incomplete:
         messages.info(request, "پیش از تأیید نهایی، فرم تخصصی و هر دو سند قرارداد را کامل کنید.")
         return proposal, version, "steps"
     return proposal, version, None
@@ -408,13 +1097,21 @@ def contract_confirm(request, token):
     ).hexdigest()
     ip = client_address(request)
     ContractAcceptance.objects.create(
-        version=version, verified_phone=_version_phone(proposal, version), provider_reference="",
+        version=version, verified_phone=_session_phone(request, proposal, version), provider_reference="",
         discovery_snapshot=discovery_snapshot, evidence_hash=evidence_hash,
         ip_hash=hashlib.sha256(ip.encode()).hexdigest() if ip else "", user_agent=request.META.get("HTTP_USER_AGENT", "")[:240],
     )
     proposal.status = "accepted"
     proposal.save(update_fields=["status", "updated_at"])
-    request.session.pop(f"contract-access:{version.pk}", None)
+    session_grant = _session_grant(request, proposal, version)
+    log_room_event(
+        proposal,
+        "final_accepted",
+        request=request,
+        access_grant=session_grant if session_grant != "legacy" else None,
+        metadata={"contract_version": version.number, "evidence_hash": evidence_hash},
+    )
+    request.session.pop(_session_key(version), None)
     request.session.modified = True
     messages.success(request, "تأیید نهایی ثبت شد. از پرونده خارج شدید؛ تیم آرویون برای مرحله بعد با شما هماهنگ می‌شود.")
     return redirect("contracts:contract_access", token=token)
@@ -427,7 +1124,7 @@ def contract_access(request, token):
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
     expected_phone = _version_phone(proposal, version)
-    if request.session.get(f"contract-access:{version.pk}") == expected_phone:
+    if _has_room_access(request, proposal, version):
         return redirect("contracts:public_contract", token=token)
     form = ContractAccessForm(request.POST or None)
     throttle = AttemptThrottle(
@@ -438,14 +1135,71 @@ def contract_access(request, token):
     if request.method == "POST" and throttle.blocked():
         form.add_error(None, "تلاش‌های ورود بیش از حد مجاز است؛ کمی بعد دوباره امتحان کنید.")
     elif request.method == "POST" and form.is_valid():
-        configured_password = getattr(settings, "CONTRACT_ACCESS_PASSWORD", "")
-        if not configured_password or form.cleaned_data["phone"] != expected_phone or not secrets.compare_digest(form.cleaned_data["password"], configured_password):
+        phone = form.cleaned_data["phone"]
+        raw_password = form.cleaned_data["password"]
+        grant = None
+        legacy_access = False
+        with transaction.atomic():
+            has_room_grants = proposal.access_grants.exists()
+            if has_room_grants:
+                grant = (
+                    RoomAccessGrant.objects.select_for_update()
+                    .filter(
+                        proposal=proposal,
+                        authorized_phone=phone,
+                        is_active=True,
+                    )
+                    .order_by("-credential_version")
+                    .first()
+                )
+                if not grant or not grant.is_available or not grant.check_password(raw_password):
+                    grant = None
+            else:
+                configured_password = getattr(settings, "CONTRACT_ACCESS_PASSWORD", "")
+                legacy_access = bool(
+                    configured_password
+                    and phone == expected_phone
+                    and secrets.compare_digest(raw_password, configured_password)
+                )
+
+        if grant is None and not legacy_access:
             throttle.failure()
+            log_room_event(
+                proposal,
+                "login_failed",
+                request=request,
+                metadata={"phone_last4": phone[-4:], "contract_version": version.number},
+            )
             messages.error(request, "شماره همراه یا رمز ورود صحیح نیست.")
         else:
             throttle.success()
-            request.session[f"contract-access:{version.pk}"] = expected_phone
-            request.session.set_expiry(3600)
+            if grant is not None:
+                grant.last_login_at = timezone.now()
+                grant.save(update_fields=("last_login_at", "updated_at"))
+                request.session[_session_key(version)] = (
+                    f"grant:{grant.pk}:{grant.credential_version}"
+                )
+                max_age = 7 * 24 * 60 * 60
+                if grant.expires_at:
+                    remaining = int((grant.expires_at - timezone.now()).total_seconds())
+                    max_age = max(60, min(max_age, remaining))
+                request.session.set_expiry(max_age)
+                log_room_event(
+                    proposal,
+                    "login_succeeded",
+                    request=request,
+                    access_grant=grant,
+                    metadata={"contract_version": version.number},
+                )
+            else:
+                request.session[_session_key(version)] = expected_phone
+                request.session.set_expiry(3600)
+                log_room_event(
+                    proposal,
+                    "login_succeeded",
+                    request=request,
+                    metadata={"contract_version": version.number, "legacy": True},
+                )
             return redirect("contracts:public_contract", token=token)
     elif request.method == "POST":
         throttle.failure()

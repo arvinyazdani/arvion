@@ -1,6 +1,7 @@
 {% extends "contracts/contract_base.html" %}{% load static i18n contract_extras %}
 {% block title %}فضای اختصاصی قرارداد | آرویون{% endblock %}
 {% block body_class %}room-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/customer-questionnaire.css' %}?v=1">{% endblock %}
 {% block brand_url %}{% url 'contracts:public_contract' proposal.token %}{% endblock %}
 {% block header_actions %}
   <div class="contract-header-meta">
@@ -30,10 +31,17 @@
 
   <section class="room-steps" aria-label="بخش‌های پرونده">
     <article class="room-card {% if discovery_complete %}complete{% endif %}">
-      <div class="card-top"><b>۱</b><span>{% if not proposal.crm_order_id %}برای این قرارداد لازم نیست{% elif discovery_complete %}تکمیل شده{% else %}اقدام بعدی{% endif %}</span></div>
+      <div class="card-top"><b>۱</b><span>{% if not assignment and not proposal.crm_order_id %}برای این قرارداد لازم نیست{% elif discovery_complete %}تکمیل شده{% else %}اقدام بعدی{% endif %}</span></div>
       <h2>فرم نیازسنجی تخصصی</h2>
       <p>فرآیندها، نقش‌ها و انتظارهای پروژه را ثبت کنید تا محدوده اجرای سامانه مبهم نماند.</p>
-      {% if proposal.crm_order_id %}{% language 'fa' %}<a class="contract-button" href="{% url 'crm_orders:specialist' proposal.crm_order.tracking_code %}?room={{ proposal.token }}">{% if discovery_complete %}مرور پاسخ‌های ثبت‌شده{% else %}شروع فرم تخصصی{% endif %}</a>{% endlanguage %}{% else %}<span class="card-note">این قرارداد فرم تخصصی متصل ندارد و می‌توانید مستقیماً شرایط عمومی را بررسی کنید.</span>{% endif %}
+      {% if assignment %}
+        {% if questionnaire_progress %}<div class="room-questionnaire-progress"><progress max="100" value="{{ questionnaire_progress.percent }}">{{ questionnaire_progress.percent }}٪</progress><span>{{ questionnaire_progress.percent }}٪ · {{ questionnaire_progress.completed_section_count }} از {{ questionnaire_progress.total_sections }} بخش</span></div>{% endif %}
+        <a class="contract-button" href="{% url 'contracts:customer_questionnaire' proposal.token %}">{% if discovery_complete %}مرور پاسخ‌های ثبت‌شده{% elif assignment.last_saved_at %}ادامه فرم تخصصی{% else %}شروع فرم تخصصی{% endif %}</a>
+      {% elif proposal.crm_order_id %}
+        {% language 'fa' %}<a class="contract-button" href="{% url 'crm_orders:specialist' proposal.crm_order.tracking_code %}?room={{ proposal.token }}">{% if discovery_complete %}مرور پاسخ‌های ثبت‌شده{% else %}شروع فرم تخصصی{% endif %}</a>{% endlanguage %}
+      {% else %}
+        <span class="card-note">این قرارداد فرم تخصصی متصل ندارد و می‌توانید مستقیماً شرایط عمومی را بررسی کنید.</span>
+      {% endif %}
     </article>
     <article class="room-card {% if 'general' in acknowledgements %}complete{% endif %}">
       <div class="card-top"><b>۲</b><span>{% if 'general' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete %}آماده بررسی{% else %}پس از فرم تخصصی{% endif %}</span></div>

@@ -1,0 +1,98 @@
+{% extends "contracts/contract_base.html" %}{% load static %}
+{% block title %}فرم تخصصی {{ version.snapshot.customer_name }} | آرویون{% endblock %}
+{% block body_class %}questionnaire-page{% endblock %}
+{% block brand_url %}{% url 'contracts:public_contract' proposal.token %}{% endblock %}
+{% block brand_subtitle %}فرم نیازسنجی تخصصی{% endblock %}
+{% block header_actions %}
+  <a class="contract-header-chip" href="{% url 'contracts:public_contract' proposal.token %}">
+    <svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
+    <span>بازگشت به پرونده</span>
+  </a>
+{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/customer-questionnaire.css' %}?v=1">{% endblock %}
+{% block content %}
+<div class="questionnaire-shell" data-questionnaire data-autosave-url="{{ autosave_url }}" data-section-key="{{ section.key }}" data-revision="{{ assignment.revision }}">
+  <section class="questionnaire-hero" aria-labelledby="questionnaire-title">
+    <div>
+      <span>مرحله اول پرونده · بخش {{ section_number }} از {{ section_count }}</span>
+      <h1 id="questionnaire-title">{{ assignment.version.template.name }}</h1>
+      <p>پاسخ‌ها هنگام نوشتن روی سرور ذخیره می‌شوند؛ می‌توانید بعداً با همین اطلاعات ورود و حتی از دستگاه دیگری ادامه دهید.</p>
+    </div>
+    <div class="questionnaire-overall" aria-label="پیشرفت کل فرم">
+      <strong>{{ progress.percent }}٪</strong>
+      <progress max="100" value="{{ progress.percent }}">{{ progress.percent }}٪</progress>
+      <span>{{ progress.completed_section_count }} از {{ progress.total_sections }} بخش کامل شده</span>
+    </div>
+  </section>
+
+  {% if locked %}
+    <div class="questionnaire-lock" role="status">
+      <strong>پاسخ‌های این نسخه نهایی شده‌اند.</strong>
+      <span>پس از ثبت مطالعه اسناد قرارداد، فرم برای حفظ سابقه دقیق فقط قابل مشاهده است.</span>
+    </div>
+  {% endif %}
+
+  <div class="questionnaire-layout">
+    <nav class="questionnaire-nav" aria-label="بخش‌های فرم تخصصی">
+      <div class="questionnaire-nav-head"><span>مسیر فرم</span><b>{{ progress.answered_questions }} پاسخ از {{ progress.total_questions }}</b></div>
+      <ol>
+        {% for item in navigation %}
+          <li class="{% if item.is_current %}current{% endif %} {% if item.is_complete %}complete{% endif %}">
+            {% if item.is_available %}
+              <a href="{{ item.url }}"{% if item.is_current %} aria-current="step"{% endif %}>
+                <b>{% if item.is_complete %}✓{% else %}{{ item.number }}{% endif %}</b><span>{{ item.title }}</span>
+              </a>
+            {% else %}
+              <span aria-disabled="true"><b>{{ item.number }}</b><span>{{ item.title }}</span><small>پس از بخش قبلی</small></span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+      <a class="questionnaire-room-link" href="{% url 'contracts:public_contract' proposal.token %}">ذخیره و بازگشت به منوی پرونده</a>
+    </nav>
+
+    <section class="questionnaire-panel" aria-labelledby="section-title">
+      <header class="questionnaire-panel-head">
+        <div><span>بخش {{ section_number }}</span><h2 id="section-title">{{ section.title }}</h2>{% if section.description %}<p>{{ section.description }}</p>{% endif %}</div>
+        {% if assignment.last_saved_at %}<time datetime="{{ assignment.last_saved_at|date:'c' }}">آخرین ذخیره: {{ assignment.last_saved_at|date:"Y/m/d H:i" }}</time>{% endif %}
+      </header>
+
+      {% if form.non_field_errors %}<div class="questionnaire-form-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="questionnaire-save-status" data-save-status role="status" aria-live="polite">
+        {% if locked %}نسخه نهایی و فقط خواندنی{% elif assignment.last_saved_at %}پاسخ‌های ذخیره‌شده از سرور بارگذاری شد{% else %}آماده ثبت پاسخ‌ها{% endif %}
+      </div>
+      <div class="questionnaire-conflict" data-conflict{% if not server_conflict %} hidden{% endif %} role="alert">
+        <strong>نسخه جدیدتری روی سرور وجود دارد.</strong>
+        <span>برای جلوگیری از حذف پاسخ دستگاه دیگر، ابتدا نسخه ذخیره‌شده را بارگذاری کنید.</span>
+        <a href="{% url 'contracts:customer_questionnaire_section' proposal.token section.key %}" data-conflict-reload>بارگذاری نسخه ذخیره‌شده</a>
+      </div>
+
+      <form method="post" action="{% url 'contracts:customer_questionnaire_section' proposal.token section.key %}" class="questionnaire-form" data-questionnaire-form novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="revision" value="{{ assignment.revision }}" data-revision-input>
+        {% for field in form %}
+          <section class="questionnaire-field{% if field.errors %} has-error{% endif %}" aria-labelledby="question-{{ field.name }}">
+            <div class="questionnaire-field-heading">
+              <label id="question-{{ field.name }}" for="{{ field.id_for_label }}"><span>{{ forloop.counter }}</span>{{ field.label }}{% if field.field.required %}<em>الزامی</em>{% endif %}</label>
+              {% if field.help_text %}
+                <details class="questionnaire-help">
+                  <summary>راهنمای پاسخ</summary>
+                  <div>{{ field.help_text }}</div>
+                </details>
+              {% endif %}
+            </div>
+            <div class="questionnaire-control">{{ field }}</div>
+            {% if field.errors %}<div class="questionnaire-field-errors" id="{{ field.id_for_label }}-errors" role="alert">{{ field.errors }}</div>{% endif %}
+          </section>
+        {% endfor %}
+
+        <footer class="questionnaire-actions">
+          {% if previous_section %}<a class="contract-button secondary" href="{% url 'contracts:customer_questionnaire_section' proposal.token previous_section.key %}">بخش قبلی</a>{% else %}<a class="contract-button secondary" href="{% url 'contracts:public_contract' proposal.token %}">منوی پرونده</a>{% endif %}
+          {% if not locked and not server_conflict %}<button class="contract-button" type="submit" data-questionnaire-submit>{% if next_section %}ذخیره و رفتن به بخش بعد{% else %}ذخیره و تکمیل فرم{% endif %}</button>{% endif %}
+        </footer>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}{% if not locked and not server_conflict %}<script src="{% static 'contracts/customer-questionnaire.js' %}?v=1" defer></script>{% endif %}{% endblock %}

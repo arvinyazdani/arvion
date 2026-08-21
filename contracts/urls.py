@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import contract_accept, contract_access, contract_acknowledge, contract_confirm, contract_document, contract_logout, contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke, public_contract
+from .views import contract_accept, contract_access, contract_acknowledge, contract_confirm, contract_document, contract_logout, contract_settings, customer_questionnaire, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke, public_contract, questionnaire_autosave
 
 urlpatterns = [
     path("manage/", proposal_list, name="proposal_list"),
@@ -14,6 +14,9 @@ urlpatterns = [
     path("manage/<int:proposal_id>/clauses/", proposal_clauses, name="proposal_clauses"),
     path("manage/<int:proposal_id>/publish/", proposal_publish, name="proposal_publish"),
     path("<str:token>/", public_contract, name="public_contract"),
+    path("<str:token>/questionnaire/", customer_questionnaire, name="customer_questionnaire"),
+    path("<str:token>/questionnaire/autosave/", questionnaire_autosave, name="questionnaire_autosave"),
+    path("<str:token>/questionnaire/<str:section_key>/", customer_questionnaire, name="customer_questionnaire_section"),
     path("<str:token>/document/<str:document>/acknowledge/", contract_acknowledge, name="contract_acknowledge"),
     path("<str:token>/document/<str:document>/", contract_document, name="contract_document"),
     path("<str:token>/document/", contract_document, name="contract_document_legacy"),
