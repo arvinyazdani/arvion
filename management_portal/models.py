@@ -128,6 +128,31 @@ class CaseDocument(models.Model):
         constraints = [models.UniqueConstraint(fields=("case", "content_type", "object_id", "kind"), condition=models.Q(content_type__isnull=False, object_id__isnull=False), name="unique_case_linked_document")]
 
 
+class CaseDocumentRevision(models.Model):
+    """An append-only copy of every distinct snapshot seen for a case document."""
+
+    document = models.ForeignKey(
+        CaseDocument,
+        on_delete=models.PROTECT,
+        related_name="revisions",
+    )
+    title = models.CharField(max_length=200)
+    snapshot = models.JSONField(default=dict)
+    checksum = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("document", "checksum"),
+                name="unique_case_document_revision_checksum",
+            )
+        ]
+        verbose_name = "نسخه سند پرونده"
+        verbose_name_plural = "نسخه‌های اسناد پرونده"
+
+
 class StaffAccessAudit(models.Model):
     ACTIONS = (("created", "ساخت همکار"), ("roles_updated", "تغییر مسئولیت‌ها"))
 
