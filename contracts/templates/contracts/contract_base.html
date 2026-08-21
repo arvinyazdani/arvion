@@ -12,7 +12,7 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=13">
   <link rel="stylesheet" href="{% static 'contracts/legal.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'contracts/otp.css' %}?v=3">
@@ -22,6 +22,7 @@
 </head>
 <body class="contract-app {% block body_class %}{% endblock %}">
   {% include "core/_route_loader.html" %}
+  {% include "core/_pull_to_refresh.html" %}
   <a class="contract-skip" href="#contract-main">رفتن به محتوای قرارداد</a>
   {% block header %}
   <header class="contract-shell-header" data-route-shell>
@@ -38,6 +39,7 @@
   <main id="contract-main" tabindex="-1" data-route-shell>{% block content %}{% endblock %}</main>
   <script src="{% static 'contracts/contract-v3.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+  <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

@@ -36,9 +36,10 @@
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme);if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=35">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+  <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/wizard-engine.js' %}?v=2" defer></script>
@@ -48,6 +49,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% include "core/_route_loader.html" %}
+  {% include "core/_pull_to_refresh.html" %}
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
   <header class="site-header">
     <div class="shell nav-wrap">

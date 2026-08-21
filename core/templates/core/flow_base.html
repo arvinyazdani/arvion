@@ -28,7 +28,7 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'core/css/flow.css' %}?v=3">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
@@ -37,6 +37,7 @@
 </head>
 <body class="flow-page {% block body_class %}{% endblock %}">
   {% include "core/_route_loader.html" %}
+  {% include "core/_pull_to_refresh.html" %}
   <a class="flow-skip" href="#flow-main">رفتن به فرم</a>
   <header class="flow-header" data-route-shell>
     <div class="flow-container flow-header-inner">
@@ -55,6 +56,7 @@
   <main id="flow-main" tabindex="-1" data-route-shell>{% block content %}{% endblock %}</main>
   <footer class="flow-footer" data-route-shell><div class="flow-container"><span>© {% now "Y" %} Rvion</span><span>اطلاعات شما فقط برای بررسی همین درخواست استفاده می‌شود.</span><a href="{% url 'privacy' %}" target="_blank" rel="noopener">حریم خصوصی</a></div></footer>
   <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+  <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

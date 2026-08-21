@@ -194,6 +194,8 @@ svg{display:block;width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;str
   .m-bottom>a,.m-bottom>button{font-size:.68rem}
 }
 
+.m-async-toast{position:fixed;z-index:var(--z-toast,1200);inset-inline-end:clamp(14px,3vw,30px);inset-block-end:calc(84px + env(safe-area-inset-bottom,0px));max-width:min(420px,calc(100vw - 28px));padding:13px 17px;border:1px solid var(--status-success-border);border-radius:14px;background:var(--status-success-surface);color:var(--status-success-text);box-shadow:var(--shadow-lg);font-size:.8rem;font-weight:800;line-height:1.8}.m-async-toast[data-tone="error"]{border-color:var(--status-danger-border);background:var(--status-danger-surface);color:var(--status-danger-text)}
+
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
 }

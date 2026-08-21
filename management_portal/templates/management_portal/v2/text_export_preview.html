@@ -1,0 +1,38 @@
+{% extends "management_portal/v2/base.html" %}{% load static %}
+{% block title %}{{ export_title }} | Rvion{% endblock %}
+{% block page_title %}{{ export_title }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/export-preview.css' %}?v=1">{% endblock %}
+{% block content %}
+<section class="export-preview" aria-labelledby="export-preview-title">
+  <header class="export-preview__head">
+    <div>
+      <span>{% if lang == 'fa' %}پیش‌نمایش امن داخل برنامه{% else %}IN-APP PREVIEW{% endif %}</span>
+      <h1 id="export-preview-title">{{ export_title }}</h1>
+      <p>{{ export_description }}</p>
+    </div>
+    <div class="export-preview__meta">
+      <small>{% if lang == 'fa' %}نام فایل{% else %}File name{% endif %}</small>
+      <bdi>{{ filename }}</bdi>
+    </div>
+  </header>
+
+  <div class="export-preview__actions" aria-label="{% if lang == 'fa' %}اقدامات خروجی{% else %}Export actions{% endif %}">
+    <a class="export-action export-action--back" href="{{ back_url }}" data-no-loader>
+      <svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
+      {% if lang == 'fa' %}بازگشت به جزئیات{% else %}Back to details{% endif %}
+    </a>
+    <a class="export-action export-action--download" href="{{ download_url }}" download="{{ filename }}" data-no-loader>
+      <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#receipt"></use></svg>
+      {% if lang == 'fa' %}دانلود فایل متنی{% else %}Download text file{% endif %}
+    </a>
+    <button class="export-action export-action--share" type="button" data-export-share>
+      <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#external"></use></svg>
+      {% if lang == 'fa' %}اشتراک‌گذاری{% else %}Share{% endif %}
+    </button>
+  </div>
+
+  <p class="export-preview__status" data-export-status role="status" aria-live="polite" aria-atomic="true"></p>
+  <pre class="export-preview__document" tabindex="0" aria-label="{% if lang == 'fa' %}متن کامل خروجی{% else %}Full export text{% endif %}"><code>{{ report }}</code></pre>
+</section>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'management_portal/v2/export-preview.js' %}?v=1" defer></script>{% endblock %}

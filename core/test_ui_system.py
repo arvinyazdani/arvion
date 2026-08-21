@@ -111,6 +111,31 @@ class UISystemFoundationTests(SimpleTestCase):
                 self.assertIn('{% include "core/_route_loader.html" %}', source)
                 self.assertIn("core/js/site-shell.js", source)
 
+    def test_installed_mobile_pull_to_refresh_is_shared_and_guarded(self):
+        pull_script = (STATIC_ROOT / "js" / "pull-to-refresh.js").read_text(encoding="utf-8")
+        self.assertIn('matchMedia?.("(display-mode: standalone)")', pull_script)
+        self.assertIn('"ontouchstart" in window', pull_script)
+        self.assertIn("atDocumentTop()", pull_script)
+        self.assertIn("ignoredTarget", pull_script)
+        self.assertIn('direction = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical"', pull_script)
+        self.assertIn("@media(prefers-reduced-motion:reduce)", self.components)
+        self.assertIn("if (!reloading) reset()", pull_script)
+        self.assertIn(".pull-refresh.is-ready", self.components)
+        shells = (
+            PROJECT_ROOT / "core" / "templates" / "core" / "base.html",
+            PROJECT_ROOT / "core" / "templates" / "core" / "flow_base.html",
+            PROJECT_ROOT / "contracts" / "templates" / "contracts" / "contract_base.html",
+            PROJECT_ROOT / "management_portal" / "templates" / "management_portal" / "v2" / "base.html",
+            PROJECT_ROOT / "crm_orders" / "templates" / "crm_orders" / "specialist_wizard.html",
+            PROJECT_ROOT / "crm_orders" / "templates" / "crm_orders" / "specialist_done.html",
+        )
+        for shell in shells:
+            with self.subTest(shell=shell.name):
+                source = shell.read_text(encoding="utf-8")
+                self.assertIn('{% include "core/_pull_to_refresh.html" %}', source)
+                self.assertIn("core/js/pull-to-refresh.js' %}?v=1", source)
+                self.assertIn("core/css/components.css' %}?v=5", source)
+
     def test_progressive_reveal_and_scrim_focus_recovery_are_real(self):
         self.assertIn('querySelectorAll("[data-ui-reveal]")', self.shell)
         self.assertIn('"IntersectionObserver" in window', self.shell)

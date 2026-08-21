@@ -134,6 +134,10 @@ class ManagementActionSafetyStaticTests(TestCase):
         self.assertIn("submission.form.requestSubmit(submission.submitter || undefined)", script)
         self.assertIn('form.dataset.submitting = "true"', script)
         self.assertNotIn("window.confirm(", script)
+        self.assertIn('form[data-notification-action]', script)
+        self.assertIn('"X-Requested-With": "XMLHttpRequest"', script)
+        self.assertIn("HTMLFormElement.prototype.submit.call(form)", script)
+        self.assertIn("updateQueueAfterRemoval(card)", script)
 
         contract_script = (CONTRACT_STATIC / "manager-contracts.js").read_text(encoding="utf-8")
         self.assertNotIn("window.confirm(", contract_script)
@@ -162,6 +166,6 @@ class ManagementActionSafetyStaticTests(TestCase):
             / "contracts"
             / "proposal_detail_v2.html"
         ).read_text(encoding="utf-8")
-        self.assertIn("management.css' %}?v=13", base)
-        self.assertIn("management.js' %}?v=9", base)
+        self.assertIn("management.css' %}?v=14", base)
+        self.assertIn("management.js' %}?v=10", base)
         self.assertIn("data-confirm=", contract_detail)

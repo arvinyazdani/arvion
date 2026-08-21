@@ -69,13 +69,26 @@ class ManagementDashboardTests(TestCase):
         export = self.client.get(reverse("management_portal:request_export", args=["crm", order.pk]))
         self.assertEqual(export.status_code, 200)
         self.assertIn("گزارش کامل نیازسنجی CRM", export.content.decode("utf-8"))
+        self.assertNotIn("Content-Disposition", export)
+        self.assertContains(export, "پیش‌نمایش امن داخل برنامه")
+        self.assertFalse(OperationalAudit.objects.filter(action="request_exported", target_id=str(order.pk)).exists())
+        download = self.client.get(reverse("management_portal:request_export", args=["crm", order.pk]) + "?download=1")
+        self.assertEqual(download["Content-Type"], "text/plain; charset=utf-8")
+        self.assertIn("attachment;", download["Content-Disposition"])
+        self.assertEqual(OperationalAudit.objects.filter(action="request_exported", target_id=str(order.pk)).count(), 1)
         case = CustomerCase.objects.get(source_object_id=order.pk, kind="crm")
         workspace = self.client.get(reverse("management_portal:crm_workspace"))
         self.assertContains(workspace, "سازمان آزمایشی")
         self.assertContains(self.client.get(reverse("management_portal:crm_case_detail", args=[case.pk])), case.code)
         self.client.post(reverse("management_portal:crm_task_create", args=[case.pk]), {"title": "تماس پیگیری", "priority": "high"})
         self.assertTrue(CaseTask.objects.filter(case=case, title="تماس پیگیری").exists())
-        self.assertEqual(self.client.get(reverse("management_portal:crm_case_export", args=[case.pk])).status_code, 200)
+        case_preview = self.client.get(reverse("management_portal:crm_case_export", args=[case.pk]))
+        self.assertEqual(case_preview.status_code, 200)
+        self.assertNotIn("Content-Disposition", case_preview)
+        self.assertFalse(OperationalAudit.objects.filter(action="crm_case_exported", target_id=str(case.pk)).exists())
+        case_download = self.client.get(reverse("management_portal:crm_case_export", args=[case.pk]) + "?download=1")
+        self.assertIn("attachment;", case_download["Content-Disposition"])
+        self.assertEqual(OperationalAudit.objects.filter(action="crm_case_exported", target_id=str(case.pk)).count(), 1)
         discovery = CrmSpecialistDiscovery.objects.create(order=order, status="submitted", answers={"workflow": "ok"})
         self.assertTrue(ManagementNotification.objects.filter(source_key=f"crm-specialist:{discovery.pk}:submitted").exists())
 
@@ -297,7 +310,7 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(en, "What needs your decision today?")
         self.assertContains(en, "Team &amp; access", html=True)
         self.assertContains(en, "Business management")
-        self.assertContains(en, "management.css?v=13")
+        self.assertContains(en, "management.css?v=14")
         self.assertNotContains(en, 'href="/admin/')
 
         management_css = (Path(__file__).resolve().parent / "static" / "management_portal" / "v2" / "management.css").read_text(encoding="utf-8")
@@ -615,6 +628,45 @@ class ManagementDashboardTests(TestCase):
         self.assertTrue(OperationalAudit.objects.filter(action="notification_claimed", target_id=str(today.pk)).exists())
         self.assertEqual(payment.category, "payments")
         self.assertEqual(later.owner, None)
+
+    def test_notification_quick_actions_return_json_and_keep_html_fallback(self):
+        root = User.objects.create_superuser(username="async-notify-root", email="async-notify@example.com", password="safe-password")
+        claimed_item = ManagementNotification.objects.create(category="sales", title="پیگیری سریع", target_url=reverse("management_portal:request_list"), role="", source_key="async:claim")
+        resolved_item = ManagementNotification.objects.create(category="payments", title="رسید آماده", target_url=reverse("management_portal:approvals"), role="", source_key="async:resolve")
+        NotificationReceipt.objects.create(user=root, notification=claimed_item)
+        NotificationReceipt.objects.create(user=root, notification=resolved_item)
+        self.client.force_login(root)
+
+        inbox = self.client.get(reverse("management_portal:notification_list"))
+        self.assertContains(inbox, 'data-notification-action="claim"')
+        self.assertContains(inbox, "data-no-loader")
+        self.assertContains(inbox, "data-notification-queue")
+
+        claimed = self.client.post(
+            reverse("management_portal:notification_claim", args=[claimed_item.pk]),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(claimed.status_code, 200)
+        self.assertEqual(claimed.json()["action"], "claim")
+        self.assertEqual(claimed.json()["status"], "read")
+        self.assertEqual(claimed.json()["owner"], root.email)
+        claimed_item.refresh_from_db()
+        self.assertEqual(claimed_item.owner, root)
+
+        resolved = self.client.post(
+            reverse("management_portal:notification_status", args=[resolved_item.pk, "resolved"]),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(resolved.status_code, 200)
+        self.assertEqual(resolved.json()["action"], "resolved")
+        resolved_item.refresh_from_db()
+        self.assertEqual(resolved_item.status, "resolved")
+
+        fallback_item = ManagementNotification.objects.create(category="sales", title="فرآیند فالبک", target_url=reverse("management_portal:request_list"), role="", source_key="async:fallback")
+        fallback = self.client.post(reverse("management_portal:notification_status", args=[fallback_item.pk, "read"]))
+        self.assertRedirects(fallback, reverse("management_portal:notification_list"))
 
     def test_dashboard_shows_role_scoped_sla_cards(self):
         root = User.objects.create_superuser(username="sla-dashboard", email="sla-dashboard@example.com", password="safe-password")

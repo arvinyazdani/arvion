@@ -96,3 +96,5 @@
 }
 
 .notification-actions a,.notification-actions button,.notice-owner button{font-family:inherit}
+
+.notice-card{transition:opacity .18s ease,transform .18s ease}.notice-card.is-resolving{opacity:0;transform:translateY(-8px);pointer-events:none}.notice-card form[aria-busy="true"] button{cursor:wait;opacity:.6}.notice-card button:disabled{cursor:wait;opacity:.6}@media(prefers-reduced-motion:reduce){.notice-card{transition:none}.notice-card.is-resolving{transform:none}}

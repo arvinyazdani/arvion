@@ -242,8 +242,23 @@ def crm_activity_create(request, case_id):
 def crm_case_export(request, case_id):
     _require_sales_access(request.user); case = get_object_or_404(CustomerCase, pk=case_id); lines = [f"پرونده {case.code}", f"مشتری: {case.customer_name}", f"مخاطب: {case.contact_name}", f"تلفن: {case.phone}", f"ایمیل: {case.email}", f"مرحله: {case.get_stage_display()}", f"اولویت: {case.get_priority_display()}", "", "اسناد:"]
     lines += [f"- {doc.get_kind_display()}: {doc.title} ({doc.created_at:%Y-%m-%d %H:%M})" for doc in case.documents.all()]; lines += ["", "تاریخچه:"]; lines += [f"- {item.created_at:%Y-%m-%d %H:%M} | {item.get_kind_display()} | {item.title} | {item.body}" for item in case.activities.all()]
-    OperationalAudit.objects.create(actor=request.user, action="crm_case_exported", target_type="customer_case", target_id=str(case.pk), summary=case.customer_name)
-    response = HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8"); response["Content-Disposition"] = f'attachment; filename="{case.code}.txt"'; return response
+    report = "\n".join(lines)
+    filename = f"{case.code}.txt"
+    if request.GET.get("download") == "1":
+        OperationalAudit.objects.create(actor=request.user, action="crm_case_exported", target_type="customer_case", target_id=str(case.pk), summary=case.customer_name)
+        response = HttpResponse(report, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    return render(request, "management_portal/v2/text_export_preview.html", {
+        "lang": lang,
+        "export_title": f"خروجی پرونده {case.code}" if lang == "fa" else f"Case export {case.code}",
+        "export_description": "متن زیر قبل از ذخیره یا اشتراک‌گذاری قابل بازبینی است." if lang == "fa" else "Review the text before saving or sharing it.",
+        "report": report,
+        "filename": filename,
+        "download_url": f"{request.path}?download=1",
+        "back_url": reverse("management_portal:crm_case_detail", args=[case.pk]),
+    })
 
 
 def _metric(label, value, description, url="", tone=""):
@@ -484,10 +499,27 @@ def request_export(request, kind, object_id):
     if kind == "crm": report = render_crm_order_text(item)
     elif kind == "clinic": report = render_clinic_order_text(item)
     else: report = "\n".join(("گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"تماس: {item.phone or item.email_or_telegram}", "", item.message)) + "\n"
-    OperationalAudit.objects.create(actor=request.user, action="request_exported", target_type=kind, target_id=str(item.pk), summary=getattr(item, "tracking_code", str(item.pk)))
-    response = HttpResponse(report, content_type="text/plain; charset=utf-8")
-    response["Content-Disposition"] = f'attachment; filename="rvion-{kind}-{item.pk}.txt"'
-    return response
+    filename = f"rvion-{kind}-{item.pk}.txt"
+    if request.GET.get("download") == "1":
+        OperationalAudit.objects.create(actor=request.user, action="request_exported", target_type=kind, target_id=str(item.pk), summary=getattr(item, "tracking_code", str(item.pk)))
+        response = HttpResponse(report, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    titles = {
+        "lead": ("خروجی کامل درخواست همکاری", "Enquiry export"),
+        "crm": ("خروجی کامل نیازسنجی CRM", "CRM discovery export"),
+        "clinic": ("خروجی کامل نیازسنجی کلینیک", "Clinic discovery export"),
+    }
+    return render(request, "management_portal/v2/text_export_preview.html", {
+        "lang": lang,
+        "export_title": titles[kind][0 if lang == "fa" else 1],
+        "export_description": "متن زیر قبل از ذخیره یا اشتراک‌گذاری قابل بازبینی است." if lang == "fa" else "Review the text before saving or sharing it.",
+        "report": report,
+        "filename": filename,
+        "download_url": f"{request.path}?download=1",
+        "back_url": reverse("management_portal:request_detail", args=[kind, item.pk]),
+    })
 
 
 @staff_member_required(login_url="accounts:login")
@@ -708,6 +740,35 @@ def _safe_notification_redirect(request, candidate):
     return fallback
 
 
+def _notification_json_requested(request):
+    return (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("accept", "")
+    )
+
+
+def _notification_unread_count(user):
+    return user.notification_receipts.filter(
+        seen_at__isnull=True,
+        notification__status="unread",
+    ).count()
+
+
+def _notification_action_payload(request, notification, message, action):
+    owner_label = ""
+    if notification.owner:
+        owner_label = notification.owner.get_full_name() or notification.owner.email
+    return {
+        "ok": True,
+        "id": notification.pk,
+        "action": action,
+        "status": notification.status,
+        "owner": owner_label,
+        "unread_count": _notification_unread_count(request.user),
+        "message": message,
+    }
+
+
 @staff_member_required(login_url="accounts:login")
 def notification_list(request):
     status, category = request.GET.get("status", ""), request.GET.get("category", "")
@@ -735,14 +796,20 @@ def notification_list(request):
 def notification_claim(request, notification_id):
     notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
     if notification.status == "resolved":
-        messages.warning(request, "این مورد مختومه شده است.")
+        message = "این مورد مختومه شده است." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "This item has already been resolved."
+        if _notification_json_requested(request):
+            return JsonResponse({"ok": False, "message": message}, status=409)
+        messages.warning(request, message)
         return redirect(_safe_notification_redirect(request, request.POST.get("next")))
     notification.owner = request.user
     if notification.status == "unread":
         notification.status = "read"
     notification.save(update_fields=["owner", "status", "updated_at"])
     OperationalAudit.objects.create(actor=request.user, action="notification_claimed", target_type="management_notification", target_id=str(notification.pk), summary=notification.title)
-    messages.success(request, "مسئولیت این مورد به شما واگذار شد.")
+    message = "مسئولیت این مورد به شما واگذار شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "This item is now assigned to you."
+    if _notification_json_requested(request):
+        return JsonResponse(_notification_action_payload(request, notification, message, "claim"))
+    messages.success(request, message)
     return redirect(_safe_notification_redirect(request, request.POST.get("next")))
 
 
@@ -804,6 +871,13 @@ def notification_status(request, notification_id, status):
     else:
         notification.resolved_by, notification.resolved_at = None, None
     notification.save(update_fields=["status", "resolved_by", "resolved_at", "updated_at"])
+    if getattr(request, "LANGUAGE_CODE", "fa") == "fa":
+        message = "اعلان مختومه شد." if status == "resolved" else "اعلان به‌عنوان خوانده‌شده ثبت شد."
+    else:
+        message = "The alert was resolved." if status == "resolved" else "The alert was marked as read."
+    if _notification_json_requested(request):
+        return JsonResponse(_notification_action_payload(request, notification, message, status))
+    messages.success(request, message)
     return redirect(_safe_notification_redirect(request, request.POST.get("next")))
 
 
