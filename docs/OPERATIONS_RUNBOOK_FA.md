@@ -38,6 +38,14 @@ curl -fsS https://rvionai.com/health/
 /srv/arvion/backups/release-history.log
 ```
 
+## عیب‌یابی سریع اتصال SSH
+
+VPN یا تونل شبکه می‌تواند باعث `Connection closed` یا timeout در اتصال SSH شود. ابتدا VPN را خاموش کنید و سپس با کلید اختصاصی سرور این دستور را اجرا کنید:
+
+```bash
+ssh -i ~/.ssh/rvion.pem -o IdentitiesOnly=yes -o IPQoS=none ubuntu@188.121.101.173
+```
+
 ## کنترل پس از انتشار
 
 - `/health/` باید HTTP 200 و `{"status":"ok"}` برگرداند.

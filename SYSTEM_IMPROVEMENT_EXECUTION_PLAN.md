@@ -324,6 +324,16 @@
 - گیت کامل `release-check.sh` شامل **۲۹۳ از ۲۹۳ تست**، migration drift، dependency check، بانک ۴۰۰ سؤالی، collectstatic و benchmark با rollback موفق شد.
 - syntax همه اسکریپت‌های عملیاتی و `git diff --check` موفق است؛ انتشار production فقط پس از snapshot سرور و تطبیق SHA انجام می‌شود.
 
+### نتیجه انتشار production — 2026-08-21
+
+- نسخهٔ `b16eecb` با تطبیق SHA روی production منتشر شد.
+- Redis فقط روی loopback در دسترس است و با protected mode فعال اجرا می‌شود؛ هیچ پورت Redis از اینترنت عمومی باز نشده است.
+- پیش از migration یک backup فشردهٔ معتبر از PostgreSQL با الگوی `pre-release-*.dump` ساخته و برای rollback نگه‌داری شد.
+- migrationهای `assessments/0018`، `contracts/0008` و `management_portal/0011` با موفقیت اعمال شدند.
+- گیت محلی شامل **۲۹۳ از ۲۹۳ تست موفق** بود و CI روی Python 3.11 و 3.12 با PostgreSQL بدون خطا تکمیل شد.
+- health و smoke testهای HTTP دامنه، صفحات فارسی/انگلیسی و کنترل بصری مسیرهای اصلی در موبایل و دسکتاپ موفق بودند.
+- داده‌های production، حساب‌ها، درخواست‌ها، فرم‌های نیازسنجی، قراردادها، پرداخت‌ها و سوابق آزمون در انتشار حفظ شدند و restore پایگاه‌داده لازم نشد.
+
 ## تصمیم‌های باقی‌مانده از مالک
 
 1. نام bucket و دسترسی محدود Object Storage آروان برای backup خارج از سرور؛ این مورد فعلاً با تصمیم مالک به تعویق افتاده است.
