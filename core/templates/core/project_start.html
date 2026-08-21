@@ -1,0 +1,61 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}{% if lang == 'fa' %}شروع پروژه | آرویون{% else %}Start a project | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}مسیر مناسب پروژه خود را انتخاب کنید و نیازسنجی اولیه آرویون را شروع کنید.{% else %}Choose the right project path and start your initial Rvion discovery.{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'core/css/project-start.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<section class="project-start" aria-labelledby="project-start-title">
+  <div class="shell project-start-shell">
+    <header class="project-start-head" data-ui-reveal>
+      <span class="eyebrow">{% if lang == 'fa' %}شروع همکاری با آرویون{% else %}START WITH RVION{% endif %}</span>
+      <h1 id="project-start-title">{% if lang == 'fa' %}چه چیزی می‌خواهید بسازید؟{% else %}What would you like to build?{% endif %}</h1>
+      <p>{% if lang == 'fa' %}مسیر نزدیک‌تر به نیازتان را انتخاب کنید. ابتدا فقط اطلاعات پایه را می‌گیریم؛ فرم تخصصی و قرارداد بعد از بررسی تیم آرویون برای همان پروژه آماده می‌شود.{% else %}Choose the closest path. We first collect the essentials; a tailored specialist form and contract workspace will be prepared after our review.{% endif %}</p>
+    </header>
+
+    <div class="project-start-grid">
+      <article class="project-start-card is-primary" data-ui-reveal>
+        <div class="project-start-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#customers"></use></svg></div>
+        <span>01 · CRM</span>
+        <h2>{% if lang == 'fa' %}CRM سازمانی اختصاصی{% else %}Custom enterprise CRM{% endif %}</h2>
+        <p>{% if lang == 'fa' %}برای مدیریت مشتری، فروش، خدمات، گزارش و گردش‌کارهای واقعی سازمان.{% else %}For customer, sales, service, reporting and organisation-specific workflows.{% endif %}</p>
+        <ul>
+          <li>{% if lang == 'fa' %}حدود ۱۲ تا ۱۸ دقیقه{% else %}About 12–18 minutes{% endif %}</li>
+          <li>{% if lang == 'fa' %}قابل تکمیل روی موبایل{% else %}Mobile-friendly{% endif %}</li>
+        </ul>
+        <a class="button" href="{% if lang == 'fa' %}{% url 'crm_orders:create' %}{% else %}/fa/crm-order/{% endif %}"><span>{% if lang == 'fa' %}شروع نیازسنجی CRM{% else %}Continue to CRM discovery{% endif %}</span><svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+      </article>
+
+      <article class="project-start-card" data-ui-reveal>
+        <div class="project-start-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg></div>
+        <span>02 · {% if lang == 'fa' %}کلینیک{% else %}CLINIC{% endif %}</span>
+        <h2>{% if lang == 'fa' %}وب‌سایت و پلتفرم کلینیک{% else %}Clinic website and platform{% endif %}</h2>
+        <p>{% if lang == 'fa' %}برای نوبت‌دهی، پرداخت، محتوای آموزشی، وبینار و پنل پزشک و بیمار.{% else %}For booking, payments, education, webinars, and practitioner and patient areas.{% endif %}</p>
+        <ul>
+          <li>{% if lang == 'fa' %}فرم پایه تخصصی کلینیک{% else %}Clinic-focused intake{% endif %}</li>
+          <li>{% if lang == 'fa' %}بدون نیاز به دانش فنی{% else %}No technical knowledge needed{% endif %}</li>
+        </ul>
+        <a class="button secondary" href="{% if lang == 'fa' %}{% url 'clinic_orders:create' %}{% else %}/fa/clinic-order/{% endif %}"><span>{% if lang == 'fa' %}شروع نیازسنجی کلینیک{% else %}Continue to clinic discovery{% endif %}</span><svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+      </article>
+
+      <article class="project-start-card" data-ui-reveal>
+        <div class="project-start-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg></div>
+        <span>03 · {% if lang == 'fa' %}پروژه دیگر{% else %}CUSTOM{% endif %}</span>
+        <h2>{% if lang == 'fa' %}سامانه، سایت یا ایده دیگر{% else %}Another system, website or idea{% endif %}</h2>
+        <p>{% if lang == 'fa' %}اگر پروژه شما در دو دسته بالا نیست، مسئله و هدف اصلی را کوتاه توضیح دهید.{% else %}If your project does not fit the first two routes, briefly describe the problem and desired outcome.{% endif %}</p>
+        <ul>
+          <li>{% if lang == 'fa' %}فرم کوتاه شروع همکاری{% else %}Short project intake{% endif %}</li>
+          <li>{% if lang == 'fa' %}انتخاب مسیر دقیق با تیم آرویون{% else %}We will recommend the right next step{% endif %}</li>
+        </ul>
+        <a class="button secondary" href="{% url 'leads:contact' %}"><span>{% if lang == 'fa' %}تعریف پروژه اختصاصی{% else %}Describe a custom project{% endif %}</span><svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+      </article>
+    </div>
+
+    <aside class="project-start-note" data-ui-reveal>
+      <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg>
+      <p><strong>{% if lang == 'fa' %}در ادامه چه اتفاقی می‌افتد؟{% else %}What happens next?{% endif %}</strong><span>{% if lang == 'fa' %}بعد از ثبت فرم، یک پرونده برای پروژه ساخته می‌شود. تیم آرویون آن را بررسی می‌کند و در صورت نیاز، لینک امن فرم تخصصی و قرارداد را برای شما می‌فرستد.{% else %}Submitting the form creates a project record. Rvion reviews it and, when appropriate, sends you a secure specialist questionnaire and contract workspace.{% endif %}</span></p>
+    </aside>
+  </div>
+</section>
+{% endblock %}

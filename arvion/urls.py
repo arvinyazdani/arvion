@@ -9,7 +9,7 @@ from django.urls import include, path
 from core.health import HealthCheckView
 from core.sitemaps import sitemaps
 from core.views import (
-    AboutView, CompanyInfoView, CRMProductView, HomeView, PrivacyView,
+    AboutView, CompanyInfoView, CRMProductView, HomeView, PrivacyView, ProjectStartView,
     RefundPolicyView, ServiceTermsView,
 )
 from core.views.client_logging import report_js_error
@@ -85,6 +85,7 @@ urlpatterns += i18n_patterns(
     path("account/", include(("accounts.urls", "accounts"), namespace="accounts")),
     path("assessments/", include(("assessments.urls", "assessments"), namespace="assessments")),
     path("", HomeView.as_view(), name="home"),
+    path("start/", ProjectStartView.as_view(), name="project_start"),
     path("about/", AboutView.as_view(), name="about"),
     path("company/", CompanyInfoView.as_view(), name="company_info"),
     path("crm/", CRMProductView.as_view(), name="crm_product"),

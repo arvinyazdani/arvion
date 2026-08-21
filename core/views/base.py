@@ -42,6 +42,12 @@ class HomeView(LanguageViewMixin, TemplateView):
         return ctx
 
 
+class ProjectStartView(LanguageViewMixin, TemplateView):
+    """A single, low-friction entry point for every project discovery route."""
+
+    template_name = "core/project_start.html"
+
+
 # ==== ویو درباره ====
 class AboutView(LanguageViewMixin, TemplateView):
     template_name = "core/about.html"
