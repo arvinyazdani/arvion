@@ -27,6 +27,19 @@ class LeadTests(TestCase):
         self.assertIsNotNone(lead.privacy_accepted_at)
         self.assertIn(lead.tracking_code, mail.outbox[0].subject)
 
+    def test_enquiry_labels_and_steps_follow_page_language(self):
+        fa_response = self.client.get(reverse("leads:contact") + "?lang=fa")
+        self.assertContains(fa_response, "مشاوره اولیه رایگان")
+        self.assertContains(fa_response, "تعهد آرویون")
+        self.assertContains(fa_response, ">۰۱<", html=False)
+        self.assertNotContains(fa_response, "FREE INITIAL CONSULTATION")
+        self.assertNotContains(fa_response, "RVION PROMISE")
+
+        en_response = self.client.get(reverse("leads:contact") + "?lang=en")
+        self.assertContains(en_response, "FREE INITIAL CONSULTATION")
+        self.assertContains(en_response, "RVION PROMISE")
+        self.assertContains(en_response, ">01<", html=False)
+
     def test_honeypot_rejects_bot(self):
         self.payload["website"] = "https://spam.example"
         response = self.client.post(self.url, self.payload)

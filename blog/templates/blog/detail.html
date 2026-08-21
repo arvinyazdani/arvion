@@ -1,4 +1,4 @@
-{% extends "core/base.html" %}
+{% extends "core/base.html" %}{% load assessment_extras %}
 
 {% block title %}{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %} | Rvion{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}{% endblock %}
@@ -13,7 +13,7 @@
 {% block content %}
 <section class="page-hero">
   <div class="shell">
-    <span class="eyebrow">{{ post.published_at|date:"Y.m.d" }} · RVION INSIGHTS</span>
+    <span class="eyebrow">{% if lang == 'fa' %}{{ post.published_at|date:"Y.m.d"|fa_digits }} · دیدگاه‌های آرویون{% else %}{{ post.published_at|date:"Y.m.d" }} · RVION INSIGHTS{% endif %}</span>
     <h1>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</h1>
     <p class="lead">{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}</p>
   </div>
@@ -28,7 +28,7 @@
     </article>
     <aside>
       <div class="card">
-        <span class="card-number">TOPICS</span>
+        <span class="card-number">{% if lang == 'fa' %}موضوع‌ها{% else %}TOPICS{% endif %}</span>
         <div class="tags" style="margin-top:20px">
           {% for tag in post.tags.all %}<span class="tag">{{ tag.name }}</span>{% empty %}<span class="tag">Django</span>{% endfor %}
         </div>

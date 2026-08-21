@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Permission
 from datetime import timedelta
 import json
+from pathlib import Path
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -10,7 +11,7 @@ from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
 from contracts.models import ContractProposal
-from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit
+from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
 from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -267,6 +268,25 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "مرکز مدیریت")
         self.assertContains(response, "مرکز عملیات")
 
+    def test_management_shell_uses_five_destination_navigation_without_a_mobile_hamburger(self):
+        user = User.objects.create_superuser(username="root-shell", email="root-shell@example.com", password="safe-password")
+        self.client.force_login(user)
+        response = self.client.get(self.url)
+        self.assertContains(response, "فرم‌ها و آزمون‌ها")
+        self.assertContains(response, "قراردادها")
+        self.assertContains(response, 'aria-controls="management-more-panel"', count=2)
+        self.assertContains(response, "core/icons/ui-sprite.svg#home")
+        self.assertNotContains(response, 'class="m-menu"')
+
+    def test_content_staff_can_reach_the_permitted_content_center_from_more_tools(self):
+        staff = User.objects.create_user(username="content-shell", email="content-shell@example.com", password="safe-password", is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename="view_service"))
+        self.client.force_login(staff)
+        response = self.client.get(self.url)
+        self.assertContains(response, f'href="{reverse("management_portal:content_center")}"')
+        self.assertContains(response, "محتوا و سایت")
+        self.assertNotContains(response, "تیم و دسترسی")
+
     def test_new_dashboard_is_language_scoped_and_does_not_link_to_django_admin(self):
         root = User.objects.create_superuser(username="root-lang", email="root-lang@example.com", password="safe-password")
         self.client.force_login(root)
@@ -277,7 +297,68 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(en, "What needs your decision today?")
         self.assertContains(en, "Team &amp; access", html=True)
         self.assertContains(en, "Business management")
+        self.assertContains(en, "management.css?v=13")
         self.assertNotContains(en, 'href="/admin/')
+
+        management_css = (Path(__file__).resolve().parent / "static" / "management_portal" / "v2" / "management.css").read_text(encoding="utf-8")
+        self.assertIn('html[lang="en"]{--font-family-base:var(--font-family-latin)}', management_css)
+
+    def test_management_workspaces_keep_operational_labels_language_scoped(self):
+        root = User.objects.create_superuser(username="language-root", email="language-root@example.com", password="safe-password")
+        case = CustomerCase.objects.create(
+            kind="lead", customer_name="Acme", contact_name="Alex",
+            stage="discovery", priority="urgent",
+        )
+        CaseActivity.objects.create(case=case, kind="system", title="Imported", body="")
+        SystemLog.objects.create(level="error", category="server", message_fa="پیام داخلی فارسی", detail="TypeError: example")
+        self.client.force_login(root)
+
+        fa_workspace = self.client.get("/fa/management/crm/")
+        self.assertContains(fa_workspace, "عملیات مشتری آرویون")
+        self.assertNotContains(fa_workspace, "RVION CUSTOMER OPERATIONS")
+        fa_detail = self.client.get(f"/fa/management/crm/cases/{case.pk}/")
+        self.assertContains(fa_detail, ">خط زمانی<", html=False)
+        self.assertNotContains(fa_detail, ">TIMELINE<", html=False)
+
+        en_workspace = self.client.get("/en/management/crm/")
+        self.assertContains(en_workspace, "RVION CUSTOMER OPERATIONS")
+        self.assertContains(en_workspace, ">Enquiry<", html=False)
+        self.assertContains(en_workspace, ">Discovery<", html=False)
+        self.assertContains(en_workspace, ">Urgent<", html=False)
+        self.assertNotContains(en_workspace, ">همکاری<", html=False)
+        en_detail = self.client.get(f"/en/management/crm/cases/{case.pk}/")
+        self.assertContains(en_detail, ">TIMELINE<", html=False)
+        self.assertContains(en_detail, "System")
+        self.assertNotContains(en_detail, ">خط زمانی<", html=False)
+
+        en_logs = self.client.get("/en/management/system-log/")
+        self.assertContains(en_logs, "SYSTEM HEALTH")
+        self.assertContains(en_logs, "TypeError: example")
+        self.assertNotContains(en_logs, "پیام داخلی فارسی")
+
+    def test_management_messages_preserve_severity_and_live_region_semantics(self):
+        root = User.objects.create_superuser(username="message-root", email="message-root@example.com", password="safe-password")
+        customer = User.objects.create_user(username="pending-message", email="pending-message@example.com", password="safe-password", is_active=False)
+        self.client.force_login(root)
+
+        error_response = self.client.post(
+            reverse("management_portal:account_approval", args=[customer.pk, "approve"]) + "?lang=en",
+            follow=True,
+        )
+        self.assertContains(error_response, 'class="m-message error"', html=False)
+        self.assertContains(error_response, 'role="alert" aria-live="assertive"', html=False)
+
+        staff = User.objects.create_user(username="message-staff", email="message-staff@example.com", password="safe-password", is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename="view_supportticket"), Permission.objects.get(codename="change_supportticket"))
+        ticket = SupportTicket.objects.create(user=customer, category="technical", subject="Test", message="Example")
+        self.client.force_login(staff)
+        success_response = self.client.post(
+            reverse("management_portal:ticket_status", args=[ticket.pk]) + "?lang=en",
+            {"status": "in_review"},
+            follow=True,
+        )
+        self.assertContains(success_response, 'class="m-message success"', html=False)
+        self.assertContains(success_response, 'role="status" aria-live="polite"', html=False)
 
     def test_legacy_management_redirects_to_persian_workspace(self):
         response = self.client.get("/management/")

@@ -1,5 +1,75 @@
-{% extends "management_portal/v2/base.html" %}{% load static %}
+{% extends "management_portal/v2/base.html" %}
+{% load static %}
 {% block title %}{{ proposal.project_title }} | Rvion{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}جزئیات قرارداد{% else %}Contract details{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=5">{% endblock %}
-{% block content %}<section class="m-detail-hero"><div><span>{{ proposal.get_status_display }} · {% if lang == 'fa' %}نسخه{% else %}Version{% endif %} {{ proposal.current_version }}</span><h1>{{ proposal.project_title }}</h1><p>{{ proposal.customer_name }} · <bdi>{{ proposal.customer_phone }}</bdi></p></div><div class="m-detail-actions"><a href="{{ list_url }}">{% if lang == 'fa' %}همه قراردادها{% else %}All contracts{% endif %}</a><a href="{{ edit_url }}">{% if lang == 'fa' %}ویرایش پیش‌نویس{% else %}Edit draft{% endif %}</a><a href="{{ preview_url }}" target="_blank">{% if lang == 'fa' %}تست و پیش‌نمایش{% else %}Test preview{% endif %}</a><a class="primary" href="{{ clauses_url }}">{% if lang == 'fa' %}مدیریت بندها{% else %}Manage clauses{% endif %}</a></div></section><section class="manager-layout"><div class="clause-panel"><h2>{% if lang == 'fa' %}بندهای قرارداد{% else %}Contract clauses{% endif %}</h2>{% for clause in proposal.clauses.all %}<article{% if not clause.is_enabled %} class="disabled"{% endif %}><b>{{ forloop.counter|stringformat:"02d" }}</b><div><h3>{{ clause.title }}</h3><p>{{ clause.body }}</p></div></article>{% endfor %}</div><aside class="contract-actions"><h2>{% if lang == 'fa' %}انتشار و لینک مشتری{% else %}Publish & customer link{% endif %}</h2><p>{% if lang == 'fa' %}ابتدا پیش‌نمایش را کنترل کنید؛ هر انتشار یک snapshot ثابت می‌سازد.{% else %}Review the preview first; every publish creates an immutable snapshot.{% endif %}</p><form method="post" action="{{ publish_url }}">{% csrf_token %}<button class="contract-button" type="submit">{% if proposal.current_version %}{% if lang == 'fa' %}ساخت نسخه جدید و ارسال{% else %}Create and send a new version{% endif %}{% else %}{% if lang == 'fa' %}فعال‌سازی لینک مشتری{% else %}Activate customer link{% endif %}{% endif %}</button></form>{% if proposal.current_version %}<label>{% if lang == 'fa' %}لینک اختصاصی مشتری{% else %}Customer link{% endif %}</label><input value="{{ public_url }}" readonly dir="ltr"><a class="contract-button secondary" href="{{ public_url }}" target="_blank" rel="noopener">{% if lang == 'fa' %}مشاهده صفحه مشتری{% else %}Open customer view{% endif %}</a>{% endif %}{% if proposal.status != 'accepted' %}<form method="post" action="{{ revoke_url }}">{% csrf_token %}<button class="contract-button secondary" type="submit">{% if lang == 'fa' %}لغو لینک مشتری{% else %}Revoke customer link{% endif %}</button></form>{% endif %}{% if not proposal.current_version %}<form method="post" action="{{ delete_url }}">{% csrf_token %}<button class="contract-button secondary" type="submit">{% if lang == 'fa' %}حذف پیش‌نویس بدون نسخه{% else %}Delete unversioned draft{% endif %}</button></form>{% endif %}</aside></section>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=6">{% endblock %}
+{% block content %}
+<section class="m-detail-hero">
+  <div>
+    <span>{{ status_label }} · {% if lang == 'fa' %}نسخه{% else %}Version{% endif %} {{ proposal.current_version }}</span>
+    <h1>{{ proposal.project_title }}</h1>
+    <p>{{ proposal.customer_name }} · <bdi>{{ proposal.customer_phone }}</bdi></p>
+  </div>
+  <div class="m-detail-actions">
+    <a href="{{ list_url }}">{% if lang == 'fa' %}همه قراردادها{% else %}All contracts{% endif %}</a>
+    {% if proposal.status == 'draft' or proposal.status == 'revoked' %}<a href="{{ edit_url }}">{% if lang == 'fa' %}ویرایش پیش‌نویس{% else %}Edit draft{% endif %}</a>{% endif %}
+    <a href="{{ preview_url }}" target="_blank" rel="noopener">{% if lang == 'fa' %}تست و پیش‌نمایش{% else %}Test preview{% endif %}</a>
+    {% if proposal.status != 'accepted' %}<a class="primary" href="{{ clauses_url }}">{% if lang == 'fa' %}مدیریت بندها{% else %}Manage clauses{% endif %}</a>{% endif %}
+  </div>
+</section>
+
+<section class="manager-layout">
+  <div class="clause-panel">
+    <h2>{% if lang == 'fa' %}بندهای قرارداد{% else %}Contract clauses{% endif %}</h2>
+    {% for clause in proposal.clauses.all %}
+      <article{% if not clause.is_enabled %} class="disabled"{% endif %}>
+        <b>{{ forloop.counter|stringformat:"02d" }}</b>
+        <div><h3>{{ clause.title }}</h3><p>{{ clause.body }}</p></div>
+      </article>
+    {% empty %}
+      <p>{% if lang == 'fa' %}هنوز بندی برای این پیش‌نویس ثبت نشده است.{% else %}No clauses have been added to this draft yet.{% endif %}</p>
+    {% endfor %}
+  </div>
+
+  <aside class="contract-actions">
+    <h2>{% if lang == 'fa' %}انتشار و لینک مشتری{% else %}Publish & customer link{% endif %}</h2>
+    {% if proposal.status == 'accepted' %}
+      <div class="contract-message" role="status">
+        {% if lang == 'fa' %}این نسخه توسط مشتری پذیرفته شده و دیگر قابل ویرایش یا انتشار مجدد نیست.{% else %}The customer accepted this version. It can no longer be edited or republished.{% endif %}
+      </div>
+    {% else %}
+      <p>{% if lang == 'fa' %}ابتدا پیش‌نمایش را کنترل کنید؛ هر انتشار یک تصویر ثابت و غیرقابل‌تغییر می‌سازد.{% else %}Review the preview first; every publish creates an immutable snapshot.{% endif %}</p>
+      <form method="post" action="{{ publish_url }}"
+            data-submitting-label="{% if lang == 'fa' %}در حال ساخت نسخه…{% else %}Creating version…{% endif %}"
+            data-confirm-title="{% if lang == 'fa' %}نسخه قرارداد فعال شود؟{% else %}Activate this contract version?{% endif %}"
+            data-confirm="{% if proposal.current_version %}{% if lang == 'fa' %}نسخه {{ proposal.current_version|add:'1' }} از اطلاعات و بندهای فعلی ساخته و لینک مشتری به آن متصل می‌شود. این تصویر قرارداد دیگر قابل تغییر نیست.{% else %}Version {{ proposal.current_version|add:'1' }} will be created from the current details and clauses, then activated on the customer link. This snapshot cannot be edited later.{% endif %}{% else %}{% if lang == 'fa' %}نسخه ۱ از اطلاعات و بندهای فعلی ساخته و لینک اختصاصی مشتری فعال می‌شود. پیش‌نمایش را بررسی کرده‌اید؟{% else %}Version 1 will be created from the current details and clauses, and the customer link will be activated. Have you reviewed the preview?{% endif %}{% endif %}"
+            data-confirm-approve="{% if lang == 'fa' %}ساخت و فعال‌سازی نسخه{% else %}Create & activate version{% endif %}">
+        {% csrf_token %}
+        <button class="contract-button" type="submit">{% if proposal.current_version %}{% if lang == 'fa' %}ساخت و فعال‌سازی نسخه جدید{% else %}Create & activate a new version{% endif %}{% else %}{% if lang == 'fa' %}ساخت نسخه و فعال‌سازی لینک{% else %}Create version & activate link{% endif %}{% endif %}</button>
+      </form>
+    {% endif %}
+
+    {% if proposal.current_version %}
+      <label for="customer-contract-url">{% if lang == 'fa' %}لینک اختصاصی مشتری{% else %}Customer link{% endif %}</label>
+      <input id="customer-contract-url" value="{{ public_url }}" readonly dir="ltr">
+      <button class="contract-button secondary" type="button" data-copy-target="customer-contract-url">{% if lang == 'fa' %}کپی لینک مشتری{% else %}Copy customer link{% endif %}</button>
+      <p class="copy-status" role="status" aria-live="polite" data-copy-status></p>
+      <a class="contract-button secondary" href="{{ public_url }}" target="_blank" rel="noopener">{% if lang == 'fa' %}مشاهده صفحه مشتری{% else %}Open customer view{% endif %}</a>
+    {% endif %}
+
+    {% if proposal.status != 'accepted' and proposal.status != 'revoked' %}
+      <form method="post" action="{{ revoke_url }}" data-confirm="{% if lang == 'fa' %}لینک مشتری غیرفعال شود؟ نسخه‌ها و اطلاعات قرارداد حفظ می‌شوند.{% else %}Revoke the customer link? Contract data and versions will be preserved.{% endif %}">
+        {% csrf_token %}
+        <button class="contract-button danger" type="submit">{% if lang == 'fa' %}غیرفعال‌کردن لینک مشتری{% else %}Revoke customer link{% endif %}</button>
+      </form>
+    {% endif %}
+    {% if not proposal.current_version %}
+      <form method="post" action="{{ delete_url }}" data-confirm="{% if lang == 'fa' %}این پیش‌نویس بدون نسخه برای همیشه حذف شود؟{% else %}Permanently delete this unversioned draft?{% endif %}">
+        {% csrf_token %}
+        <button class="contract-button danger" type="submit">{% if lang == 'fa' %}حذف پیش‌نویس بدون نسخه{% else %}Delete unversioned draft{% endif %}</button>
+      </form>
+    {% endif %}
+  </aside>
+</section>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'contracts/manager-contracts.js' %}?v=2" defer></script>{% endblock %}

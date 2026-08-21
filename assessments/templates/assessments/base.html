@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block body_class %}assessment-page{% endblock %}
+
+{% block extra_head %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'assessments/css/assessment-v3.css' %}?v=2">
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ block.super }}
+  <script src="{% static 'assessments/js/assessment-v3.js' %}?v=2" defer></script>
+{% endblock %}

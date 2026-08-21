@@ -86,28 +86,24 @@ class StaffRoleTests(TestCase):
         self.assertFalse(content.has_perm("blog.delete_post"))
         self.assertFalse(content.has_perm("leads.view_lead"))
 
-    def test_sales_dashboard_and_admin_hide_other_departments(self):
+    def test_legacy_operations_redirects_to_unified_dashboard_and_admin_hides_other_departments(self):
         sales = self.make_staff("sales")
         self.client.force_login(sales)
 
         dashboard = self.client.get(reverse("admin_operations"))
-        self.assertEqual(dashboard.status_code, 200)
-        self.assertContains(dashboard, "درخواست‌های جدید")
-        self.assertNotContains(dashboard, "پیش‌نویس محتوا")
-        self.assertNotContains(dashboard, "سفارش‌های معلق")
+        self.assertRedirects(dashboard, "/fa/management/", status_code=301, fetch_redirect_response=False)
         self.assertEqual(self.client.get(reverse("admin:leads_lead_changelist")).status_code, 200)
         self.assertEqual(self.client.get(reverse("admin:blog_post_changelist")).status_code, 403)
         self.assertEqual(self.client.get(reverse("admin:accounts_user_changelist")).status_code, 403)
 
-    def test_non_staff_cannot_open_operations_dashboard(self):
+    def test_legacy_operations_never_exposes_the_old_admin_dashboard(self):
         user = User.objects.create_user(
             username="customer@example.com", email="customer@example.com",
             password="customer-password-42", is_active=True,
         )
         self.client.force_login(user)
         response = self.client.get(reverse("admin_operations"))
-        self.assertEqual(response.status_code, 302)
-        self.assertIn(reverse("admin:login"), response.url)
+        self.assertRedirects(response, "/fa/management/", status_code=301, fetch_redirect_response=False)
 
     def test_superuser_sees_persian_task_groups_and_can_assign_ready_role(self):
         admin_user = User.objects.create_superuser(
@@ -197,6 +193,22 @@ class AccountFlowTests(TestCase):
             response = self.client.get(reverse(name))
             self.assertIn("no-cache", response.headers["Cache-Control"])
 
+    def test_dashboard_keeps_email_out_of_heading_when_name_is_missing(self):
+        user = User.objects.create_user(
+            username="ui-preview@localhost.invalid",
+            email="ui-preview@localhost.invalid",
+            password="A-secure-test-password-42",
+            is_active=True,
+            email_verified=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get("/en/account/dashboard/")
+
+        self.assertContains(response, "<h1>Hello</h1>", html=True)
+        self.assertContains(response, '<bdi class="account-head-identity">ui-preview@localhost.invalid</bdi>', html=True)
+        self.assertNotContains(response, "<h1>Hello, ui-preview@localhost.invalid</h1>", html=True)
+
     def test_expired_csrf_returns_actionable_persian_page(self):
         csrf_client = Client(enforce_csrf_checks=True)
         response = csrf_client.post(
@@ -217,9 +229,12 @@ class AccountFlowTests(TestCase):
         response = self.client.post(
             reverse("accounts:profile_identity") + "?lang=en",
             {"first_name": "  Legacy ", "last_name": " User  Name "},
+            follow=True,
         )
 
         self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=en")
+        self.assertContains(response, 'class="message message-success"', html=False)
+        self.assertContains(response, 'role="status" aria-live="polite"', html=False)
         user.refresh_from_db()
         self.assertEqual(user.first_name, "Legacy")
         self.assertEqual(user.last_name, "User Name")
@@ -369,7 +384,8 @@ class AccountFlowTests(TestCase):
 
         self.assertEqual(english.status_code, 200)
         self.assertEqual(english.context["lang"], "en")
-        self.assertContains(english, "Hello, language@example.com")
+        self.assertContains(english, "<h1>Hello</h1>", html=True)
+        self.assertContains(english, '<bdi class="account-head-identity">language@example.com</bdi>', html=True)
         self.assertContains(english, 'href="/fa/account/dashboard/"', html=False)
         self.assertContains(english, "Purchase history & receipts")
         self.assertNotContains(english, "خرید و پشتیبانی")
@@ -382,10 +398,25 @@ class AccountFlowTests(TestCase):
         )
         self.client.force_login(user)
         response = self.client.get("/fa/account/dashboard/")
-        self.assertContains(response, 'class="account-language-switch"', html=False)
+        self.assertContains(response, 'class="account-workspace"', html=False)
+        self.assertNotContains(response, 'class="account-language-switch"', html=False)
         self.assertContains(response, 'class="account-email" dir="ltr"', html=False)
         self.assertContains(response, 'class="dashboard-account-links"', html=False)
         self.assertContains(response, 'class="account-compass"', html=False)
+        self.assertContains(response, "core/icons/ui-sprite.svg#assessment")
+
+    @patch("accounts.views.issue_phone_verification", side_effect=RuntimeError("sms unavailable"))
+    def test_global_feedback_renders_error_with_assertive_semantics(self, mocked_issue):
+        response = self.client.post(
+            reverse("accounts:register") + "?lang=en",
+            self.registration_payload(),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="message message-error"', html=False)
+        self.assertContains(response, 'role="alert" aria-live="assertive"', html=False)
+        self.assertContains(response, "Your account was created, but the SMS could not be sent")
 
     def create_result(self, user, exam, version, number):
         order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")
@@ -607,6 +638,15 @@ class AccountFlowTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
         done = self.client.get(response.url)
         self.assertContains(done, "If an active account exists")
+
+    @override_settings(ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED=False)
+    def test_password_recovery_routes_to_honest_support_path_when_email_is_disabled(self):
+        login_page = self.client.get("/en/account/login/")
+        self.assertContains(login_page, "Contact us to recover your account")
+        self.assertNotContains(login_page, "Forgot your password?")
+
+        recovery = self.client.get("/en/account/password/reset/")
+        self.assertRedirects(recovery, "/en/contact/", fetch_redirect_response=False)
 
     def test_duplicate_email_is_rejected_case_insensitively(self):
         User.objects.create_user(username="arvin@example.com", email="arvin@example.com", password="test")

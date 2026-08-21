@@ -1,132 +1,67 @@
 (() => {
-  window.RVION_STAFF_PUSH = true;
-  const onboarding = document.createElement("script");
-  onboarding.src = "/static/core/js/staff-push.js?v=1";
-  onboarding.defer = true;
-  document.head.appendChild(onboarding);
+  const moreShell = document.querySelector("[data-more-shell]");
+  const morePanel = document.querySelector(".m-more-panel");
+  const moreTriggers = [...document.querySelectorAll(".m-more-toggle")];
+  const moreClose = document.querySelector(".m-more-close");
+  const moreScrim = document.querySelector(".m-more-scrim");
+  let lastMoreTrigger = null;
 
-  const menu = document.querySelector(".m-menu");
-  const bottomMenu = document.querySelector(".m-bottom-menu");
-  const sidebar = document.querySelector(".m-sidebar");
-  const sidebarClose = document.querySelector(".m-sidebar-close");
-  const scrim = document.querySelector(".m-scrim");
-  const moreGroup = document.querySelector(".m-nav-more");
-  const moreSummary = moreGroup?.querySelector("summary");
-  const mobileViewport = window.matchMedia("(max-width: 760px)");
-  const fa = document.documentElement.lang === "fa";
-  const openLabel = fa ? "بازکردن منو" : "Open menu";
-  const moreLabel = fa ? "ابزارهای بیشتر" : "More tools";
-  const closeLabel = fa ? "بستن منو" : "Close menu";
-  let lastDrawerTrigger = null;
-
-  const drawerTriggers = [menu, bottomMenu].filter(Boolean);
   const focusableSelector = [
     "a[href]",
     "button:not([disabled])",
-    "summary",
     "input:not([disabled])",
     "select:not([disabled])",
     "textarea:not([disabled])",
     '[tabindex]:not([tabindex="-1"])',
   ].join(",");
 
-  const setDrawerTriggerState = (open) => {
-    drawerTriggers.forEach((trigger) => trigger.setAttribute("aria-expanded", String(open)));
-    if (menu) menu.setAttribute("aria-label", open ? closeLabel : openLabel);
-    if (bottomMenu) bottomMenu.setAttribute("aria-label", open ? closeLabel : moreLabel);
+  const setMoreExpanded = (expanded) => {
+    moreTriggers.forEach((trigger) => trigger.setAttribute("aria-expanded", String(expanded)));
   };
 
-  const mobileDrawerIsOpen = () => Boolean(
-    mobileViewport.matches && sidebar?.classList.contains("open")
-  );
-
-  const closeDrawer = ({ returnFocus = true } = {}) => {
-    if (!sidebar || !scrim) return;
-    sidebar.classList.remove("open");
-    scrim.classList.remove("open");
-    document.body.classList.remove("m-menu-open");
-    setDrawerTriggerState(false);
-
-    if (mobileViewport.matches) {
-      sidebar.setAttribute("aria-hidden", "true");
-      sidebar.setAttribute("inert", "");
-      sidebar.removeAttribute("role");
-      sidebar.removeAttribute("aria-modal");
-    }
-
-    if (returnFocus && lastDrawerTrigger instanceof HTMLElement) {
-      lastDrawerTrigger.focus();
-    }
-    lastDrawerTrigger = null;
+  const closeMore = ({ returnFocus = true } = {}) => {
+    if (!moreShell || !morePanel || moreShell.hidden) return;
+    morePanel.setAttribute("aria-hidden", "true");
+    morePanel.setAttribute("inert", "");
+    moreShell.hidden = true;
+    document.body.classList.remove("m-overlay-open");
+    setMoreExpanded(false);
+    if (returnFocus && lastMoreTrigger instanceof HTMLElement) lastMoreTrigger.focus();
+    lastMoreTrigger = null;
   };
 
-  const openDrawer = (trigger) => {
-    if (!sidebar || !scrim || !mobileViewport.matches) return;
-    lastDrawerTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement;
-    sidebar.classList.add("open");
-    scrim.classList.add("open");
-    document.body.classList.add("m-menu-open");
-    sidebar.removeAttribute("aria-hidden");
-    sidebar.removeAttribute("inert");
-    sidebar.setAttribute("role", "dialog");
-    sidebar.setAttribute("aria-modal", "true");
-    setDrawerTriggerState(true);
-    window.requestAnimationFrame(() => {
-      const firstTarget = sidebarClose || sidebar.querySelector(focusableSelector);
-      firstTarget?.focus();
-    });
+  const openMore = (trigger) => {
+    if (!moreShell || !morePanel) return;
+    lastMoreTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement;
+    moreShell.hidden = false;
+    morePanel.removeAttribute("inert");
+    morePanel.setAttribute("aria-hidden", "false");
+    document.body.classList.add("m-overlay-open");
+    setMoreExpanded(true);
+    window.requestAnimationFrame(() => (moreClose || morePanel.querySelector(focusableSelector))?.focus());
   };
 
-  const toggleDrawer = (trigger) => {
-    if (mobileDrawerIsOpen()) closeDrawer();
-    else openDrawer(trigger);
-  };
-
-  const syncNavigationForViewport = () => {
-    if (!sidebar || !scrim) return;
-    if (mobileViewport.matches) {
-      closeDrawer({ returnFocus: false });
-      if (moreGroup) moreGroup.open = false;
-    } else {
-      sidebar.classList.remove("open");
-      sidebar.removeAttribute("aria-hidden");
-      sidebar.removeAttribute("inert");
-      sidebar.removeAttribute("role");
-      sidebar.removeAttribute("aria-modal");
-      scrim.classList.remove("open");
-      document.body.classList.remove("m-menu-open");
-      setDrawerTriggerState(false);
-      if (moreGroup) moreGroup.open = true;
-    }
-    if (moreSummary) {
-      moreSummary.setAttribute("aria-expanded", String(Boolean(moreGroup?.open)));
-      moreSummary.tabIndex = mobileViewport.matches ? 0 : -1;
-    }
-  };
-
-  drawerTriggers.forEach((trigger) => {
-    trigger.addEventListener("click", () => toggleDrawer(trigger));
-  });
-  sidebarClose?.addEventListener("click", () => closeDrawer());
-  scrim?.addEventListener("click", () => closeDrawer());
-  moreGroup?.addEventListener("toggle", () => {
-    moreSummary?.setAttribute("aria-expanded", String(moreGroup.open));
-  });
+  moreTriggers.forEach((trigger) => trigger.addEventListener("click", () => {
+    if (moreShell?.hidden) openMore(trigger);
+    else closeMore();
+  }));
+  moreClose?.addEventListener("click", () => closeMore());
+  moreScrim?.addEventListener("click", () => closeMore());
 
   document.addEventListener("keydown", (event) => {
-    if (!mobileDrawerIsOpen() || !sidebar) return;
+    if (!moreShell || !morePanel || moreShell.hidden) return;
     if (event.key === "Escape") {
       event.preventDefault();
-      closeDrawer();
+      closeMore();
       return;
     }
     if (event.key !== "Tab") return;
-    const focusable = [...sidebar.querySelectorAll(focusableSelector)].filter((element) => {
-      return element instanceof HTMLElement && !element.hidden && element.getClientRects().length > 0;
-    });
+    const focusable = [...morePanel.querySelectorAll(focusableSelector)].filter((element) => (
+      element instanceof HTMLElement && !element.hidden && element.getClientRects().length > 0
+    ));
     if (!focusable.length) {
       event.preventDefault();
-      sidebar.focus();
+      morePanel.focus();
       return;
     }
     const first = focusable[0];
@@ -140,21 +75,137 @@
     }
   });
 
-  if (typeof mobileViewport.addEventListener === "function") {
-    mobileViewport.addEventListener("change", syncNavigationForViewport);
-  } else {
-    mobileViewport.addListener(syncNavigationForViewport);
-  }
-  syncNavigationForViewport();
+  /* Sensitive management actions use one predictable, accessible confirmation
+     pattern. The original submitter is retained so payment reject `formaction`
+     continues to target the correct endpoint after confirmation. */
+  const confirmationDialog = document.createElement("dialog");
+  confirmationDialog.className = "m-confirm-dialog";
+  confirmationDialog.setAttribute("role", "alertdialog");
+  confirmationDialog.setAttribute("aria-modal", "true");
+  confirmationDialog.setAttribute("aria-labelledby", "m-confirm-title");
+  confirmationDialog.setAttribute("aria-describedby", "m-confirm-message");
+  confirmationDialog.innerHTML = `
+    <form class="m-confirm-dialog__body" method="dialog">
+      <p class="m-confirm-dialog__eyebrow"></p>
+      <h2 id="m-confirm-title"></h2>
+      <p class="m-confirm-dialog__message" id="m-confirm-message"></p>
+      <div class="m-confirm-dialog__actions">
+        <button type="submit" value="cancel"></button>
+        <button type="submit" value="confirm"></button>
+      </div>
+    </form>`;
+  document.body.appendChild(confirmationDialog);
 
-  const languageLink = document.querySelector(".m-top-actions a.m-lang");
-  if (languageLink) {
-    const target = fa ? "en" : "fa";
-    languageLink.href = location.pathname.replace(/^\/(fa|en)(?=\/)/, `/${target}`) + location.search;
-  }
+  const confirmEyebrow = confirmationDialog.querySelector(".m-confirm-dialog__eyebrow");
+  const confirmTitle = confirmationDialog.querySelector("#m-confirm-title");
+  const confirmMessage = confirmationDialog.querySelector("#m-confirm-message");
+  const confirmCancel = confirmationDialog.querySelector('[value="cancel"]');
+  const confirmApprove = confirmationDialog.querySelector('[value="confirm"]');
+  const isPersianDocument = document.documentElement.lang === "fa";
+  let pendingSubmission = null;
+  let bypassConfirmationFor = null;
+
+  const confirmationValue = (submitter, form, name, fallback) => (
+    submitter?.dataset?.[name] || form.dataset[name] || fallback
+  );
+
+  const markSubmitting = (form, submitter) => {
+    form.dataset.submitting = "true";
+    form.setAttribute("aria-busy", "true");
+    if (submitter instanceof HTMLElement) {
+      submitter.setAttribute("aria-disabled", "true");
+      const submittingLabel = form.dataset.submittingLabel;
+      if (submittingLabel) {
+        submitter.dataset.readyLabel = submitter.textContent;
+        submitter.textContent = submittingLabel;
+      }
+    }
+  };
+
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || form.closest(".m-confirm-dialog")) return;
+    if (form.dataset.submitting === "true") {
+      event.preventDefault();
+      return;
+    }
+
+    const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+    if (bypassConfirmationFor === form) {
+      bypassConfirmationFor = null;
+      markSubmitting(form, submitter);
+      return;
+    }
+
+    const message = confirmationValue(submitter, form, "confirm", "");
+    if (!message) {
+      markSubmitting(form, submitter);
+      return;
+    }
+
+    event.preventDefault();
+    pendingSubmission = { form, submitter, returnFocus: submitter || document.activeElement };
+    confirmEyebrow.textContent = isPersianDocument ? "بازبینی پیش از ثبت" : "Review before submitting";
+    confirmTitle.textContent = confirmationValue(
+      submitter,
+      form,
+      "confirmTitle",
+      isPersianDocument ? "این اقدام تأیید شود؟" : "Confirm this action?",
+    );
+    confirmMessage.textContent = message;
+    confirmCancel.textContent = confirmationValue(
+      submitter,
+      form,
+      "confirmCancel",
+      isPersianDocument ? "انصراف" : "Cancel",
+    );
+    confirmApprove.textContent = confirmationValue(
+      submitter,
+      form,
+      "confirmApprove",
+      isPersianDocument ? "تأیید اقدام" : "Confirm action",
+    );
+    confirmationDialog.dataset.tone = confirmationValue(submitter, form, "confirmTone", "default");
+    confirmationDialog.showModal();
+    window.requestAnimationFrame(() => confirmCancel.focus());
+  });
+
+  confirmationDialog.addEventListener("close", () => {
+    const submission = pendingSubmission;
+    pendingSubmission = null;
+    if (!submission) return;
+    if (confirmationDialog.returnValue !== "confirm") {
+      if (submission.returnFocus instanceof HTMLElement) submission.returnFocus.focus();
+      return;
+    }
+    bypassConfirmationFor = submission.form;
+    submission.form.requestSubmit(submission.submitter || undefined);
+    queueMicrotask(() => {
+      if (bypassConfirmationFor === submission.form) bypassConfirmationFor = null;
+    });
+  });
+
+  confirmationDialog.addEventListener("click", (event) => {
+    if (event.target === confirmationDialog) confirmationDialog.close("cancel");
+  });
+
+  window.addEventListener("pageshow", () => {
+    document.querySelectorAll('form[data-submitting="true"]').forEach((form) => {
+      delete form.dataset.submitting;
+      form.removeAttribute("aria-busy");
+      form.querySelectorAll('[aria-disabled="true"]').forEach((control) => {
+        control.removeAttribute("aria-disabled");
+        if (control.dataset.readyLabel) {
+          control.textContent = control.dataset.readyLabel;
+          delete control.dataset.readyLabel;
+        }
+      });
+    });
+  });
 
   const buttons = [...document.querySelectorAll(".m-alert-enable")];
   if (!buttons.length) return;
+  const fa = document.documentElement.lang === "fa";
   const help = document.querySelector("[data-notification-help]");
   const notificationStatus = document.querySelector("[data-notification-status]");
   const b64 = (value) => {
@@ -212,7 +263,7 @@
       explainBlocked();
       return;
     }
-    const registration = await navigator.serviceWorker.register("/service-worker.js?v=2", { updateViaCache: "none" });
+    const registration = await navigator.serviceWorker.register("/service-worker.js?v=4", { updateViaCache: "none" });
     await registration.update();
     await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();

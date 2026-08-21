@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
+from core.form_accessibility import enhance_form_accessibility
 from core.sms.backends import normalize_iran_mobile
 
 from .models import User
@@ -26,6 +27,10 @@ class RegistrationForm(UserCreationForm):
         self.fields["last_name"].required = True
         self.fields["mobile"].widget.attrs.update({"inputmode": "tel", "autocomplete": "tel", "dir": "ltr", "placeholder": "09121234567"})
         self.fields["mobile"].help_text = "شماره‌ای را وارد کنید که اکنون به آن دسترسی دارید." if lang == "fa" else "Use a mobile number you can access now."
+        enhance_form_accessibility(self, autocomplete={
+            "first_name": "given-name", "last_name": "family-name", "email": "email",
+            "mobile": "tel", "password1": "new-password", "password2": "new-password",
+        })
 
     def clean_first_name(self):
         return " ".join(self.cleaned_data["first_name"].split())
@@ -83,6 +88,7 @@ class PhoneVerificationForm(forms.Form):
             "inputmode": "numeric", "autocomplete": "one-time-code", "pattern": "[0-9۰-۹]{6}",
             "dir": "ltr", "placeholder": "------", "class": "otp-input",
         })
+        enhance_form_accessibility(self, autocomplete={"code": "one-time-code"})
 
     def clean_code(self):
         import unicodedata
@@ -99,6 +105,7 @@ class EmailAuthenticationForm(AuthenticationForm):
         super().__init__(*args, **kwargs)
         self.fields["username"].label = "ایمیل" if lang == "fa" else "Email"
         self.fields["password"].label = "رمز عبور" if lang == "fa" else "Password"
+        enhance_form_accessibility(self, autocomplete={"username": "email", "password": "current-password"})
 
 
 class ResendVerificationForm(forms.Form):
@@ -107,6 +114,7 @@ class ResendVerificationForm(forms.Form):
     def __init__(self, *args, lang="fa", **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].label = "ایمیل" if lang == "fa" else "Email"
+        enhance_form_accessibility(self, autocomplete={"email": "email"})
 
     def clean_email(self):
         return self.cleaned_data["email"].strip().lower()
@@ -123,6 +131,7 @@ class ProfileIdentityForm(forms.ModelForm):
         self.fields["last_name"].label = "نام خانوادگی" if lang == "fa" else "Last name"
         self.fields["first_name"].required = True
         self.fields["last_name"].required = True
+        enhance_form_accessibility(self, autocomplete={"first_name": "given-name", "last_name": "family-name"})
 
     def clean_first_name(self):
         return " ".join(self.cleaned_data["first_name"].split())

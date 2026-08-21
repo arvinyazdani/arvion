@@ -1,0 +1,43 @@
+{% load static %}
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="same-origin">
+  <title>{% block title %}پرونده قرارداد | آرویون{% endblock %}</title>
+  {% block social_meta %}{% endblock %}
+  <meta name="theme-color" content="#111827">
+  <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
+  <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=13">
+  <link rel="stylesheet" href="{% static 'contracts/legal.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'contracts/otp.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'contracts/room-final.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'contracts/contract-v3.css' %}?v=3">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="contract-app {% block body_class %}{% endblock %}">
+  {% include "core/_route_loader.html" %}
+  <a class="contract-skip" href="#contract-main">رفتن به محتوای قرارداد</a>
+  {% block header %}
+  <header class="contract-shell-header" data-route-shell>
+    <div class="contract-shell-bar">
+      <a class="contract-brand" href="{% block brand_url %}#contract-main{% endblock %}">
+        <span class="contract-brand-mark">R</span>
+        <span><strong>RVION</strong><small>{% block brand_subtitle %}پرونده اختصاصی قرارداد{% endblock %}</small></span>
+      </a>
+      {% block header_actions %}{% endblock %}
+    </div>
+  </header>
+  {% endblock %}
+  {% if messages %}<div class="contract-shell-width contract-messages" aria-live="polite">{% for message in messages %}<div class="ui-message ui-message--{{ message.tags|default:'info' }}" {% if 'error' in message.tags %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</div>{% endfor %}</div>{% endif %}
+  <main id="contract-main" tabindex="-1" data-route-shell>{% block content %}{% endblock %}</main>
+  <script src="{% static 'contracts/contract-v3.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

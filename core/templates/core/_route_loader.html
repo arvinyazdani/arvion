@@ -1,0 +1,10 @@
+<div class="app-welcome" data-app-welcome aria-hidden="true" role="status" aria-label="{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Loading page{% else %}در حال بارگذاری صفحه{% endif %}">
+  <div class="welcome-orbit orbit-one" aria-hidden="true"></div>
+  <div class="welcome-orbit orbit-two" aria-hidden="true"></div>
+  <div class="welcome-brand">
+    <span class="welcome-mark" aria-hidden="true">R</span>
+    <strong>RVION</strong>
+    <small>{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Preparing the next step{% else %}در حال آماده‌سازی مرحله بعد{% endif %}</small>
+  </div>
+  <div class="welcome-progress" aria-hidden="true"><span></span></div>
+</div>

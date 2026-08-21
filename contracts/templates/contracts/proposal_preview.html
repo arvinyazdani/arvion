@@ -1,1 +1,62 @@
-{% load static %}<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پیش‌نمایش {{ proposal.project_title }} | آرویون</title><link rel="stylesheet" href="{% static 'contracts/contracts.css' %}"></head><body class="public-contract"><main class="contract-shell"><section class="contract-document"><span>TEST PREVIEW · فقط برای مدیر</span><h1>{{ snapshot.title }}</h1><h2>{{ snapshot.project_title }}</h2><p><b>مجری:</b> {{ snapshot.provider.legal_name }}{% if snapshot.provider.representative %} · نماینده: {{ snapshot.provider.representative }}{% endif %}</p><p><b>سفارش‌دهنده:</b> {{ snapshot.customer_name }} · <bdi>{{ snapshot.customer_phone }}</bdi></p><hr><h3>دامنه پروژه</h3><p>{{ snapshot.project_scope|linebreaksbr }}</p><h3>مبلغ و پرداخت</h3><p>{{ snapshot.amount_irr }} ریال<br>{{ snapshot.payment_terms|linebreaksbr }}</p><h3>تحویل</h3><p>{{ snapshot.delivery_terms }}</p>{% for clause in snapshot.clauses %}<section><h3>{{ forloop.counter }}. {{ clause.title }}</h3><p>{{ clause.body }}</p></section>{% endfor %}</section></main></body></html>
+{% extends "management_portal/v2/base.html" %}{% load static contract_extras %}
+{% block title %}{% if lang == 'fa' %}پیش‌نمایش قرارداد{% else %}Contract preview{% endif %} | Rvion{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}پیش‌نمایش قبل از ارسال{% else %}Pre-send preview{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/proposal-preview.css' %}?v=1">{% endblock %}
+{% block content %}
+<section class="m-page-head contract-preview-head">
+  <div>
+    <span>{% if lang == 'fa' %}کنترل نهایی · {{ status_label }}{% else %}FINAL CHECK · {{ status_label }}{% endif %}</span>
+    <h1>{% if lang == 'fa' %}قرارداد را مثل مشتری مرور کنید{% else %}Review the contract as the customer will see it{% endif %}</h1>
+    <p>{% if lang == 'fa' %}این صفحه فقط پیش‌نمایش مدیریتی است و مشاهده آن هیچ تأیید یا نسخه‌ای ثبت نمی‌کند.{% else %}This management-only preview creates no acceptance and publishes no version.{% endif %}</p>
+  </div>
+  <div class="contract-preview-actions">
+    <a class="button secondary" href="{{ detail_url }}">{% if lang == 'fa' %}بازگشت به قرارداد{% else %}Back to contract{% endif %}</a>
+    <button class="button" type="button" data-print-contract>{% if lang == 'fa' %}چاپ پیش‌نمایش{% else %}Print preview{% endif %}</button>
+  </div>
+</section>
+
+<div class="contract-preview-note" role="note">
+  <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#alert"></use></svg>
+  <span>{% if lang == 'fa' %}اطلاعات، مبلغ، زمان تحویل و هر دو متن حقوقی را قبل از فعال‌کردن لینک مشتری کنترل کنید.{% else %}Check identity, price, delivery and both legal documents before activating the customer link.{% endif %}</span>
+</div>
+
+<article class="contract-preview-paper" lang="fa" dir="rtl" aria-labelledby="preview-document-title">
+  <header class="contract-preview-cover">
+    <span>پیش‌نمایش داخلی آرویون · فاقد اثر تأیید مشتری</span>
+    <h2 id="preview-document-title">{{ snapshot.title }}</h2>
+    <p>{{ snapshot.project_title }}</p>
+    <dl>
+      <div><dt>مجری</dt><dd>{{ snapshot.provider.legal_name }}</dd></div>
+      <div><dt>نماینده مجری</dt><dd>{{ snapshot.provider.representative|default:"—" }}</dd></div>
+      <div><dt>کارفرما</dt><dd>{{ snapshot.customer_name }}</dd></div>
+      <div><dt>شماره تماس کارفرما</dt><dd dir="ltr">{{ snapshot.customer_phone }}</dd></div>
+      <div><dt>مبلغ پیشنهادی</dt><dd>{{ snapshot.amount_irr|persian_amount }} ریال</dd></div>
+      <div><dt>زمان تحویل</dt><dd>{{ snapshot.delivery_terms|default:"—" }}</dd></div>
+    </dl>
+  </header>
+
+  <section class="contract-preview-section">
+    <span>دامنه اجرا</span><h3>شرح پروژه</h3>
+    <p>{{ snapshot.project_scope|linebreaksbr }}</p>
+  </section>
+  <section class="contract-preview-grid">
+    <div><span>برنامه مالی</span><h3>روش پرداخت</h3><p>{{ snapshot.payment_terms|linebreaksbr }}</p></div>
+    <div><span>اطلاعات تکمیلی</span><h3>مشخصات کارفرما</h3><p>{{ snapshot.client_details|default:"مورد تکمیلی ثبت نشده است."|linebreaksbr }}</p></div>
+  </section>
+
+  <details class="contract-preview-terms" open>
+    <summary><span>سند ۱</span><strong>شرایط عمومی قرارداد</strong><small>نمایش / بستن</small></summary>
+    <div>{{ snapshot.general_terms|linebreaksbr }}</div>
+  </details>
+  <details class="contract-preview-terms">
+    <summary><span>سند ۲</span><strong>شرایط خصوصی قرارداد</strong><small>نمایش / بستن</small></summary>
+    <div>{{ snapshot.private_terms|linebreaksbr }}</div>
+  </details>
+
+  <section class="contract-preview-section">
+    <span>بندهای فعال</span><h3>مواردی که در این نسخه به مشتری نشان داده می‌شوند</h3>
+    <ol class="contract-preview-clauses">{% for clause in snapshot.clauses %}<li><strong>{{ clause.title }}</strong><p>{{ clause.body }}</p></li>{% empty %}<li class="empty">هیچ بند فعالی انتخاب نشده است.</li>{% endfor %}</ol>
+  </section>
+</article>
+{% endblock %}
+{% block extra_scripts %}<script src="{% static 'contracts/manager-contracts.js' %}?v=2" defer></script>{% endblock %}

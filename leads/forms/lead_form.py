@@ -1,5 +1,6 @@
 from django import forms
 
+from core.form_accessibility import enhance_form_accessibility
 from core.i18n_numbers import normalize_digits
 from leads.models import Lead
 from services.models import Service
@@ -47,6 +48,10 @@ class LeadForm(forms.ModelForm):
             self.fields[name].choices = options
         for name, placeholder in placeholders.items():
             self.fields[name].widget.attrs["placeholder"] = placeholder
+        enhance_form_accessibility(self, autocomplete={
+            "business_name": "organization", "website_url": "url", "name": "name",
+            "phone": "tel", "email_or_telegram": "email",
+        })
 
     def clean_website(self):
         if self.cleaned_data.get("website"):

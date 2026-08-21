@@ -4,6 +4,8 @@ from django.core.mail import send_mail
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.views.generic import DetailView, FormView
 
 from accounts.security import client_address, normalized_fingerprint
@@ -12,6 +14,7 @@ from .forms import ClinicOrderForm
 from .models import ClinicOrder
 
 
+@method_decorator(never_cache, name="dispatch")
 class ClinicOrderCreateView(LanguageViewMixin, FormView):
     template_name = "clinic_orders/order_wizard.html"
     form_class = ClinicOrderForm
@@ -54,6 +57,7 @@ class ClinicOrderCreateView(LanguageViewMixin, FormView):
         return reverse("clinic_orders:thanks", kwargs={"code": self.order.tracking_code})
 
 
+@method_decorator(never_cache, name="dispatch")
 class ClinicOrderThanksView(LanguageViewMixin, DetailView):
     model = ClinicOrder
     template_name = "clinic_orders/thanks.html"

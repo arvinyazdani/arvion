@@ -4,6 +4,8 @@ from django import template
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
+from core.i18n_numbers import persian_digits
+
 register = template.Library()
 
 
@@ -13,6 +15,18 @@ def group_digits(value):
         return f"{int(value):,}"
     except (TypeError, ValueError):
         return value
+
+
+@register.filter
+def fa_digits(value):
+    """Render presentation-only numerals with Persian glyphs."""
+    return persian_digits(value)
+
+
+@register.filter
+def group_digits_fa(value):
+    """Group an integer and render the result with Persian numerals."""
+    return persian_digits(group_digits(value))
 
 
 @register.filter

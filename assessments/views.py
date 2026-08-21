@@ -155,12 +155,16 @@ class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
     context_object_name = "order"
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).select_related("exam")
+        return Order.objects.filter(user=self.request.user).select_related("exam", "manual_payment")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        submission = getattr(self.object, "manual_payment", None)
         context.update({
-            "manual_payment_form": ManualPaymentSubmissionForm(lang=self.lang),
+            "manual_payment_form": ManualPaymentSubmissionForm(
+                instance=submission if submission and submission.status == "rejected" else None,
+                lang=self.lang,
+            ),
             "card_payment_number": settings.CARD_PAYMENT_NUMBER,
             "card_payment_holder": settings.CARD_PAYMENT_HOLDER,
         })
@@ -282,7 +286,11 @@ class StartAttemptView(LoginRequiredMixin, View):
         entitlement = get_object_or_404(ExamEntitlement, pk=pk, user=request.user)
         lang = request.GET.get("lang", "fa")
         if not request.user.email_verified:
-            messages.error(request, "برای شروع آزمون باید ایمیل شما تأیید شده باشد.")
+            messages.error(
+                request,
+                "برای شروع آزمون باید ایمیل شما تأیید شده باشد."
+                if lang == "fa" else "Verify your email before starting the assessment.",
+            )
             return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
         if not request.user.first_name.strip() or not request.user.last_name.strip():
             messages.error(

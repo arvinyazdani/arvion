@@ -55,13 +55,34 @@ class CrmOrderTests(TestCase):
     def test_wizard_is_separate_public_flow_with_accessible_steps(self):
         response = self.client.get(reverse("crm_orders:create"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ENTERPRISE CRM DISCOVERY")
+        self.assertContains(response, "نیازسنجی تخصصی CRM سازمانی")
         self.assertContains(response, 'data-wizard="crm-order"', html=False)
         self.assertContains(response, 'aria-label="مراحل سفارش"')
 
     def test_english_url_redirects_to_persian_until_form_copy_is_translated(self):
         response = self.client.get("/en/crm-order/")
         self.assertRedirects(response, "/fa/crm-order/", fetch_redirect_response=False)
+
+    def test_create_invalid_form_and_thanks_are_never_cached(self):
+        create_response = self.client.get(reverse("crm_orders:create"))
+        invalid_payload = valid_payload()
+        invalid_payload["critical_workflows"] = "کوتاه"
+        invalid_response = self.client.post(reverse("crm_orders:create"), invalid_payload)
+
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        CrmSpecialistDiscovery.objects.create(order=order)
+        thanks_response = self.client.get(
+            reverse("crm_orders:thanks", args=[order.tracking_code]),
+        )
+
+        for response in (create_response, invalid_response, thanks_response):
+            cache_control = response.headers.get("Cache-Control", "")
+            self.assertIn("no-store", cache_control)
+            self.assertIn("private", cache_control)
 
     def test_valid_submission_persists_structured_discovery_and_emails_team(self):
         response = self.client.post(reverse("crm_orders:create"), valid_payload(), follow=True)
@@ -92,6 +113,78 @@ class CrmOrderTests(TestCase):
         response = self.client.get(reverse("crm_orders:specialist", args=[discovery.token]))
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-cache", response.headers["Cache-Control"])
+
+    def test_staff_session_keeps_customer_specialist_token_urls_working(self):
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        discovery = CrmSpecialistDiscovery.objects.create(order=order)
+        manager = User.objects.create_superuser(
+            username="specialist-link-manager",
+            email="specialist-link-manager@example.com",
+            password="safe-password",
+        )
+        self.client.force_login(manager)
+
+        wizard = self.client.get(reverse("crm_orders:specialist", args=[discovery.token]))
+        done = self.client.get(reverse("crm_orders:specialist_done", args=[discovery.token]))
+
+        self.assertEqual(wizard.status_code, 200)
+        self.assertEqual(done.status_code, 200)
+        self.assertContains(wizard, order.organization_name)
+        self.assertContains(done, order.organization_name)
+
+    def test_specialist_flow_has_v3_navigation_progress_and_accessible_errors(self):
+        form = CrmOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        discovery = CrmSpecialistDiscovery.objects.create(order=order)
+
+        first_response = self.client.get(
+            reverse("crm_orders:specialist", args=[discovery.token]),
+        )
+        self.assertContains(first_response, "core/css/tokens.css")
+        self.assertContains(first_response, "core/css/components.css")
+        self.assertContains(first_response, "crm_orders/specialist.js")
+        self.assertContains(first_response, 'role="progressbar"', html=False)
+        self.assertContains(first_response, "مرحله ۱ از ۹")
+        self.assertNotContains(first_response, "بخش قبل")
+
+        second_key = SECTIONS[1][0]
+        second_response = self.client.get(
+            reverse("crm_orders:specialist_section", args=[discovery.token, second_key]),
+        )
+        expected_previous = reverse(
+            "crm_orders:specialist_section",
+            args=[discovery.token, SECTIONS[0][0]],
+        )
+        self.assertContains(second_response, f'href="{expected_previous}"', html=False)
+        self.assertContains(second_response, "بخش قبل")
+
+        invalid_response = self.client.post(
+            reverse("crm_orders:specialist", args=[discovery.token]),
+            {question_key: "کوتاه" for question_key, *_ in SECTIONS[0][3]},
+        )
+        first_question_key = SECTIONS[0][3][0][0]
+        self.assertContains(invalid_response, 'data-error-summary', html=False)
+        self.assertContains(invalid_response, f'id="id_{first_question_key}-errors"', html=False)
+        self.assertContains(invalid_response, 'aria-invalid="true"', html=False)
+        self.assertContains(
+            invalid_response,
+            f'aria-describedby="id_{first_question_key}-help id_{first_question_key}-errors"',
+            html=False,
+        )
+        done_response = self.client.get(
+            reverse("crm_orders:specialist_done", args=[discovery.token]),
+        )
+        self.assertContains(done_response, "core/css/tokens.css")
+        self.assertContains(done_response, "core/css/components.css")
+        self.assertContains(done_response, "crm_orders/specialist.js")
+        self.assertContains(done_response, 'data-copy-status', html=False)
 
     def test_specialist_cannot_submit_by_skipping_to_last_section(self):
         form = CrmOrderForm(valid_payload())

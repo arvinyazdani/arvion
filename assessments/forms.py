@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from core.i18n_numbers import normalize_digits
 from core.jalali import format_jalali, jalali_to_gregorian
+from core.form_accessibility import enhance_form_accessibility
 
 from .models import AttemptResult, ManualPaymentSubmission, Order, SupportTicket
 
@@ -22,6 +23,7 @@ class ManualPaymentSubmissionForm(forms.ModelForm):
 
     def __init__(self, *args, lang="fa", **kwargs):
         super().__init__(*args, **kwargs)
+        self.lang = "fa" if lang == "fa" else "en"
         if lang == "fa":
             today = timezone.localdate()
             choices = []
@@ -49,12 +51,18 @@ class ManualPaymentSubmissionForm(forms.ModelForm):
             year, month, day = (int(part) for part in normalize_digits(value).split("/"))
             return jalali_to_gregorian(year, month, day)
         except (TypeError, ValueError):
-            raise forms.ValidationError("تاریخ پرداخت معتبر انتخاب کنید.")
+            raise forms.ValidationError(
+                "تاریخ پرداخت معتبر انتخاب کنید."
+                if self.lang == "fa" else "Choose a valid payment date."
+            )
 
     def clean_reference_number(self):
         value = normalize_digits(self.cleaned_data["reference_number"]).strip().replace(" ", "")
         if not value.isalnum() or len(value) < 4:
-            raise forms.ValidationError("شماره پیگیری معتبر وارد کنید.")
+            raise forms.ValidationError(
+                "شماره پیگیری معتبر وارد کنید."
+                if self.lang == "fa" else "Enter a valid bank reference number."
+            )
         return value
 
     def clean(self):
@@ -65,9 +73,17 @@ class ManualPaymentSubmissionForm(forms.ModelForm):
                 timezone.get_current_timezone(),
             )
             if paid_at > timezone.now() + timedelta(minutes=5):
-                self.add_error("payment_time", "زمان پرداخت نمی‌تواند در آینده باشد.")
+                self.add_error(
+                    "payment_time",
+                    "زمان پرداخت نمی‌تواند در آینده باشد."
+                    if self.lang == "fa" else "Payment time cannot be in the future.",
+                )
             elif paid_at < timezone.now() - timedelta(days=30):
-                self.add_error("payment_date", "پرداخت‌های قدیمی‌تر از ۳۰ روز را با پشتیبانی پیگیری کنید.")
+                self.add_error(
+                    "payment_date",
+                    "پرداخت‌های قدیمی‌تر از ۳۰ روز را با پشتیبانی پیگیری کنید."
+                    if self.lang == "fa" else "Contact support for payments older than 30 days.",
+                )
             cleaned["paid_at"] = paid_at
         return cleaned
 
@@ -120,6 +136,7 @@ class SupportTicketForm(forms.ModelForm):
             self.fields["result"].label = "Related result (optional)"
             self.fields["subject"].label = "Subject"
             self.fields["message"].label = "Full details"
+        enhance_form_accessibility(self, autocomplete={"subject": "off", "message": "off"})
 
     def clean(self):
         cleaned = super().clean()

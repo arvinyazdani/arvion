@@ -7,7 +7,6 @@ from django.http import HttpResponse, HttpResponsePermanentRedirect
 from django.urls import include, path
 
 from core.health import HealthCheckView
-from core.admin_dashboard import operations_dashboard
 from core.sitemaps import sitemaps
 from core.views import (
     AboutView, CompanyInfoView, CRMProductView, HomeView, PrivacyView,
@@ -15,6 +14,10 @@ from core.views import (
 )
 from core.views.client_logging import report_js_error
 from core.views.pwa import offline, service_worker
+
+handler403 = "core.views.errors.permission_denied"
+handler404 = "core.views.errors.page_not_found"
+handler500 = "core.views.errors.server_error"
 
 
 def default_language(request):
@@ -54,10 +57,15 @@ def legacy_management(request, path=""):
     return HttpResponsePermanentRedirect(f"/fa/management/{suffix}")
 
 
+def legacy_admin_operations(request):
+    """Retire the parallel Django-admin dashboard in favour of the unified UI."""
+    return HttpResponsePermanentRedirect("/fa/management/")
+
+
 urlpatterns = [
     path("", default_language, name="language_root"),
     path("health/", HealthCheckView.as_view(), name="health"),
-    path("admin/operations/", operations_dashboard, name="admin_operations"),
+    path("admin/operations/", legacy_admin_operations, name="admin_operations"),
     path("admin/", admin.site.urls),
     path("management/", legacy_management, name="legacy_management"),
     path("management/<path:path>", legacy_management),
@@ -66,6 +74,8 @@ urlpatterns = [
     path("favicon.ico", favicon, name="favicon"),
     path("service-worker.js", service_worker, name="service_worker"),
     path("offline/", offline, name="offline"),
+    path("offline/fa/", offline, {"lang": "fa"}, name="offline_fa"),
+    path("offline/en/", offline, {"lang": "en"}, name="offline_en"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
     path("log/js-error/", report_js_error, name="report_js_error"),
 ]

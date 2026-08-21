@@ -3,6 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from accounts.models import User
 from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
+from core.form_accessibility import enhance_form_accessibility
 from core.sms.backends import normalize_iran_mobile
 from .models import CaseActivity, CaseTask, CustomerCase, CustomerContact
 
@@ -25,6 +26,10 @@ class StaffCreateForm(forms.Form):
         }
         for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
         self.fields["roles"].choices = [(key, value[f"label_{lang}"]) for key, value in STAFF_ROLES.items()]
+        enhance_form_accessibility(self, autocomplete={
+            "first_name": "given-name", "last_name": "family-name",
+            "email": "email", "password": "new-password",
+        })
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
@@ -56,6 +61,7 @@ class StaffRolesForm(forms.Form):
         self.fields["roles"].label = "مسئولیت‌ها" if lang == "fa" else "Responsibilities"
         self.fields["is_staff"].label = "دسترسی به مرکز مدیریت فعال باشد" if lang == "fa" else "Allow access to the management center"
         self.fields["roles"].choices = [(key, value[f"label_{lang}"]) for key, value in STAFF_ROLES.items()]
+        enhance_form_accessibility(self)
 
     def save(self):
         groups = sync_staff_role_groups()
@@ -92,14 +98,15 @@ class ManualSMSForm(forms.Form):
             self.fields["message"].help_text = "Final cost depends on message length and provider pricing."
             self.fields["message"].widget.attrs["placeholder"] = "Write the message..."
             self.fields["confirm"].label = "I reviewed the numbers and message and confirm real delivery"
+        enhance_form_accessibility(self, autocomplete={"recipients": "off", "message": "off"})
 
     def clean_recipients(self):
         raw = self.cleaned_data["recipients"]
         values = [item.strip() for item in raw.replace("،", ",").replace(";", ",").replace("\n", ",").split(",") if item.strip()]
         if not values:
-            raise forms.ValidationError("حداقل یک شماره وارد کنید.")
+            raise forms.ValidationError("حداقل یک شماره وارد کنید." if self.lang == "fa" else "Enter at least one mobile number.")
         if len(values) > 20:
-            raise forms.ValidationError("در هر ارسال حداکثر ۲۰ شماره مجاز است.")
+            raise forms.ValidationError("در هر ارسال حداکثر ۲۰ شماره مجاز است." if self.lang == "fa" else "Each delivery can include no more than 20 numbers.")
         normalized, invalid = [], []
         for value in values:
             try:
@@ -110,13 +117,14 @@ class ManualSMSForm(forms.Form):
             if mobile not in normalized:
                 normalized.append(mobile)
         if invalid:
-            raise forms.ValidationError("شماره نامعتبر: " + "، ".join(invalid[:5]))
+            prefix = "شماره نامعتبر: " if self.lang == "fa" else "Invalid number: "
+            raise forms.ValidationError(prefix + ("، " if self.lang == "fa" else ", ").join(invalid[:5]))
         return normalized
 
     def clean_message(self):
         message = self.cleaned_data["message"].strip()
         if not message:
-            raise forms.ValidationError("متن پیامک نمی‌تواند خالی باشد.")
+            raise forms.ValidationError("متن پیامک نمی‌تواند خالی باشد." if self.lang == "fa" else "The message cannot be empty.")
         return message
 
 
@@ -185,6 +193,9 @@ class CustomerContactForm(forms.ModelForm):
         }
         for name, pair in labels.items():
             self.fields[name].label = pair[0 if lang == "fa" else 1]
+        enhance_form_accessibility(self, autocomplete={
+            "name": "name", "role": "organization-title", "phone": "tel", "email": "email",
+        })
 
     def clean(self):
         cleaned = super().clean()

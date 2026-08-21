@@ -1,1 +1,13 @@
-{% extends "management_portal/v2/base.html" %}{% load static %}{% block title %}{{ title }} | Rvion{% endblock %}{% block page_title %}{% if lang == 'fa' %}تنظیم دسترسی{% else %}Access settings{% endif %}{% endblock %}{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/staff.css' %}">{% endblock %}{% block content %}<section class="m-page-head"><div><span>ACCESS CONTROL</span><h1>{{ title }}</h1>{% if member %}<p dir="ltr">{{ member.email }}</p>{% else %}<p>{% if lang == 'fa' %}حساب همکار با حداقل دسترسی لازم ساخته می‌شود.{% else %}The account is created with least-privilege access.{% endif %}</p>{% endif %}</div></section><form class="manager-form" method="post" novalidate>{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class="manager-field{% if field.name == 'roles' %} choices{% endif %}"><label>{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><button class="manager-action" type="submit">{% if lang == 'fa' %}ذخیره دسترسی‌ها{% else %}Save access{% endif %}</button><a href="{% url 'management_portal:staff_list' %}">{% if lang == 'fa' %}انصراف{% else %}Cancel{% endif %}</a></div></form>{% endblock %}
+{% extends "management_portal/v2/base.html" %}{% load static %}
+{% block title %}{{ title }} | Rvion{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}تنظیم دسترسی{% else %}Access settings{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/staff.css' %}?v=3">{% endblock %}
+{% block content %}
+<section class="m-page-head"><div><span>{% if lang == 'fa' %}کنترل دسترسی{% else %}ACCESS CONTROL{% endif %}</span><h1>{{ title }}</h1>{% if member %}<p dir="ltr">{{ member.email }}</p>{% else %}<p>{% if lang == 'fa' %}حساب همکار با حداقل دسترسی لازم ساخته می‌شود.{% else %}The account is created with least-privilege access.{% endif %}</p>{% endif %}</div></section>
+<form class="manager-form" method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-error" role="alert" tabindex="-1">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{% if field.name == 'roles' %}{% include "core/_form_field.html" with field=field wrapper_class="manager-field choices" %}{% else %}{% include "core/_form_field.html" with field=field wrapper_class="manager-field" %}{% endif %}{% endfor %}
+  <div class="form-actions"><button class="manager-action" type="submit">{% if lang == 'fa' %}ذخیره دسترسی‌ها{% else %}Save access{% endif %}</button><a href="{% url 'management_portal:staff_list' %}">{% if lang == 'fa' %}انصراف{% else %}Cancel{% endif %}</a></div>
+</form>
+{% endblock %}

@@ -1,11 +1,11 @@
 {% load static %}<!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="{{ lang }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#ff6b35">
-  <title>اتصال برقرار نیست | آرویون</title>
+  <title>{% if lang == 'fa' %}اتصال برقرار نیست | آرویون{% else %}You are offline | Rvion{% endif %}</title>
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <style>
     :root{color-scheme:light dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1220;color:#f8fafc}
@@ -16,5 +16,5 @@
     a{display:inline-flex;min-height:48px;align-items:center;justify-content:center;padding:0 22px;border-radius:14px;background:#ff6b35;color:#fff;text-decoration:none;font-weight:800}
   </style>
 </head>
-<body><main><span class="mark" aria-hidden="true">R</span><h1>اتصال اینترنت برقرار نیست.</h1><p>این صفحه اطلاعات خصوصی شما را ذخیره نمی‌کند. اتصال را بررسی کنید و برای دریافت تازه‌ترین اطلاعات دوباره تلاش کنید.</p><a href="/fa/">تلاش دوباره</a></main></body>
+<body><main><span class="mark" aria-hidden="true">R</span><h1>{% if lang == 'fa' %}اتصال اینترنت برقرار نیست.{% else %}You’re currently offline.{% endif %}</h1><p>{% if lang == 'fa' %}این صفحه اطلاعات خصوصی شما را ذخیره نمی‌کند. اتصال را بررسی کنید و برای دریافت تازه‌ترین اطلاعات دوباره تلاش کنید.{% else %}This page stores no private information. Check your connection, then try loading the requested page again.{% endif %}</p><a href="">{% if lang == 'fa' %}تلاش دوباره{% else %}Try again{% endif %}</a></main></body>
 </html>

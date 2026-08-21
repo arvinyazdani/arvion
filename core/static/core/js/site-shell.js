@@ -4,13 +4,17 @@
   const scrim = document.querySelector(".nav-scrim");
 
   if (menuButton && nav && scrim) {
-    const closeMenu = () => {
+    const menuBackground = [...document.querySelectorAll("main,.mobile-tabbar,.site-footer")];
+    const setMenuBackgroundInert = inert => menuBackground.forEach(item => item.toggleAttribute("inert", inert));
+    const closeMenu = (restoreFocus = false) => {
       nav.classList.remove("is-open");
       menuButton.classList.remove("is-open");
       scrim.classList.remove("is-open");
       menuButton.setAttribute("aria-expanded", "false");
       menuButton.setAttribute("aria-label", menuButton.dataset.openLabel);
       document.body.classList.remove("menu-open");
+      setMenuBackgroundInert(false);
+      if (restoreFocus) menuButton.focus();
     };
     const openMenu = () => {
       nav.classList.add("is-open");
@@ -19,16 +23,16 @@
       menuButton.setAttribute("aria-expanded", "true");
       menuButton.setAttribute("aria-label", menuButton.dataset.closeLabel);
       document.body.classList.add("menu-open");
+      setMenuBackgroundInert(true);
       nav.querySelector("a")?.focus();
     };
 
     menuButton.addEventListener("click", () => menuButton.getAttribute("aria-expanded") === "true" ? closeMenu() : openMenu());
-    scrim.addEventListener("click", closeMenu);
-    nav.querySelectorAll("a").forEach(link => link.addEventListener("click", closeMenu));
+    scrim.addEventListener("click", () => closeMenu(true));
+    nav.querySelectorAll("a").forEach(link => link.addEventListener("click", () => closeMenu()));
     document.addEventListener("keydown", event => {
       if (event.key === "Escape" && nav.classList.contains("is-open")) {
-        closeMenu();
-        menuButton.focus();
+        closeMenu(true);
       }
       if (event.key === "Tab" && nav.classList.contains("is-open")) {
         const focusable = [menuButton, ...nav.querySelectorAll("a,button:not([disabled])")];
@@ -45,52 +49,91 @@
   }
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
-    window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js?v=2", {updateViaCache: "none"}).catch(() => {}));
+    window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js?v=4", {updateViaCache: "none"}).catch(() => {}));
   }
 
   const welcome = document.querySelector("[data-app-welcome]");
-  const navigationBackground = [...document.querySelectorAll(".site-header,main,.mobile-tabbar,.site-footer")];
-  const setNavigationBusy = busy => {
-    navigationBackground.forEach(item => {
-      item.toggleAttribute("inert", busy);
-      if (item.tagName === "MAIN") item.setAttribute("aria-busy", busy ? "true" : "false");
-    });
-  };
+  const routeShell = [...document.querySelectorAll("[data-route-shell]")];
+  const navigationBackground = routeShell.length
+    ? routeShell
+    : [...document.querySelectorAll(".site-header,main,.mobile-tabbar,.site-footer")];
+  const main = document.querySelector("main");
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+  const NAVIGATION_REVEAL_DELAY_MS = 160;
+  const NAVIGATION_FAILSAFE_MS = 8000;
+  const INITIAL_EXIT_MS = 300;
+  const prefersReducedMotion = () => Boolean(reducedMotion?.matches);
+  const setMainBusy = busy => main?.setAttribute("aria-busy", busy ? "true" : "false");
+  const setNavigationLocked = locked => navigationBackground.forEach(item => item.toggleAttribute("inert", locked));
+  const setWelcomeVisible = visible => welcome?.setAttribute("aria-hidden", visible ? "false" : "true");
+  let navigationRevealTimer = null;
   let navigationFailsafe = null;
+  let navigationScheduled = false;
+  let finishInitialWelcome = null;
   const hideNavigationLoader = () => {
+    if (navigationRevealTimer) window.clearTimeout(navigationRevealTimer);
     if (navigationFailsafe) window.clearTimeout(navigationFailsafe);
+    navigationRevealTimer = null;
     navigationFailsafe = null;
+    navigationScheduled = false;
     document.documentElement.classList.remove("navigation-pending");
-    if (welcome) welcome.setAttribute("aria-hidden", "true");
-    setNavigationBusy(false);
+    welcome?.classList.remove("is-leaving");
+    setWelcomeVisible(false);
+    setNavigationLocked(false);
+    setMainBusy(false);
   };
-  const showNavigationLoader = () => {
-    if (!welcome) return;
+  const revealNavigationLoader = () => {
+    navigationRevealTimer = null;
+    if (!welcome || !navigationScheduled || prefersReducedMotion()) return;
     welcome.classList.remove("is-leaving");
-    welcome.setAttribute("aria-hidden", "false");
+    setWelcomeVisible(true);
     document.documentElement.classList.add("navigation-pending");
-    setNavigationBusy(true);
-    navigationFailsafe = window.setTimeout(hideNavigationLoader, 15000);
+    setNavigationLocked(true);
+  };
+  const scheduleNavigationLoader = () => {
+    if (!welcome || navigationScheduled) return;
+    navigationScheduled = true;
+    setMainBusy(true);
+    if (!prefersReducedMotion()) {
+      navigationRevealTimer = window.setTimeout(revealNavigationLoader, NAVIGATION_REVEAL_DELAY_MS);
+    }
+    navigationFailsafe = window.setTimeout(hideNavigationLoader, NAVIGATION_FAILSAFE_MS);
   };
   if (document.documentElement.classList.contains("welcome-pending") && welcome) {
-    const startedAt = performance.now();
     let welcomeDismissed = false;
+    let exitTimer = null;
+    setWelcomeVisible(true);
+    setNavigationLocked(true);
+    setMainBusy(true);
+    const finishWelcome = () => {
+      welcomeDismissed = true;
+      if (exitTimer) window.clearTimeout(exitTimer);
+      exitTimer = null;
+      welcome.classList.remove("is-leaving");
+      document.documentElement.classList.remove("welcome-pending");
+      setWelcomeVisible(false);
+      setNavigationLocked(false);
+      setMainBusy(false);
+      try { sessionStorage.setItem("rvion-welcome-v1", "seen"); } catch (error) {}
+    };
+    finishInitialWelcome = finishWelcome;
     const dismissWelcome = () => {
       if (welcomeDismissed) return;
       welcomeDismissed = true;
-      const wait = Math.max(0, 1050 - (performance.now() - startedAt));
-      window.setTimeout(() => {
-        welcome.classList.add("is-leaving");
-        document.documentElement.classList.remove("welcome-pending");
-        try { sessionStorage.setItem("rvion-welcome-v1", "seen"); } catch (error) {}
-        window.setTimeout(() => welcome.classList.remove("is-leaving"), 650);
-      }, wait);
+      if (prefersReducedMotion()) {
+        finishWelcome();
+        return;
+      }
+      welcome.classList.add("is-leaving");
+      exitTimer = window.setTimeout(finishWelcome, INITIAL_EXIT_MS);
     };
-    if (document.readyState === "complete") dismissWelcome();
+    if (prefersReducedMotion() || document.readyState === "complete") dismissWelcome();
     else window.addEventListener("load", dismissWelcome, { once: true });
     window.setTimeout(dismissWelcome, 3500);
   } else {
     document.documentElement.classList.remove("welcome-pending");
+    setWelcomeVisible(false);
+    setMainBusy(false);
   }
 
   document.addEventListener("click", event => {
@@ -101,16 +144,45 @@
     try { destination = new URL(link.href, location.href); } catch (error) { return; }
     if (destination.origin !== location.origin || !/^https?:$/.test(destination.protocol)) return;
     if (destination.pathname === location.pathname && destination.search === location.search && destination.hash) return;
-    showNavigationLoader();
+    scheduleNavigationLoader();
   });
   document.addEventListener("submit", event => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement) || event.defaultPrevented || form.dataset.noLoader !== undefined) return;
+    if (form.target === "_blank") return;
     if (typeof form.checkValidity === "function" && !form.checkValidity()) return;
-    showNavigationLoader();
+    scheduleNavigationLoader();
   });
-  window.addEventListener("pageshow", hideNavigationLoader);
-  window.addEventListener("pagehide", () => {});
+  window.addEventListener("pageshow", () => {
+    if (!document.documentElement.classList.contains("welcome-pending")) hideNavigationLoader();
+  });
+  if (reducedMotion?.addEventListener) {
+    reducedMotion.addEventListener("change", event => {
+      if (!event.matches) return;
+      if (document.documentElement.classList.contains("welcome-pending")) finishInitialWelcome?.();
+      else hideNavigationLoader();
+    });
+  }
+
+  const revealItems = [...document.querySelectorAll("[data-ui-reveal]")];
+  if (revealItems.length) {
+    if (prefersReducedMotion() || !("IntersectionObserver" in window)) {
+      revealItems.forEach(item => item.classList.add("is-visible"));
+    } else {
+      document.documentElement.classList.add("has-ui-reveal");
+      const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          revealObserver.unobserve(entry.target);
+        });
+      }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+      revealItems.forEach((item, index) => {
+        item.style.setProperty("--ui-reveal-delay", `${Math.min(index % 4, 3) * 45}ms`);
+        revealObserver.observe(item);
+      });
+    }
+  }
 
   const guideButtons = [...document.querySelectorAll("[data-install-guide]")];
   const dialog = document.querySelector("[data-install-dialog]");

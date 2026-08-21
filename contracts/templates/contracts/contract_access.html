@@ -1,52 +1,31 @@
-{% load static %}
-<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>ورود به پرونده قرارداد | آرویون</title>
+{% extends "contracts/contract_base.html" %}{% load static %}
+{% block title %}ورود به پرونده قرارداد | آرویون{% endblock %}
+{% block social_meta %}
   <link rel="canonical" href="{{ canonical_url }}">
-  <meta property="og:type" content="website">
-  <meta property="og:locale" content="fa_IR">
-  <meta property="og:site_name" content="آرویون | Rvion">
-  <meta property="og:title" content="پروندهٔ اختصاصی قرارداد | آرویون">
-  <meta property="og:description" content="فضای امن بررسی فرم نیازسنجی، شرایط همکاری و تأیید نهایی قرارداد آرویون.">
-  <meta property="og:url" content="{{ canonical_url }}">
-  <meta property="og:image" content="{{ share_image_url }}">
-  <meta property="og:image:url" content="{{ share_image_url }}">
-  <meta property="og:image:secure_url" content="{{ share_image_url }}">
-  <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="پروندهٔ اختصاصی قرارداد آرویون">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="پروندهٔ اختصاصی قرارداد | آرویون">
-  <meta name="twitter:description" content="فضای امن بررسی فرم نیازسنجی و شرایط همکاری.">
-  <meta name="twitter:image" content="{{ share_image_url }}">
-  <link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=10">
-  <link rel="stylesheet" href="{% static 'contracts/otp.css' %}?v=2">
-</head>
-<body class="public-contract contract-access-page">
-  <main class="otp-shell">
-    {% if messages %}{% for message in messages %}<div class="otp-message">{{ message }}</div>{% endfor %}{% endif %}
-    <section class="otp-card contract-access-card">
-      <div class="access-brand"><b>R</b><span>آرویون<small>فضای اختصاصی قرارداد</small></span></div>
-      <span class="access-eyebrow">پروندهٔ محرمانه مشتری</span>
-      <h1>ورود به پروندهٔ قرارداد</h1>
-      <p>پروندهٔ «{{ version.snapshot.customer_name }}» فقط با شمارهٔ همراه مجاز و رمز اختصاصی قابل مشاهده است.</p>
-      <div class="access-project"><small>عنوان پروژه</small><strong>{{ version.snapshot.project_title }}</strong></div>
-      <form method="post" class="otp-form" novalidate>
-        {% csrf_token %}
-        {{ form.non_field_errors }}
-        <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>{{ form.phone }}{{ form.phone.errors }}
-        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
-        <div class="password-field">{{ form.password }}<button type="button" class="password-toggle" aria-label="نمایش رمز ورود">نمایش</button></div>{{ form.password.errors }}
-        <button class="contract-button" type="submit">ورود امن به پرونده <span>←</span></button>
-      </form>
-      <p class="access-help">در صورت نداشتن رمز یا بروز مشکل، با مسئول پروژهٔ آرویون تماس بگیرید.</p>
-    </section>
-  </main>
-  <script>document.querySelector('.password-toggle')?.addEventListener('click',function(){const input=document.querySelector('#{{ form.password.id_for_label }}');const visible=input.type==='text';input.type=visible?'password':'text';this.textContent=visible?'نمایش':'پنهان';this.setAttribute('aria-label',visible?'نمایش رمز ورود':'پنهان‌کردن رمز ورود')})</script>
-</body>
-</html>
+  <meta property="og:type" content="website"><meta property="og:locale" content="fa_IR"><meta property="og:site_name" content="آرویون | Rvion">
+  <meta property="og:title" content="پروندهٔ اختصاصی قرارداد | آرویون"><meta property="og:description" content="فضای امن بررسی فرم نیازسنجی، شرایط همکاری و تأیید نهایی قرارداد آرویون."><meta property="og:url" content="{{ canonical_url }}">
+  <meta property="og:image" content="{{ share_image_url }}"><meta property="og:image:url" content="{{ share_image_url }}"><meta property="og:image:secure_url" content="{{ share_image_url }}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="پروندهٔ اختصاصی قرارداد آرویون">
+  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="پروندهٔ اختصاصی قرارداد | آرویون"><meta name="twitter:description" content="فضای امن بررسی فرم نیازسنجی و شرایط همکاری."><meta name="twitter:image" content="{{ share_image_url }}">
+{% endblock %}
+{% block body_class %}contract-access-page{% endblock %}
+{% block header_actions %}<span class="contract-header-chip"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg><span>ورود امن</span></span>{% endblock %}
+{% block content %}
+<div class="otp-shell">
+  <section class="otp-card contract-access-card" aria-labelledby="contract-access-title">
+    <span class="access-eyebrow">پرونده محرمانه مشتری</span>
+    <h1 id="contract-access-title">ورود به پرونده قرارداد</h1>
+    <p>این پرونده فقط با شماره همراه مجاز و رمز اختصاصی قابل مشاهده است. مشخصات مشتری و پروژه پس از ورود امن نمایش داده می‌شود.</p>
+    <div class="access-project"><small>وضعیت پرونده</small><strong>نسخه منتشرشده و آماده بررسی</strong></div>
+    <form method="post" class="otp-form" novalidate data-contract-submit>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="ui-message ui-message--error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>{{ form.phone }}{% if form.phone.errors %}<div id="{{ form.phone.id_for_label }}_error" class="field-error" role="alert">{{ form.phone.errors }}</div>{% endif %}
+      <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+      <div class="password-field">{{ form.password }}<button type="button" class="password-toggle" data-password-toggle="{{ form.password.id_for_label }}" data-show-label="نمایش" data-hide-label="پنهان" aria-label="نمایش" aria-controls="{{ form.password.id_for_label }}" aria-pressed="false">نمایش</button></div>
+      {% if form.password.errors %}<div id="{{ form.password.id_for_label }}_error" class="field-error" role="alert">{{ form.password.errors }}</div>{% endif %}
+      <button class="contract-button" type="submit" data-busy-label="در حال بررسی اطلاعات…">ورود به پرونده</button>
+    </form>
+    <p class="access-help">رمز را از مسئول پروژه دریافت کنید. اگر اطلاعات ورود در دسترس نیست، با <a dir="ltr" href="tel:{{ company.phone }}">{{ company.phone }}</a> تماس بگیرید.</p>
+  </section>
+</div>
+{% endblock %}

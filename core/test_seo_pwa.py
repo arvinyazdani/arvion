@@ -27,8 +27,10 @@ class PWAEndpointTests(TestCase):
         self.assertIn("no-cache", response["Cache-Control"])
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
-        self.assertContains(response, 'const CACHE = "rvion-shell-v3"')
-        self.assertContains(response, 'const OFFLINE_URL = "/offline/"')
+        self.assertContains(response, 'const CACHE = "rvion-shell-v4"')
+        self.assertContains(response, 'const OFFLINE_URL_FA = "/offline/fa/"')
+        self.assertContains(response, 'const OFFLINE_URL_EN = "/offline/en/"')
+        self.assertContains(response, 'url.pathname.startsWith("/en/")')
         self.assertEqual(len(queries), 0)
 
     def test_offline_fallback_is_public_data_free_and_not_tracked(self):
@@ -42,6 +44,18 @@ class PWAEndpointTests(TestCase):
         self.assertNotIn("sessionid", response.cookies)
         self.assertEqual(TrafficDay.objects.count(), 0)
         self.assertEqual(len(queries), 0)
+
+    def test_offline_fallback_keeps_language_and_retries_requested_url(self):
+        english = self.client.get(reverse("offline_en"))
+        self.assertContains(english, '<html lang="en" dir="ltr">', html=False)
+        self.assertContains(english, "You’re currently offline.")
+        self.assertContains(english, '<a href="">Try again</a>', html=False)
+        self.assertNotContains(english, "اتصال اینترنت برقرار نیست")
+
+        persian = self.client.get(reverse("offline_fa"))
+        self.assertContains(persian, '<html lang="fa" dir="rtl">', html=False)
+        self.assertContains(persian, "اتصال اینترنت برقرار نیست.")
+        self.assertNotContains(persian, "You’re currently offline.")
 
     def test_manifest_exposes_stable_identity_and_local_shortcuts(self):
         manifest_path = Path(settings.BASE_DIR) / "core/static/core/manifest.webmanifest"

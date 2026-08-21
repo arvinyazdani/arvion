@@ -33,7 +33,7 @@ class ClinicOrderTests(TestCase):
     def test_wizard_is_public_and_has_five_accessible_steps(self):
         response = self.client.get(reverse("clinic_orders:create"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "CLINIC WEBSITE DISCOVERY")
+        self.assertContains(response, "نیازسنجی تخصصی پلتفرم کلینیک")
         self.assertContains(response, 'data-wizard="clinic-order"', html=False)
         self.assertContains(response, "ادامه")
         self.assertContains(response, "clinic-wizard.css")
@@ -44,6 +44,26 @@ class ClinicOrderTests(TestCase):
     def test_english_url_redirects_to_persian_until_form_copy_is_translated(self):
         response = self.client.get("/en/clinic-order/")
         self.assertRedirects(response, "/fa/clinic-order/", fetch_redirect_response=False)
+
+    def test_create_invalid_form_and_thanks_are_never_cached(self):
+        create_response = self.client.get(reverse("clinic_orders:create"))
+        invalid_payload = valid_payload()
+        invalid_payload["appointment_rules"] = "کوتاه"
+        invalid_response = self.client.post(reverse("clinic_orders:create"), invalid_payload)
+
+        form = ClinicOrderForm(valid_payload())
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        order = form.save(commit=False)
+        order.privacy_accepted_at = timezone.now()
+        order.save()
+        thanks_response = self.client.get(
+            reverse("clinic_orders:thanks", args=[order.tracking_code]),
+        )
+
+        for response in (create_response, invalid_response, thanks_response):
+            cache_control = response.headers.get("Cache-Control", "")
+            self.assertIn("no-store", cache_control)
+            self.assertIn("private", cache_control)
 
     def test_valid_submission_persists_and_returns_tracking_code(self):
         response = self.client.post(reverse("clinic_orders:create"), valid_payload(), follow=True)

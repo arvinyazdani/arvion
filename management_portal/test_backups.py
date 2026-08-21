@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from accounts.models import User
 from management_portal.backups import find_backup_inventory
@@ -67,6 +67,8 @@ class BackupInventoryTests(SimpleTestCase):
 
 class BackupIntegrationTests(TestCase):
     def setUp(self):
+        translation.activate("fa")
+        self.addCleanup(translation.deactivate)
         self.temporary_directory = TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
         self.root = Path(self.temporary_directory.name) / "backups"

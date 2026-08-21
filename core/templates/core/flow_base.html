@@ -1,0 +1,60 @@
+{% load static %}
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{% block title %}فرآیند اختصاصی | آرویون{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}فرآیند اختصاصی و امن آرویون برای ثبت اطلاعات پروژه.{% endblock %}">
+  <meta name="robots" content="{% block meta_robots %}{% if seo_noindex %}noindex,nofollow{% else %}index,follow,max-image-preview:large{% endif %}{% endblock %}">
+  <link rel="canonical" href="{{ canonical_url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Rvion">
+  <meta property="og:locale" content="fa_IR">
+  <meta property="og:title" content="{% block og_title %}فرآیند اختصاصی آرویون{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}اطلاعات پروژه را در یک مسیر روشن و امن تکمیل کنید.{% endblock %}">
+  <meta property="og:url" content="{{ canonical_url }}">
+  <meta property="og:image" content="{{ site_url }}{% block og_image %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
+  <meta property="og:image:url" content="{{ site_url }}{% block og_image_url %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
+  <meta property="og:image:secure_url" content="{{ site_url }}{% block og_image_secure %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{% block og_image_alt %}آرویون{% endblock %}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% block twitter_title %}آرویون{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}فرآیند اختصاصی آرویون{% endblock %}">
+  <meta name="twitter:image" content="{{ site_url }}{% block twitter_image %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
+  <meta name="theme-color" content="#111827">
+  <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
+  <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/flow.css' %}?v=3">
+  <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
+  <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/wizard-engine.js' %}?v=2" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="flow-page {% block body_class %}{% endblock %}">
+  {% include "core/_route_loader.html" %}
+  <a class="flow-skip" href="#flow-main">رفتن به فرم</a>
+  <header class="flow-header" data-route-shell>
+    <div class="flow-container flow-header-inner">
+      <a class="flow-brand" href="{% url 'home' %}" aria-label="صفحه اصلی آرویون">
+        <span class="flow-brand-mark">R</span>
+        <span><strong>RVION</strong><small>فرآیند اختصاصی پروژه</small></span>
+      </a>
+      <div class="flow-header-actions">
+        <span class="flow-security"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg> ارتباط امن</span>
+        <a class="flow-support" dir="ltr" href="tel:{{ company.phone }}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#support"></use></svg><span>{{ company.phone }}</span></a>
+        <a class="flow-exit" href="{% url 'home' %}"><span>خروج</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#close"></use></svg></a>
+      </div>
+    </div>
+  </header>
+  {% if messages %}<div class="flow-container flow-messages" aria-live="polite">{% for message in messages %}<div class="ui-message ui-message--{{ message.tags|default:'info' }}" {% if 'error' in message.tags %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</div>{% endfor %}</div>{% endif %}
+  <main id="flow-main" tabindex="-1" data-route-shell>{% block content %}{% endblock %}</main>
+  <footer class="flow-footer" data-route-shell><div class="flow-container"><span>© {% now "Y" %} Rvion</span><span>اطلاعات شما فقط برای بررسی همین درخواست استفاده می‌شود.</span><a href="{% url 'privacy' %}" target="_blank" rel="noopener">حریم خصوصی</a></div></footer>
+  <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

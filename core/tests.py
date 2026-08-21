@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase
 from django.urls import reverse
@@ -30,6 +31,28 @@ class CorePagesTests(TestCase):
         self.assertContains(response, 'data-install-panel="desktop"', html=False)
         self.assertContains(response, 'data-app-welcome', html=False)
         self.assertRedirects(self.client.get("/favicon.ico"), "/static/core/favicon.svg", status_code=301, fetch_redirect_response=False)
+
+    def test_public_and_staff_mobile_navigation_always_has_five_destinations(self):
+        response = self.client.get("/fa/")
+        html = response.content.decode()
+        mobile_nav = html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
+        self.assertEqual(mobile_nav.count("<a "), 5)
+        self.assertEqual(html.count('class="nav-cta"'), 1)
+
+        staff = get_user_model().objects.create_user(
+            username="shell-admin@example.com",
+            email="shell-admin@example.com",
+            password="test-password-42",
+            is_active=True,
+            is_staff=True,
+        )
+        self.client.force_login(staff)
+        staff_response = self.client.get("/fa/")
+        staff_html = staff_response.content.decode()
+        staff_mobile_nav = staff_html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
+        self.assertEqual(staff_mobile_nav.count("<a "), 5)
+        self.assertIn("data-admin-shortcut", staff_mobile_nav)
+        self.assertNotIn('href="/fa/account/dashboard/"', staff_mobile_nav)
 
     def test_language_prefixed_urls_and_root_redirect(self):
         with translation.override("fa"):
@@ -91,6 +114,15 @@ class CorePagesTests(TestCase):
         self.assertLess(bootstrap, tokens)
         self.assertContains(response, 'data-theme-toggle', html=False)
 
+    def test_component_foundation_loads_after_legacy_site_styles(self):
+        response = self.client.get("/fa/")
+        html = response.content.decode()
+        tokens = html.index("core/css/tokens.css?v=4")
+        legacy = html.index("core/css/site.css?v=35")
+        components = html.index("core/css/components.css?v=4")
+        self.assertLess(tokens, legacy)
+        self.assertLess(legacy, components)
+
     def test_company_identity_is_seeded_once(self):
         company = CompanyProfile.objects.get()
         self.assertEqual(company.legal_name_fa, "آروین توسعه تجارت هوشمند")
@@ -113,6 +145,24 @@ class CorePagesTests(TestCase):
             with self.subTest(page=name, lang="en"):
                 self.assertContains(self.client.get(reverse(name) + "?lang=en"), en_text)
 
+    def test_legal_page_eyebrows_and_numbers_do_not_mix_languages(self):
+        fa_company = self.client.get(reverse("company_info") + "?lang=fa")
+        self.assertContains(fa_company, "هویت حقوقی")
+        self.assertNotContains(fa_company, "LEGAL IDENTITY")
+
+        en_company = self.client.get(reverse("company_info") + "?lang=en")
+        self.assertContains(en_company, "LEGAL IDENTITY")
+        self.assertNotContains(en_company, CompanyProfile.objects.get().established_date_fa)
+
+        fa_terms = self.client.get(reverse("service_terms") + "?lang=fa")
+        self.assertContains(fa_terms, "شرایط خدمات")
+        self.assertContains(fa_terms, ">۰۱<", html=False)
+        self.assertNotContains(fa_terms, "SERVICE TERMS")
+
+        en_terms = self.client.get(reverse("service_terms") + "?lang=en")
+        self.assertContains(en_terms, "SERVICE TERMS")
+        self.assertContains(en_terms, ">01<", html=False)
+
     def test_global_brand_and_legal_footer_use_rvion(self):
         response = self.client.get(reverse("home") + "?lang=fa")
         self.assertContains(response, ">RVION<", html=False)
@@ -123,15 +173,15 @@ class CorePagesTests(TestCase):
 
     def test_delivery_card_is_fully_localized_and_public_email_is_hidden(self):
         fa_response = self.client.get("/fa/")
-        self.assertContains(fa_response, "از نیاز کسب‌وکار")
-        self.assertContains(fa_response, "شفاف")
+        self.assertContains(fa_response, "از مسئله تا محصول قابل استفاده")
+        self.assertContains(fa_response, "قرارداد شفاف")
         self.assertNotContains(fa_response, "hello@rvin-tech.com")
 
         en_response = self.client.get("/en/")
-        self.assertContains(en_response, "From business need")
-        self.assertContains(en_response, "Defined")
-        self.assertContains(en_response, "Supported")
-        delivery_html = en_response.content.decode().split('class="hero-panel"', 1)[1].split("</section>", 1)[0]
+        self.assertContains(en_response, "From problem to a usable product")
+        self.assertContains(en_response, "Agree scope and terms")
+        self.assertContains(en_response, "Build, launch and support")
+        delivery_html = en_response.content.decode().split('class="delivery-brief"', 1)[1].split("</aside>", 1)[0]
         self.assertNotRegex(delivery_html, r"[۰-۹]")
         self.assertNotIn("hello@rvin-tech.com", en_response.content.decode())
 
@@ -189,7 +239,7 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("service_worker"))
         self.assertEqual(response.status_code, 200)
         self.assertIn("application/javascript", response["Content-Type"])
-        self.assertContains(response, 'const CACHE = "rvion-shell-v3"')
+        self.assertContains(response, 'const CACHE = "rvion-shell-v4"')
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")

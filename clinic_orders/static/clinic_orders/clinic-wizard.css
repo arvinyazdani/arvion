@@ -37,11 +37,11 @@
 }
 
 @media(max-width:560px){
-  .clinic-hero{padding:27px 0 30px}
-  .clinic-hero .eyebrow{margin-bottom:9px;font-size:.65rem}
-  .clinic-hero h1{font-size:2.15rem;line-height:1.18;letter-spacing:-.035em}
-  .clinic-hero p{margin-top:13px;font-size:.87rem;line-height:1.75}
-  .clinic-hero-meta{margin-top:15px}
+  .clinic-hero{padding:18px 0 12px}
+  .clinic-hero .eyebrow{margin-bottom:7px;font-size:.65rem}
+  .clinic-hero h1{font-size:1.82rem;line-height:1.24;letter-spacing:-.025em}
+  .clinic-hero p{margin-top:10px;font-size:.82rem;line-height:1.7}
+  .clinic-hero-meta{margin-top:10px}
   .clinic-hero-meta span{padding:5px 8px;font-size:.66rem}
   .clinic-hero aside{display:none}
   .clinic-order-page .section{padding:22px 0 50px}
@@ -58,6 +58,6 @@
   .clinic-order-page .crm-options>div{grid-template-columns:1fr}
   .clinic-order-page .crm-options>div label{min-height:50px;font-size:.82rem}
   .clinic-order-page .crm-actions{gap:8px;margin-inline:-6px;padding-inline:6px}
-  .clinic-order-page .crm-actions{bottom:70px}
+  .clinic-order-page .crm-actions{bottom:0}
   .clinic-order-page .crm-actions .button{padding:11px 13px;font-size:.83rem}
 }

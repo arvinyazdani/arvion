@@ -2,6 +2,7 @@
 @font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700 800;font-style:normal;font-display:swap}
 @font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Black.woff2") format("woff2");font-weight:900;font-style:normal;font-display:swap}
 :root{
+  color-scheme:light;
   --color-brand-orange:#ff6b35;--color-brand-orange-text:#a92f08;--color-brand-orange-2:#ff9f1c;
   --color-mint:#b8f2e6;
   --color-status-green:#1f9d70;--color-status-green-text:#0f7a54;
@@ -17,8 +18,37 @@
   --radius-sm:10px;--radius-md:14px;--radius-lg:22px;--radius-pill:999px;
   --shadow-sm:0 8px 20px rgba(11,18,32,.08);--shadow-md:0 22px 60px rgba(11,18,32,.12);
   --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;
-  --font-family-base:Vazirmatn,Tahoma,sans-serif;
-  --font-size-sm:.875rem;--font-size-base:1rem;--font-size-lg:1.125rem;--font-size-xl:1.5rem;--font-size-2xl:2rem;
+  --font-family-fa:Vazirmatn,Tahoma,sans-serif;--font-family-latin:"Segoe UI",Tahoma,Arial,sans-serif;--font-family-mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  --font-family-base:var(--font-family-fa);
+  --font-weight-regular:400;--font-weight-bold:700;--font-weight-black:900;
+  --font-size-xs:.75rem;--font-size-sm:.875rem;--font-size-base:1rem;--font-size-lg:1.125rem;--font-size-xl:1.5rem;--font-size-2xl:2rem;--font-size-3xl:clamp(2.25rem,5vw,4rem);
+  --line-height-tight:1.2;--line-height-heading:1.35;--line-height-body:1.75;
+
+  /* v3 semantic roles: components depend on intent, not palette names. */
+  --surface-page:var(--color-paper);--surface-card:var(--color-surface);--surface-subtle:var(--color-surface-2);--surface-inverse:var(--color-panel-dark);--surface-overlay:rgba(7,13,24,.72);
+  --text-primary:var(--color-ink);--text-secondary:var(--color-muted);--text-inverse:var(--color-white);--text-link:var(--color-brand-orange-text);
+  --border-default:var(--color-line);--border-strong:var(--color-control-border);--border-focus:var(--color-focus);
+  --action-primary-bg:var(--color-panel-dark);--action-primary-bg-hover:var(--color-brand-orange);--action-primary-text:var(--color-white);
+  --action-brand-bg:var(--color-brand-orange);--action-brand-bg-hover:var(--color-brand-orange-2);--action-brand-text:var(--color-on-brand);
+  --action-secondary-bg:transparent;--action-secondary-bg-hover:var(--color-surface-2);--action-secondary-text:var(--color-ink);--action-secondary-border:var(--color-control-border);
+  --action-danger-bg:var(--color-status-red);--action-danger-bg-hover:#b42318;--action-danger-text:var(--color-white);
+  --action-disabled-bg:var(--color-surface-2);--action-disabled-text:var(--color-muted);--action-disabled-border:var(--color-line);
+  --status-success-surface:var(--color-success-surface);--status-success-text:var(--color-status-green-text);--status-success-border:#65c89c;
+  --status-warning-surface:var(--color-warning-surface);--status-warning-text:#8a460e;--status-warning-border:#d7a564;
+  --status-danger-surface:var(--color-danger-surface);--status-danger-text:var(--color-status-red-text);--status-danger-border:#e78982;
+  --status-info-surface:var(--color-info-surface);--status-info-text:var(--color-info-text);--status-info-border:#8eb5f1;
+
+  /* v3 component, layout and layering primitives. */
+  --border-width:1px;--focus-ring-width:3px;--focus-ring-offset:3px;
+  --control-height-sm:44px;--control-height-md:44px;--control-height-lg:52px;--control-padding-inline:16px;
+  --layout-content-max:1160px;--layout-reading-max:760px;--layout-gutter:40px;--layout-gutter-mobile:28px;
+  --z-base:0;--z-raised:10;--z-sticky:50;--z-popover:100;--z-modal:500;--z-loader:1000;--z-toast:1100;
+  --icon-size-sm:16px;--icon-size-md:20px;--icon-size-lg:24px;--icon-stroke-width:1.8;
+
+  /* v3 motion: opacity and transform only; distances collapse in reduce mode. */
+  --motion-duration-instant:0ms;--motion-duration-fast:120ms;--motion-duration-normal:180ms;--motion-duration-slow:280ms;--motion-duration-loop:800ms;
+  --motion-ease-standard:cubic-bezier(.2,0,0,1);--motion-ease-enter:cubic-bezier(0,0,.2,1);--motion-ease-exit:cubic-bezier(.4,0,1,1);
+  --motion-distance-sm:4px;--motion-distance-md:8px;
 
   /* alias های عقب‌سازگار — هر فایل CSS قدیمی تا زمان مهاجرت کامل بدون تغییر کار می‌کند */
   --accent:var(--color-brand-orange);--accent-text:var(--color-brand-orange-text);--accent-2:var(--color-brand-orange-2);
@@ -34,6 +64,7 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
+    color-scheme:dark;
     --color-ink:#f4f1ea;--color-ink-2:#e3e0d8;--color-paper:#12161f;--color-surface:#1a2030;
     --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);--color-control-border:#909aaa;--color-focus:#ff9f7a;
     --shadow-md:0 22px 60px rgba(0,0,0,.45);--shadow-sm:0 8px 20px rgba(0,0,0,.35);
@@ -41,9 +72,13 @@
     --color-success-surface:#123a2e;--color-warning-surface:#3b2b17;--color-danger-surface:#43201e;
     --color-info-surface:#182d4c;--color-info-text:#9cc2ff;--color-accent-surface:#3b271f;
     --surface-glass:rgba(18,22,31,.86);--color-surface-2:#1f2635;
+    --surface-overlay:rgba(3,7,14,.8);--action-danger-bg-hover:#f04438;
+    --status-success-border:#247d5e;--status-warning-text:#ffc47d;--status-warning-border:#805a28;
+    --status-danger-border:#8b3c36;--status-info-border:#315b91;
   }
 }
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --color-ink:#f4f1ea;--color-ink-2:#e3e0d8;--color-paper:#12161f;--color-surface:#1a2030;
   --color-muted:#a9b0bd;--color-line:rgba(244,241,234,.14);--color-control-border:#909aaa;--color-focus:#ff9f7a;
   --shadow-md:0 22px 60px rgba(0,0,0,.45);--shadow-sm:0 8px 20px rgba(0,0,0,.35);
@@ -51,4 +86,13 @@
   --color-success-surface:#123a2e;--color-warning-surface:#3b2b17;--color-danger-surface:#43201e;
   --color-info-surface:#182d4c;--color-info-text:#9cc2ff;--color-accent-surface:#3b271f;
   --surface-glass:rgba(18,22,31,.86);--color-surface-2:#1f2635;
+  --surface-overlay:rgba(3,7,14,.8);--action-danger-bg-hover:#f04438;
+  --status-success-border:#247d5e;--status-warning-text:#ffc47d;--status-warning-border:#805a28;
+  --status-danger-border:#8b3c36;--status-info-border:#315b91;
+}
+@media (prefers-reduced-motion:reduce){
+  :root{
+    --motion-duration-fast:1ms;--motion-duration-normal:1ms;--motion-duration-slow:1ms;--motion-duration-loop:1ms;
+    --motion-distance-sm:0px;--motion-distance-md:0px;
+  }
 }

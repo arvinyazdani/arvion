@@ -22,6 +22,7 @@ from collections import OrderedDict
 import math
 
 from core.views.lang import LanguageViewMixin
+from core.form_accessibility import enhance_form_accessibility
 from core.sms.backends import normalize_iran_mobile
 
 from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
@@ -121,6 +122,12 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
         user_id = self.request.session.get("phone_verification_user_id")
         return User.objects.filter(pk=user_id, is_active=False, mobile_verified_at__isnull=True).first()
 
+    def form_invalid(self, form):
+        # Some OTP errors are added after the initial form clean (expired,
+        # exhausted, or mismatched challenges), so refresh the ARIA links.
+        enhance_form_accessibility(form, autocomplete={"code": "one-time-code"})
+        return super().form_invalid(form)
+
     def dispatch(self, request, *args, **kwargs):
         if not self._user():
             lang = request.GET.get("lang") or getattr(request, "LANGUAGE_CODE", "fa")
@@ -217,12 +224,22 @@ class ResendVerificationView(LanguageViewMixin, FormView):
         return kwargs
 
     def form_valid(self, form):
-        email = form.cleaned_data["email"]
-        # Email activation is retained only as a generic legacy landing page.
-        # Account activation always requires the SMS flow bound to the pending
-        # registration session; an email link must never bypass mobile proof.
-        self.request.session["verification_email"] = email
-        return redirect(f"{reverse('accounts:verification_sent')}?lang={self.lang}&resent=1")
+        return self._sms_recovery()
+
+    def get(self, request, *args, **kwargs):
+        return self._sms_recovery()
+
+    def post(self, request, *args, **kwargs):
+        return self._sms_recovery()
+
+    def _sms_recovery(self):
+        messages.info(
+            self.request,
+            "فعال‌سازی حساب فقط با کد پیامکی انجام می‌شود. فرم ثبت‌نام را با همان اطلاعات قبلی کامل کنید تا ادامه ثبت‌نام بازیابی شود."
+            if self.lang == "fa" else
+            "Accounts are activated by SMS only. Submit the registration form with the same details to resume an interrupted signup.",
+        )
+        return redirect(f"{reverse('accounts:register')}?lang={self.lang}")
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -234,6 +251,11 @@ class AccountLoginView(LanguageViewMixin, LoginView):
         kwargs = super().get_form_kwargs()
         kwargs["lang"] = self.lang
         return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["password_reset_available"] = settings.ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED
+        return context
 
     def _throttle(self):
         return AttemptThrottle(
@@ -261,6 +283,25 @@ class AccountPasswordResetView(LanguageViewMixin, PasswordResetView):
     template_name = "accounts/password_reset_form.html"
     email_template_name = "accounts/password_reset_email.txt"
     subject_template_name = "accounts/password_reset_subject.txt"
+
+    def get(self, request, *args, **kwargs):
+        if not settings.ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED:
+            return self._support_recovery()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if not settings.ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED:
+            return self._support_recovery()
+        return super().post(request, *args, **kwargs)
+
+    def _support_recovery(self):
+        messages.info(
+            self.request,
+            "بازیابی ایمیلی هنوز فعال نیست. از فرم تماس، موضوع «بازیابی حساب» را بفرستید تا هویت شما بررسی شود."
+            if self.lang == "fa" else
+            "Email recovery is not active yet. Use the contact form and mention “account recovery” so we can verify your identity.",
+        )
+        return redirect(reverse("leads:contact"))
 
     def form_valid(self, form):
         email = form.cleaned_data.get("email", "")
@@ -371,11 +412,13 @@ def verify_email(request, uidb64, token):
 
 def verification_sent(request):
     lang = request.GET.get("lang") or request.session.get("lang", "fa")
-    return render(request, "accounts/verification_sent.html", {
-        "lang": lang, "email": request.session.get("verification_email"),
-        "resent": request.GET.get("resent") == "1",
-        "manual_approval": settings.MANUAL_ACCOUNT_APPROVAL,
-    })
+    messages.info(
+        request,
+        "روش فعال‌سازی ایمیلی کنار گذاشته شده است؛ ثبت‌نام را با کد پیامکی ادامه دهید."
+        if lang == "fa" else
+        "Email activation has been retired. Continue registration with the SMS code instead.",
+    )
+    return redirect(f"{reverse('accounts:register')}?lang={lang}")
 
 
 @login_required

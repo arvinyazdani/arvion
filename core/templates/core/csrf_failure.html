@@ -3,7 +3,7 @@
 {% block content %}
 <section class="account-section"><div class="shell narrow"><div class="status-card">
   <span class="status-icon">↻</span>
-  <span class="eyebrow">SECURE SESSION</span>
+  <span class="eyebrow">{% if lang == 'fa' %}نشست امن{% else %}SECURE SESSION{% endif %}</span>
   <h1>{% if lang == 'fa' %}صفحه ورود نیاز به تازه‌سازی دارد{% else %}This sign-in page needs a refresh{% endif %}</h1>
   <p>{% if lang == 'fa' %}برای امنیت حساب، اعتبار این فرم تمام شده است. اطلاعات شما ثبت نشده؛ صفحه تازه ورود را باز کنید و دوباره تلاش کنید.{% else %}For account security, this form has expired. Nothing was submitted; open a fresh sign-in page and try again.{% endif %}</p>
   <div class="actions">

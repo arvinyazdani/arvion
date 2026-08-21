@@ -1,6 +1,43 @@
-{% extends "core/base.html" %}
+{% extends "assessments/base.html" %}
 {% block title %}{% if lang == 'fa' %}پیگیری پشتیبانی | آرویون{% else %}Support requests | Rvion{% endif %}{% endblock %}
 {% block content %}
-<section class="page-hero support-history-hero"><div class="shell"><a class="back-link" href="{% url 'accounts:dashboard' %}">{% if lang == 'fa' %}→ بازگشت به حساب من{% else %}← Back to my account{% endif %}</a><span class="eyebrow">SUPPORT DESK</span><h1>{% if lang == 'fa' %}درخواست‌های پشتیبانی{% else %}Support requests{% endif %}</h1><p class="lead">{% if lang == 'fa' %}وضعیت درخواست‌های ثبت‌شده را بدون افشای اطلاعات حساب پیگیری کن.{% else %}Track submitted requests without exposing your account information.{% endif %}</p><a class="button" href="{% url 'assessments:support_create' %}">{% if lang == 'fa' %}درخواست جدید{% else %}New request{% endif %}</a></div></section>
-<section class="section"><div class="shell support-ticket-list">{% for ticket in tickets %}<article class="support-ticket"><header><span class="card-number" data-ascii>TICKET #{{ ticket.pk|stringformat:"04d" }}</span><span class="ticket-status status-{{ ticket.status }}">{% if ticket.status == 'open' %}{% if lang == 'fa' %}باز{% else %}Open{% endif %}{% elif ticket.status == 'in_review' %}{% if lang == 'fa' %}در حال بررسی{% else %}In review{% endif %}{% elif ticket.status == 'resolved' %}{% if lang == 'fa' %}پاسخ داده‌شده{% else %}Resolved{% endif %}{% else %}{% if lang == 'fa' %}بسته‌شده{% else %}Closed{% endif %}{% endif %}</span></header><h2>{{ ticket.subject }}</h2><p>{{ ticket.message|truncatechars:220 }}</p><footer><span>{% if lang == 'fa' %}{{ ticket.created_at|date:"Y/m/d · H:i" }}{% else %}{{ ticket.created_at|date:"M j, Y · H:i" }}{% endif %}</span>{% if ticket.order %}<a href="{% url 'accounts:payment_receipt' ticket.order.pk %}">{% if lang == 'fa' %}رسید مرتبط{% else %}Related receipt{% endif %}</a>{% elif ticket.result %}<a href="{% url 'assessments:result' ticket.result.pk %}">{% if lang == 'fa' %}نتیجه مرتبط{% else %}Related result{% endif %}</a>{% endif %}</footer></article>{% empty %}<div class="empty"><h2>{% if lang == 'fa' %}درخواستی ثبت نشده{% else %}No requests yet{% endif %}</h2><p>{% if lang == 'fa' %}اگر درباره آزمون یا پرداخت پرسشی داری، درخواست جدید ثبت کن.{% else %}Create a request if you need help with an assessment or payment.{% endif %}</p></div>{% endfor %}{% if is_paginated %}<nav class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% if lang == 'fa' %}قبل{% else %}Previous{% endif %}</a>{% endif %}<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% if lang == 'fa' %}بعد{% else %}Next{% endif %}</a>{% endif %}</nav>{% endif %}</div></section>
+<section class="page-hero support-history-hero">
+  <div class="shell">
+    <a class="back-link" href="{% url 'accounts:dashboard' %}">{% if lang == 'fa' %}→ بازگشت به حساب من{% else %}← Back to my account{% endif %}</a>
+    <span class="eyebrow">{% if lang == 'fa' %}مرکز پشتیبانی{% else %}SUPPORT DESK{% endif %}</span>
+    <h1>{% if lang == 'fa' %}درخواست‌های پشتیبانی{% else %}Support requests{% endif %}</h1>
+    <p class="lead">{% if lang == 'fa' %}وضعیت درخواست‌های ثبت‌شده را بدون افشای اطلاعات حساب پیگیری کن.{% else %}Track submitted requests without exposing your account information.{% endif %}</p>
+    <a class="button" href="{% url 'assessments:support_create' %}">{% if lang == 'fa' %}درخواست جدید{% else %}New request{% endif %}</a>
+  </div>
+</section>
+<section class="section">
+  <div class="shell support-ticket-list">
+    {% for ticket in tickets %}
+    <article class="support-ticket">
+      <header>
+        <span class="card-number" data-ascii>{% if lang == 'fa' %}درخواست شماره {% else %}TICKET #{% endif %}{{ ticket.pk|stringformat:"04d" }}</span>
+        <span class="ticket-status status-{{ ticket.status }}">{% if ticket.status == 'open' %}{% if lang == 'fa' %}باز{% else %}Open{% endif %}{% elif ticket.status == 'in_review' %}{% if lang == 'fa' %}در حال بررسی{% else %}In review{% endif %}{% elif ticket.status == 'resolved' %}{% if lang == 'fa' %}پاسخ داده‌شده{% else %}Resolved{% endif %}{% else %}{% if lang == 'fa' %}بسته‌شده{% else %}Closed{% endif %}{% endif %}</span>
+      </header>
+      <h2>{{ ticket.subject }}</h2>
+      <p>{{ ticket.message|truncatechars:220 }}</p>
+      <footer>
+        <span>{% if lang == 'fa' %}{{ ticket.created_at|date:"Y/m/d · H:i" }}{% else %}{{ ticket.created_at|date:"M j, Y · H:i" }}{% endif %}</span>
+        {% if ticket.order %}<a href="{% url 'accounts:payment_receipt' ticket.order.pk %}">{% if lang == 'fa' %}رسید مرتبط{% else %}Related receipt{% endif %}</a>{% elif ticket.result %}<a href="{% url 'assessments:result' ticket.result.pk %}">{% if lang == 'fa' %}نتیجه مرتبط{% else %}Related result{% endif %}</a>{% endif %}
+      </footer>
+    </article>
+    {% empty %}
+    <div class="empty">
+      <h2>{% if lang == 'fa' %}درخواستی ثبت نشده{% else %}No requests yet{% endif %}</h2>
+      <p>{% if lang == 'fa' %}اگر درباره آزمون یا پرداخت پرسشی داری، درخواست جدید ثبت کن.{% else %}Create a request if you need help with an assessment or payment.{% endif %}</p>
+    </div>
+    {% endfor %}
+    {% if is_paginated %}
+    <nav class="pagination" aria-label="{% if lang == 'fa' %}صفحه‌بندی درخواست‌ها{% else %}Request pagination{% endif %}">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% if lang == 'fa' %}قبل{% else %}Previous{% endif %}</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% if lang == 'fa' %}بعد{% else %}Next{% endif %}</a>{% endif %}
+    </nav>
+    {% endif %}
+  </div>
+</section>
 {% endblock %}

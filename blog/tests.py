@@ -19,6 +19,19 @@ class BlogTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Test article")
 
+    def test_insight_labels_and_search_name_follow_page_language(self):
+        fa_list = self.client.get(reverse("blog:list") + "?lang=fa")
+        self.assertContains(fa_list, ">دیدگاه‌ها<", html=False)
+        self.assertContains(fa_list, ">جستجو در مقاله‌ها<", html=False)
+        self.assertNotContains(fa_list, ">Insights<", html=False)
+        self.assertNotContains(fa_list, ">Search<", html=False)
+
+        fa_detail = self.client.get(reverse("blog:detail", args=[self.post.slug_fa]) + "?lang=fa")
+        self.assertContains(fa_detail, "دیدگاه‌های آرویون")
+        self.assertContains(fa_detail, ">موضوع‌ها<", html=False)
+        self.assertNotContains(fa_detail, "RVION INSIGHTS")
+        self.assertNotContains(fa_detail, ">TOPICS<", html=False)
+
     def test_unpublished_post_is_not_public(self):
         self.post.is_published = False
         self.post.save()

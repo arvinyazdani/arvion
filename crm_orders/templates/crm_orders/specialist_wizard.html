@@ -1,57 +1,109 @@
-{% load static %}<!doctype html>
+{% load static %}
+<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow,noarchive">
-<meta name="referrer" content="same-origin">
-<title>فرم نیازسنجی تخصصی CRM | آرویون</title>
-<link rel="stylesheet" href="{% static 'crm_orders/wizard.css' %}?v=8">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="same-origin">
+  <meta name="theme-color" content="#0b1220">
+  <title>فرم نیازسنجی تخصصی CRM | آرویون</title>
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'crm_orders/wizard.css' %}?v=9">
+  <script src="{% static 'crm_orders/specialist.js' %}?v=1" defer></script>
 </head>
 <body>
-<main class="specialist-shell"> <header class="specialist-head">{% if room_proposal %}<a class="brand" href="{% url 'contracts:public_contract' room_proposal.token %}">
-<b>R</b>
-<span>آرویون<small>فضای اختصاصی قرارداد</small>
-</span>
-</a>{% else %}<a class="brand" href="{% url 'home' %}">
-<b>R</b>
-<span>آرویون<small>فرم نیازسنجی تخصصی CRM</small>
-</span>
-</a>{% endif %}<div>
-<strong>{{ order.organization_name }}</strong>
-<span>{{ order.tracking_code }}</span>
-</div>
-</header>{% if room_proposal %}<a class="room-return" href="{% url 'contracts:public_contract' room_proposal.token %}">بازگشت امن به اتاق قرارداد</a>{% endif %}<section class="specialist-hero">
-<span>مرحله {{ index|add:1 }} از {{ total }}</span>
-<h1>{{ section.1 }}</h1>
-<p>{{ section.2 }}</p>
-<div class="progress">
-<i style="width:{% widthratio index|add:1 total 100 %}%">
-</i>
-</div>
-</section>
-<nav class="section-rail" aria-label="مراحل فرم">{% for item in sections %}<span class="{% if forloop.counter0 == index %}active{% elif forloop.counter0 < index %}done{% endif %}"{% if forloop.counter0 == index %} aria-current="step"{% endif %}>{{ forloop.counter }}</span>{% endfor %}</nav>
-<form method="post" class="specialist-form" novalidate>{% csrf_token %}{% for field in form %}<article class="question-card">
-<div class="question-title">
-<label for="{{ field.id_for_label }}">{{ field.label }}</label>
-<button type="button" class="help-button" aria-label="راهنمای سؤال: {{ field.label }}" aria-controls="question-help" aria-expanded="false" data-help="{{ field.help_text|escapejs }}">؟</button>
-</div>
-<p class="question-hint">پاسخ شما محرمانه و برای طراحی دقیق CRM استفاده می‌شود.</p>{{ field }}{% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}<details>
-<summary>چطور پاسخ بهتری بدهم؟</summary>
-<p>{{ field.help_text }}</p>
-</details>
-</article>{% endfor %}<div class="form-actions">
-<button class="button" type="submit">{% if index|add:1 == total %}ثبت نیازسنجی تخصصی و بازگشت به قرارداد{% else %}ذخیره و رفتن به بخش بعد{% endif %} <span>←</span>
-</button>
-</div>
-</form>
-<div class="help-popover" id="question-help" role="dialog" aria-modal="true" aria-labelledby="question-help-title" hidden>
-<button type="button" aria-label="بستن راهنما" data-close-help>×</button>
-<h2 id="question-help-title">راهنمای پاسخ بهتر</h2>
-<p>
-</p>
-</div>
-</main>
-<script>(()=>{const popover=document.querySelector('.help-popover'),closeButton=popover.querySelector('[data-close-help]'),content=popover.querySelector('p');let opener=null;const close=()=>{if(popover.hidden)return;popover.hidden=true;document.body.classList.remove('help-open');if(opener){opener.setAttribute('aria-expanded','false');opener.focus()}opener=null};document.querySelectorAll('[data-help]').forEach(button=>button.addEventListener('click',()=>{if(opener&&opener!==button)opener.setAttribute('aria-expanded','false');opener=button;content.textContent=button.dataset.help;popover.hidden=false;document.body.classList.add('help-open');button.setAttribute('aria-expanded','true');closeButton.focus()}));closeButton.addEventListener('click',close);document.addEventListener('keydown',event=>{if(event.key==='Escape')close()})})();</script>
+  {% include "core/_route_loader.html" %}
+  <a class="skip-link" href="#specialist-form">پرش به سؤال‌ها</a>
+  <main class="specialist-shell" data-route-shell>
+    <header class="specialist-head">
+      {% if room_proposal %}
+        <a class="specialist-brand" href="{% url 'contracts:public_contract' room_proposal.token %}" aria-label="بازگشت به فضای اختصاصی قرارداد آرویون">
+      {% else %}
+        <a class="specialist-brand" href="{% url 'home' %}" aria-label="صفحه اصلی آرویون">
+      {% endif %}
+          <b aria-hidden="true">R</b>
+          <span><strong>آرویون</strong><small>{% if room_proposal %}فضای اختصاصی قرارداد{% else %}نیازسنجی تخصصی CRM{% endif %}</small></span>
+        </a>
+      <div class="specialist-case">
+        <small>پرونده مشتری</small>
+        <strong>{{ order.organization_name }}</strong>
+        <bdi>{{ order.tracking_code }}</bdi>
+      </div>
+    </header>
+
+    {% if room_proposal %}
+      <a class="room-return" href="{% url 'contracts:public_contract' room_proposal.token %}">
+        <svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
+        بازگشت امن به اتاق قرارداد
+      </a>
+    {% endif %}
+
+    <section class="specialist-hero" aria-labelledby="specialist-title">
+      <div class="specialist-step-copy">
+        <span>مرحله {{ current_step }} از {{ total_steps }}</span>
+        <strong>{{ section.1 }}</strong>
+      </div>
+      <h1 id="specialist-title">{{ section.1 }}</h1>
+      <p>{{ section.2 }}</p>
+      <div class="progress" role="progressbar" aria-label="پیشرفت فرم نیازسنجی" aria-valuemin="1" aria-valuemax="{{ total }}" aria-valuenow="{{ index|add:1 }}" aria-valuetext="مرحله {{ current_step }} از {{ total_steps }}">
+        <i style="width:{% widthratio index|add:1 total 100 %}%"></i>
+      </div>
+    </section>
+
+    <nav class="section-rail" aria-label="مراحل فرم">
+      {% for step in section_steps %}
+        <span class="{{ step.state }}"{% if step.state == 'active' %} aria-current="step"{% endif %} title="{{ step.title }}"><b>{{ step.number }}</b><span class="sr-only">{{ step.title }}</span></span>
+      {% endfor %}
+    </nav>
+
+    {% if form.errors %}
+      <section class="specialist-error-summary" role="alert" aria-labelledby="specialist-errors-title" tabindex="-1" data-error-summary>
+        <h2 id="specialist-errors-title">چند پاسخ نیاز به اصلاح دارد</h2>
+        <p>روی هر مورد بزنید تا مستقیم به همان سؤال بروید.</p>
+        <ul>{% for field in form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}</a></li>{% endif %}{% endfor %}</ul>
+      </section>
+    {% endif %}
+
+    <form method="post" class="specialist-form" id="specialist-form" novalidate data-specialist-form>
+      {% csrf_token %}
+      {% for field in form %}
+        <article class="question-card{% if field.errors %} is-invalid{% endif %}">
+          <div class="question-title">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            <button type="button" class="help-button" aria-label="راهنمای سؤال: {{ field.label }}" aria-controls="question-help" aria-expanded="false" data-help="{{ field.help_text|escapejs }}">
+              <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#message"></use></svg>
+            </button>
+          </div>
+          <p class="question-hint">پاسخ شما محرمانه است و فقط برای طراحی دقیق سامانه استفاده می‌شود.</p>
+          {{ field }}
+          <p class="question-help" id="{{ field.id_for_label }}-help">{{ field.help_text }}</p>
+          {% if field.errors %}<div class="field-error" id="{{ field.id_for_label }}-errors" role="alert">{{ field.errors }}</div>{% endif %}
+        </article>
+      {% endfor %}
+      <div class="form-actions">
+        {% if previous_url %}<a class="button secondary" href="{{ previous_url }}" data-previous-link>بخش قبل</a>{% endif %}
+        <button class="button primary" type="submit" data-submit data-busy-label="در حال ذخیره پاسخ‌ها…">
+          <span>{% if index|add:1 == total %}ثبت نهایی و بازگشت به قرارداد{% else %}ذخیره و رفتن به بخش بعد{% endif %}</span>
+          <svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
+        </button>
+      </div>
+      <p class="save-note"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg>هر بخش پس از زدن دکمه ذخیره می‌شود؛ می‌توانید بعداً با همین لینک ادامه دهید.</p>
+    </form>
+
+    <div class="help-layer" data-help-layer hidden>
+      <button type="button" class="help-backdrop" aria-label="بستن راهنما" tabindex="-1" data-close-help></button>
+      <section class="help-popover" id="question-help" role="dialog" aria-modal="true" aria-labelledby="question-help-title" aria-describedby="question-help-content">
+        <button type="button" class="help-close" aria-label="بستن راهنما" data-close-help>
+          <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#close"></use></svg>
+        </button>
+        <span>راهنمای پاسخ</span>
+        <h2 id="question-help-title">چطور پاسخ دقیق‌تری بدهم؟</h2>
+        <p id="question-help-content"></p>
+      </section>
+    </div>
+  </main>
+  <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
 </body>
 </html>

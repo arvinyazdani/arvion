@@ -1,0 +1,6 @@
+<div class="{{ wrapper_class|default:'field' }}{% if field.errors %} field-error{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<small class="form-help" id="{{ field.id_for_label }}-help">{{ field.help_text|safe }}</small>{% endif %}
+  {% if field.errors %}<div class="form-error" id="{{ field.id_for_label }}-errors" role="alert">{{ field.errors }}</div>{% endif %}
+</div>

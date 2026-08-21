@@ -2,3 +2,201 @@
 .contract-narrow .manager-welcome > div > span{font-size:0}.contract-narrow .manager-welcome > div > span::after{content:"ساخت قرارداد";font-size:.7rem}
 .contract-hero{margin-bottom:24px;padding:28px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,#0b1220,#1a2940);color:#fff}.contract-hero>span{color:#ff8b61;font-size:.75rem;font-weight:900}.contract-hero h1{margin:7px 0;font-size:clamp(2rem,5vw,3.8rem)}.contract-hero p{max-width:650px;margin:0;color:#c2ccda}.modern-contract-form{padding:28px;border:1px solid var(--line);border-radius:24px;background:#fff;box-shadow:0 15px 45px rgba(11,18,32,.08)}.source-callout{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:14px 16px;border-radius:14px;background:#fff0e9;color:#a9340c}.source-callout span{color:#687184;font-size:.8rem}.modern-contract-form .contract-field{margin-top:15px}.modern-contract-form label{display:block;margin-bottom:7px;font-weight:900}.modern-contract-form input,.modern-contract-form select,.modern-contract-form textarea{width:100%;min-height:48px;padding:12px 14px;border:1px solid #ccd1da;border-radius:12px;background:#fbfcfe;font:inherit}.modern-contract-form textarea{min-height:110px;resize:vertical}.modern-contract-form input:focus,.modern-contract-form select:focus,.modern-contract-form textarea:focus{outline:3px solid rgba(255,107,53,.18);border-color:#ff6b35}.modern-contract-form .contract-button{margin-top:22px;width:100%}@media(max-width:640px){.contract-hero,.modern-contract-form{padding:20px;border-radius:18px}.manager-top nav{gap:8px}.manager-top nav a{font-size:.68rem}}
 .room-page{min-height:100vh;background:radial-gradient(circle at 10% 0,#ffd6c6 0,transparent 28rem),#eef0f4}.room-brand{display:flex;align-items:center;gap:9px;font-weight:900}.room-brand b{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--orange);color:var(--ink)}.room-brand span{display:grid;line-height:1.1}.room-brand small{margin-top:4px;color:#c2ccda;font-size:.6rem;font-weight:400;letter-spacing:0}.room-logout{border:1px solid rgba(255,255,255,.35);border-radius:999px;background:transparent;color:#fff;padding:8px 13px;font:700 .75rem Vazirmatn;cursor:pointer}.contract-room{width:min(1120px,calc(100% - 32px));margin:34px auto 72px}.room-hero{padding:clamp(24px,5vw,54px);border-radius:30px;background:linear-gradient(135deg,#0b1220,#1e3552);color:#fff;box-shadow:0 28px 65px rgba(11,18,32,.2)}.room-hero>span,.room-next>div>span{color:#ff9a72;font-size:.76rem;font-weight:900}.room-hero h1{margin:8px 0;font-size:clamp(2rem,5vw,4rem);line-height:1.25}.room-hero>p{max-width:670px;margin:0;color:#d0d8e2}.room-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:30px}.room-facts div{padding:14px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.07)}.room-facts small{display:block;color:#c2ccda;font-size:.68rem}.room-facts strong{display:block;margin-top:4px;font-size:.82rem}.room-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}.room-card{display:flex;min-height:300px;flex-direction:column;padding:25px;border:1px solid var(--line);border-radius:23px;background:#fff;box-shadow:0 12px 32px rgba(11,18,32,.06)}.room-card.complete{border-color:#6abf9d;background:linear-gradient(155deg,#fff,#ecfbf4)}.card-top{display:flex;align-items:center;justify-content:space-between}.card-top>b{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:#fff0e9;color:#a9340c}.card-top span{color:var(--muted);font-size:.72rem}.complete .card-top span{color:var(--green);font-weight:900}.room-card h2{margin:26px 0 8px;font-size:1.25rem}.room-card p{margin:0 0 22px;color:var(--muted);font-size:.82rem}.room-card .contract-button{margin-top:auto}.card-note{color:var(--muted);font-size:.76rem}.room-next{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 30px;border-radius:22px;background:#fff;border:1px solid var(--line)}.room-next h2{margin:3px 0}.room-next p{margin:0;color:var(--muted);font-size:.8rem}.document-ack{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}.document-ack label{font-size:.8rem;font-weight:700}.acknowledged{padding:11px 13px;border-radius:11px;background:#e3f8ef;color:var(--green);font-weight:800}.room-return{display:inline-flex;margin:16px 0 0;padding:8px 12px;border:1px solid #cbd4df;border-radius:999px;background:#fff;font-size:.74rem}@media(max-width:760px){.contract-room{width:min(100% - 20px,600px);margin:14px auto 35px}.room-hero{border-radius:22px}.room-facts,.room-steps{grid-template-columns:1fr}.room-card{min-height:230px}.room-next,.document-ack{align-items:stretch;flex-direction:column}.contract-public-head{padding:11px 14px;flex-direction:row;align-items:center}.contract-public-head>div:last-child{display:none}}
+
+/* v3 semantic theme bridge for management and legacy contract views. */
+:root {
+  --ink: var(--color-ink, #0b1220);
+  --paper: var(--color-paper, #f4f1ea);
+  --white: var(--color-surface, #fff);
+  --orange: var(--color-brand-orange, #ff6b35);
+  --muted: var(--color-muted, #687184);
+  --line: var(--color-line, rgba(11, 18, 32, .16));
+  --green: var(--color-status-green-text, #08754a);
+}
+
+.contract-button {
+  min-height: 44px;
+  border-color: var(--color-control-border, #747f91);
+  background: var(--action-primary-bg, #0b1220);
+  color: var(--action-primary-text, #fff);
+}
+
+.contract-button.secondary {
+  border-color: var(--color-control-border, #747f91);
+  background: var(--color-surface, transparent);
+  color: var(--color-ink, #0b1220);
+}
+
+.contract-button.danger {
+  min-height: 44px;
+  border-color: var(--action-danger-bg, #d92d20);
+  background: var(--action-danger-bg, #d92d20);
+  color: var(--action-danger-text, #fff);
+}
+
+.contract-button.danger:hover {
+  border-color: var(--action-danger-bg-hover, #b42318);
+  background: var(--action-danger-bg-hover, #b42318);
+  border-color: color-mix(in srgb, var(--action-danger-bg-hover, #b42318) 82%, var(--color-panel-dark, #0b1220));
+  background: color-mix(in srgb, var(--action-danger-bg-hover, #b42318) 82%, var(--color-panel-dark, #0b1220));
+}
+
+.contract-button.danger:focus-visible {
+  outline: var(--focus-ring-width, 3px) solid var(--color-focus, #b9380d);
+  outline-offset: var(--focus-ring-offset, 3px);
+}
+
+.contract-message,
+.review-received,
+.acknowledged {
+  border-color: var(--status-success-border, #65c89c);
+  background: var(--status-success-surface, #d9fbe9);
+  color: var(--status-success-text, #0f7a54);
+}
+
+.contract-list,
+.contract-form,
+.clause-panel,
+.contract-actions,
+.contract-cover,
+.contract-section,
+.contract-review,
+.modern-contract-form,
+.room-card,
+.room-next,
+.room-return {
+  border-color: var(--color-line, rgba(11, 18, 32, .16));
+  background: var(--color-surface, #fff);
+  color: var(--color-ink, #0b1220);
+}
+
+.contract-list > a {
+  grid-template-columns: minmax(0, 1fr) auto 100px 20px;
+  min-height: 64px;
+  border-top-color: var(--color-line, rgba(11, 18, 32, .16));
+}
+
+.contract-list > a > div,
+.contract-list > a > * {
+  min-width: 0;
+}
+
+.contract-list > a > b,
+.source-callout,
+.card-top > b {
+  background: var(--color-accent-surface, #fff0e9);
+  color: var(--color-brand-orange-text, #a92f08);
+}
+
+.contract-field input,
+.contract-field select,
+.contract-field textarea,
+.contract-actions input,
+.review-fields textarea,
+.modern-contract-form input,
+.modern-contract-form select,
+.modern-contract-form textarea {
+  min-height: 44px;
+  border-color: var(--color-control-border, #747f91);
+  background: var(--color-surface, #fff);
+  color: var(--color-ink, #0b1220);
+}
+
+.contract-field textarea,
+.review-fields textarea,
+.modern-contract-form textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.errorlist,
+.form-errors {
+  color: var(--status-danger-text, #a51d14);
+}
+
+.contract-summary,
+.contract-public-head {
+  background: var(--color-panel-dark, #0b1220);
+  color: #fff;
+}
+
+.contract-cover > span,
+.contract-review > header > span,
+.room-next > div > span {
+  color: var(--color-brand-orange-text, #a92f08);
+}
+
+.public-contract,
+.room-page {
+  background-color: var(--color-paper, #f4f1ea);
+  color: var(--color-ink, #0b1220);
+}
+
+.contract-cover dl > div,
+.review-confirm,
+.access-project {
+  background: var(--color-surface-2, #f5f3ed);
+  color: var(--color-ink, #0b1220);
+}
+
+.public-clauses article {
+  border-color: var(--color-line, rgba(11, 18, 32, .16));
+  background: var(--color-surface, #fff);
+}
+
+.public-clauses article > div,
+.review-confirm,
+.document-ack label {
+  min-height: 44px;
+}
+
+.room-card.complete {
+  border-color: var(--status-success-border, #65c89c);
+  background: linear-gradient(155deg, var(--color-surface, #fff), var(--status-success-surface, #d9fbe9));
+}
+
+.room-logout,
+.room-return {
+  min-height: 44px;
+}
+
+.room-return {
+  align-items: center;
+}
+
+.source-callout span,
+.contract-list div span,
+.contract-list > a > span,
+.contract-field small,
+.clause-panel p,
+.contract-actions small,
+.contract-cover > p,
+.contract-cover dt,
+.public-clauses p,
+.review-fields small,
+.room-card p,
+.card-note,
+.room-next p {
+  color: var(--color-muted, #687184);
+}
+
+@media (max-width: 750px) {
+  .contract-list > a {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-inline: 16px;
+  }
+
+  .contract-list > a > span,
+  .contract-list > a > svg {
+    display: none;
+  }
+
+  .contract-button,
+  .contract-actions .contract-button {
+    width: 100%;
+  }
+}
+
+/* Management pages inherit the language-appropriate family from their shell. */
+.contract-button,.room-logout{font-family:inherit}
+html[dir="ltr"] body{font-family:var(--font-family-latin,"Segoe UI",Arial,sans-serif)}

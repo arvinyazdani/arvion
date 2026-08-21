@@ -6,10 +6,12 @@ from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.views.generic import DetailView, FormView
 from django.views.decorators.cache import never_cache
 
 from accounts.security import client_address, normalized_fingerprint
+from core.i18n_numbers import persian_digits
 from core.views.lang import LanguageViewMixin
 from .forms import CrmOrderForm
 from .models import CrmOrder, CrmSpecialistDiscovery
@@ -18,6 +20,7 @@ from .specialist_forms import SpecialistDiscoveryForm
 from django.shortcuts import get_object_or_404, render
 
 
+@method_decorator(never_cache, name="dispatch")
 class CrmOrderCreateView(LanguageViewMixin, FormView):
     template_name = "crm_orders/order_wizard.html"
     form_class = CrmOrderForm
@@ -63,6 +66,7 @@ class CrmOrderCreateView(LanguageViewMixin, FormView):
         return reverse("crm_orders:thanks", kwargs={"code": self.order.tracking_code})
 
 
+@method_decorator(never_cache, name="dispatch")
 class CrmOrderThanksView(LanguageViewMixin, DetailView):
     model = CrmOrder
     template_name = "crm_orders/thanks.html"
@@ -84,16 +88,27 @@ def specialist_discovery(request, code, section=None):
         if not room_version or request.session.get(f"contract-access:{room_version.pk}") != expected_phone:
             return redirect("contracts:contract_access", token=room_token)
         discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
-    elif request.user.is_authenticated and request.user.is_staff and (
-        request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")
-    ):
-        order = get_object_or_404(CrmOrder, tracking_code=code)
-        discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
     else:
-        discovery = get_object_or_404(
-            CrmSpecialistDiscovery.objects.select_related("order"), token=code,
+        # A staff session must not change the meaning of a customer-facing
+        # token URL. Resolve the private token first, then allow authorized
+        # staff to use the internal tracking code as a fallback.
+        discovery = (
+            CrmSpecialistDiscovery.objects.select_related("order")
+            .filter(token=code)
+            .first()
         )
-        order = discovery.order
+        if discovery:
+            order = discovery.order
+        elif request.user.is_authenticated and request.user.is_staff and (
+            request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")
+        ):
+            order = get_object_or_404(CrmOrder, tracking_code=code)
+            discovery, _ = CrmSpecialistDiscovery.objects.get_or_create(order=order)
+        else:
+            discovery = get_object_or_404(
+                CrmSpecialistDiscovery.objects.select_related("order"), token=code,
+            )
+            order = discovery.order
     keys = [item[0] for item in SECTIONS]
     section = section or keys[0]
     if section not in keys:
@@ -136,12 +151,53 @@ def specialist_discovery(request, code, section=None):
         )
         url = reverse("crm_orders:specialist_section", kwargs={"code": code, "section": next_key})
         return redirect(f"{url}?room={room_token}" if room_token else url)
-    return render(request, "crm_orders/specialist_wizard.html", {"order": order, "discovery": discovery, "form": form, "section": next(item for item in SECTIONS if item[0] == section), "sections": SECTIONS, "index": index, "total": len(keys), "room_proposal": room_proposal})
+    previous_url = ""
+    if index:
+        previous_url = reverse(
+            "crm_orders:specialist_section",
+            kwargs={"code": code, "section": keys[index - 1]},
+        )
+        if room_token:
+            previous_url = f"{previous_url}?room={room_token}"
+    section_steps = [
+        {
+            "key": item[0],
+            "title": item[1],
+            "number": persian_digits(step_index + 1),
+            "state": "active" if step_index == index else "done" if step_index < index else "upcoming",
+        }
+        for step_index, item in enumerate(SECTIONS)
+    ]
+    return render(
+        request,
+        "crm_orders/specialist_wizard.html",
+        {
+            "order": order,
+            "discovery": discovery,
+            "form": form,
+            "section": next(item for item in SECTIONS if item[0] == section),
+            "sections": SECTIONS,
+            "section_steps": section_steps,
+            "index": index,
+            "total": len(keys),
+            "current_step": persian_digits(index + 1),
+            "total_steps": persian_digits(len(keys)),
+            "previous_url": previous_url,
+            "room_proposal": room_proposal,
+        },
+    )
 
 
 @never_cache
 def specialist_done(request, code):
-    if request.user.is_authenticated and request.user.is_staff and (
+    discovery = (
+        CrmSpecialistDiscovery.objects.select_related("order")
+        .filter(token=code)
+        .first()
+    )
+    if discovery:
+        order = discovery.order
+    elif request.user.is_authenticated and request.user.is_staff and (
         request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")
     ):
         order = get_object_or_404(CrmOrder, tracking_code=code)

@@ -4,10 +4,11 @@ from django.urls import reverse
 from accounts.models import User
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from crm_orders.specialist import SECTIONS
+from contracts.forms import ClauseSelectionForm, ProposalForm
 from contracts.models import ContractAcceptance, ContractProposal, ContractReview, ContractRoomAcknowledgement
 from contracts.services import add_default_clauses, publish_version
 from contracts.templatetags.contract_extras import contract_terms_html, persian_amount
-from django.utils import timezone
+from django.utils import timezone, translation
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 
@@ -15,6 +16,8 @@ from django.core.exceptions import ValidationError
 class ContractWorkflowTests(TestCase):
     def setUp(self):
         cache.clear()
+        translation.activate("fa")
+        self.addCleanup(translation.deactivate)
         self.root = User.objects.create_superuser(username="contract-root", email="contracts@example.com", password="safe-password")
         self.proposal = ContractProposal.objects.create(
             customer_name="مشتری نمونه", customer_phone="989120373271", project_title="سامانه نمونه",
@@ -28,6 +31,32 @@ class ContractWorkflowTests(TestCase):
         session = self.client.session
         session[f"contract-access:{version.pk}"] = self.proposal.customer_phone
         session.save()
+
+    def link_crm_discovery(self, *, complete=False):
+        crm = CrmOrder.objects.create(
+            organization_name="سازمان متصل", industry="فناوری", organization_size="under_10",
+            contact_name="مدیر نمونه", job_title="مدیر", work_email="manager@example.com",
+            phone="09120373271", crm_user_count="1_5", current_process="فرآیند اولیه",
+            main_pain_points="پیگیری دستی", success_metrics="کاهش زمان",
+            critical_workflows="فروش", reports_needed="", permission_requirements="",
+            budget_range="estimate", expected_timeline="1_2", decision_process="مدیرعامل",
+            privacy_accepted_at=timezone.now(),
+        )
+        answers = {
+            section_key: {
+                key: "پاسخ کامل و معتبر مشتری برای این پرسش تخصصی"
+                for key, _question, _help_text in questions
+            }
+            for section_key, _title, _description, questions in SECTIONS
+        } if complete else {}
+        discovery = CrmSpecialistDiscovery.objects.create(
+            order=crm,
+            status="submitted" if complete else "draft",
+            answers=answers,
+        )
+        self.proposal.crm_order = crm
+        self.proposal.save(update_fields=["crm_order"])
+        return discovery
 
     def test_contract_amount_uses_persian_three_digit_groups(self):
         self.assertEqual(persian_amount(380_000_000), "۳۸۰,۰۰۰,۰۰۰")
@@ -64,6 +93,18 @@ class ContractWorkflowTests(TestCase):
         self.assertContains(response, access_url)
         self.assertContains(response, "contracts/images/share-contract-room-v1.png", html=False)
 
+    def test_contract_access_errors_are_linked_to_their_controls(self):
+        publish_version(self.proposal, self.root)
+        response = self.client.post(
+            reverse("contracts:contract_access", args=[self.proposal.token]),
+            {"phone": "", "password": ""},
+        )
+        self.assertContains(response, 'aria-invalid="true"', count=2)
+        self.assertContains(response, 'aria-describedby="id_phone_error"', html=False)
+        self.assertContains(response, 'aria-describedby="id_password_error"', html=False)
+        self.assertContains(response, 'id="id_phone_error"', html=False)
+        self.assertContains(response, 'id="id_password_error"', html=False)
+
     def test_proposal_form_can_prefill_from_crm_assessment(self):
         crm = CrmOrder.objects.create(
             organization_name="شرکت نمونه", industry="فناوری", organization_size="under_10",
@@ -87,6 +128,34 @@ class ContractWorkflowTests(TestCase):
         self.assertEqual(proposal.customer_name, "علی نمونه")
         self.assertIn("فرآیند فعلی", proposal.project_scope)
 
+    def test_english_contract_builder_localizes_generated_discovery_copy(self):
+        crm = CrmOrder.objects.create(
+            organization_name="Example Co", industry="Technology", organization_size="under_10",
+            contact_name="Alex", job_title="Director", work_email="alex@example.com",
+            phone="09120373271", crm_user_count="1_5", current_process="Current process",
+            main_pain_points="Manual follow-up", success_metrics="Faster response",
+            critical_workflows="Sales", reports_needed="", permission_requirements="",
+            budget_range="estimate", expected_timeline="1_2", decision_process="CEO",
+            privacy_accepted_at=timezone.now(),
+        )
+        form = ProposalForm(language="en")
+        self.assertEqual(form.initial["title"], "Custom software design and development proposal")
+        self.assertEqual(form.initial["payment_terms"], "50% at project start and 50% at final delivery")
+        self.assertIn("8 weeks after", form.fields["delivery_terms"].help_text)
+        payload = form.assessment_data[f"crm:{crm.pk}"]
+        self.assertEqual(payload["project_title"], "Enterprise CRM platform Example Co")
+        self.assertIn("Organisation: Example Co", payload["client_details"])
+        self.assertIn("Discovery reference:", payload["client_details"])
+        self.assertNotIn("نام مجموعه", payload["client_details"])
+
+        clause_form = ClauseSelectionForm(
+            {"enabled_clauses": [], "custom_title": "Title", "custom_body": ""},
+            proposal=self.proposal,
+            language="en",
+        )
+        self.assertFalse(clause_form.is_valid())
+        self.assertIn("Enter both a title and text", str(clause_form.non_field_errors()))
+
     def test_management_contract_routes_use_new_shell(self):
         self.client.force_login(self.root)
         listing = self.client.get(reverse("management_portal:contract_list"))
@@ -95,7 +164,70 @@ class ContractWorkflowTests(TestCase):
         self.assertNotContains(listing, 'href="/admin/')
         detail = self.client.get(reverse("management_portal:contract_detail", args=[self.proposal.pk]))
         self.assertContains(detail, "مدیریت بندها")
+        self.assertContains(detail, "ساخت نسخه و فعال‌سازی لینک")
+        self.assertContains(detail, "نسخه ۱ از اطلاعات و بندهای فعلی ساخته", html=False)
         self.assertContains(detail, reverse("management_portal:contract_clauses", args=[self.proposal.pk]))
+
+    def test_english_management_contract_copy_status_and_settings_are_separate(self):
+        self.client.force_login(self.root)
+        listing = self.client.get("/en/management/contracts/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, "Contract proposals")
+        self.assertContains(listing, "Draft")
+        self.assertNotContains(listing, ">پیش‌نویس<", html=False)
+
+        detail = self.client.get(f"/en/management/contracts/{self.proposal.pk}/")
+        self.assertContains(detail, "Draft · Version")
+        self.assertContains(detail, "Publish & customer link")
+        self.assertNotContains(detail, "مدیریت بندها")
+
+        settings_response = self.client.get("/en/management/contracts/settings/")
+        self.assertContains(settings_response, "Contractor details used in contracts")
+        self.assertContains(settings_response, "Contractor legal name")
+        self.assertContains(settings_response, "Save contract settings")
+        self.assertNotContains(settings_response, "مشخصات مجری در قرارداد")
+
+        preview = self.client.get(f"/en/management/contracts/{self.proposal.pk}/preview/")
+        self.assertContains(preview, "Review the contract as the customer will see it")
+        self.assertContains(preview, "Pre-send preview")
+        self.assertContains(preview, "contracts/proposal-preview.css")
+        self.assertContains(preview, "data-print-contract")
+        self.assertNotContains(preview, "TEST PREVIEW")
+
+    def test_management_preview_includes_every_document_before_publish(self):
+        self.client.force_login(self.root)
+        response = self.client.get(
+            reverse("management_portal:contract_preview", args=[self.proposal.pk]),
+        )
+        self.assertContains(response, "ماده ۱ ـ شرایط عمومی")
+        self.assertContains(response, "ماده ۱ ـ شرایط خصوصی")
+        self.assertContains(response, "بندهای فعال")
+        self.assertContains(response, "پیش‌نمایش داخلی آرویون")
+        self.assertContains(
+            response,
+            reverse("management_portal:contract_detail", args=[self.proposal.pk]),
+        )
+
+    def test_contract_detail_only_offers_actions_allowed_by_current_status(self):
+        self.client.force_login(self.root)
+        draft_response = self.client.get(
+            reverse("management_portal:contract_detail", args=[self.proposal.pk]),
+        )
+        self.assertContains(draft_response, "ویرایش پیش‌نویس")
+        self.assertContains(draft_response, "مدیریت بندها")
+        self.assertContains(draft_response, 'data-confirm=', count=3)
+        self.assertContains(draft_response, "contracts/manager-contracts.js")
+
+        self.proposal.status = "accepted"
+        self.proposal.save(update_fields=["status", "updated_at"])
+        accepted_response = self.client.get(
+            reverse("management_portal:contract_detail", args=[self.proposal.pk]),
+        )
+        self.assertContains(accepted_response, "این نسخه توسط مشتری پذیرفته شده")
+        self.assertNotContains(accepted_response, "ویرایش پیش‌نویس")
+        self.assertNotContains(accepted_response, "مدیریت بندها")
+        self.assertNotContains(accepted_response, "فعال‌سازی لینک مشتری")
+        self.assertNotContains(accepted_response, "غیرفعال‌کردن لینک مشتری")
 
     def test_specialist_discovery_is_included_in_contract_scope(self):
         crm = CrmOrder.objects.create(
@@ -200,6 +332,73 @@ class ContractWorkflowTests(TestCase):
             reverse("contracts:contract_document", args=[self.proposal.token, "general"]),
         )
         self.assertFalse(ContractRoomAcknowledgement.objects.filter(version=version).exists())
+
+    def test_linked_contract_hides_and_blocks_general_terms_until_discovery_is_complete(self):
+        discovery = self.link_crm_discovery()
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        room_url = reverse("contracts:public_contract", args=[self.proposal.token])
+        general_url = reverse(
+            "contracts:contract_document", args=[self.proposal.token, "general"],
+        )
+
+        room = self.client.get(room_url)
+        self.assertContains(room, "پس از تکمیل فرم تخصصی فعال می‌شود.")
+        self.assertNotContains(room, f'href="{general_url}"', html=False)
+        self.assertRedirects(self.client.get(general_url), room_url)
+
+        discovery.answers = {
+            section_key: {
+                key: "پاسخ کامل و معتبر مشتری برای این پرسش تخصصی"
+                for key, _question, _help_text in questions
+            }
+            for section_key, _title, _description, questions in SECTIONS
+        }
+        discovery.status = "submitted"
+        discovery.save(update_fields=["answers", "status", "updated_at"])
+
+        room = self.client.get(room_url)
+        self.assertContains(room, f'href="{general_url}"', html=False)
+        self.assertEqual(self.client.get(general_url).status_code, 200)
+
+    def test_linked_contract_direct_acknowledgement_posts_enforce_document_sequence(self):
+        discovery = self.link_crm_discovery()
+        version = publish_version(self.proposal, self.root)
+        self.grant_contract_access(version)
+        room_url = reverse("contracts:public_contract", args=[self.proposal.token])
+        general_ack_url = reverse(
+            "contracts:contract_acknowledge", args=[self.proposal.token, "general"],
+        )
+        private_ack_url = reverse(
+            "contracts:contract_acknowledge", args=[self.proposal.token, "private"],
+        )
+
+        blocked_general = self.client.post(general_ack_url, {"acknowledge": "on"})
+        self.assertRedirects(blocked_general, room_url)
+        self.assertFalse(ContractRoomAcknowledgement.objects.filter(version=version).exists())
+
+        discovery.answers = {
+            section_key: {
+                key: "پاسخ کامل و معتبر مشتری برای این پرسش تخصصی"
+                for key, _question, _help_text in questions
+            }
+            for section_key, _title, _description, questions in SECTIONS
+        }
+        discovery.status = "submitted"
+        discovery.save(update_fields=["answers", "status", "updated_at"])
+
+        blocked_private = self.client.post(private_ack_url, {"acknowledge": "on"})
+        self.assertRedirects(blocked_private, room_url)
+        self.assertFalse(
+            ContractRoomAcknowledgement.objects.filter(version=version, document="private").exists(),
+        )
+
+        self.assertRedirects(self.client.post(general_ack_url, {"acknowledge": "on"}), room_url)
+        self.assertRedirects(self.client.post(private_ack_url, {"acknowledge": "on"}), room_url)
+        self.assertEqual(
+            set(version.room_acknowledgements.values_list("document", flat=True)),
+            {"general", "private"},
+        )
 
     def test_room_confirmation_control_posts_the_server_required_field(self):
         version = publish_version(self.proposal, self.root)

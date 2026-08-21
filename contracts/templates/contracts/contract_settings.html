@@ -1,1 +1,27 @@
-{% extends "management_portal/v2/base.html" %}{% load static %}{% block title %}تنظیمات قرارداد | Rvion{% endblock %}{% block page_title %}تنظیمات قرارداد{% endblock %}{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/contracts.css' %}">{% endblock %}{% block content %}<section class="m-page-head"><div><span>CONTRACT SETTINGS</span><h1>مشخصات مجری در قرارداد</h1><p>این اطلاعات هنگام ساخت نسخه جدید داخل snapshot قرارداد ذخیره می‌شوند و نسخه‌های امضاشده تغییر نمی‌کنند.</p></div><a class="contract-button secondary" href="{{ list_url }}">بازگشت</a></section><form class="contract-form modern-contract-form" method="post">{% csrf_token %}{% for field in form %}<div class="contract-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button class="contract-button">ذخیره تنظیمات قرارداد</button></form>{% endblock %}
+{% extends "management_portal/v2/base.html" %}
+{% load static %}
+{% block title %}{% if lang == 'fa' %}تنظیمات قرارداد | آرویون{% else %}Contract settings | Rvion{% endif %}{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}تنظیمات قرارداد{% else %}Contract settings{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=6">{% endblock %}
+{% block content %}
+<section class="m-page-head">
+  <div>
+    <span>{% if lang == 'fa' %}مشخصات ثابت مجری{% else %}Contractor profile{% endif %}</span>
+    <h1>{% if lang == 'fa' %}مشخصات مجری در قرارداد{% else %}Contractor details used in contracts{% endif %}</h1>
+    <p>{% if lang == 'fa' %}این اطلاعات هنگام ساخت نسخه جدید داخل تصویر ثابت قرارداد ذخیره می‌شوند و نسخه‌های امضاشده تغییر نمی‌کنند.{% else %}These details are included in each new immutable contract snapshot. Signed versions never change retroactively.{% endif %}</p>
+  </div>
+  <a class="contract-button secondary" href="{{ list_url }}">{% if lang == 'fa' %}بازگشت به قراردادها{% else %}Back to contracts{% endif %}</a>
+</section>
+{% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+<form class="contract-form modern-contract-form" method="post" novalidate>
+  {% csrf_token %}
+  {% for field in form %}
+    <div class="contract-field{% if field.errors %} is-invalid{% endif %}">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="form-errors" id="{{ field.id_for_label }}-errors" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <button class="contract-button" type="submit">{% if lang == 'fa' %}ذخیره تنظیمات قرارداد{% else %}Save contract settings{% endif %}</button>
+</form>
+{% endblock %}

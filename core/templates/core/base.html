@@ -22,7 +22,7 @@
   <meta property="og:image:secure_url" content="{{ site_url }}{% block og_image_secure %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="{% block og_image_alt %}Rvion — طراحی CRM، وب‌سایت و سامانه اختصاصی{% endblock %}">
+  <meta property="og:image:alt" content="{% block og_image_alt %}{% if lang == 'fa' %}آرویون — طراحی CRM، وب‌سایت و سامانه اختصاصی{% else %}Rvion — Custom CRM, websites and business platforms{% endif %}{% endblock %}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{% block twitter_title %}{% if lang == 'fa' %}آرویون — CRM، وب و هوش مصنوعی{% else %}Rvion — CRM, Web & AI{% endif %}{% endblock %}">
   <meta name="twitter:description" content="{% block twitter_description %}{% if lang == 'fa' %}طراحی و توسعه راهکارهای دیجیتال برای کسب‌وکارها{% else %}Digital solutions designed and built for businesses{% endif %}{% endblock %}">
@@ -34,70 +34,61 @@
   <link rel="apple-touch-icon" href="{% static 'core/icons/icon-192.png' %}">
   <link rel="manifest" href="{% static 'core/manifest.webmanifest' %}">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme);if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
-  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=2">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=2">
-  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=30">
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=35">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=6" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/wizard-engine.js' %}?v=2" defer></script>
-  {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=1" defer></script>{% endif %}
+  {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=2" defer></script>{% endif %}
   {% block extra_head %}{% endblock %}
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
-  <div class="app-welcome" data-app-welcome aria-hidden="true" role="status" aria-label="{% if lang == 'fa' %}در حال بارگذاری صفحه{% else %}Loading page{% endif %}">
-    <div class="welcome-orbit orbit-one"></div><div class="welcome-orbit orbit-two"></div>
-    <div class="welcome-brand"><span class="welcome-mark">R</span><strong>RVION</strong><small>{% if lang == 'fa' %}فناوری برای دنیای واقعی{% else %}Technology for the real world{% endif %}</small></div>
-    <div class="welcome-progress"><span></span></div>
-  </div>
+  {% include "core/_route_loader.html" %}
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
   <header class="site-header">
     <div class="shell nav-wrap">
       <a class="brand" href="{% url 'home' %}" aria-label="{% if lang == 'fa' %}صفحه اصلی آرویون{% else %}Rvion home{% endif %}">
         <span class="brand-mark">R</span><span>RVION</span>
       </a>
-      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-open-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-close-label="{% if lang == 'fa' %}بستن منو{% else %}Close menu{% endif %}"><span></span><span></span><span></span></button>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-open-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-close-label="{% if lang == 'fa' %}بستن منو{% else %}Close menu{% endif %}">
+        <svg class="ui-icon menu-icon-open" aria-hidden="true" focusable="false"><use href="{% static 'core/icons/ui-sprite.svg' %}#menu"></use></svg>
+        <svg class="ui-icon menu-icon-close" aria-hidden="true" focusable="false"><use href="{% static 'core/icons/ui-sprite.svg' %}#close"></use></svg>
+      </button>
       <nav id="site-nav" class="site-nav" aria-label="{% if lang == 'fa' %}پیمایش اصلی{% else %}Main navigation{% endif %}">
-        <a href="{% url 'home' %}">{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</a>
-        <span class="nav-section-label">{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</span>
-        <a href="{% url 'services:list' %}">{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</a>
-        <a class="nav-mobile-only" href="{% url 'crm_product' %}">{% if lang == 'fa' %}CRM سازمانی{% else %}Enterprise CRM{% endif %}</a>
-        <a class="nav-mobile-only" href="{% url 'clinic_orders:create' %}">{% if lang == 'fa' %}پلتفرم کلینیک{% else %}Clinic platform{% endif %}</a>
-        <a href="{% url 'assessments:list' %}">{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</a>
-        <span class="nav-section-label">{% if lang == 'fa' %}آشنایی با آرویون{% else %}Explore Rvion{% endif %}</span>
-        <a href="{% url 'projects:list' %}">{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</a>
-        <a href="{% url 'blog:list' %}">{% if lang == 'fa' %}دیدگاه‌ها{% else %}Insights{% endif %}</a>
-        <a href="{% url 'about' %}">{% if lang == 'fa' %}درباره{% else %}About{% endif %}</a>
-        <span class="nav-section-label">{% if lang == 'fa' %}حساب و ارتباط{% else %}Account & contact{% endif %}</span>
-        {% if request.user.is_authenticated %}
-          <a href="{% url 'accounts:dashboard' %}">{% if lang == 'fa' %}حساب من{% else %}My account{% endif %}</a>
-          {% if request.user.is_staff %}<a href="{% url 'management_portal:dashboard' %}">{% if lang == 'fa' %}مرکز مدیریت{% else %}Management{% endif %}</a>{% endif %}
-        {% else %}
-          <a href="{% url 'accounts:login' %}">{% if lang == 'fa' %}ورود{% else %}Sign in{% endif %}</a>
-        {% endif %}
-        <a class="nav-cta" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Let's talk{% endif %}</a>
-        <a class="lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
-        <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن/تیره{% else %}Toggle light/dark mode{% endif %}">◐</button>
+        <div class="nav-primary">
+          <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</span></a>
+          <a href="{% url 'projects:list' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</span></a>
+          <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#assessment"></use></svg><span>{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</span></a>
+          <a href="{% url 'about' %}"{% if request.resolver_match.url_name == 'about' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#customers"></use></svg><span>{% if lang == 'fa' %}درباره آرویون{% else %}About Rvion{% endif %}</span></a>
+        </div>
+        <div class="nav-utilities">
+          {% if request.user.is_staff %}<a class="nav-utility nav-management" href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Management{% endif %}</span></a>{% endif %}
+          <a class="nav-utility nav-account" href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if request.user.is_authenticated %}{% if lang == 'fa' %}حساب من{% else %}My account{% endif %}{% else %}{% if lang == 'fa' %}ورود{% else %}Sign in{% endif %}{% endif %}</span></a>
+          <a class="nav-utility lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}" aria-label="{% if lang == 'fa' %}نمایش نسخه انگلیسی{% else %}View the Persian version{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#globe"></use></svg><span>{% if lang == 'fa' %}EN{% else %}فا{% endif %}</span></a>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg><span>{% if lang == 'fa' %}ظاهر{% else %}Theme{% endif %}</span></button>
+          <a class="nav-cta" href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+        </div>
       </nav>
       <button class="nav-scrim" type="button" tabindex="-1" aria-hidden="true"></button>
     </div>
   </header>
-  {% if messages %}<div class="shell messages" role="status">{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% if messages %}<div class="shell messages" aria-label="{% if lang == 'fa' %}پیام‌های سیستم{% else %}System messages{% endif %}">{% for message in messages %}<div class="message message-{{ message.level_tag|default:'info' }}" {% if message.level_tag == 'error' %}role="alert" aria-live="assertive"{% else %}role="status" aria-live="polite"{% endif %} aria-atomic="true"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#{% if message.level_tag == 'success' %}check{% elif message.level_tag == 'error' or message.level_tag == 'warning' %}alert{% else %}message{% endif %}"></use></svg><span>{{ message }}</span></div>{% endfor %}</div>{% endif %}
   <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
   <nav class="mobile-tabbar" aria-label="{% if lang == 'fa' %}دسترسی سریع{% else %}Quick navigation{% endif %}">
-    <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><b aria-hidden="true">R</b><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
-    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><b aria-hidden="true">◇</b><span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span></a>
-    <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><b aria-hidden="true">✓</b><span>{% if lang == 'fa' %}آزمون{% else %}Tests{% endif %}</span></a>
-    <a href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><b aria-hidden="true">↗</b><span>{% if lang == 'fa' %}همکاری{% else %}Contact{% endif %}</span></a>
-    <a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><b aria-hidden="true">●</b><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>
-    {% if request.user.is_staff %}<a data-admin-shortcut href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><b aria-hidden="true">▣</b><span>{% if lang == 'fa' %}داشبورد ادمین{% else %}Admin dashboard{% endif %}</span></a>{% endif %}
+    <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#home"></use></svg><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
+    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</span></a>
+    <a href="{% url 'projects:list' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</span></a>
+    <a href="{% url 'leads:contact' %}"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contact"></use></svg><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start{% endif %}</span></a>
+    {% if request.user.is_staff %}<a data-admin-shortcut href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Manage{% endif %}</span></a>{% else %}<a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>{% endif %}
   </nav>
   <footer class="site-footer">
     <div class="shell footer-grid">
       <div class="footer-brand"><a class="brand" href="{% url 'home' %}"><span class="brand-mark">R</span><span>RVION</span></a><p>{% if lang == 'fa' %}محصول دیجیتال روشن، امن و قابل توسعه.{% else %}Clear, secure and extensible digital products.{% endif %}</p></div>
-      <nav class="footer-links" aria-label="{% if lang == 'fa' %}پیوندهای فوتر{% else %}Footer links{% endif %}"><a href="{% url 'services:list' %}">{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</a><a href="{% url 'crm_orders:create' %}">CRM</a><a href="{% url 'clinic_orders:create' %}">{% if lang == 'fa' %}کلینیک{% else %}Clinic{% endif %}</a><a href="{% url 'assessments:list' %}">{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</a><a href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع همکاری{% else %}Contact{% endif %}</a></nav>
+      <nav class="footer-links" aria-label="{% if lang == 'fa' %}پیوندهای فوتر{% else %}Footer links{% endif %}"><a href="{% url 'services:list' %}">{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</a><a href="{% url 'projects:list' %}">{% if lang == 'fa' %}پروژه‌ها{% else %}Work{% endif %}</a><a href="{% url 'assessments:list' %}">{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</a><a href="{% url 'blog:list' %}">{% if lang == 'fa' %}دیدگاه‌ها{% else %}Insights{% endif %}</a><a href="{% url 'about' %}">{% if lang == 'fa' %}درباره{% else %}About{% endif %}</a></nav>
       <div class="footer-contact"><a dir="ltr" href="tel:+989333021100">{{ company.phone }}</a>{% if show_whatsapp_share %}<a class="whatsapp-share" href="{{ whatsapp_share_url }}" target="_blank" rel="noopener noreferrer"><b aria-hidden="true">↗</b>{% if lang == 'fa' %}اشتراک در واتساپ{% else %}Share on WhatsApp{% endif %}</a>{% endif %}</div>
     </div>
     <div class="shell footer-bottom"><a href="{% url 'company_info' %}">{% if lang == 'fa' %}شرکت ثبت‌شده · شناسه ملی {{ company.national_id }}{% else %}Registered company · {{ company.national_id }}{% endif %}</a><nav><a href="{% url 'privacy' %}">{% if lang == 'fa' %}حریم خصوصی{% else %}Privacy{% endif %}</a><a href="{% url 'service_terms' %}">{% if lang == 'fa' %}شرایط خدمات{% else %}Terms{% endif %}</a><a href="{% url 'refund_policy' %}">{% if lang == 'fa' %}بازپرداخت{% else %}Refunds{% endif %}</a></nav><span>© {% now "Y" %} Rvion</span></div>
@@ -106,16 +97,16 @@
     <button class="install-backdrop" type="button" data-install-close tabindex="-1" aria-hidden="true"></button>
     <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title" aria-describedby="install-description">
       <button class="install-close" type="button" data-install-close aria-label="{% if lang == 'fa' %}بستن{% else %}Close{% endif %}">×</button>
-      <header class="install-head"><span class="install-logo">R</span><div><span class="install-kicker" data-device-label>RVION WEB APP</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p id="install-description">{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
+      <header class="install-head"><span class="install-logo">R</span><div><span class="install-kicker" data-device-label>{% if lang == 'fa' %}وب‌اپ آرویون{% else %}RVION WEB APP{% endif %}</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p id="install-description">{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
       <div class="install-panel" data-install-panel="ios" hidden>
-        <ol><li><b>۱</b><span>{% if lang == 'fa' %}در نوار Safari روی دکمه <strong>اشتراک‌گذاری</strong> بزنید.<i class="share-symbol" aria-hidden="true">↑</i>{% else %}Tap Safari's <strong>Share</strong> button.<i class="share-symbol" aria-hidden="true">↑</i>{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}گزینه <strong>Add to Home Screen / افزودن به صفحه اصلی</strong> را انتخاب کنید.{% else %}Choose <strong>Add to Home Screen</strong>.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}بالای صفحه روی <strong>Add / افزودن</strong> بزنید.{% else %}Confirm with <strong>Add</strong>.{% endif %}</span></li></ol>
+        <ol><li><b>{% if lang == 'fa' %}۱{% else %}1{% endif %}</b><span>{% if lang == 'fa' %}در نوار Safari روی دکمه <strong>اشتراک‌گذاری</strong> بزنید.<i class="share-symbol" aria-hidden="true">↑</i>{% else %}Tap Safari's <strong>Share</strong> button.<i class="share-symbol" aria-hidden="true">↑</i>{% endif %}</span></li><li><b>{% if lang == 'fa' %}۲{% else %}2{% endif %}</b><span>{% if lang == 'fa' %}گزینه <strong>افزودن به صفحه اصلی</strong> را انتخاب کنید.{% else %}Choose <strong>Add to Home Screen</strong>.{% endif %}</span></li><li><b>{% if lang == 'fa' %}۳{% else %}3{% endif %}</b><span>{% if lang == 'fa' %}بالای صفحه روی <strong>افزودن</strong> بزنید.{% else %}Confirm with <strong>Add</strong>.{% endif %}</span></li></ol>
         <p class="install-browser-note" data-ios-browser-note hidden>{% if lang == 'fa' %}برای افزودن روی آیفون، ابتدا این صفحه را در Safari باز کنید.{% else %}Open this page in Safari first to add it on iPhone.{% endif %}</p>
       </div>
       <div class="install-panel" data-install-panel="android" hidden>
-        <ol><li><b>۱</b><span>{% if lang == 'fa' %}روی دکمه «نصب آرویون» در پایین بزنید.{% else %}Tap “Install Rvion” below.{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}در پیام مرورگر، نصب را تأیید کنید.{% else %}Confirm installation in your browser.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}آیکن آرویون به صفحه برنامه‌های شما اضافه می‌شود.{% else %}Rvion will appear with your other apps.{% endif %}</span></li></ol>
+        <ol><li><b>{% if lang == 'fa' %}۱{% else %}1{% endif %}</b><span>{% if lang == 'fa' %}روی دکمه «نصب آرویون» در پایین بزنید.{% else %}Tap “Install Rvion” below.{% endif %}</span></li><li><b>{% if lang == 'fa' %}۲{% else %}2{% endif %}</b><span>{% if lang == 'fa' %}در پیام مرورگر، نصب را تأیید کنید.{% else %}Confirm installation in your browser.{% endif %}</span></li><li><b>{% if lang == 'fa' %}۳{% else %}3{% endif %}</b><span>{% if lang == 'fa' %}آیکن آرویون به صفحه برنامه‌های شما اضافه می‌شود.{% else %}Rvion will appear with your other apps.{% endif %}</span></li></ol>
       </div>
       <div class="install-panel" data-install-panel="desktop" hidden>
-        <ol><li><b>۱</b><span data-desktop-step>{% if lang == 'fa' %}در نوار آدرس مرورگر روی آیکن نصب بزنید یا منوی مرورگر را باز کنید.{% else %}Use the install icon in the address bar or open the browser menu.{% endif %}</span></li><li><b>۲</b><span>{% if lang == 'fa' %}گزینه <strong>Install Rvion / نصب آرویون</strong> را انتخاب کنید.{% else %}Choose <strong>Install Rvion</strong>.{% endif %}</span></li><li><b>۳</b><span>{% if lang == 'fa' %}پس از نصب، آرویون در پنجره مستقل اجرا می‌شود.{% else %}Rvion will then open in its own window.{% endif %}</span></li></ol>
+        <ol><li><b>{% if lang == 'fa' %}۱{% else %}1{% endif %}</b><span data-desktop-step>{% if lang == 'fa' %}در نوار آدرس مرورگر روی آیکن نصب بزنید یا منوی مرورگر را باز کنید.{% else %}Use the install icon in the address bar or open the browser menu.{% endif %}</span></li><li><b>{% if lang == 'fa' %}۲{% else %}2{% endif %}</b><span>{% if lang == 'fa' %}گزینه <strong>نصب آرویون</strong> را انتخاب کنید.{% else %}Choose <strong>Install Rvion</strong>.{% endif %}</span></li><li><b>{% if lang == 'fa' %}۳{% else %}3{% endif %}</b><span>{% if lang == 'fa' %}پس از نصب، آرویون در پنجره مستقل اجرا می‌شود.{% else %}Rvion will then open in its own window.{% endif %}</span></li></ol>
       </div>
       <div class="install-actions"><button class="button install-confirm" type="button" data-install-confirm hidden>{% if lang == 'fa' %}نصب آرویون روی دستگاه{% else %}Install Rvion{% endif %}</button><button class="button secondary" type="button" data-install-close>{% if lang == 'fa' %}بعداً انجام می‌دهم{% else %}Maybe later{% endif %}</button></div>
       <small class="install-foot">{% if lang == 'fa' %}فضای بسیار کمی می‌گیرد و هر زمان بخواهید قابل حذف است.{% else %}Uses very little space and can be removed at any time.{% endif %}</small>

@@ -19,8 +19,12 @@ def service_worker(request):
 
 @require_GET
 @cache_control(public=True, max_age=300)
-def offline(request):
+def offline(request, lang="fa"):
     """A data-free fallback; no authenticated or customer response is cached."""
-    response = HttpResponse(render_to_string("core/offline.html"), content_type="text/html; charset=utf-8")
+    language = "en" if lang == "en" else "fa"
+    response = HttpResponse(
+        render_to_string("core/offline.html", {"lang": language}),
+        content_type="text/html; charset=utf-8",
+    )
     response["X-Robots-Tag"] = "noindex, nofollow"
     return response

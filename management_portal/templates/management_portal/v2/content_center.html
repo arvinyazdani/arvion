@@ -1,8 +1,149 @@
-{% extends "management_portal/v2/base.html" %}{% load static %}
+{% extends "management_portal/v2/base.html" %}
+{% load static %}
+
 {% block title %}{% if lang == 'fa' %}محتوا و سایت{% else %}Content & Site{% endif %} | Rvion{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}محتوا و سایت{% else %}Content & Site{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/approvals.css' %}">{% endblock %}
-{% block content %}<section class="m-page-head"><div><span>{% if lang == 'fa' %}انتشار دوزبانه{% else %}Bilingual publishing{% endif %}</span><h1>{% if lang == 'fa' %}مرکز محتوای سایت{% else %}Site content center{% endif %}</h1><p>{% if lang == 'fa' %}وضعیت نوشته‌ها، پروژه‌ها، خدمات و صفحات ثابت؛ بدون دسترسی به داده مشتری.{% else %}Posts, projects, services and static pages without customer-data access.{% endif %}</p></div></section>
-{% for group in content_groups %}{% endfor %}
-<section class="m-panel approval-section"><header><div><span>Blog</span><h2>{% if lang == 'fa' %}نوشته‌ها{% else %}Posts{% endif %}</h2></div></header>{% for item in posts %}<article class="approval-row"><div><strong>{% if lang == 'fa' %}{{ item.title_fa }}{% else %}{{ item.title_en }}{% endif %}</strong><small>{{ item.slug_en|default:item.slug_fa }}</small></div><form method="post" action="{% url 'management_portal:content_toggle' 'post' item.pk %}">{% csrf_token %}<input type="hidden" name="enabled" value="{% if item.is_published %}0{% else %}1{% endif %}"><button class="{% if item.is_published %}reject{% else %}approve{% endif %}">{% if item.is_published %}{% if lang == 'fa' %}لغو انتشار{% else %}Unpublish{% endif %}{% else %}{% if lang == 'fa' %}انتشار{% else %}Publish{% endif %}{% endif %}</button></form></article>{% empty %}<div class="m-empty">—</div>{% endfor %}</section>
-<section class="m-detail-grid"><article class="m-panel approval-section"><header><div><span>Portfolio</span><h2>{% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}</h2></div></header>{% for item in projects %}<article class="approval-row"><div><strong>{% if lang == 'fa' %}{{ item.title_fa }}{% else %}{{ item.title_en }}{% endif %}</strong><small>{{ item.slug }}</small></div><form method="post" action="{% url 'management_portal:content_toggle' 'project' item.pk %}">{% csrf_token %}<input type="hidden" name="enabled" value="{% if item.is_active %}0{% else %}1{% endif %}"><button class="approve">{% if item.is_active %}✓{% else %}○{% endif %}</button></form></article>{% endfor %}</article><article class="m-panel approval-section"><header><div><span>Services</span><h2>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</h2></div></header>{% for item in services %}<article class="approval-row"><div><strong>{% if lang == 'fa' %}{{ item.title_fa }}{% else %}{{ item.title_en }}{% endif %}</strong><small>{{ item.slug }}</small></div><form method="post" action="{% url 'management_portal:content_toggle' 'service' item.pk %}">{% csrf_token %}<input type="hidden" name="enabled" value="{% if item.is_active %}0{% else %}1{% endif %}"><button class="approve">{% if item.is_active %}✓{% else %}○{% endif %}</button></form></article>{% endfor %}</article></section><section class="m-panel approval-section"><header><div><span>Pages</span><h2>{% if lang == 'fa' %}صفحات ثابت{% else %}Static pages{% endif %}</h2></div></header>{% for item in pages %}<article class="approval-row"><div><strong>{% if lang == 'fa' %}{{ item.title_fa }}{% else %}{{ item.title_en }}{% endif %}</strong><small>{{ item.slug }} · {{ item.updated_at|date:"Y/m/d H:i" }}</small></div></article>{% endfor %}</section>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/approvals.css' %}?v=4">{% endblock %}
+
+{% block content %}
+  <section class="m-page-head">
+    <div>
+      <span>{% if lang == 'fa' %}انتشار دوزبانه{% else %}Bilingual publishing{% endif %}</span>
+      <h1>{% if lang == 'fa' %}مرکز محتوای سایت{% else %}Site content center{% endif %}</h1>
+      <p>{% if lang == 'fa' %}وضعیت نوشته‌ها، پروژه‌ها، خدمات و صفحات ثابت؛ بدون دسترسی به داده مشتری.{% else %}Posts, projects, services and static pages without customer-data access.{% endif %}</p>
+    </div>
+  </section>
+
+  <section class="m-panel approval-section">
+    <header>
+      <div>
+        <span>{% if lang == 'fa' %}وبلاگ{% else %}Blog{% endif %}</span>
+        <h2>{% if lang == 'fa' %}نوشته‌ها{% else %}Posts{% endif %}</h2>
+      </div>
+    </header>
+    {% for item in posts %}
+      <article class="approval-row">
+        <div class="approval-copy">
+          <strong>{% if lang == 'fa' %}{{ item.title_fa|default:item.title_en }}{% else %}{{ item.title_en|default:item.title_fa }}{% endif %}</strong>
+          <small>{% if lang == 'fa' %}{{ item.slug_fa|default:item.slug_en }}{% else %}{{ item.slug_en|default:item.slug_fa }}{% endif %}</small>
+          <span class="approval-state {% if item.is_published %}is-live{% else %}is-hidden{% endif %}">
+            {% if item.is_published %}{% if lang == 'fa' %}منتشرشده{% else %}Published{% endif %}{% else %}{% if lang == 'fa' %}پیش‌نویس؛ در سایت دیده نمی‌شود{% else %}Draft; not visible on site{% endif %}{% endif %}
+          </span>
+        </div>
+        <form method="post" action="{% url 'management_portal:content_toggle' 'post' item.pk %}"
+          {% if item.is_published %}
+            data-confirm="{% if lang == 'fa' %}نوشته «{{ item.title_fa|default:item.title_en }}» از سایت برداشته شود؟ محتوا حذف نمی‌شود و بعداً دوباره قابل انتشار است.{% else %}Unpublish “{{ item.title_en|default:item.title_fa }}”? The content will be preserved and can be published again later.{% endif %}"
+            data-confirm-title="{% if lang == 'fa' %}لغو انتشار نوشته{% else %}Unpublish post{% endif %}"
+            data-confirm-approve="{% if lang == 'fa' %}بله، لغو انتشار شود{% else %}Yes, unpublish{% endif %}"
+            data-confirm-cancel="{% if lang == 'fa' %}انصراف{% else %}Cancel{% endif %}"
+            data-confirm-tone="danger"
+          {% endif %}>
+          {% csrf_token %}
+          <input type="hidden" name="enabled" value="{% if item.is_published %}0{% else %}1{% endif %}">
+          <button type="submit" class="{% if item.is_published %}reject{% else %}approve{% endif %}"
+            aria-label="{% if item.is_published %}{% if lang == 'fa' %}لغو انتشار نوشته {{ item.title_fa|default:item.title_en }}{% else %}Unpublish post {{ item.title_en|default:item.title_fa }}{% endif %}{% else %}{% if lang == 'fa' %}انتشار نوشته {{ item.title_fa|default:item.title_en }}{% else %}Publish post {{ item.title_en|default:item.title_fa }}{% endif %}{% endif %}">
+            {% if item.is_published %}{% if lang == 'fa' %}لغو انتشار{% else %}Unpublish{% endif %}{% else %}{% if lang == 'fa' %}انتشار نوشته{% else %}Publish post{% endif %}{% endif %}
+          </button>
+        </form>
+      </article>
+    {% empty %}
+      <div class="m-empty">{% if lang == 'fa' %}هنوز نوشته‌ای ساخته نشده است.{% else %}No posts have been created yet.{% endif %}</div>
+    {% endfor %}
+  </section>
+
+  <section class="content-approval-grid">
+    <article class="m-panel approval-section">
+      <header>
+        <div>
+          <span>{% if lang == 'fa' %}نمونه‌کار{% else %}Portfolio{% endif %}</span>
+          <h2>{% if lang == 'fa' %}پروژه‌ها{% else %}Projects{% endif %}</h2>
+        </div>
+      </header>
+      {% for item in projects %}
+        <article class="approval-row">
+          <div class="approval-copy">
+            <strong>{% if lang == 'fa' %}{{ item.title_fa|default:item.title_en }}{% else %}{{ item.title_en|default:item.title_fa }}{% endif %}</strong>
+            <small>{{ item.slug }}</small>
+            <span class="approval-state {% if item.is_active %}is-live{% else %}is-hidden{% endif %}">
+              {% if item.is_active %}{% if lang == 'fa' %}در حال نمایش در سایت{% else %}Visible on site{% endif %}{% else %}{% if lang == 'fa' %}از سایت پنهان است{% else %}Hidden from site{% endif %}{% endif %}
+            </span>
+          </div>
+          <form method="post" action="{% url 'management_portal:content_toggle' 'project' item.pk %}"
+            {% if item.is_active %}
+              data-confirm="{% if lang == 'fa' %}پروژه «{{ item.title_fa|default:item.title_en }}» از سایت پنهان شود؟ اطلاعات پروژه حذف نمی‌شود و هر زمان قابل نمایش مجدد است.{% else %}Hide project “{{ item.title_en|default:item.title_fa }}” from the site? Its information will be preserved and can be shown again later.{% endif %}"
+              data-confirm-title="{% if lang == 'fa' %}پنهان‌کردن پروژه{% else %}Hide project{% endif %}"
+              data-confirm-approve="{% if lang == 'fa' %}بله، از سایت پنهان شود{% else %}Yes, hide from site{% endif %}"
+              data-confirm-cancel="{% if lang == 'fa' %}انصراف{% else %}Cancel{% endif %}"
+              data-confirm-tone="danger"
+            {% endif %}>
+            {% csrf_token %}
+            <input type="hidden" name="enabled" value="{% if item.is_active %}0{% else %}1{% endif %}">
+            <button type="submit" class="{% if item.is_active %}reject{% else %}approve{% endif %}"
+              aria-label="{% if item.is_active %}{% if lang == 'fa' %}پنهان‌کردن پروژه {{ item.title_fa|default:item.title_en }} از سایت{% else %}Hide project {{ item.title_en|default:item.title_fa }} from site{% endif %}{% else %}{% if lang == 'fa' %}نمایش پروژه {{ item.title_fa|default:item.title_en }} در سایت{% else %}Show project {{ item.title_en|default:item.title_fa }} on site{% endif %}{% endif %}">
+              {% if item.is_active %}{% if lang == 'fa' %}پنهان‌کردن از سایت{% else %}Hide from site{% endif %}{% else %}{% if lang == 'fa' %}نمایش در سایت{% else %}Show on site{% endif %}{% endif %}
+            </button>
+          </form>
+        </article>
+      {% empty %}
+        <div class="m-empty">{% if lang == 'fa' %}هنوز پروژه‌ای ساخته نشده است.{% else %}No projects have been created yet.{% endif %}</div>
+      {% endfor %}
+    </article>
+
+    <article class="m-panel approval-section">
+      <header>
+        <div>
+          <span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span>
+          <h2>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</h2>
+        </div>
+      </header>
+      {% for item in services %}
+        <article class="approval-row">
+          <div class="approval-copy">
+            <strong>{% if lang == 'fa' %}{{ item.title_fa|default:item.title_en }}{% else %}{{ item.title_en|default:item.title_fa }}{% endif %}</strong>
+            <small>{{ item.slug }}</small>
+            <span class="approval-state {% if item.is_active %}is-live{% else %}is-hidden{% endif %}">
+              {% if item.is_active %}{% if lang == 'fa' %}در حال نمایش در سایت{% else %}Visible on site{% endif %}{% else %}{% if lang == 'fa' %}از سایت پنهان است{% else %}Hidden from site{% endif %}{% endif %}
+            </span>
+          </div>
+          <form method="post" action="{% url 'management_portal:content_toggle' 'service' item.pk %}"
+            {% if item.is_active %}
+              data-confirm="{% if lang == 'fa' %}خدمت «{{ item.title_fa|default:item.title_en }}» از سایت پنهان شود؟ اطلاعات خدمت حذف نمی‌شود و هر زمان قابل نمایش مجدد است.{% else %}Hide service “{{ item.title_en|default:item.title_fa }}” from the site? Its information will be preserved and can be shown again later.{% endif %}"
+              data-confirm-title="{% if lang == 'fa' %}پنهان‌کردن خدمت{% else %}Hide service{% endif %}"
+              data-confirm-approve="{% if lang == 'fa' %}بله، از سایت پنهان شود{% else %}Yes, hide from site{% endif %}"
+              data-confirm-cancel="{% if lang == 'fa' %}انصراف{% else %}Cancel{% endif %}"
+              data-confirm-tone="danger"
+            {% endif %}>
+            {% csrf_token %}
+            <input type="hidden" name="enabled" value="{% if item.is_active %}0{% else %}1{% endif %}">
+            <button type="submit" class="{% if item.is_active %}reject{% else %}approve{% endif %}"
+              aria-label="{% if item.is_active %}{% if lang == 'fa' %}پنهان‌کردن خدمت {{ item.title_fa|default:item.title_en }} از سایت{% else %}Hide service {{ item.title_en|default:item.title_fa }} from site{% endif %}{% else %}{% if lang == 'fa' %}نمایش خدمت {{ item.title_fa|default:item.title_en }} در سایت{% else %}Show service {{ item.title_en|default:item.title_fa }} on site{% endif %}{% endif %}">
+              {% if item.is_active %}{% if lang == 'fa' %}پنهان‌کردن از سایت{% else %}Hide from site{% endif %}{% else %}{% if lang == 'fa' %}نمایش در سایت{% else %}Show on site{% endif %}{% endif %}
+            </button>
+          </form>
+        </article>
+      {% empty %}
+        <div class="m-empty">{% if lang == 'fa' %}هنوز خدمتی ساخته نشده است.{% else %}No services have been created yet.{% endif %}</div>
+      {% endfor %}
+    </article>
+  </section>
+
+  <section class="m-panel approval-section">
+    <header>
+      <div>
+        <span>{% if lang == 'fa' %}صفحه‌ها{% else %}Pages{% endif %}</span>
+        <h2>{% if lang == 'fa' %}صفحات ثابت{% else %}Static pages{% endif %}</h2>
+      </div>
+    </header>
+    {% for item in pages %}
+      <article class="approval-row is-read-only">
+        <div class="approval-copy">
+          <strong>{% if lang == 'fa' %}{{ item.title_fa|default:item.title_en }}{% else %}{{ item.title_en|default:item.title_fa }}{% endif %}</strong>
+          <small>{{ item.slug }} · {{ item.updated_at|date:"Y/m/d H:i" }}</small>
+          <span class="approval-state is-neutral">{% if lang == 'fa' %}فقط نمایش وضعیت{% else %}Status only{% endif %}</span>
+        </div>
+      </article>
+    {% empty %}
+      <div class="m-empty">{% if lang == 'fa' %}صفحه ثابتی ثبت نشده است.{% else %}No static pages found.{% endif %}</div>
+    {% endfor %}
+  </section>
+{% endblock %}

@@ -1,7 +1,63 @@
-{% load static i18n contract_extras %}
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="same-origin"><title>فضای اختصاصی قرارداد | آرویون</title><link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=9"><link rel="stylesheet" href="{% static 'contracts/legal.css' %}?v=2"><link rel="stylesheet" href="{% static 'contracts/room-final.css' %}?v=1"></head>
-<body class="public-contract room-page"><header class="contract-public-head"><div class="room-brand"><b>R</b><span>آرویون<small>فضای اختصاصی قرارداد</small></span></div><form method="post" action="{% url 'contracts:contract_logout' proposal.token %}">{% csrf_token %}<button class="room-logout" type="submit">خروج امن</button></form></header><main class="contract-room">
-{% if messages %}{% for message in messages %}<div class="contract-message">{{ message }}</div>{% endfor %}{% endif %}
-<section class="room-hero"><span>پروندهٔ اختصاصی {{ version.snapshot.customer_name }}</span><h1>{{ version.snapshot.project_title }}</h1><p>سه بخش زیر را به‌ترتیب بررسی کنید. پاسخ‌ها و تأییدهای شما به‌صورت امن در همین پرونده ثبت می‌شود.</p><div class="room-facts"><div><small>مبلغ پیشنهادی</small><strong>{{ version.snapshot.amount_irr|persian_amount }} ریال</strong></div><div><small>مدت اجرا</small><strong>{{ version.snapshot.delivery_terms }}</strong></div><div><small>نسخه پرونده</small><strong>{{ version.number }}</strong></div></div></section>
-<section class="room-steps"><article class="room-card {% if discovery and discovery.status == 'submitted' %}complete{% endif %}"><div class="card-top"><b>۱</b><span>{% if discovery and discovery.status == 'submitted' %}تکمیل شد{% else %}مرحله اول{% endif %}</span></div><h2>فرم نیازسنجی تخصصی</h2><p>جزئیات فرایندهای CRM و استقرار سامانه را تکمیل کنید تا مبنای اجرای پروژه روشن باشد.</p>{% if proposal.crm_order_id %}{% language 'fa' %}<a class="contract-button" href="{% url 'crm_orders:specialist' proposal.crm_order.tracking_code %}?room={{ proposal.token }}">{% if discovery and discovery.status == 'submitted' %}مرور پاسخ‌های ثبت‌شده{% else %}شروع تکمیل فرم{% endif %}</a>{% endlanguage %}{% else %}<span class="card-note">فرم تخصصی به این پرونده متصل نشده است.</span>{% endif %}</article><article class="room-card {% if 'general' in acknowledgements %}complete{% endif %}"><div class="card-top"><b>۲</b><span>{% if 'general' in acknowledgements %}بررسی ثبت شد{% else %}مرحله دوم{% endif %}</span></div><h2>شرایط عمومی پیمان</h2><p>چارچوب ثابت همکاری شامل محرمانگی، مالکیت، تحویل، پشتیبانی و تغییرات پروژه.</p><a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'general' %}">{% if 'general' in acknowledgements %}مشاهده شرایط عمومی{% else %}مطالعه و تأیید شرایط عمومی{% endif %}</a></article><article class="room-card {% if 'private' in acknowledgements %}complete{% endif %}"><div class="card-top"><b>۳</b><span>{% if 'private' in acknowledgements %}بررسی ثبت شد{% elif 'general' in acknowledgements %}مرحله سوم{% else %}پس از شرایط عمومی{% endif %}</span></div><h2>شرایط خصوصی پیمان</h2><p>توافق‌های اختصاصی پروژه شامل مبلغ، زمان‌بندی و محدوده اجرا.</p>{% if 'general' in acknowledgements %}<a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'private' %}">{% if 'private' in acknowledgements %}مشاهده شرایط خصوصی{% else %}مطالعه و تأیید شرایط خصوصی{% endif %}</a>{% else %}<span class="card-note">پس از ثبت شرایط عمومی فعال می‌شود.</span>{% endif %}</article></section>
-<section class="room-next"><div><span>تأیید نهایی</span><h2>{% if acceptance %}تأیید این نسخه ثبت شده است{% else %}پایان بررسی و ثبت تأیید{% endif %}</h2><p>{% if acceptance %}نسخهٔ جاری قبلاً با شمارهٔ مجاز این پرونده تأیید شده و برای سوابق محفوظ است.{% else %}این مرحله فقط پس از تکمیل فرم تخصصی و ثبت بررسی هر دو سند فعال می‌شود.{% endif %}</p></div>{% if acceptance %}<div><span class="acknowledged">✓ تأییدشده در {{ acceptance.accepted_at|date:"Y/m/d H:i" }}</span><a class="contract-button secondary" href="{% url 'contracts:contract_accept' proposal.token %}">مشاهده رسید تأیید</a></div>{% elif ready_to_confirm %}<form method="post" action="{% url 'contracts:contract_confirm' proposal.token %}" class="room-confirm">{% csrf_token %}<label><input required type="checkbox" name="agreement" value="on"> هر سه مرحله را کامل بررسی کرده‌ام و با نسخهٔ جاری قرارداد موافقم.</label><button class="contract-button" type="submit">ثبت تأیید نهایی و خروج</button></form>{% else %}<span class="card-note">فرم تخصصی، شرایط عمومی و شرایط خصوصی باید تکمیل شوند.</span>{% endif %}</section></main></body></html>
+{% extends "contracts/contract_base.html" %}{% load static i18n contract_extras %}
+{% block title %}فضای اختصاصی قرارداد | آرویون{% endblock %}
+{% block body_class %}room-page{% endblock %}
+{% block brand_url %}{% url 'contracts:public_contract' proposal.token %}{% endblock %}
+{% block header_actions %}
+  <div class="contract-header-meta">
+    <span class="contract-header-chip"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contract"></use></svg><span>نسخه {{ version.number }}</span></span>
+    <form method="post" action="{% url 'contracts:contract_logout' proposal.token %}">{% csrf_token %}<button class="room-logout" type="submit">خروج امن</button></form>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="contract-room">
+  <section class="room-hero" aria-labelledby="contract-room-title">
+    <span>پرونده اختصاصی {{ version.snapshot.customer_name }}</span>
+    <h1 id="contract-room-title">{{ version.snapshot.project_title }}</h1>
+    <p>این پرونده چهار مرحله روشن دارد. هر بخش را کامل کنید؛ وضعیت شما پس از بازگشت به همین صفحه حفظ می‌شود.</p>
+    <div class="room-facts">
+      <div><small>مبلغ پیشنهادی</small><strong>{{ version.snapshot.amount_irr|persian_amount }} ریال</strong></div>
+      <div><small>مدت اجرا</small><strong>{{ version.snapshot.delivery_terms }}</strong></div>
+      <div><small>نسخه پرونده</small><strong>{{ version.number }}</strong></div>
+    </div>
+  </section>
+
+  <section class="room-progress" aria-label="پیشرفت پرونده قرارداد">
+    <div class="{% if discovery_complete %}complete{% endif %}"><b>۱</b><span>نیازسنجی تخصصی</span></div>
+    <div class="{% if 'general' in acknowledgements %}complete{% endif %}"><b>۲</b><span>شرایط عمومی</span></div>
+    <div class="{% if 'private' in acknowledgements %}complete{% endif %}"><b>۳</b><span>شرایط خصوصی</span></div>
+    <div class="{% if acceptance %}complete{% endif %}"><b>۴</b><span>تأیید نهایی</span></div>
+  </section>
+
+  <section class="room-steps" aria-label="بخش‌های پرونده">
+    <article class="room-card {% if discovery_complete %}complete{% endif %}">
+      <div class="card-top"><b>۱</b><span>{% if not proposal.crm_order_id %}برای این قرارداد لازم نیست{% elif discovery_complete %}تکمیل شده{% else %}اقدام بعدی{% endif %}</span></div>
+      <h2>فرم نیازسنجی تخصصی</h2>
+      <p>فرآیندها، نقش‌ها و انتظارهای پروژه را ثبت کنید تا محدوده اجرای سامانه مبهم نماند.</p>
+      {% if proposal.crm_order_id %}{% language 'fa' %}<a class="contract-button" href="{% url 'crm_orders:specialist' proposal.crm_order.tracking_code %}?room={{ proposal.token }}">{% if discovery_complete %}مرور پاسخ‌های ثبت‌شده{% else %}شروع فرم تخصصی{% endif %}</a>{% endlanguage %}{% else %}<span class="card-note">این قرارداد فرم تخصصی متصل ندارد و می‌توانید مستقیماً شرایط عمومی را بررسی کنید.</span>{% endif %}
+    </article>
+    <article class="room-card {% if 'general' in acknowledgements %}complete{% endif %}">
+      <div class="card-top"><b>۲</b><span>{% if 'general' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete %}آماده بررسی{% else %}پس از فرم تخصصی{% endif %}</span></div>
+      <h2>شرایط عمومی پیمان</h2>
+      <p>قواعد ثابت همکاری، محرمانگی، مالکیت، تحویل، تغییرات و پشتیبانی پروژه.</p>
+      {% if discovery_complete %}<a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'general' %}">{% if 'general' in acknowledgements %}مرور شرایط عمومی{% else %}مطالعه شرایط عمومی{% endif %}</a>{% else %}<span class="card-note">پس از تکمیل فرم تخصصی فعال می‌شود.</span>{% endif %}
+    </article>
+    <article class="room-card {% if 'private' in acknowledgements %}complete{% endif %}">
+      <div class="card-top"><b>۳</b><span>{% if 'private' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete and 'general' in acknowledgements %}آماده بررسی{% else %}قفل مرحله‌ای{% endif %}</span></div>
+      <h2>شرایط خصوصی پیمان</h2>
+      <p>مبلغ، زمان‌بندی، محدوده اجرا و توافق‌های اختصاصی همین پروژه.</p>
+      {% if discovery_complete and 'general' in acknowledgements %}<a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'private' %}">{% if 'private' in acknowledgements %}مرور شرایط خصوصی{% else %}مطالعه شرایط خصوصی{% endif %}</a>{% elif not discovery_complete %}<span class="card-note">پس از فرم تخصصی و شرایط عمومی فعال می‌شود.</span>{% else %}<span class="card-note">پس از ثبت مطالعه شرایط عمومی فعال می‌شود.</span>{% endif %}
+    </article>
+  </section>
+
+  <section class="room-next" aria-labelledby="final-confirm-title">
+    <div><span>مرحله چهارم</span><h2 id="final-confirm-title">{% if acceptance %}تأیید این نسخه ثبت شده است{% else %}بررسی نهایی و پایان پرونده{% endif %}</h2><p>{% if acceptance %}نسخه جاری با زمان و اثر انگشت محتوای دقیق آن در سوابق محفوظ است.{% else %}پس از تکمیل سه بخش، موافقت نهایی خود را ثبت کنید. این اقدام نتیجه بررسی همه اسناد است.{% endif %}</p></div>
+    {% if acceptance %}
+      <div><span class="acknowledged">تأییدشده در {{ acceptance.accepted_at|date:"Y/m/d H:i" }}</span><a class="contract-button secondary" href="{% url 'contracts:contract_accept' proposal.token %}">مشاهده رسید تأیید</a></div>
+    {% elif ready_to_confirm %}
+      <form method="post" action="{% url 'contracts:contract_confirm' proposal.token %}" class="room-confirm" data-contract-submit>{% csrf_token %}<label><input required type="checkbox" name="agreement" value="on"><span>هر سه بخش را کامل بررسی کرده‌ام و با نسخه جاری قرارداد موافقم.</span></label><button class="contract-button" type="submit" data-busy-label="در حال ثبت تأیید…">ثبت تأیید نهایی</button></form>
+    {% else %}
+      <span class="card-note">ابتدا فرم تخصصی و هر دو سند قرارداد را کامل کنید.</span>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

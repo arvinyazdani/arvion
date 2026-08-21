@@ -1,11 +1,12 @@
 from datetime import timedelta
+from pathlib import Path
 import random
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.db import connection
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -24,6 +25,32 @@ from .services import (
 
 
 User = get_user_model()
+
+ASSESSMENT_STATIC_ROOT = Path(__file__).resolve().parent / "static" / "assessments"
+
+
+class AssessmentUISystemTests(SimpleTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.styles = (ASSESSMENT_STATIC_ROOT / "css" / "assessment-v3.css").read_text(
+            encoding="utf-8"
+        )
+        cls.behavior = (ASSESSMENT_STATIC_ROOT / "js" / "assessment-v3.js").read_text(
+            encoding="utf-8"
+        )
+
+    def test_exam_mode_removes_hidden_mobile_navigation_inset(self):
+        self.assertIn("body.exam-mode{padding-block-end:0}", self.styles)
+        self.assertIn(".exam-mode #main{padding-block-end:0}", self.styles)
+
+    def test_busy_submit_guard_blocks_duplicates_and_restores_bfcache_state(self):
+        self.assertIn('form.dataset.submitState === "submitting"', self.behavior)
+        self.assertIn("event.preventDefault();", self.behavior)
+        self.assertIn("button.disabled = true;", self.behavior)
+        self.assertIn("button.dataset.originalLabel", self.behavior)
+        self.assertIn('window.addEventListener("pageshow"', self.behavior)
+        self.assertIn('form.removeAttribute("data-submit-state")', self.behavior)
 
 
 class AssessmentAdminExportTests(TestCase):
@@ -232,6 +259,28 @@ class AssessmentCommerceTests(TestCase):
         self.assertIsNone(submission.reviewed_by)
         self.assertIsNone(submission.reviewed_at)
         self.assertEqual(submission.review_note, "")
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_rejected_card_transfer_checkout_offers_prefilled_recovery(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000,
+            amount_irr=500_000, gateway="card_transfer",
+        )
+        ManualPaymentSubmission.objects.create(
+            order=order, payer_name="Previous payer", reference_number="OLD1234",
+            paid_at=timezone.now(), status="rejected", review_note="تصویر رسید خوانا نیست",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("assessments:checkout", args=[order.pk]) + "?lang=fa",
+        )
+
+        self.assertContains(response, "اطلاعات قبلی تأیید نشد؛ قابل اصلاح است")
+        self.assertContains(response, "تصویر رسید خوانا نیست")
+        self.assertContains(response, "ارسال دوباره برای بررسی")
+        self.assertContains(response, 'value="Previous payer"', html=False)
+        self.assertNotContains(response, "data-payment-watch", html=False)
 
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False)
     def test_order_price_is_copied_from_exam_on_server(self):
@@ -781,6 +830,31 @@ class AssessmentEngineTests(TestCase):
         self.client.force_login(other)
         self.assertEqual(self.client.get(reverse("assessments:attempt", args=[attempt.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("assessments:attempt_review", args=[attempt.pk])).status_code, 404)
+
+    def test_attempt_and_review_keep_a_single_main_landmark(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+
+        attempt_response = self.client.get(
+            reverse("assessments:attempt", args=[attempt.pk]) + "?lang=fa"
+        )
+        review_response = self.client.get(
+            reverse("assessments:attempt_review", args=[attempt.pk]) + "?lang=fa"
+        )
+        attempt_html = attempt_response.content.decode()
+        review_html = review_response.content.decode()
+
+        self.assertEqual(attempt_html.count("<main"), 1)
+        self.assertEqual(review_html.count("<main"), 1)
+        self.assertIn(
+            '<section class="question-stage" aria-labelledby="assessment-question-title">',
+            attempt_html,
+        )
+        self.assertIn(
+            '<section class="attempt-review" aria-labelledby="attempt-review-title">',
+            review_html,
+        )
+        self.assertIn('data-busy-label="در حال ثبت نهایی…"', review_html)
 
     def test_deleted_live_choice_remains_answerable_and_scores_from_snapshot(self):
         Question.objects.filter(pk__in=[question.pk for question in self.questions]).update(

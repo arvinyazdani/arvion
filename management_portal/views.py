@@ -449,9 +449,19 @@ def request_detail(request, kind, object_id):
         full_report = render_clinic_order_text(item)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
     status_choices = list(model.STATUSES)
-    if lang == "en" and kind in {"crm", "clinic"}:
-        status_en = {"new": "New", "discovery": "Discovery", "qualified": "Qualified", "proposal": "Proposal sent", "won": "Won", "lost": "Closed"}
-        status_choices = [(value, status_en[value]) for value, _ in status_choices]
+    if lang == "en":
+        status_en = {
+            "new": "New", "contacted": "Contacted", "discovery": "Discovery",
+            "qualified": "Qualified", "proposal": "Proposal sent", "won": "Won",
+            "lost": "Closed",
+        }
+        status_choices = [(value, status_en.get(value, str(label))) for value, label in status_choices]
+    elif kind == "lead":
+        status_fa = {
+            "new": "جدید", "contacted": "تماس گرفته‌شده", "qualified": "واجد شرایط",
+            "proposal": "پیشنهاد ارسال‌شده", "won": "موفق", "lost": "بسته‌شده",
+        }
+        status_choices = [(value, status_fa.get(value, str(label))) for value, label in status_choices]
     status_display = dict(status_choices).get(item.status, item.status)
     return render(request, "management_portal/v2/request_detail.html", {
         "item": item, "kind": kind, "title": title, "contact": contact, "phone": phone,

@@ -1,17 +1,18 @@
 from django import forms
 
 from core.sms.backends import normalize_iran_mobile
+from core.form_accessibility import enhance_form_accessibility
 from crm_orders.models import CrmOrder
 from clinic_orders.models import ClinicOrder
 from core.models import CompanyProfile
 from .models import ContractProposal
 
 
-def _specialist_summary(order):
+def _specialist_summary(order, language="fa"):
     discovery = order.specialist_discovery if hasattr(order, "specialist_discovery") else None
     if not discovery or discovery.status == "draft" or not discovery.answers:
         return ""
-    lines = ["پاسخ‌های نیازسنجی تخصصی:"]
+    lines = ["Specialist discovery responses:" if language == "en" else "پاسخ‌های نیازسنجی تخصصی:"]
     for key, value in discovery.answers.items():
         if value not in (None, "", [], {}):
             rendered = "، ".join(map(str, value)) if isinstance(value, list) else str(value)
@@ -39,6 +40,7 @@ class ProposalForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         language = kwargs.pop("language", "fa")
+        self.language = language
         super().__init__(*args, **kwargs)
         if language == "en":
             labels = {
@@ -50,19 +52,65 @@ class ProposalForm(forms.ModelForm):
             }
             for name, label in labels.items():
                 self.fields[name].label = label
+            self.fields["delivery_terms"].help_text = (
+                "Example: 8 weeks after the advance payment and required information are received."
+            )
+            if not self.is_bound and not self.instance.pk:
+                self.initial.setdefault("title", "Custom software design and development proposal")
+                self.initial.setdefault("payment_terms", "50% at project start and 50% at final delivery")
         choices = [("", "— Manual entry —" if language == "en" else "— انتخاب دستی —")]
         choices += [(f"crm:{item.pk}", f"CRM · {item.tracking_code} · {item.organization_name}") for item in CrmOrder.objects.order_by("-created_at")[:100]]
         clinic_label = "Clinic" if language == "en" else "کلینیک"
         choices += [(f"clinic:{item.pk}", f"{clinic_label} · {item.tracking_code} · {item.clinic_name}") for item in ClinicOrder.objects.order_by("-created_at")[:100]]
         self.fields["needs_assessment"].choices = choices
+        enhance_form_accessibility(self, autocomplete={
+            "customer_name": "name",
+            "customer_phone": "tel",
+            "customer_email": "email",
+        })
+
+    def _project_title(self, kind, name):
+        if self.language == "en":
+            prefix = "Enterprise CRM platform" if kind == "crm" else "Clinic platform"
+        else:
+            prefix = "سامانه CRM سازمانی" if kind == "crm" else "پلتفرم کلینیک"
+        return f"{prefix} {name}"
+
+    def _client_details(self, kind, source, name):
+        if self.language == "en":
+            location = f"Industry: {source.industry}" if kind == "crm" else f"City: {source.city}"
+            return (
+                f"Organisation: {name}\n{location}\nDiscovery reference: {source.tracking_code}\n"
+                f"Success criteria: {source.success_metrics}"
+            )
+        location = f"صنعت: {source.industry}" if kind == "crm" else f"شهر: {source.city}"
+        return (
+            f"نام مجموعه: {name}\n{location}\nکد نیازسنجی: {source.tracking_code}\n"
+            f"معیارهای موفقیت: {source.success_metrics}"
+        )
+
+    def _assessment_payload(self, kind, source):
+        name = source.organization_name if kind == "crm" else source.clinic_name
+        specialist = _specialist_summary(source, self.language) if kind == "crm" else ""
+        return {
+            "customer_name": source.contact_name or name,
+            "customer_phone": source.phone,
+            "customer_email": source.work_email,
+            "project_title": self._project_title(kind, name),
+            "project_scope": "\n\n".join(filter(None, [
+                source.current_process, source.main_pain_points, source.required_integrations,
+                source.security_requirements, specialist,
+            ])),
+            "client_details": self._client_details(kind, source, name),
+        }
 
     @property
     def assessment_data(self):
         data = {}
         for item in CrmOrder.objects.order_by("-created_at")[:100]:
-            data[f"crm:{item.pk}"] = {"customer_name": item.contact_name or item.organization_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"سامانه CRM سازمانی {item.organization_name}", "project_scope": "\n\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements, _specialist_summary(item)])), "client_details": f"نام مجموعه: {item.organization_name}\nصنعت: {item.industry}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
+            data[f"crm:{item.pk}"] = self._assessment_payload("crm", item)
         for item in ClinicOrder.objects.order_by("-created_at")[:100]:
-            data[f"clinic:{item.pk}"] = {"customer_name": item.contact_name or item.clinic_name, "customer_phone": item.phone, "customer_email": item.work_email, "project_title": f"پلتفرم کلینیک {item.clinic_name}", "project_scope": "\n".join(filter(None, [item.current_process, item.main_pain_points, item.required_integrations, item.security_requirements])), "client_details": f"نام مجموعه: {item.clinic_name}\nشهر: {item.city}\nکد نیازسنجی: {item.tracking_code}\nمعیارهای موفقیت: {item.success_metrics}"}
+            data[f"clinic:{item.pk}"] = self._assessment_payload("clinic", item)
         return data
 
     def apply_assessment(self):
@@ -75,11 +123,10 @@ class ProposalForm(forms.ModelForm):
         self.instance.customer_phone = normalize_iran_mobile(source.phone)
         self.instance.customer_email = source.work_email
         name = source.organization_name if kind == "crm" else source.clinic_name
-        self.instance.project_title = f"{'سامانه CRM سازمانی' if kind == 'crm' else 'پلتفرم کلینیک'} {name}"
-        specialist = _specialist_summary(source) if kind == "crm" else ""
-        self.instance.project_scope = "\n\n".join(filter(None, [source.current_process, source.main_pain_points, source.required_integrations, source.security_requirements, specialist]))
-        location = f"صنعت: {source.industry}" if kind == "crm" else f"شهر: {source.city}"
-        self.instance.client_details = f"نام مجموعه: {name}\n{location}\nکد نیازسنجی: {source.tracking_code}\nمعیارهای موفقیت: {source.success_metrics}"
+        payload = self._assessment_payload(kind, source)
+        self.instance.project_title = payload["project_title"]
+        self.instance.project_scope = payload["project_scope"]
+        self.instance.client_details = payload["client_details"]
 
 
 class ContractSettingsForm(forms.ModelForm):
@@ -88,6 +135,28 @@ class ContractSettingsForm(forms.ModelForm):
         fields = ("legal_name_fa", "brand_name", "registration_number", "national_id", "chief_executive_fa", "phone", "address_fa")
         widgets = {"address_fa": forms.Textarea(attrs={"rows": 4})}
         labels = {"legal_name_fa": "نام حقوقی مجری", "brand_name": "نام برند", "registration_number": "شماره ثبت", "national_id": "شناسه ملی", "chief_executive_fa": "نماینده مجاز", "phone": "تلفن", "address_fa": "نشانی قرارداد"}
+
+    def __init__(self, *args, **kwargs):
+        language = kwargs.pop("language", "fa")
+        super().__init__(*args, **kwargs)
+        if language == "en":
+            labels = {
+                "legal_name_fa": "Contractor legal name",
+                "brand_name": "Brand name",
+                "registration_number": "Registration number",
+                "national_id": "National ID",
+                "chief_executive_fa": "Authorised representative",
+                "phone": "Phone",
+                "address_fa": "Contract address",
+            }
+            for name, label in labels.items():
+                self.fields[name].label = label
+        enhance_form_accessibility(self, autocomplete={
+            "legal_name_fa": "organization",
+            "brand_name": "organization",
+            "phone": "tel",
+            "address_fa": "street-address",
+        })
 
 
 class ContractReviewForm(forms.Form):
@@ -119,6 +188,7 @@ class ClauseSelectionForm(forms.Form):
     def __init__(self, *args, proposal, **kwargs):
         self.proposal = proposal
         language = kwargs.pop("language", "fa")
+        self.language = language
         super().__init__(*args, **kwargs)
         if language == "en":
             self.fields["enabled_clauses"].label = "Enabled clauses"
@@ -131,7 +201,11 @@ class ClauseSelectionForm(forms.Form):
     def clean(self):
         data = super().clean()
         if bool(data.get("custom_title", "").strip()) != bool(data.get("custom_body", "").strip()):
-            raise forms.ValidationError("برای بند جدید، عنوان و متن را با هم وارد کنید.")
+            raise forms.ValidationError(
+                "Enter both a title and text for the new clause."
+                if self.language == "en" else
+                "برای بند جدید، عنوان و متن را با هم وارد کنید."
+            )
         return data
 
 
@@ -144,8 +218,30 @@ class OtpVerifyForm(forms.Form):
 
 
 class ContractAccessForm(forms.Form):
-    phone = forms.CharField(label="شماره همراه مجاز", max_length=24)
-    password = forms.CharField(label="رمز ورود قرارداد", widget=forms.PasswordInput(render_value=False), max_length=128)
+    phone = forms.CharField(
+        label="شماره همراه مجاز",
+        max_length=24,
+        widget=forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel"}),
+    )
+    password = forms.CharField(
+        label="رمز ورود قرارداد",
+        widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "current-password"}),
+        max_length=128,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            return
+        errors = self.errors
+        for name in ("phone", "password"):
+            if name not in errors:
+                continue
+            field_id = self[name].id_for_label
+            self.fields[name].widget.attrs.update({
+                "aria-invalid": "true",
+                "aria-describedby": f"{field_id}_error",
+            })
 
     def clean_phone(self):
         return normalize_iran_mobile(self.cleaned_data["phone"])

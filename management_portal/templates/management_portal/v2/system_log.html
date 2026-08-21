@@ -2,17 +2,17 @@
 {% block title %}{% if lang == 'fa' %}لاگ‌های سیستم{% else %}System logs{% endif %} | Rvion{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}لاگ‌های سیستم{% else %}System logs{% endif %}{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/audit.css' %}">{% endblock %}
-{% block content %}<section class="m-page-head"><div><span>SYSTEM HEALTH</span><h1>{% if lang == 'fa' %}لاگ‌های فنی سیستم{% else %}Technical system logs{% endif %}</h1><p>{% if lang == 'fa' %}خطاهای سرور و خطاهای جاوااسکریپت مرورگر کاربران، با شرح فارسی و قابل فیلتر.{% else %}Server errors and browser JS errors, described in Persian and filterable.{% endif %}</p></div></section>
+{% block content %}<section class="m-page-head"><div><span>{% if lang == 'fa' %}سلامت سیستم{% else %}SYSTEM HEALTH{% endif %}</span><h1>{% if lang == 'fa' %}لاگ‌های فنی سیستم{% else %}Technical system logs{% endif %}</h1><p>{% if lang == 'fa' %}خطاهای سرور و خطاهای جاوااسکریپت مرورگر کاربران، با شرح فارسی و قابل فیلتر.{% else %}Server and browser JavaScript errors, organised for quick filtering and review.{% endif %}</p></div></section>
 <form class="m-filters" method="get">
-  <select name="level"><option value="">{% if lang == 'fa' %}همه سطح‌ها{% else %}All levels{% endif %}</option>{% for value, label in levels %}<option value="{{ value }}" {% if level == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-  <select name="category"><option value="">{% if lang == 'fa' %}همه دسته‌ها{% else %}All categories{% endif %}</option>{% for value, label in categories %}<option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  <select name="level"><option value="">{% if lang == 'fa' %}همه سطح‌ها{% else %}All levels{% endif %}</option>{% for value, label in levels %}<option value="{{ value }}" {% if level == value %}selected{% endif %}>{% if lang == 'fa' %}{{ label }}{% elif value == 'error' %}Error{% elif value == 'warning' %}Warning{% else %}Information{% endif %}</option>{% endfor %}</select>
+  <select name="category"><option value="">{% if lang == 'fa' %}همه دسته‌ها{% else %}All categories{% endif %}</option>{% for value, label in categories %}<option value="{{ value }}" {% if category == value %}selected{% endif %}>{% if lang == 'fa' %}{{ label }}{% elif value == 'server' %}Server error{% elif value == 'frontend' %}Browser error{% elif value == 'wizard' %}Wizard behaviour{% else %}Other{% endif %}</option>{% endfor %}</select>
   <button>{% if lang == 'fa' %}اعمال فیلتر{% else %}Apply{% endif %}</button>
 </form>
 <section class="m-data-list">
   <header><span>{% if lang == 'fa' %}سطح{% else %}Level{% endif %}</span><span>{% if lang == 'fa' %}شرح{% else %}Description{% endif %}</span><span>{% if lang == 'fa' %}مسیر{% else %}Path{% endif %}</span><span>{% if lang == 'fa' %}زمان{% else %}Time{% endif %}</span><span></span></header>
   {% for log in logs %}<div class="audit-row">
-    <b class="{% if log.level == 'error' %}badge badge-danger{% elif log.level == 'warning' %}badge badge-warning{% else %}badge badge-info{% endif %}">{{ log.get_level_display }}</b>
-    <div><strong>{{ log.message_fa }}</strong><span>{{ log.get_category_display }}{% if log.user %} · {{ log.user.email }}{% endif %}</span></div>
+    <b class="{% if log.level == 'error' %}badge badge-danger{% elif log.level == 'warning' %}badge badge-warning{% else %}badge badge-info{% endif %}">{% if lang == 'fa' %}{{ log.get_level_display }}{% elif log.level == 'error' %}Error{% elif log.level == 'warning' %}Warning{% else %}Information{% endif %}</b>
+    <div><strong>{% if lang == 'fa' %}{{ log.message_fa }}{% else %}{{ log.detail|truncatechars:160|default:"System event" }}{% endif %}</strong><span>{% if lang == 'fa' %}{{ log.get_category_display }}{% elif log.category == 'server' %}Server error{% elif log.category == 'frontend' %}Browser error{% elif log.category == 'wizard' %}Wizard behaviour{% else %}Other{% endif %}{% if log.user %} · {{ log.user.email }}{% endif %}</span></div>
     <em>{{ log.path|default:"—" }}</em>
     <time>{{ log.created_at|date:"Y/m/d H:i" }}</time>
     <i>•</i>

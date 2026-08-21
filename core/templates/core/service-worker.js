@@ -1,7 +1,9 @@
-const CACHE = "rvion-shell-v3";
-const OFFLINE_URL = "/offline/";
+const CACHE = "rvion-shell-v4";
+const OFFLINE_URL_FA = "/offline/fa/";
+const OFFLINE_URL_EN = "/offline/en/";
 const SHELL = [
-  OFFLINE_URL,
+  OFFLINE_URL_FA,
+  OFFLINE_URL_EN,
   "/static/core/favicon.svg",
   "/static/core/icons/icon-192.png",
   "/static/core/icons/app-icon-maskable.svg",
@@ -54,7 +56,8 @@ self.addEventListener("fetch", event => {
       try {
         return (await event.preloadResponse) || (await fetch(event.request));
       } catch (error) {
-        return (await caches.match(OFFLINE_URL)) || Response.error();
+        const offlineUrl = url.pathname.startsWith("/en/") ? OFFLINE_URL_EN : OFFLINE_URL_FA;
+        return (await caches.match(offlineUrl)) || Response.error();
       }
     })());
     return;

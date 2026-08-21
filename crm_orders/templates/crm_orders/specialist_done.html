@@ -1,1 +1,31 @@
-{% load static %}<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>نیازسنجی تخصصی ثبت شد | آرویون</title><link rel="stylesheet" href="{% static 'crm_orders/wizard.css' %}?v=5"></head><body><main class="specialist-shell done-shell"><div class="done-mark">✓</div><span>نیازسنجی تخصصی CRM</span><h1>اطلاعات با موفقیت ثبت شد</h1><p>پاسخ‌های {{ order.organization_name }} برای طراحی قرارداد و جلسه تحلیل آماده شد. تیم آرویون بر اساس این اطلاعات نسخه پیشنهادی قرارداد را آماده می‌کند.</p><div class="done-actions"><a class="button" href="{% url 'home' %}">بازگشت به سایت</a><button class="button secondary" onclick="navigator.clipboard?.writeText(location.href)">کپی لینک پیگیری</button></div></main></body></html>
+{% load static %}
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="same-origin">
+  <meta name="theme-color" content="#0b1220">
+  <title>نیازسنجی تخصصی ثبت شد | آرویون</title>
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'crm_orders/wizard.css' %}?v=9">
+  <script src="{% static 'crm_orders/specialist.js' %}?v=1" defer></script>
+</head>
+<body>
+  {% include "core/_route_loader.html" %}
+  <main class="specialist-shell done-shell" data-route-shell>
+    <div class="done-mark" aria-hidden="true">✓</div>
+    <span>نیازسنجی تخصصی CRM</span>
+    <h1>اطلاعات با موفقیت ثبت شد</h1>
+    <p>پاسخ‌های {{ order.organization_name }} ذخیره شد و برای طراحی راهکار و جلسه تحلیل در دسترس تیم آرویون است. برای پیگیری، همین لینک اختصاصی را نگه دارید.</p>
+    <div class="done-actions">
+      <a class="button primary" href="{% url 'home' %}">بازگشت به سایت آرویون</a>
+      <button class="button secondary" type="button" data-copy-url>کپی لینک پیگیری</button>
+    </div>
+    <p class="copy-status" role="status" aria-live="polite" data-copy-status></p>
+  </main>
+  <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+</body>
+</html>

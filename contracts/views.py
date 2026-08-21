@@ -23,6 +23,28 @@ from .models import ContractAcceptance, ContractClause, ContractProposal, Contra
 from .services import add_default_clauses, proposal_snapshot, publish_version
 
 
+STATUS_LABELS_EN = {
+    "draft": "Draft",
+    "sent": "Sent",
+    "review": "Customer feedback",
+    "accepted": "Accepted",
+    "expired": "Expired",
+    "revoked": "Revoked",
+}
+
+
+def _request_language(request):
+    return "en" if getattr(request, "LANGUAGE_CODE", "fa") == "en" else "fa"
+
+
+def _copy(request, fa, en):
+    return en if _request_language(request) == "en" else fa
+
+
+def _status_label(proposal, language):
+    return STATUS_LABELS_EN.get(proposal.status, proposal.status) if language == "en" else proposal.get_status_display()
+
+
 def _require_contract_manager(request):
     if not request.user.is_superuser:
         raise PermissionDenied
@@ -30,6 +52,21 @@ def _require_contract_manager(request):
 
 def _version_phone(proposal, version):
     return str((version.snapshot or {}).get("customer_phone") or proposal.customer_phone)
+
+
+def _linked_discovery_state(proposal):
+    """Return the linked CRM discovery and whether the contract may proceed."""
+    if not proposal.crm_order_id:
+        return None, True
+    discovery = CrmSpecialistDiscovery.objects.filter(
+        order_id=proposal.crm_order_id,
+    ).first()
+    complete = bool(
+        discovery
+        and discovery.status in {"submitted", "reviewed"}
+        and is_specialist_discovery_complete(discovery)
+    )
+    return discovery, complete
 
 
 def _discovery_evidence(proposal):
@@ -67,8 +104,9 @@ def _link_customer(proposal):
 @staff_member_required(login_url="accounts:login")
 def proposal_list(request):
     _require_contract_manager(request)
-    rows = [{"item": item, "url": _manager_url(request, "proposal_detail", "contract_detail", item.pk)} for item in ContractProposal.objects.select_related("created_by")]
-    return render(request, "contracts/proposal_list_v2.html", {"proposal_rows": rows, "create_url": _manager_url(request, "proposal_create", "contract_create"), "settings_url": _manager_url(request, "contract_settings", "contract_settings"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    language = _request_language(request)
+    rows = [{"item": item, "status_label": _status_label(item, language), "url": _manager_url(request, "proposal_detail", "contract_detail", item.pk)} for item in ContractProposal.objects.select_related("created_by")]
+    return render(request, "contracts/proposal_list_v2.html", {"proposal_rows": rows, "create_url": _manager_url(request, "proposal_create", "contract_create"), "settings_url": _manager_url(request, "contract_settings", "contract_settings"), "lang": language})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -77,12 +115,13 @@ def contract_settings(request):
     company = CompanyProfile.objects.first()
     if company is None:
         raise ImproperlyConfigured("Company profile must be configured before contract publishing.")
-    form = ContractSettingsForm(request.POST or None, instance=company)
+    language = _request_language(request)
+    form = ContractSettingsForm(request.POST or None, instance=company, language=language)
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "تنظیمات مجری قرارداد ذخیره شد؛ فقط نسخه‌های جدید از آن استفاده می‌کنند.")
+        messages.success(request, _copy(request, "تنظیمات مجری قرارداد ذخیره شد؛ فقط نسخه‌های جدید از آن استفاده می‌کنند.", "Contractor settings saved; only new versions will use them."))
         return redirect(_manager_url(request, "proposal_list", "contract_list"))
-    return render(request, "contracts/contract_settings.html", {"form": form, "list_url": _manager_url(request, "proposal_list", "contract_list"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "contracts/contract_settings.html", {"form": form, "list_url": _manager_url(request, "proposal_list", "contract_list"), "lang": language})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -97,7 +136,7 @@ def proposal_create(request):
         _link_customer(proposal)
         proposal.save()
         add_default_clauses(proposal)
-        messages.success(request, "پیش‌نویس قرارداد ساخته شد؛ بندها را بررسی و سپس لینک را فعال کنید.")
+        messages.success(request, _copy(request, "پیش‌نویس قرارداد ساخته شد؛ بندها را بررسی و سپس لینک را فعال کنید.", "Contract draft created. Review its clauses, then activate the customer link."))
         return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
     return render(request, "contracts/proposal_form_v2.html", {"form": form, "assessment_data": form.assessment_data, "list_url": _manager_url(request, "proposal_list", "contract_list"), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
@@ -116,7 +155,7 @@ def proposal_edit(request, proposal_id):
             form.apply_assessment()
         _link_customer(proposal)
         proposal.save()
-        messages.success(request, "پیش‌نویس ذخیره شد. برای مشتری نسخه تازه بسازید.")
+        messages.success(request, _copy(request, "پیش‌نویس ذخیره شد. برای مشتری نسخه تازه بسازید.", "Draft saved. Create a new version before sharing it with the customer."))
         return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
     return render(request, "contracts/proposal_form_v2.html", {"form": form, "assessment_data": form.assessment_data, "list_url": _manager_url(request, "proposal_list", "contract_list"), "proposal": proposal, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
@@ -125,7 +164,14 @@ def proposal_edit(request, proposal_id):
 def proposal_preview(request, proposal_id):
     _require_contract_manager(request)
     proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses"), pk=proposal_id)
-    return render(request, "contracts/proposal_preview.html", {"proposal": proposal, "snapshot": proposal_snapshot(proposal), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    language = getattr(request, "LANGUAGE_CODE", "fa")
+    return render(request, "contracts/proposal_preview.html", {
+        "proposal": proposal,
+        "snapshot": proposal_snapshot(proposal),
+        "status_label": _status_label(proposal, language),
+        "detail_url": _manager_url(request, "proposal_detail", "contract_detail", proposal.pk),
+        "lang": language,
+    })
 
 
 @staff_member_required(login_url="accounts:login")
@@ -137,7 +183,7 @@ def proposal_revoke(request, proposal_id):
         raise PermissionDenied
     proposal.status = "revoked"
     proposal.save(update_fields=("status", "updated_at"))
-    messages.success(request, "لینک مشتری غیرفعال شد؛ اطلاعات و نسخه‌ها حفظ شده‌اند.")
+    messages.success(request, _copy(request, "لینک مشتری غیرفعال شد؛ اطلاعات و نسخه‌ها حفظ شده‌اند.", "Customer link revoked; data and versions were preserved."))
     return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
 
 
@@ -149,7 +195,7 @@ def proposal_delete(request, proposal_id):
     if proposal.current_version or proposal.status not in {"draft", "revoked"}:
         raise PermissionDenied
     proposal.delete()
-    messages.success(request, "پیش‌نویس بدون نسخه حذف شد.")
+    messages.success(request, _copy(request, "پیش‌نویس بدون نسخه حذف شد.", "Unversioned draft deleted."))
     return redirect(_manager_url(request, "proposal_list", "contract_list"))
 
 
@@ -158,7 +204,8 @@ def proposal_detail(request, proposal_id):
     _require_contract_manager(request)
     proposal = get_object_or_404(ContractProposal.objects.prefetch_related("clauses", "versions"), pk=proposal_id)
     public_url = request.build_absolute_uri(reverse("contracts:public_contract", args=[proposal.token]))
-    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "public_url": public_url, "list_url": _manager_url(request, "proposal_list", "contract_list"), "clauses_url": _manager_url(request, "proposal_clauses", "contract_clauses", proposal.pk), "publish_url": _manager_url(request, "proposal_publish", "contract_publish", proposal.pk), "edit_url": _manager_url(request, "proposal_edit", "contract_edit", proposal.pk), "preview_url": _manager_url(request, "proposal_preview", "contract_preview", proposal.pk), "revoke_url": _manager_url(request, "proposal_revoke", "contract_revoke", proposal.pk), "delete_url": _manager_url(request, "proposal_delete", "contract_delete", proposal.pk), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    language = _request_language(request)
+    return render(request, "contracts/proposal_detail_v2.html", {"proposal": proposal, "status_label": _status_label(proposal, language), "public_url": public_url, "list_url": _manager_url(request, "proposal_list", "contract_list"), "clauses_url": _manager_url(request, "proposal_clauses", "contract_clauses", proposal.pk), "publish_url": _manager_url(request, "proposal_publish", "contract_publish", proposal.pk), "edit_url": _manager_url(request, "proposal_edit", "contract_edit", proposal.pk), "preview_url": _manager_url(request, "proposal_preview", "contract_preview", proposal.pk), "revoke_url": _manager_url(request, "proposal_revoke", "contract_revoke", proposal.pk), "delete_url": _manager_url(request, "proposal_delete", "contract_delete", proposal.pk), "lang": language})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -177,7 +224,7 @@ def proposal_clauses(request, proposal_id):
         if title and body:
             position = (proposal.clauses.order_by("-position").values_list("position", flat=True).first() or 0) + 1
             ContractClause.objects.create(proposal=proposal, title=title, body=body, position=position)
-        messages.success(request, "انتخاب بندها ذخیره شد. برای ارسال، نسخه جدید بسازید.")
+        messages.success(request, _copy(request, "انتخاب بندها ذخیره شد. برای ارسال، نسخه جدید بسازید.", "Clause selection saved. Create a new version before sharing."))
         return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
     return render(request, "contracts/proposal_clauses.html", {"proposal": proposal, "form": form, "detail_url": _manager_url(request, "proposal_detail", "contract_detail", proposal.pk), "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
@@ -192,9 +239,16 @@ def proposal_publish(request, proposal_id):
     try:
         version = publish_version(proposal, request.user)
     except ValidationError as exc:
-        messages.error(request, "; ".join(exc.messages))
+        messages.error(
+            request,
+            _copy(
+                request,
+                "; ".join(exc.messages),
+                "The contract is not ready to publish. Complete both terms and keep at least one clause enabled.",
+            ),
+        )
         return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
-    messages.success(request, f"نسخه {version.number} ثبت و لینک مشتری فعال شد.")
+    messages.success(request, _copy(request, f"نسخه {version.number} ثبت و لینک مشتری فعال شد.", f"Version {version.number} published and the customer link is active."))
     return redirect(_manager_url(request, "proposal_detail", "contract_detail", proposal.pk))
 
 
@@ -206,14 +260,7 @@ def public_contract(request, token):
     version = proposal.versions.get(number=proposal.current_version)
     if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         return redirect("contracts:contract_access", token=token)
-    discovery = CrmSpecialistDiscovery.objects.filter(
-        order_id=proposal.crm_order_id,
-    ).first() if proposal.crm_order_id else None
-    discovery_complete = bool(
-        discovery
-        and discovery.status in {"submitted", "reviewed"}
-        and is_specialist_discovery_complete(discovery)
-    )
+    discovery, discovery_complete = _linked_discovery_state(proposal)
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
     acceptance = getattr(version, "acceptance", None)
     ready_to_confirm = acceptance is None and acknowledgements == {"general", "private"} and (
@@ -229,10 +276,13 @@ def contract_document(request, token, document=None):
         raise Http404
     version = proposal.versions.get(number=proposal.current_version)
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True))
-    ready_for_review = acknowledgements == {"general", "private"}
     if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         return redirect("contracts:contract_access", token=token)
     if document not in {"general", "private"}:
+        return redirect("contracts:public_contract", token=token)
+    _discovery, discovery_complete = _linked_discovery_state(proposal)
+    if not discovery_complete:
+        messages.info(request, "ابتدا فرم نیازسنجی تخصصی را کامل کنید؛ سپس شرایط عمومی پیمان فعال می‌شود.")
         return redirect("contracts:public_contract", token=token)
     if document == "private" and "general" not in acknowledgements:
         messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
@@ -254,6 +304,10 @@ def contract_acknowledge(request, token, document):
     version = proposal.versions.get(number=proposal.current_version)
     if request.session.get(f"contract-access:{version.pk}") != _version_phone(proposal, version):
         return redirect("contracts:contract_access", token=token)
+    _discovery, discovery_complete = _linked_discovery_state(proposal)
+    if not discovery_complete:
+        messages.info(request, "ابتدا فرم نیازسنجی تخصصی را کامل کنید؛ سپس شرایط عمومی پیمان فعال می‌شود.")
+        return redirect("contracts:public_contract", token=token)
     if request.POST.get("acknowledge") != "on":
         messages.error(request, "برای ثبت این مرحله، مطالعه کامل سند را تأیید کنید.")
         return redirect("contracts:contract_document", token=token, document=document)

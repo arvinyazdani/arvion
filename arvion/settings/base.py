@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED = os.getenv("ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED", "1") == "1"
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-local-arvion-key")
 DEBUG = False

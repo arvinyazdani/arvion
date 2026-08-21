@@ -2,9 +2,9 @@
 .m-update-form{display:grid;grid-template-columns:minmax(220px,.45fr) minmax(0,1fr);gap:14px;align-items:end}
 .m-update-form label{display:grid;gap:7px;color:var(--m-muted);font-size:.72rem;font-weight:800}
 .m-update-form label.wide{grid-column:2;grid-row:1/3}
-.m-update-form select,.m-update-form textarea{width:100%;padding:11px 12px;border:1px solid var(--m-line);border-radius:12px;background:var(--color-surface);color:var(--m-ink);font:inherit}
+.m-update-form select,.m-update-form textarea{width:100%;min-height:46px;padding:11px 12px;border:1px solid var(--m-line);border-radius:12px;background:var(--color-surface);color:var(--m-ink);font:inherit}
 .m-update-form textarea{resize:vertical;line-height:1.8}
-.m-update-form button{min-height:46px;border:0;border-radius:12px;background:var(--m-orange);color:var(--color-on-brand);font:900 .8rem Vazirmatn;cursor:pointer}
+.m-update-form button{min-height:46px;border:0;border-radius:12px;background:var(--m-orange);color:var(--color-on-brand);font:900 .8rem var(--font-family-base);cursor:pointer}
 .m-messages{display:grid;gap:8px;margin-bottom:14px}
 .m-messages>div{padding:12px 15px;border:1px solid #a8ddca;border-radius:12px;background:#edf9f4;color:var(--m-green);font-size:.78rem;font-weight:800}
 @media(max-width:760px){.m-update-form{grid-template-columns:1fr}.m-update-form label.wide{grid-column:auto;grid-row:auto}}
