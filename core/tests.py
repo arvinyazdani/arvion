@@ -38,6 +38,7 @@ class CorePagesTests(TestCase):
         mobile_nav = html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
         self.assertEqual(mobile_nav.count("<a "), 5)
         self.assertEqual(html.count('class="nav-cta"'), 1)
+        self.assertContains(response, 'href="/fa/start/"', count=3, html=False)
 
         staff = get_user_model().objects.create_user(
             username="shell-admin@example.com",

@@ -13,7 +13,7 @@
         {% if lang == 'fa' %}از شناخت مسئله تا طراحی، توسعه و پشتیبانی؛ سامانه‌ای می‌سازیم که تیم شما واقعاً بتواند با آن کار کند.{% else %}From discovery through design, development and support, we build systems your team can rely on every day.{% endif %}
       </p>
       <div class="home-intro-actions">
-        <a class="button" href="{% url 'leads:contact' %}">
+        <a class="button" href="{% url 'project_start' %}">
           <span>{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}</span>
           <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
         </a>
