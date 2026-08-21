@@ -53,7 +53,6 @@ class CrmOrderCreateView(LanguageViewMixin, FormView):
         order = form.save(commit=False)
         order.privacy_accepted_at = timezone.now()
         order.save()
-        CrmSpecialistDiscovery.objects.get_or_create(order=order)
         self.order = order
         send_mail(
             f"New CRM discovery [{order.tracking_code}]",

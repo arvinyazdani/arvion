@@ -84,7 +84,7 @@ class CrmOrderTests(TestCase):
             self.assertIn("no-store", cache_control)
             self.assertIn("private", cache_control)
 
-    def test_valid_submission_persists_structured_discovery_and_emails_team(self):
+    def test_valid_submission_persists_base_discovery_and_waits_for_manager_assignment(self):
         response = self.client.post(reverse("crm_orders:create"), valid_payload(), follow=True)
         order = CrmOrder.objects.get()
         self.assertEqual(response.status_code, 200)
@@ -94,8 +94,9 @@ class CrmOrderTests(TestCase):
         self.assertEqual(order.integration_types, ["website", "accounting"])
         self.assertEqual(order.phone, "09121234567")
         self.assertIsNotNone(order.privacy_accepted_at)
-        discovery = CrmSpecialistDiscovery.objects.get(order=order)
-        self.assertContains(response, reverse("crm_orders:specialist", args=[discovery.token]))
+        self.assertFalse(CrmSpecialistDiscovery.objects.filter(order=order).exists())
+        self.assertContains(response, "اگر برای برآورد دقیق به فرم تخصصی نیاز باشد")
+        self.assertNotContains(response, "ادامه و تکمیل نیازسنجی تخصصی")
         self.assertEqual(len(mail.outbox), 1)
 
     def test_specialist_form_uses_private_token_not_tracking_code(self):
