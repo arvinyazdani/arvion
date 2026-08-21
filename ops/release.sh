@@ -2,12 +2,15 @@
 set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/srv/arvion}"
+APP_USER="${APP_USER:-arvion}"
 ENV_FILE="${ENV_FILE:-$APP_DIR/.env.production}"
 BACKUP_DIR="${BACKUP_DIR:-$APP_DIR/backups}"
 BACKUP_DATABASE="${BACKUP_DATABASE:-arvion}"
 RELEASE_STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_FILE="$BACKUP_DIR/pre-release-$RELEASE_STAMP.dump"
 RELEASE_LOG="$BACKUP_DIR/release-history.log"
+NGINX_TARGET="/etc/nginx/sites-available/arvion"
+NGINX_BACKUP="$BACKUP_DIR/nginx-pre-release-$RELEASE_STAMP.conf"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run this release script with sudo so it can create the PostgreSQL snapshot." >&2
@@ -22,8 +25,16 @@ echo "Pre-release database snapshot: $BACKUP_FILE"
 
 cd "$APP_DIR"
 RELEASE_COMMIT="$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse --short HEAD)"
+
+# Install the exact dependencies of the checked-out release before importing
+# Django settings.  Running pip as the application user keeps the virtualenv
+# ownership stable across releases.
+sudo -u "$APP_USER" "$APP_DIR/.venv/bin/python" -m pip install \
+  --disable-pip-version-check --requirement "$APP_DIR/requirements.txt"
+sudo -u "$APP_USER" "$APP_DIR/.venv/bin/python" -m pip check
+
 run_manage() {
-  sudo -u arvion bash -c "set -a; source '$ENV_FILE'; set +a; DJANGO_SETTINGS_MODULE=arvion.settings.production '$APP_DIR/.venv/bin/python' '$APP_DIR/manage.py' $*"
+  sudo -u "$APP_USER" bash -c "set -a; source '$ENV_FILE'; set +a; DJANGO_SETTINGS_MODULE=arvion.settings.production '$APP_DIR/.venv/bin/python' '$APP_DIR/manage.py' $*"
 }
 
 run_manage check --deploy
@@ -31,6 +42,25 @@ run_manage migrate --noinput
 run_manage setup_staff_roles
 run_manage seed_assessment_banks
 run_manage collectstatic --noinput
+
+# Keep the active Nginx configuration in sync with the release, but never
+# leave an invalid candidate in place.  The previous file is retained beside
+# the database snapshot for an immediate operational rollback.
+if [[ -f "$NGINX_TARGET" ]]; then
+  cp --preserve=mode,ownership,timestamps "$NGINX_TARGET" "$NGINX_BACKUP"
+fi
+install -m 0644 "$APP_DIR/ops/nginx.conf" "$NGINX_TARGET"
+if ! nginx -t; then
+  if [[ -f "$NGINX_BACKUP" ]]; then
+    install -m 0644 "$NGINX_BACKUP" "$NGINX_TARGET"
+  else
+    rm -f "$NGINX_TARGET"
+  fi
+  nginx -t || true
+  echo "Nginx candidate was invalid; the previous configuration was restored." >&2
+  exit 1
+fi
+
 install -m 0644 "$APP_DIR/ops/arvion-notifications.service" /etc/systemd/system/arvion-notifications.service
 install -m 0644 "$APP_DIR/ops/arvion-notifications.timer" /etc/systemd/system/arvion-notifications.timer
 install -m 0644 "$APP_DIR/ops/arvion-healthcheck.service" /etc/systemd/system/arvion-healthcheck.service
@@ -47,6 +77,15 @@ systemctl daemon-reload
 systemctl enable --now arvion-notifications.timer arvion-healthcheck.timer arvion-system-log-cleanup.timer arvion-backup.timer arvion-restore-check.timer
 systemctl restart arvion
 systemctl is-active --quiet arvion
+if ! systemctl reload nginx; then
+  if [[ -f "$NGINX_BACKUP" ]]; then
+    install -m 0644 "$NGINX_BACKUP" "$NGINX_TARGET"
+    nginx -t
+    systemctl reload nginx
+  fi
+  echo "Nginx reload failed; the previous configuration was restored." >&2
+  exit 1
+fi
 
 # The application is deliberately probed locally: DNS/CDN failures must not make
 # a healthy deployment look unsuccessful, while the Host header still exercises

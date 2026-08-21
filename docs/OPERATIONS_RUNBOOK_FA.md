@@ -32,7 +32,7 @@ sudo /srv/arvion/ops/release.sh
 curl -fsS https://rvionai.com/health/
 ```
 
-`release.sh` قبل از هر تغییر یک snapshot فشرده از PostgreSQL می‌سازد، migrationها و static را اجرا می‌کند، timerهای عملیاتی را فعال نگه می‌دارد، سرویس را restart می‌کند و health check داخلی را تا ۱۵ ثانیه بررسی می‌کند. پس از موفقیت، نسخه و مسیر snapshot در فایل محافظت‌شدهٔ زیر ثبت می‌شود:
+`release.sh` قبل از هر تغییر یک snapshot فشرده از PostgreSQL می‌سازد، dependencyهای نسخه را در virtualenv نصب و با `pip check` کنترل می‌کند، migrationها و static را اجرا می‌کند و تنظیم Nginx را فقط پس از `nginx -t` فعال می‌سازد. سپس timerهای عملیاتی را فعال نگه می‌دارد، سرویس را restart می‌کند و health check داخلی را تا ۱۵ ثانیه بررسی می‌کند. اگر تنظیم جدید Nginx معتبر نباشد یا reload شکست بخورد، فایل قبلی به‌طور خودکار بازگردانده می‌شود. پس از موفقیت، نسخه و مسیر snapshot در فایل محافظت‌شدهٔ زیر ثبت می‌شود:
 
 ```text
 /srv/arvion/backups/release-history.log

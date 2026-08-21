@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from management_portal.models import ManagementNotification
 from management_portal.notifications import create_receipts
+from management_portal.backups import find_backup_inventory
 
 
 class Command(BaseCommand):
@@ -20,10 +21,9 @@ class Command(BaseCommand):
         usage = shutil.disk_usage(app_dir)
         used_percent = round((usage.used / usage.total) * 100)
         backup_dir = Path(getattr(settings, "CRM_BACKUP_DIR", app_dir / "backups"))
-        dumps = sorted(backup_dir.glob("*.dump"), key=lambda item: item.stat().st_mtime, reverse=True) if backup_dir.exists() else []
-        latest = dumps[0] if dumps else None
+        latest = find_backup_inventory(backup_dir).preferred
         now = timezone.now()
-        backup_stale = not latest or datetime_from_timestamp(latest.stat().st_mtime) < now - timedelta(hours=settings.OPERATIONS_BACKUP_MAX_AGE_HOURS)
+        backup_stale = not latest or datetime_from_timestamp(latest.modified_timestamp) < now - timedelta(hours=settings.OPERATIONS_BACKUP_MAX_AGE_HOURS)
         checks = [
             ("health:disk", used_percent >= settings.OPERATIONS_DISK_ALERT_PERCENT, "فضای دیسک سرور نیازمند رسیدگی است", f"مصرف دیسک: {used_percent}%", "support"),
             ("health:backup", backup_stale, "نسخه پشتیبان تازه پیدا نشد", f"آخرین backup: {latest.name if latest else 'وجود ندارد'}", "support"),

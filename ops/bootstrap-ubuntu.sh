@@ -19,7 +19,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-dev build-essential libpq-dev nginx
+DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-dev build-essential libpq-dev nginx redis-server
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
 usermod -aG "$APP_USER" www-data
 python3 -m venv "$APP_DIR/.venv"
@@ -45,11 +45,12 @@ install -m 0644 "$APP_DIR/ops/nginx.conf" /etc/nginx/sites-available/arvion
 ln -sfn /etc/nginx/sites-available/arvion /etc/nginx/sites-enabled/arvion
 rm -f /etc/nginx/sites-enabled/default
 
-sudo -u "$APP_USER" env APP_DIR="$APP_DIR" ENV_FILE="$ENV_FILE" "$APP_DIR/ops/release.sh"
+APP_DIR="$APP_DIR" APP_USER="$APP_USER" ENV_FILE="$ENV_FILE" "$APP_DIR/ops/release.sh"
 find "$APP_DIR/staticfiles" -type d -exec chmod 755 {} +
 find "$APP_DIR/staticfiles" -type f -exec chmod 644 {} +
 systemctl daemon-reload
-systemctl enable --now arvion.service arvion-traffic-cleanup.timer arvion-notifications.timer arvion-healthcheck.timer arvion-system-log-cleanup.timer arvion-backup.timer nginx
+systemctl enable --now arvion.service arvion-traffic-cleanup.timer arvion-notifications.timer arvion-healthcheck.timer arvion-system-log-cleanup.timer arvion-backup.timer redis-server nginx
+redis-cli ping | grep -qx PONG
 nginx -t
 systemctl reload nginx
 set -a

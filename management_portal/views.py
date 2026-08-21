@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import json
-from pathlib import Path
 from urllib.parse import urlsplit
 
 from django.contrib.admin.views.decorators import staff_member_required
@@ -35,6 +34,7 @@ from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
+from .backups import find_backup_inventory
 from assessments.services import PaymentVerificationError, verify_gateway_payment
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
 
@@ -172,9 +172,29 @@ def crm_workspace(request):
     if query: cases = cases.filter(Q(customer_name__icontains=query) | Q(contact_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query) | Q(code__icontains=query))
     if stage in dict(CustomerCase.STAGES): cases = cases.filter(stage=stage)
     if owner.isdigit(): cases = cases.filter(owner_id=owner)
-    now = timezone.now(); page = Paginator(cases, 30).get_page(request.GET.get("page")); backup_dir = Path(getattr(settings, "CRM_BACKUP_DIR", "/srv/arvion/backups")); backups = sorted(backup_dir.glob("*.dump"), key=lambda item: item.stat().st_mtime, reverse=True) if backup_dir.exists() else []; latest_backup = backups[0] if backups else None
-    backup_status = {"available": bool(latest_backup), "name": latest_backup.name if latest_backup else "", "size_mb": round(latest_backup.stat().st_size / 1048576, 2) if latest_backup else 0, "modified_at": datetime.fromtimestamp(latest_backup.stat().st_mtime, tz=timezone.get_current_timezone()) if latest_backup else None}
-    backup_status["healthy"] = bool(backup_status["modified_at"] and backup_status["modified_at"] >= now - timedelta(hours=26))
+    now = timezone.now(); page = Paginator(cases, 30).get_page(request.GET.get("page")); inventory = find_backup_inventory(getattr(settings, "CRM_BACKUP_DIR", "/srv/arvion/backups")); latest_backup = inventory.preferred
+    recent_backups = sorted(
+        (*inventory.daily[:5], *inventory.pre_release[:3]),
+        key=lambda backup: backup.modified_timestamp,
+        reverse=True,
+    )
+    backup_status = {
+        "available": bool(latest_backup),
+        "name": latest_backup.name if latest_backup else "",
+        "source": latest_backup.source if latest_backup else "",
+        "size_mb": round(latest_backup.size_bytes / 1048576, 2) if latest_backup else 0,
+        "modified_at": datetime.fromtimestamp(latest_backup.modified_timestamp, tz=timezone.get_current_timezone()) if latest_backup else None,
+        "history": [
+            {
+                "name": backup.name,
+                "source": backup.source,
+                "size_mb": round(backup.size_bytes / 1048576, 2),
+                "modified_at": datetime.fromtimestamp(backup.modified_timestamp, tz=timezone.get_current_timezone()),
+            }
+            for backup in recent_backups
+        ],
+    }
+    backup_status["healthy"] = bool(backup_status["modified_at"] and backup_status["modified_at"] >= now - timedelta(hours=settings.OPERATIONS_BACKUP_MAX_AGE_HOURS))
     return render(request, "management_portal/v2/crm_workspace.html", {"cases": page, "page_obj": page, "query": query, "active_stage": stage, "active_owner": owner, "stages": CustomerCase.STAGES, "owners": User.objects.filter(is_staff=True, is_active=True), "lang": lang, "backup_status": backup_status, "stats": {"all": CustomerCase.objects.count(), "urgent": CustomerCase.objects.filter(priority="urgent").count(), "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(), "today": CustomerCase.objects.filter(next_follow_up_at__date=timezone.localdate()).count()}})
 
 
