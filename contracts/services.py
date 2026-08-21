@@ -34,6 +34,12 @@ def add_default_clauses(proposal):
 
 def proposal_snapshot(proposal):
     company = CompanyProfile.objects.first()
+    assignment = (
+        proposal.specialist_assignment
+        if hasattr(proposal, "specialist_assignment")
+        else None
+    )
+    general_terms_version = proposal.general_terms_version
     return {
         "title": proposal.title, "customer_name": proposal.customer_name,
         "customer_phone": proposal.customer_phone, "customer_email": proposal.customer_email,
@@ -41,7 +47,22 @@ def proposal_snapshot(proposal):
         "amount_irr": proposal.amount_irr, "payment_terms": proposal.payment_terms,
         "delivery_terms": proposal.delivery_terms, "client_details": proposal.client_details,
         "crm_order_id": proposal.crm_order_id,
+        "customer_case_id": proposal.customer_case_id,
         "general_terms": proposal.general_terms, "private_terms": proposal.private_terms,
+        "general_terms_source": {
+            "version_id": general_terms_version.pk,
+            "template_slug": general_terms_version.template.slug,
+            "number": general_terms_version.number,
+            "content_hash": general_terms_version.content_hash,
+        } if general_terms_version else {},
+        "specialist_questionnaire": {
+            "assignment_id": assignment.pk,
+            "template_slug": assignment.version.template.slug,
+            "version_id": assignment.version_id,
+            "version_number": assignment.version.number,
+            "schema_hash": assignment.version.schema_hash,
+            "schema": assignment.version.schema,
+        } if assignment else {},
         "provider": {
             "legal_name": company.legal_name_fa if company else "آرویون (Rvion)",
             "brand_name": company.brand_name if company else "Rvion",
