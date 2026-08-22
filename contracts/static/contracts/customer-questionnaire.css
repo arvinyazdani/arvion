@@ -14,5 +14,30 @@
 .questionnaire-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:8px}.questionnaire-actions .contract-button{min-width:170px}.questionnaire-actions button[aria-busy=true]{cursor:wait;opacity:.68}.room-questionnaire-progress{display:grid;gap:6px;margin:-8px 0 16px}.room-questionnaire-progress span{color:var(--color-muted);font-size:.7rem}.room-questionnaire-progress progress{background:var(--color-surface-2)}
 @keyframes questionnairePulse{50%{opacity:.35;transform:scale(.75)}}
 @media(max-width:880px){.questionnaire-layout{grid-template-columns:1fr}.questionnaire-nav{position:static}.questionnaire-nav ol{grid-auto-columns:minmax(170px,1fr);grid-auto-flow:column;overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:5px;scroll-snap-type:x proximity}.questionnaire-nav li{scroll-snap-align:start}.questionnaire-room-link{border-top:0}.questionnaire-panel-head{align-items:flex-start;flex-direction:column}.questionnaire-panel-head time{align-self:flex-start}}
-@media(max-width:650px){.questionnaire-shell{width:min(100% - 20px,600px);margin:16px auto 34px}.questionnaire-hero{grid-template-columns:1fr;gap:20px;padding:24px 20px;border-radius:20px}.questionnaire-hero h1{font-size:1.85rem}.questionnaire-overall{padding:14px}.questionnaire-lock{align-items:flex-start;flex-direction:column}.questionnaire-nav{padding:13px;border-radius:18px}.questionnaire-nav-head{align-items:flex-start;flex-direction:column}.questionnaire-panel{padding:18px 14px;border-radius:18px}.questionnaire-field{padding:16px 13px}.questionnaire-field-heading{flex-wrap:wrap}.questionnaire-help{flex-basis:100%}.questionnaire-help summary{display:inline-flex;align-items:center}.questionnaire-actions{align-items:stretch;flex-direction:column-reverse}.questionnaire-actions .contract-button{width:100%;min-width:0}.questionnaire-control textarea{min-height:160px}}
+@media(max-width:650px){.questionnaire-shell{width:min(calc(100% - 20px),600px);margin:16px auto 34px}.questionnaire-hero{grid-template-columns:1fr;gap:20px;padding:24px 20px;border-radius:20px}.questionnaire-hero h1{font-size:1.85rem}.questionnaire-overall{padding:14px}.questionnaire-lock{align-items:flex-start;flex-direction:column}.questionnaire-nav{padding:13px;border-radius:18px}.questionnaire-nav-head{align-items:flex-start;flex-direction:column}.questionnaire-panel{padding:18px 14px;border-radius:18px}.questionnaire-field{padding:16px 13px}.questionnaire-field-heading{flex-wrap:wrap}.questionnaire-help{flex-basis:100%}.questionnaire-help summary{display:inline-flex;align-items:center}.questionnaire-actions{align-items:stretch;flex-direction:column-reverse}.questionnaire-actions .contract-button{width:100%;min-width:0}.questionnaire-control textarea{min-height:160px}}
 @media(prefers-reduced-motion:reduce){.questionnaire-nav li>a,.questionnaire-save-status:before{transition:none;animation:none}.questionnaire-nav li>a:hover{transform:none}}
+
+/* A section navigator must remain readable after the first section on a phone.
+   Do not turn later steps into a horizontal strip that hides the active item. */
+@media(max-width:650px){
+  .questionnaire-shell,.questionnaire-hero,.questionnaire-layout,.questionnaire-nav,
+  .questionnaire-panel,.questionnaire-form,.questionnaire-field,.questionnaire-control{min-width:0;max-width:100%}
+  .questionnaire-nav ol{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-columns:auto;grid-auto-flow:row;overflow:visible;overscroll-behavior:auto;padding-bottom:0;scroll-snap-type:none}
+  .questionnaire-nav li>a,.questionnaire-nav li>span{grid-template-columns:30px minmax(0,1fr);gap:7px;min-height:48px;padding:7px}
+  .questionnaire-nav li b{width:30px;height:30px;border-radius:9px;font-size:.7rem}
+  .questionnaire-nav li span span,.questionnaire-nav li a span{font-size:.72rem;line-height:1.5}
+  .questionnaire-nav li small{display:none}
+  .questionnaire-room-link{margin-top:8px;border-top:1px solid var(--color-line)}
+  .questionnaire-panel-head,.questionnaire-field-heading,.questionnaire-actions{min-width:0}
+  .questionnaire-panel-head time{max-width:100%;overflow-wrap:anywhere}
+  .questionnaire-field-heading>label{font-size:.92rem;line-height:1.8}
+  .questionnaire-field-heading em{white-space:normal;text-align:center}
+  .questionnaire-help>div{max-width:100%;overflow-wrap:anywhere}
+  .questionnaire-control input[type=text],.questionnaire-control input[type=number],.questionnaire-control input[type=date],.questionnaire-control textarea,.questionnaire-control select{max-width:100%;font-size:16px}
+}
+@media(max-width:390px){
+  .questionnaire-shell{width:calc(100% - 16px)}
+  .questionnaire-hero{padding:20px 16px}
+  .questionnaire-nav ol{grid-template-columns:1fr}
+  .questionnaire-panel{padding:16px 12px}
+}
