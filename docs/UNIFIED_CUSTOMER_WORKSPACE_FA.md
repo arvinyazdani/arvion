@@ -257,3 +257,11 @@ intake_received → preparing_room → ready_to_publish → invited
 - ارسال PII، IP، header، cookie، body درخواست، local variable و اطلاعات user غیرفعال یا پیش از ارسال حذف می‌شوند. کلیدهای حساس مانند password، OTP، token، API key و شماره کارت نیز در extraها فیلتر می‌شوند.
 - شناسه release در release script و بدون قرار دادن DSN در Git به environment سرور افزوده می‌شود تا خطاها به نسخه deployشده متصل باشند.
 - ۳ تست اختصاصی حریم خصوصی و گیت کامل انتشار شامل **۴۰۳ از ۴۰۳ تست موفق** اجرا شد؛ فعال‌سازی DSN و ارسال رویداد کنترل‌شده در production مرحله بعد است.
+
+### گزارش زیرمرحله ۷-۱۶ — فعال‌سازی production و تأیید Sentry
+
+- DSN فقط در `.env.production` با permission `0600` قرار گرفت و در هیچ فایل Git یا خروجی عملیاتی ثبت نشد.
+- commit `f3946a7` با snapshot پیش از انتشار `pre-release-20260822-022109.dump` روی production deploy شد؛ migration جدیدی لازم نبود و health بعد از restart موفق بود.
+- release runtime به `rvion-f3946a7` برچسب خورد تا رخدادهای Sentry به نسخه دقیق deployشده متصل شوند.
+- یک event کنترل‌شده با tag `verification=production-setup` flush شد؛ این event شامل داده مشتری، خطای عمومی یا تغییر در رابط کاربر نبود.
+- سرویس `arvion`، Nginx، `/health/` و journal سرویس پس از انتشار بررسی شدند: هر دو سرویس active و بدون warning تازه بودند.
