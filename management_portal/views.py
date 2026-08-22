@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
@@ -340,7 +341,7 @@ def dashboard(request):
         sla_cards.append(_metric("وظیفه CRM عقب‌افتاده", overdue_tasks, "موعد پیگیری مشتری گذشته است", reverse("management_portal:crm_workspace"), "danger"))
     metrics.insert(0, _metric("اعلان خوانده‌نشده", unread_count, "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
     if user.is_superuser:
-        metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("management_portal:contract_list"), "positive"))
+        metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("management_portal:workspace_list"), "positive"))
         metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
         metrics.insert(3, _metric("ارسال پیامک", SMSDispatch.objects.filter(status="sent").count(), "ارسال تکی یا گروهی و مشاهده سابقه", reverse("management_portal:sms_send")))
     # V2 never sends managers back to Django Admin. Modules are replaced phase by phase.
@@ -478,10 +479,15 @@ def request_detail(request, kind, object_id):
         }
         status_choices = [(value, status_fa.get(value, str(label))) for value, label in status_choices]
     status_display = dict(status_choices).get(item.status, item.status)
+    customer_case = CustomerCase.objects.filter(
+        source_content_type=ContentType.objects.get_for_model(item),
+        source_object_id=item.pk,
+    ).first()
     return render(request, "management_portal/v2/request_detail.html", {
         "item": item, "kind": kind, "title": title, "contact": contact, "phone": phone,
         "email": email, "code": code, "summary": summary, "full_report": full_report, "lang": lang, "status_choices": status_choices, "status_display": status_display,
         "can_change": request.user.is_superuser or request.user.has_perm({"lead": "leads.change_lead", "crm": "crm_orders.change_crmorder", "clinic": "clinic_orders.change_clinicorder"}[kind]),
+        "customer_case": customer_case,
     })
 
 

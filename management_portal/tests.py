@@ -65,7 +65,7 @@ class ManagementDashboardTests(TestCase):
         self.assertNotContains(listing, 'href="/admin/')
         detail = self.client.get(reverse("management_portal:request_detail", args=["crm", order.pk]))
         self.assertContains(detail, "نبود پیگیری یکپارچه")
-        self.assertContains(detail, "فرم تخصصی مشتری")
+        self.assertContains(detail, "آماده‌سازی و ارسال مشتری")
         export = self.client.get(reverse("management_portal:request_export", args=["crm", order.pk]))
         self.assertEqual(export.status_code, 200)
         self.assertIn("گزارش کامل نیازسنجی CRM", export.content.decode("utf-8"))

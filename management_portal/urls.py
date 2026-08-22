@@ -2,6 +2,17 @@ from django.urls import path
 
 from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
 from contracts.views import contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke
+from .workspace_views import (
+    workspace_access_create,
+    workspace_access_revoke,
+    workspace_contract_save,
+    workspace_create,
+    workspace_detail,
+    workspace_general_terms,
+    workspace_list,
+    workspace_publish,
+    workspace_questionnaire,
+)
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
@@ -17,6 +28,15 @@ urlpatterns = [
     path("crm/tasks/<int:task_id>/toggle/", crm_task_toggle, name="crm_task_toggle"),
     path("crm/cases/<int:case_id>/activities/new/", crm_activity_create, name="crm_activity_create"),
     path("crm/cases/<int:case_id>/export/", crm_case_export, name="crm_case_export"),
+    path("workspaces/", workspace_list, name="workspace_list"),
+    path("workspaces/general-terms/", workspace_general_terms, name="workspace_general_terms"),
+    path("workspaces/<int:case_id>/", workspace_detail, name="workspace_detail"),
+    path("workspaces/<int:case_id>/create/", workspace_create, name="workspace_create"),
+    path("workspaces/<int:case_id>/contract/", workspace_contract_save, name="workspace_contract_save"),
+    path("workspaces/<int:case_id>/questionnaire/", workspace_questionnaire, name="workspace_questionnaire"),
+    path("workspaces/<int:case_id>/access/", workspace_access_create, name="workspace_access_create"),
+    path("workspaces/<int:case_id>/access/<int:grant_id>/revoke/", workspace_access_revoke, name="workspace_access_revoke"),
+    path("workspaces/<int:case_id>/publish/", workspace_publish, name="workspace_publish"),
     path("staff/", staff_list, name="staff_list"),
     path("staff/new/", staff_create, name="staff_create"),
     path("staff/<int:user_id>/", staff_edit, name="staff_edit"),

@@ -1,0 +1,33 @@
+{% extends "management_portal/v2/base.html" %}{% load static %}
+{% block title %}{% if lang == 'fa' %}فضاهای مشتریان{% else %}Customer workspaces{% endif %} | Rvion{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}آماده‌سازی و ارسال{% else %}Prepare & send{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/workspace.css' %}?v=1">{% endblock %}
+{% block content %}
+<section class="m-page-head ws-page-head">
+  <div><span>{% if lang == 'fa' %}از نیازسنجی تا قرارداد{% else %}From discovery to agreement{% endif %}</span><h1>{% if lang == 'fa' %}فضای اختصاصی مشتریان{% else %}Customer project workspaces{% endif %}</h1><p>{% if lang == 'fa' %}پرونده را باز کنید، فرم تخصصی و قرارداد را آماده کنید و دسترسی مشتری را از یک مسیر بفرستید.{% else %}Open a case, prepare its specialist form and agreement, then send customer access from one workflow.{% endif %}</p></div>
+  <a class="ws-secondary-button" href="{% url 'management_portal:workspace_general_terms' %}">{% if lang == 'fa' %}ویرایش شرایط عمومی{% else %}General terms{% endif %}</a>
+</section>
+<section class="ws-metrics" aria-label="{% if lang == 'fa' %}خلاصه وضعیت{% else %}Workspace summary{% endif %}">
+  <a href="?state=all"><span>{% if lang == 'fa' %}همه پرونده‌ها{% else %}All cases{% endif %}</span><strong>{{ stats.all }}</strong></a>
+  <a href="?state=not_started"><span>{% if lang == 'fa' %}شروع‌نشده{% else %}Not started{% endif %}</span><strong>{{ stats.not_started }}</strong></a>
+  <a href="?state=draft"><span>{% if lang == 'fa' %}در حال آماده‌سازی{% else %}In preparation{% endif %}</span><strong>{{ stats.active }}</strong></a>
+  <a href="?state=accepted"><span>{% if lang == 'fa' %}تأیید نهایی{% else %}Accepted{% endif %}</span><strong>{{ stats.accepted }}</strong></a>
+</section>
+<form class="ws-filter" method="get">
+  <label><span class="m-sr-only">{% if lang == 'fa' %}جست‌وجوی پرونده{% else %}Search cases{% endif %}</span><input type="search" name="q" value="{{ query }}" placeholder="{% if lang == 'fa' %}نام مشتری، شماره یا کد پرونده…{% else %}Customer, phone or case code…{% endif %}"></label>
+  <select name="state" aria-label="{% if lang == 'fa' %}وضعیت فضای مشتری{% else %}Workspace status{% endif %}"><option value="all"{% if state == 'all' %} selected{% endif %}>{% if lang == 'fa' %}همه وضعیت‌ها{% else %}All statuses{% endif %}</option><option value="not_started"{% if state == 'not_started' %} selected{% endif %}>{% if lang == 'fa' %}شروع‌نشده{% else %}Not started{% endif %}</option><option value="draft"{% if state == 'draft' %} selected{% endif %}>{% if lang == 'fa' %}پیش‌نویس{% else %}Draft{% endif %}</option><option value="sent"{% if state == 'sent' %} selected{% endif %}>{% if lang == 'fa' %}ارسال‌شده{% else %}Sent{% endif %}</option><option value="accepted"{% if state == 'accepted' %} selected{% endif %}>{% if lang == 'fa' %}تأییدشده{% else %}Accepted{% endif %}</option></select>
+  <button>{% if lang == 'fa' %}اعمال{% else %}Apply{% endif %}</button>
+</form>
+<section class="ws-case-list">
+  {% for row in rows %}
+    <article class="ws-case-card">
+      <a class="ws-case-main" href="{% url 'management_portal:workspace_detail' row.case.pk %}">
+        <span class="ws-case-kind">{% if lang == 'fa' %}{{ row.case.get_kind_display }}{% elif row.case.kind == 'crm' %}CRM{% elif row.case.kind == 'clinic' %}Clinic{% else %}Project{% endif %}</span>
+        <div><small>{{ row.case.code }}</small><h2>{{ row.case.customer_name }}</h2><p>{{ row.case.contact_name|default:row.case.phone|default:'—' }}</p></div>
+        {% if row.proposal %}<div class="ws-case-progress"><span><i style="--value:{{ row.progress.percent }}%"></i></span><b>{{ row.progress.percent }}٪</b><small>{% if lang == 'fa' %}{{ row.proposal.get_status_display }}{% else %}{{ row.proposal.status|title }}{% endif %}</small></div>{% else %}<div class="ws-case-progress empty"><b>۰٪</b><small>{% if lang == 'fa' %}هنوز شروع نشده{% else %}Not started{% endif %}</small></div>{% endif %}
+        <span class="ws-arrow" aria-hidden="true">←</span>
+      </a>
+    </article>
+  {% empty %}<div class="m-panel m-empty">{% if lang == 'fa' %}پرونده‌ای با این فیلتر پیدا نشد.{% else %}No cases matched these filters.{% endif %}</div>{% endfor %}
+</section>
+{% endblock %}
