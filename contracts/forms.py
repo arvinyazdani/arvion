@@ -288,6 +288,11 @@ class WorkspaceContractForm(forms.ModelForm):
             if lang == "fa" else
             "Record customer-specific clauses, commercial terms, schedule, support and exceptions."
         )
+        self.fields["delivery_terms"].help_text = (
+            "مثال: ۸ هفته پس از دریافت پیش‌پرداخت و اطلاعات لازم"
+            if lang == "fa" else
+            "Example: 8 weeks after receiving the advance payment and required information."
+        )
         enhance_form_accessibility(self)
 
     def clean_amount_irr(self):

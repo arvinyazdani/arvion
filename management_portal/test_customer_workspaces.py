@@ -80,6 +80,20 @@ class CustomerWorkspaceManagementTests(TestCase):
         self.assertContains(response, "فروش سریع‌تر")
         self.assertContains(response, "1 نسخه")
 
+    def test_english_workspace_uses_latin_progress_and_localized_delivery_help(self):
+        ensure_case_workspace(case=self.case, actor=self.manager)
+        response = self.client.get(
+            f"/en/management/workspaces/{self.case.pk}/"
+        )
+        self.assertContains(response, "Customer progress")
+        self.assertContains(response, "0%")
+        self.assertContains(response, ">01<", html=False)
+        self.assertContains(
+            response,
+            "Example: 8 weeks after receiving the advance payment and required information.",
+        )
+        self.assertNotContains(response, "مثال: ۸ هفته")
+
     def test_contract_form_saves_private_and_commercial_terms(self):
         proposal, _ = ensure_case_workspace(case=self.case, actor=self.manager)
         response = self.client.post(
