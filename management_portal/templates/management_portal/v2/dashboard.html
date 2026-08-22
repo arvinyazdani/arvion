@@ -19,7 +19,7 @@
 <nav class="m-quick-actions" aria-label="{% if lang == 'fa' %}اقدام‌های سریع{% else %}Quick actions{% endif %}">
   <a class="primary" href="{% url 'management_portal:customer_workspace' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#customers"></use></svg><span><strong>{% if lang == 'fa' %}باز کردن مشتریان{% else %}Open customers{% endif %}</strong><small>{% if lang == 'fa' %}جست‌وجو و پرونده کامل{% else %}Search and full record{% endif %}</small></span></a>
   {% if request.user.is_superuser or perms.leads.view_lead or perms.crm_orders.view_crmorder or perms.clinic_orders.view_clinicorder %}<a href="{% url 'management_portal:request_list' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#forms"></use></svg><span><strong>{% if lang == 'fa' %}فرم‌ها و نیازسنجی{% else %}Forms & discovery{% endif %}</strong><small>{% if lang == 'fa' %}ورودی‌های تازه مشتری{% else %}New customer submissions{% endif %}</small></span></a>{% endif %}
-  {% if request.user.is_superuser %}<a href="{% url 'management_portal:contract_create' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contract"></use></svg><span><strong>{% if lang == 'fa' %}قرارداد جدید{% else %}New contract{% endif %}</strong><small>{% if lang == 'fa' %}ساخت پیش‌نویس قابل ارسال{% else %}Create a shareable draft{% endif %}</small></span></a>{% endif %}
+  {% if request.user.is_staff %}<a href="{% url 'management_portal:workspace_list' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contract"></use></svg><span><strong>{% if lang == 'fa' %}آماده‌سازی مشتری{% else %}Prepare customer package{% endif %}</strong><small>{% if lang == 'fa' %}فرم تخصصی، قرارداد و ارسال لینک{% else %}Specialist form, agreement and access link{% endif %}</small></span></a>{% endif %}
 </nav>
 
 <section class="m-action-board" aria-labelledby="work-queue-title">
@@ -87,7 +87,7 @@
     <svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#receipt"></use></svg>
     <div><span>{% if lang == 'fa' %}بایگانی مشتری{% else %}Customer archive{% endif %}</span><h2>{% if lang == 'fa' %}اسناد قابل پیگیری و امن{% else %}Traceable, protected records{% endif %}</h2><p>{% if lang == 'fa' %}فرم‌ها، خروجی‌ها و قراردادها کنار پرونده مشتری نگهداری می‌شوند.{% else %}Forms, exports and contracts stay with the customer record.{% endif %}</p></div>
     <a href="{% url 'management_portal:request_list' %}"><b>{{ document_counts.discoveries }}</b><span>{% if lang == 'fa' %}فرم{% else %}forms{% endif %}</span></a>
-    {% if request.user.is_superuser %}<a href="{% url 'management_portal:contract_list' %}"><b>{{ document_counts.contracts }}</b><span>{% if lang == 'fa' %}قرارداد{% else %}contracts{% endif %}</span></a>{% endif %}
+    {% if request.user.is_superuser %}<a href="{% url 'management_portal:workspace_list' %}"><b>{{ document_counts.contracts }}</b><span>{% if lang == 'fa' %}فضای مشتری{% else %}customer workspaces{% endif %}</span></a>{% endif %}
   </article>
 </section>
 

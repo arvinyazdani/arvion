@@ -121,7 +121,8 @@ def contract_review(sender, instance, created, **kwargs):
         proposal = instance.version.proposal
         customer = proposal.customer or resolve_customer(customer_name=proposal.customer_name, phone=proposal.customer_phone, email=proposal.customer_email)
         link_customer_event(customer, instance, kind="attachment", title="بازخورد قرارداد ثبت شد", body=proposal.project_title, actor=proposal.created_by, customer_name=proposal.customer_name)
-        notify(category="contracts", title="بازخورد قرارداد ثبت شد", description=proposal.customer_name, target_url=reverse("management_portal:contract_detail", args=[proposal.pk]), role="", source_key=f"contract-review:{instance.pk}")
+        target_url = reverse("management_portal:workspace_detail", args=[proposal.customer_case_id]) if proposal.customer_case_id else reverse("management_portal:contract_detail", args=[proposal.pk])
+        notify(category="contracts", title="بازخورد قرارداد ثبت شد", description=proposal.customer_name, target_url=target_url, role="", source_key=f"contract-review:{instance.pk}")
 
 
 @receiver(post_save, sender=ContractAcceptance)
@@ -131,4 +132,5 @@ def contract_acceptance(sender, instance, created, **kwargs):
         customer = proposal.customer or resolve_customer(customer_name=proposal.customer_name, phone=proposal.customer_phone, email=proposal.customer_email)
         case = link_customer_event(customer, instance, kind="attachment", title="قرارداد تأیید شد", body=proposal.project_title, actor=proposal.created_by, customer_name=proposal.customer_name)
         case.stage = "won"; case.save(update_fields=("stage", "updated_at"))
-        notify(category="contracts", title="قرارداد تأیید شد", description=proposal.customer_name, target_url=reverse("management_portal:contract_detail", args=[proposal.pk]), role="", source_key=f"contract-acceptance:{instance.pk}")
+        target_url = reverse("management_portal:workspace_detail", args=[proposal.customer_case_id]) if proposal.customer_case_id else reverse("management_portal:contract_detail", args=[proposal.pk])
+        notify(category="contracts", title="قرارداد تأیید شد", description=proposal.customer_name, target_url=target_url, role="", source_key=f"contract-acceptance:{instance.pk}")

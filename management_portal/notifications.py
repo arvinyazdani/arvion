@@ -93,7 +93,14 @@ def _create_sla_alerts(now):
     )
     for queryset, source, label in sales_sources:
         for item in queryset:
-            target = reverse("management_portal:contract_detail", args=[item.pk]) if source == "contract" else reverse("management_portal:request_detail", args=[source, item.pk])
+            if source == "contract":
+                target = (
+                    reverse("management_portal:workspace_detail", args=[item.customer_case_id])
+                    if item.customer_case_id
+                    else reverse("management_portal:contract_detail", args=[item.pk])
+                )
+            else:
+                target = reverse("management_portal:request_detail", args=[source, item.pk])
             notification, created = ManagementNotification.objects.get_or_create(
                 source_key=f"sla:{source}:{item.pk}",
                 defaults={"category": "sales" if source != "contract" else "contracts", "title": "پیگیری قرارداد از مهلت عبور کرده است" if source == "contract" else "فرم جدید نیازمند پیگیری است", "description": label(item), "target_url": target, "role": "sales" if source != "contract" else ""},
