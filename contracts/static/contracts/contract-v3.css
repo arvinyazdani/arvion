@@ -13,7 +13,7 @@ body.contract-app{min-width:0;margin:0;background:radial-gradient(circle at 88% 
 @keyframes contract-reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media(hover:hover) and (pointer:fine){.room-card:hover{border-color:color-mix(in srgb,var(--color-brand-orange) 35%,var(--color-line));box-shadow:var(--shadow-md);transform:translateY(-2px)}}
 @media(max-width:820px){.room-progress{grid-template-columns:repeat(2,1fr)}.room-steps{grid-template-columns:1fr}.room-card{min-height:220px}.room-next{grid-template-columns:1fr}.room-facts{grid-template-columns:1fr 1fr}.room-facts>div:first-child{grid-column:1/-1}.legal-action{align-items:stretch;flex-direction:column}}
-@media(max-width:620px){.contract-shell-width,.contract-shell-bar,.contract-room,.contract-document,.otp-shell{width:min(100% - 24px,1100px)}.contract-shell-bar{min-height:64px}.contract-brand small{display:none}.contract-header-chip span{display:none}.contract-header-chip{width:42px;padding:0}.contract-room{margin-block-start:18px}.room-hero{padding:25px 20px}.room-hero h1{font-size:2rem}.room-progress{grid-template-columns:1fr 1fr}.room-progress>div{min-height:48px;padding:7px;font-size:.74rem}.room-card{padding:20px}.room-facts{grid-template-columns:1fr}.room-facts>div:first-child{grid-column:auto}.room-next{padding:21px}.legal-cover,.legal-document,.legal-action,.contract-review{padding:21px 18px;border-radius:18px}.legal-article summary{grid-template-columns:auto 1fr;gap:8px}.legal-article-toggle{display:none}.legal-item{grid-template-columns:50px 1fr;font-size:.86rem}.otp-shell{margin-block-start:24px}.otp-card{padding:24px 20px}.receipt-actions{align-items:stretch;flex-direction:column}.receipt-actions .contract-button{width:100%}}
+@media(max-width:620px){.contract-shell-width,.contract-shell-bar,.contract-room,.contract-document,.otp-shell{width:min(calc(100% - 24px),1100px)}.contract-shell-bar{min-height:64px}.contract-brand small{display:none}.contract-header-chip span{display:none}.contract-header-chip{width:42px;padding:0}.contract-room{margin-block-start:18px}.room-hero{padding:25px 20px}.room-hero h1{font-size:2rem}.room-progress{grid-template-columns:1fr 1fr}.room-progress>div{min-height:48px;padding:7px;font-size:.74rem}.room-card{padding:20px}.room-facts{grid-template-columns:1fr}.room-facts>div:first-child{grid-column:auto}.room-next{padding:21px}.legal-cover,.legal-document,.legal-action,.contract-review{padding:21px 18px;border-radius:18px}.legal-article summary{grid-template-columns:auto 1fr;gap:8px}.legal-article-toggle{display:none}.legal-item{grid-template-columns:50px 1fr;font-size:.86rem}.otp-shell{margin-block-start:24px}.otp-card{padding:24px 20px}.receipt-actions{align-items:stretch;flex-direction:column}.receipt-actions .contract-button{width:100%}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.contract-app *{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}.contract-js .contract-app .room-hero,.contract-js .contract-app .otp-card,.contract-js .contract-app .legal-cover{opacity:1;transform:none}.room-card:hover,.contract-app .contract-button:hover{transform:none}}
 
 /* Touch-safe password control and complete printable contract documents. */
@@ -50,4 +50,72 @@ html,body.contract-app{max-width:100%;overflow-x:hidden}
   .legal-article summary{grid-template-columns:34px minmax(0,1fr)}
   .legal-article-number{width:30px;height:30px}
   .legal-action form,.room-confirm{width:100%;min-width:0}
+}
+
+/* Mobile is a distinct reading layout, not a clipped desktop layout.  This
+   breakpoint also covers narrow tablets and landscape phones. */
+@media(max-width:820px){
+  html,body.contract-app{inline-size:100%;max-inline-size:100%;}
+  body.contract-app{font-size:1rem;line-height:1.8;}
+  .contract-shell-width,.contract-shell-bar,.contract-room,.contract-document,.otp-shell{
+    inline-size:calc(100% - 24px);
+    width:auto;
+    max-inline-size:680px;
+  }
+  .contract-shell-bar{gap:8px;min-height:62px;}
+  .contract-brand{min-inline-size:0;gap:9px;}
+  .contract-brand-mark{flex:0 0 38px;width:38px;height:38px;}
+  .contract-brand>span:last-child{min-inline-size:0;}
+  .contract-brand strong{font-size:.84rem;letter-spacing:.09em;}
+  .contract-brand small{display:none;}
+  .contract-header-meta{flex:0 0 auto;gap:6px;}
+  .contract-header-chip,.room-logout{min-height:42px;padding:8px 10px;font-size:.78rem;}
+  .contract-header-chip span{display:none;}
+  .contract-header-chip{inline-size:42px;padding-inline:0;}
+  .contract-room,.contract-document{margin-block:16px 40px;}
+  .room-hero,.legal-cover{padding:24px 18px;border-radius:20px;}
+  .room-hero h1,.legal-cover h1{font-size:clamp(1.65rem,7vw,2.2rem);line-height:1.35;}
+  .room-hero>p,.legal-cover p{font-size:.92rem;line-height:1.9;}
+  .room-facts{grid-template-columns:1fr 1fr;gap:8px;margin-block-start:20px;}
+  .room-facts>div:first-child{grid-column:1/-1;}
+  .room-facts div{padding:12px;}
+  .room-facts strong{font-size:.88rem;}
+  .room-progress{grid-template-columns:1fr 1fr;gap:8px;}
+  .room-progress>div{min-height:52px;padding:8px;font-size:.76rem;}
+  .room-steps{grid-template-columns:1fr;gap:10px;}
+  .room-card{min-height:0;padding:20px;border-radius:18px;}
+  .room-card h2{margin-block-start:18px;font-size:1.15rem;}
+  .room-card p{font-size:.9rem;line-height:1.85;}
+  .room-next{gap:16px;padding:20px;border-radius:18px;}
+  .room-next h2{font-size:1.2rem;}
+  .legal-meta{display:grid;grid-template-columns:1fr;gap:7px;}
+  .legal-meta span{inline-size:100%;padding:8px 10px;white-space:normal;}
+  .legal-document,.legal-action,.contract-review{padding:20px 16px;border-radius:18px;}
+  .legal-document h2,.contract-review h2{font-size:1.22rem;line-height:1.55;}
+  .legal-document header p,.contract-review header p{font-size:.88rem;line-height:1.85;}
+  .legal-body{padding-block-start:14px;font-size:.96rem;line-height:1.95;}
+  .legal-article{margin-block-end:10px;border-radius:14px;}
+  .legal-article summary{grid-template-columns:34px minmax(0,1fr);gap:9px;min-height:58px;padding:10px 12px;}
+  .legal-article-number{width:30px;height:30px;border-radius:9px;}
+  .legal-article-title{font-size:.94rem;line-height:1.65;}
+  .legal-article-toggle{display:none;}
+  .legal-article-content{padding-inline:13px;padding-block-end:14px;}
+  .legal-item{grid-template-columns:42px minmax(0,1fr);gap:8px;padding-block:12px;font-size:.92rem;line-height:1.95;}
+  .legal-close{inline-size:100%;justify-content:center;min-height:46px;margin-block-start:12px;}
+  .legal-action{align-items:stretch;flex-direction:column;gap:14px;}
+  .legal-action h2{font-size:1.12rem;}
+  .legal-action p{font-size:.9rem;line-height:1.85;}
+  .legal-action form,.legal-action .contract-button,.room-confirm,.room-confirm .contract-button{inline-size:100%;min-inline-size:0;}
+  .legal-check,.room-confirm label{min-height:52px;padding:13px;font-size:.88rem;line-height:1.75;}
+  .contract-app .contract-button{min-height:48px;font-size:.92rem;}
+}
+@media(max-width:390px){
+  .contract-shell-width,.contract-shell-bar,.contract-room,.contract-document,.otp-shell{inline-size:calc(100% - 20px);}
+  .contract-brand strong{font-size:.78rem;letter-spacing:.07em;}
+  .room-hero,.legal-cover{padding:21px 16px;}
+  .room-facts{grid-template-columns:1fr;}
+  .room-facts>div:first-child{grid-column:auto;}
+  .room-progress{grid-template-columns:1fr;}
+  .legal-document,.legal-action,.contract-review{padding:18px 14px;}
+  .legal-item{grid-template-columns:36px minmax(0,1fr);}
 }
