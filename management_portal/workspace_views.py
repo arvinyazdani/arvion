@@ -88,6 +88,26 @@ def _flatten_snapshot(value, prefix=""):
     return rows
 
 
+DOCUMENT_KIND_EN = {
+    "initial": "Initial discovery", "specialist": "Specialist discovery",
+    "contract": "Agreement", "payment": "Payment", "export": "Export",
+    "attachment": "Attachment",
+}
+
+EVENT_LABEL_EN = {
+    "workspace_created": "Workspace created", "access_created": "Access created",
+    "access_rotated": "Access rotated", "access_revoked": "Access revoked",
+    "link_sent": "Link sent", "link_copied": "Link copied",
+    "delivery_failed": "Delivery failed", "login_succeeded": "Successful sign-in",
+    "login_failed": "Failed sign-in", "session_expired": "Session expired",
+    "form_saved": "Form saved", "form_conflict": "Save conflict",
+    "form_submitted": "Form submitted", "general_viewed": "General terms viewed",
+    "general_accepted": "General terms accepted", "private_viewed": "Private terms viewed",
+    "private_accepted": "Private terms accepted", "final_accepted": "Final acceptance",
+    "logout": "Signed out",
+}
+
+
 @staff_member_required(login_url="accounts:login")
 def workspace_list(request):
     lang = _lang(request)
@@ -172,8 +192,16 @@ def workspace_detail(request, case_id):
             "document": document,
             "rows": _flatten_snapshot(document.snapshot),
             "revisions": document.revisions.all(),
+            "kind_label": document.get_kind_display() if lang == "fa" else DOCUMENT_KIND_EN.get(document.kind, document.kind),
         }
         for document in case.documents.all()
+    ]
+    room_events = [
+        {
+            "event": event,
+            "label": event.get_event_type_display() if lang == "fa" else EVENT_LABEL_EN.get(event.event_type, event.event_type.replace("_", " ").title()),
+        }
+        for event in (proposal.room_events.all() if proposal else [])
     ]
     return render(request, "management_portal/v2/workspace_detail.html", {
         "lang": lang,
@@ -182,6 +210,7 @@ def workspace_detail(request, case_id):
         "assignment": assignment,
         "progress": progress,
         "documents": documents,
+        "room_events": room_events,
         "credentials": credentials,
         "contract_form": WorkspaceContractForm(instance=proposal, lang=lang) if proposal else None,
         "access_form": WorkspaceAccessForm(
@@ -234,7 +263,8 @@ def workspace_contract_save(request, case_id):
         return render(request, "management_portal/v2/workspace_detail.html", {
             "lang": _lang(request), "case": case, "proposal": proposal,
             "assignment": assignment, "progress": workspace_progress(proposal),
-            "documents": [{"document": d, "rows": _flatten_snapshot(d.snapshot), "revisions": d.revisions.all()} for d in case.documents.prefetch_related("revisions")],
+            "documents": [{"document": d, "rows": _flatten_snapshot(d.snapshot), "revisions": d.revisions.all(), "kind_label": d.get_kind_display() if _lang(request) == "fa" else DOCUMENT_KIND_EN.get(d.kind, d.kind)} for d in case.documents.prefetch_related("revisions")],
+            "room_events": [{"event": event, "label": event.get_event_type_display() if _lang(request) == "fa" else EVENT_LABEL_EN.get(event.event_type, event.event_type.replace("_", " ").title())} for event in proposal.room_events.all()],
             "contract_form": form, "access_form": WorkspaceAccessForm(lang=_lang(request)),
             "access_url": workspace_access_url(proposal, absolute_base=request.build_absolute_uri("/")),
         }, status=400)
