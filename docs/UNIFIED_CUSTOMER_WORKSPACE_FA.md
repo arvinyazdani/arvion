@@ -116,7 +116,7 @@ intake_received → preparing_room → ready_to_publish → invited
 - [x] اتاق مشتری، ذخیره/ادامه، فعالیت و ارسال پیامک
 - [x] بازنشستگی رابط قدیمی با حفظ URL و داده
 - [x] تست کد، امنیت و موبایل/دسکتاپ در محیط آزمایشی ایزوله
-- [ ] انتشار روی production و smoke test نهایی
+- [x] انتشار روی production و smoke test نهایی
 
 هر مرحله پس از تست در همین سند ثبت و سپس commit مستقل خواهد شد.
 
@@ -241,3 +241,11 @@ intake_received → preparing_room → ready_to_publish → invited
 - ناوبری صفحه‌کلید از skip-link آغاز می‌شود و focus ring سه‌پیکسلی قابل مشاهده است؛ کنترل‌های انتخابی کوچک داخل label لمسی حداقل ۴۴ پیکسلی قرار دارند.
 - تست تازه‌ای برای جلوگیری از بازگشت ارقام و راهنمای فارسی به رابط انگلیسی افزوده شد.
 - گیت کامل انتشار شامل **۴۰۰ از ۴۰۰ تست موفق**، audit ساختاری ۴۰۰ سؤال، dependency check، migration drift، static dry-run، benchmark و `git diff --check` با موفقیت تمام شد.
+
+### گزارش زیرمرحله ۷-۱۴ — انتشار production و کنترل پس از انتشار
+
+- انتشار در 2026-08-22 با commit `75369d5` انجام شد. قبل از migration، snapshot PostgreSQL در `backups/pre-release-20260822-014844.dump` سرور ساخته شد.
+- migrationهای افزایشی `contracts.0009` و `management_portal.0012` بدون خطا اجرا شدند؛ داده و URLهای قبلی حذف یا تغییر داده نشدند.
+- staticها جمع‌آوری، Nginx اعتبارسنجی و reload، و سرویس `arvion` پس از restart سالم تأیید شد.
+- `/health/` دامنه عمومی پاسخ `200` و `{"status":"ok"}` داد.
+- smoke test Chrome روی مسیر فارسی «آماده‌سازی و ارسال» و پرونده نوربینان انجام شد: فهرست و جزئیات صحیح، بدون 404، بدون overflow و بدون خطای Console بودند. در این کنترل هیچ قرارداد، فرم، دسترسی یا پیامک مشتری تغییر نکرد.
