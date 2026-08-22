@@ -173,3 +173,9 @@ LOGGING = {
         "django.request": {"handlers": ["console", "system_log"], "level": "ERROR", "propagate": False},
     },
 }
+
+# Sentry remains disabled in local/test environments unless a DSN is supplied.
+# Importing it at the end keeps Django's settings fully available to the SDK.
+from core.observability import initialize_sentry  # noqa: E402
+
+initialize_sentry()

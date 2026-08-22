@@ -26,6 +26,16 @@ echo "Pre-release database snapshot: $BACKUP_FILE"
 cd "$APP_DIR"
 RELEASE_COMMIT="$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse --short HEAD)"
 
+# Give every monitoring event a release identifier without putting a DSN or
+# other secret in Git.  The environment file is read by systemd at restart.
+if grep -q '^SENTRY_RELEASE=' "$ENV_FILE"; then
+  sed -i "s/^SENTRY_RELEASE=.*/SENTRY_RELEASE=rvion-$RELEASE_COMMIT/" "$ENV_FILE"
+else
+  printf '\nSENTRY_RELEASE=rvion-%s\n' "$RELEASE_COMMIT" >> "$ENV_FILE"
+fi
+chown "$APP_USER:$APP_USER" "$ENV_FILE"
+chmod 0600 "$ENV_FILE"
+
 # Install the exact dependencies of the checked-out release before importing
 # Django settings.  Running pip as the application user keeps the virtualenv
 # ownership stable across releases.

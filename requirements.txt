@@ -13,3 +13,4 @@ django-storages[s3]==1.14.4
 boto3==1.35.24
 pywebpush==2.0.3
 redis==5.0.8
+sentry-sdk==2.68.0
