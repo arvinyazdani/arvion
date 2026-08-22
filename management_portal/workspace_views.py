@@ -12,7 +12,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -26,7 +26,7 @@ from contracts.forms import (
     questionnaire_rows_from_schema,
     questionnaire_schema_from_formset,
 )
-from contracts.models import ContractProposal, RoomAccessGrant
+from contracts.models import ContractProposal, RoomAccessGrant, SpecialistAssignment
 from contracts.workspace_services import (
     create_access_grant,
     create_general_terms_version,
@@ -93,9 +93,15 @@ def workspace_list(request):
     lang = _lang(request)
     query = request.GET.get("q", "").strip()
     state = request.GET.get("state", "all")
+    proposal_queryset = (
+        ContractProposal.objects.exclude(status="expired")
+        .select_related("specialist_assignment__version")
+        .prefetch_related("versions__room_acknowledgements")
+        .order_by("-updated_at")
+    )
     cases = (
         CustomerCase.objects.select_related("customer", "owner")
-        .prefetch_related("contract_proposals__access_grants")
+        .prefetch_related(Prefetch("contract_proposals", queryset=proposal_queryset, to_attr="workspace_proposals"))
         .order_by("-updated_at")
     )
     if query:
@@ -117,9 +123,19 @@ def workspace_list(request):
 
     rows = []
     for case in cases.distinct()[:150]:
-        proposal = sorted(case.contract_proposals.all(), key=lambda item: item.updated_at, reverse=True)
-        proposal = proposal[0] if proposal else None
-        progress = workspace_progress(proposal) if proposal else None
+        proposal = case.workspace_proposals[0] if case.workspace_proposals else None
+        if proposal:
+            try:
+                assignment = proposal.specialist_assignment
+            except SpecialistAssignment.DoesNotExist:
+                assignment = None
+            version = next(
+                (item for item in proposal.versions.all() if item.number == proposal.current_version),
+                None,
+            ) if proposal.current_version else None
+            progress = workspace_progress(proposal, assignment=assignment, version=version)
+        else:
+            progress = None
         rows.append({"case": case, "proposal": proposal, "progress": progress})
 
     return render(request, "management_portal/v2/workspace_list.html", {

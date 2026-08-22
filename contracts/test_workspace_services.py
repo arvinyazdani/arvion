@@ -245,6 +245,9 @@ class WorkspaceServiceTests(TestCase):
         )
         self.assertEqual(snapshot["specialist_questionnaire"]["assignment_id"], assignment.pk)
 
+        with self.assertRaisesMessage(ValidationError, "قبلاً منتشر شده"):
+            publish_customer_workspace(proposal=proposal, actor=self.actor)
+
     def test_publish_requires_form_private_terms_and_active_access(self):
         proposal, _created = ensure_case_workspace(case=self.case, actor=self.actor)
         with self.assertRaisesMessage(ValidationError, "فرم تخصصی"):

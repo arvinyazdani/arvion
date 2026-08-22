@@ -368,6 +368,8 @@ def send_workspace_access(*, proposal, grant, recipient_phone, raw_password, act
 @transaction.atomic
 def publish_customer_workspace(*, proposal, actor):
     proposal = ContractProposal.objects.select_for_update().select_related("general_terms_version").get(pk=proposal.pk)
+    if proposal.status not in {"draft", "revoked"} or proposal.current_version:
+        raise ValidationError("این نسخه قبلاً منتشر شده است؛ برای تغییر، نسخه تازه پرونده را آماده کنید.")
     assignment = SpecialistAssignment.objects.filter(proposal=proposal).select_related("version").first()
     if assignment is None or not assignment.version.schema:
         raise ValidationError("پیش از انتشار، فرم تخصصی این پرونده را آماده کنید.")
@@ -381,15 +383,20 @@ def publish_customer_workspace(*, proposal, actor):
     return publish_version(proposal, actor)
 
 
-def workspace_progress(proposal):
-    assignment = SpecialistAssignment.objects.filter(proposal=proposal).select_related("version").first()
+_NOT_PROVIDED = object()
+
+
+def workspace_progress(proposal, *, assignment=_NOT_PROVIDED, version=_NOT_PROVIDED):
+    if assignment is _NOT_PROVIDED:
+        assignment = SpecialistAssignment.objects.filter(proposal=proposal).select_related("version").first()
     specialist = completion(assignment.version.schema, assignment.answers) if assignment else {
         "is_complete": False,
         "percent": 0,
         "completed_section_count": 0,
         "total_sections": 0,
     }
-    version = proposal.versions.filter(number=proposal.current_version).first() if proposal.current_version else None
+    if version is _NOT_PROVIDED:
+        version = proposal.versions.filter(number=proposal.current_version).first() if proposal.current_version else None
     acknowledgements = set(version.room_acknowledgements.values_list("document", flat=True)) if version else set()
     accepted = bool(version and hasattr(version, "acceptance"))
     completed_steps = int(specialist["is_complete"]) + int("general" in acknowledgements) + int("private" in acknowledgements) + int(accepted)
