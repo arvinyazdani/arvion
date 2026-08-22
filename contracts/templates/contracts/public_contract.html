@@ -21,9 +21,12 @@
   <section class="legal-action">
     {% if acknowledged %}
       <div><span class="acknowledged">مطالعه این سند قبلاً ثبت شده است.</span></div><a class="contract-button" href="{% url 'contracts:public_contract' proposal.token %}">بازگشت به منوی پرونده</a>
-    {% else %}
+    {% elif can_acknowledge %}
       <div><span>پایان مطالعه</span><h2>ثبت بررسی این سند</h2><p>این مرحله فقط ثبت مطالعه سند است و تأیید نهایی قرارداد محسوب نمی‌شود.</p></div>
       <form method="post" action="{% url 'contracts:contract_acknowledge' proposal.token document %}" data-contract-submit>{% csrf_token %}<label class="legal-check"><input required type="checkbox" name="acknowledge" value="on"><span>متن را کامل مطالعه کرده‌ام و برای مرحله بعد آماده‌ام.</span></label><button class="contract-button" type="submit" data-busy-label="در حال ثبت مطالعه…">ثبت و بازگشت به منو</button></form>
+    {% else %}
+      <div><span>مطالعه پیش از مرحله تأیید</span><h2>سند برای مطالعه در دسترس است</h2><p>{{ acknowledgement_block_reason }}</p></div>
+      <a class="contract-button secondary" href="{% url 'contracts:public_contract' proposal.token %}">بازگشت به منوی پرونده</a>
     {% endif %}
   </section>
 {% else %}

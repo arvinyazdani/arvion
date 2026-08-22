@@ -933,12 +933,24 @@ def contract_document(request, token, document=None):
     if document not in {"general", "private"}:
         return redirect("contracts:public_contract", token=token)
     _discovery, discovery_complete = _linked_discovery_state(proposal)
+    # Reading a contract must not depend on completing the questionnaire.  The
+    # customer can therefore review both documents early, while the POST view
+    # below remains the sole authority for recording the ordered acknowledgements.
+    can_acknowledge = discovery_complete and (
+        document == "general" or "general" in acknowledgements
+    )
     if not discovery_complete:
-        messages.info(request, "ابتدا فرم نیازسنجی تخصصی را کامل کنید؛ سپس شرایط عمومی پیمان فعال می‌شود.")
-        return redirect("contracts:public_contract", token=token)
-    if document == "private" and "general" not in acknowledgements:
-        messages.info(request, "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید.")
-        return redirect("contracts:public_contract", token=token)
+        acknowledgement_block_reason = (
+            "این سند برای مطالعه در دسترس است. پس از تکمیل فرم نیازسنجی تخصصی، "
+            "گزینه ثبت بررسی آن فعال می‌شود."
+        )
+    elif document == "private" and "general" not in acknowledgements:
+        acknowledgement_block_reason = (
+            "این سند برای مطالعه در دسترس است. برای ثبت بررسی شرایط خصوصی، "
+            "ابتدا شرایط عمومی پیمان را بررسی و تأیید کنید."
+        )
+    else:
+        acknowledgement_block_reason = ""
     if document in {"general", "private"}:
         event_key = f"contract-document-viewed:{version.pk}:{document}"
         if not request.session.get(event_key):
@@ -955,6 +967,8 @@ def contract_document(request, token, document=None):
             "proposal": proposal, "version": version, "snapshot": version.snapshot,
             "document": document, "terms": version.snapshot.get(f"{document}_terms", ""),
             "acknowledged": document in acknowledgements,
+            "can_acknowledge": can_acknowledge,
+            "acknowledgement_block_reason": acknowledgement_block_reason,
         })
 
 

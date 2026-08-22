@@ -333,7 +333,7 @@ class ContractWorkflowTests(TestCase):
         )
         self.assertFalse(ContractRoomAcknowledgement.objects.filter(version=version).exists())
 
-    def test_linked_contract_hides_and_blocks_general_terms_until_discovery_is_complete(self):
+    def test_linked_contract_documents_are_readable_before_discovery_is_complete(self):
         discovery = self.link_crm_discovery()
         version = publish_version(self.proposal, self.root)
         self.grant_contract_access(version)
@@ -341,11 +341,21 @@ class ContractWorkflowTests(TestCase):
         general_url = reverse(
             "contracts:contract_document", args=[self.proposal.token, "general"],
         )
+        private_url = reverse(
+            "contracts:contract_document", args=[self.proposal.token, "private"],
+        )
 
         room = self.client.get(room_url)
-        self.assertContains(room, "پس از تکمیل فرم تخصصی فعال می‌شود.")
-        self.assertNotContains(room, f'href="{general_url}"', html=False)
-        self.assertRedirects(self.client.get(general_url), room_url)
+        self.assertContains(room, f'href="{general_url}"', html=False)
+        self.assertContains(room, f'href="{private_url}"', html=False)
+        general = self.client.get(general_url)
+        private = self.client.get(private_url)
+        self.assertEqual(general.status_code, 200)
+        self.assertEqual(private.status_code, 200)
+        self.assertContains(general, "سند برای مطالعه در دسترس است")
+        self.assertContains(private, "سند برای مطالعه در دسترس است")
+        self.assertNotContains(general, 'name="acknowledge"', html=False)
+        self.assertNotContains(private, 'name="acknowledge"', html=False)
 
         discovery.answers = {
             section_key: {

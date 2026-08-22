@@ -44,16 +44,18 @@
       {% endif %}
     </article>
     <article class="room-card {% if 'general' in acknowledgements %}complete{% endif %}">
-      <div class="card-top"><b>۲</b><span>{% if 'general' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete %}آماده بررسی{% else %}پس از فرم تخصصی{% endif %}</span></div>
+      <div class="card-top"><b>۲</b><span>{% if 'general' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete %}آماده ثبت بررسی{% else %}برای مطالعه باز است{% endif %}</span></div>
       <h2>شرایط عمومی پیمان</h2>
       <p>قواعد ثابت همکاری، محرمانگی، مالکیت، تحویل، تغییرات و پشتیبانی پروژه.</p>
-      {% if discovery_complete %}<a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'general' %}">{% if 'general' in acknowledgements %}مرور شرایط عمومی{% else %}مطالعه شرایط عمومی{% endif %}</a>{% else %}<span class="card-note">پس از تکمیل فرم تخصصی فعال می‌شود.</span>{% endif %}
+      <a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'general' %}">{% if 'general' in acknowledgements %}مرور شرایط عمومی{% elif discovery_complete %}مطالعه و ثبت بررسی{% else %}مطالعه شرایط عمومی{% endif %}</a>
+      {% if not discovery_complete %}<span class="card-note">ثبت بررسی پس از تکمیل فرم تخصصی فعال می‌شود.</span>{% endif %}
     </article>
     <article class="room-card {% if 'private' in acknowledgements %}complete{% endif %}">
-      <div class="card-top"><b>۳</b><span>{% if 'private' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete and 'general' in acknowledgements %}آماده بررسی{% else %}قفل مرحله‌ای{% endif %}</span></div>
+      <div class="card-top"><b>۳</b><span>{% if 'private' in acknowledgements %}مطالعه ثبت شده{% elif discovery_complete and 'general' in acknowledgements %}آماده ثبت بررسی{% else %}برای مطالعه باز است{% endif %}</span></div>
       <h2>شرایط خصوصی پیمان</h2>
       <p>مبلغ، زمان‌بندی، محدوده اجرا و توافق‌های اختصاصی همین پروژه.</p>
-      {% if discovery_complete and 'general' in acknowledgements %}<a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'private' %}">{% if 'private' in acknowledgements %}مرور شرایط خصوصی{% else %}مطالعه شرایط خصوصی{% endif %}</a>{% elif not discovery_complete %}<span class="card-note">پس از فرم تخصصی و شرایط عمومی فعال می‌شود.</span>{% else %}<span class="card-note">پس از ثبت مطالعه شرایط عمومی فعال می‌شود.</span>{% endif %}
+      <a class="contract-button secondary" href="{% url 'contracts:contract_document' proposal.token 'private' %}">{% if 'private' in acknowledgements %}مرور شرایط خصوصی{% elif discovery_complete and 'general' in acknowledgements %}مطالعه و ثبت بررسی{% else %}مطالعه شرایط خصوصی{% endif %}</a>
+      {% if not discovery_complete %}<span class="card-note">ثبت بررسی پس از تکمیل فرم تخصصی و شرایط عمومی فعال می‌شود.</span>{% elif 'general' not in acknowledgements %}<span class="card-note">برای ثبت بررسی، ابتدا شرایط عمومی را تأیید کنید.</span>{% endif %}
     </article>
   </section>
 

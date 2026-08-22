@@ -29,3 +29,25 @@ body.contract-app{min-width:0;margin:0;background:radial-gradient(circle at 88% 
 }
 .legal-close{min-height:44px}
 @media(max-width:620px){.contract-header-chip{width:44px}}
+
+/* Final containment layer for the customer contract room. Legal prose and
+   customer-entered details may contain long, unbroken values; they must never
+   widen an iPhone viewport or create a horizontal page scroll. */
+html,body.contract-app{max-width:100%;overflow-x:hidden}
+.contract-shell-width,.contract-shell-bar,.contract-room,.contract-document,.otp-shell,
+.room-hero,.room-facts,.room-progress,.room-steps,.room-card,.room-next,
+.legal-cover,.legal-document,.legal-action,.legal-body,.legal-article,
+.legal-article summary,.legal-article-content,.legal-item,.legal-item>*,
+.legal-meta,.legal-meta span{min-width:0;max-width:100%}
+.room-facts strong,.legal-document,.legal-body,.legal-article-content,
+.legal-item span,.legal-article-title,.legal-paragraph,.legal-action p{
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.legal-item{grid-template-columns:minmax(44px,50px) minmax(0,1fr)}
+@media(max-width:620px){
+  .contract-shell-width,.contract-shell-bar,.contract-room,.contract-document,.otp-shell{width:calc(100% - 24px)}
+  .legal-article summary{grid-template-columns:34px minmax(0,1fr)}
+  .legal-article-number{width:30px;height:30px}
+  .legal-action form,.room-confirm{width:100%;min-width:0}
+}
