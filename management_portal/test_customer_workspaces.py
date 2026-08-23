@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import translation
 
 from accounts.models import User
 from contracts.models import ContractProposal, GeneralTermsVersion, RoomAccessGrant, RoomDelivery
@@ -29,6 +30,8 @@ SCHEMA = [{
 
 class CustomerWorkspaceManagementTests(TestCase):
     def setUp(self):
+        translation.activate("fa")
+        self.addCleanup(translation.deactivate_all)
         self.manager = User.objects.create_superuser(
             username="workspace-admin", email="workspace-admin@example.com",
             password="safe-test-password",
