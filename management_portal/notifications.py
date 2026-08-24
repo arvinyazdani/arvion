@@ -17,7 +17,10 @@ from core.sms.backends import SMSDeliveryError
 from .models import CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, PushSubscription
 
 
-URGENT_SMS_CATEGORIES = {"payments"}
+# Account verification and payment review both require prompt staff action.
+# The unseen-receipt guard below prevents duplicate SMS after the manager has
+# already opened the corresponding notification.
+URGENT_SMS_CATEGORIES = {"accounts", "payments"}
 
 
 def recipients_for(notification):
@@ -112,8 +115,6 @@ def _create_sla_alerts(now):
 def process_notifications(now=None):
     now = now or timezone.now()
     _create_sla_alerts(now)
-    if not settings.WEB_PUSH_VAPID_PRIVATE_KEY:
-        return {"push": 0, "sms": 0, "reminders": 0}
     push_count = sms_count = reminder_count = 0
     for task in CaseTask.objects.select_related("case").filter(status="open", due_at__lte=now):
         item, created = ManagementNotification.objects.get_or_create(source_key=f"crm-task-overdue:{task.pk}:{task.due_at.isoformat()}", defaults={"category": "sales", "title": "وظیفه CRM عقب افتاده", "description": f"{task.case.customer_name}: {task.title}", "target_url": reverse("management_portal:crm_case_detail", args=[task.case_id]), "role": "sales"})
@@ -121,13 +122,14 @@ def process_notifications(now=None):
     for case in CustomerCase.objects.filter(next_follow_up_at__lte=now).exclude(stage__in=("won", "lost")):
         item, created = ManagementNotification.objects.get_or_create(source_key=f"crm-followup:{case.pk}:{case.next_follow_up_at.isoformat()}", defaults={"category": "sales", "title": "موعد پیگیری مشتری", "description": case.customer_name, "target_url": reverse("management_portal:crm_case_detail", args=[case.pk]), "role": "sales"})
         if created: create_receipts(item)
-    fresh = NotificationReceipt.objects.select_related("notification", "user").filter(push_sent_at__isnull=True, notification__status="unread")
-    for receipt in fresh:
-        item = receipt.notification
-        receipt.last_error = _send_user_push(receipt.user, {"title": item.title, "body": item.description, "url": reverse("management_portal:notification_open", args=[item.pk]), "tag": f"rvion-{item.pk}", "urgent": item.category in URGENT_SMS_CATEGORIES})
-        receipt.push_sent_at = now
-        receipt.save(update_fields=["push_sent_at", "last_error"])
-        push_count += 1
+    if settings.WEB_PUSH_VAPID_PRIVATE_KEY:
+        fresh = NotificationReceipt.objects.select_related("notification", "user").filter(push_sent_at__isnull=True, notification__status="unread")
+        for receipt in fresh:
+            item = receipt.notification
+            receipt.last_error = _send_user_push(receipt.user, {"title": item.title, "body": item.description, "url": reverse("management_portal:notification_open", args=[item.pk]), "tag": f"rvion-{item.pk}", "urgent": item.category in URGENT_SMS_CATEGORIES})
+            receipt.push_sent_at = now
+            receipt.save(update_fields=["push_sent_at", "last_error"])
+            push_count += 1
 
     # If every recipient has already opened the alert, an SMS would only repeat
     # information the manager has acted on. Keep the immediate SMS path solely
