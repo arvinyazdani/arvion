@@ -38,7 +38,7 @@ class CorePagesTests(TestCase):
         mobile_nav = html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
         self.assertEqual(mobile_nav.count("<a "), 5)
         self.assertEqual(html.count('class="nav-cta"'), 1)
-        self.assertContains(response, 'href="/fa/start/"', count=3, html=False)
+        self.assertContains(response, 'href="/fa/start/"', count=4, html=False)
 
         staff = get_user_model().objects.create_user(
             username="shell-admin@example.com",
@@ -119,7 +119,7 @@ class CorePagesTests(TestCase):
         response = self.client.get("/fa/")
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=4")
-        legacy = html.index("core/css/site.css?v=35")
+        legacy = html.index("core/css/site.css?v=36")
         components = html.index("core/css/components.css?v=5")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
