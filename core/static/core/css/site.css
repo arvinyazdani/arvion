@@ -238,6 +238,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 [dir=rtl] .home-intro-copy h1{letter-spacing:-.035em}
 .home-intro-copy .lead{max-width:720px;margin:24px 0 0;font-size:clamp(1rem,1.6vw,1.14rem)}
 .home-intro-actions{display:flex;align-items:center;gap:18px;margin-top:30px;flex-wrap:wrap}
+.home-intro-action-stack{display:grid;gap:10px;justify-items:start}
 .home-intro-actions .button{border-color:var(--accent);background:var(--accent);color:var(--color-on-brand)}
 .home-intro-actions .button .ui-icon{width:18px;height:18px}
 .home-inline-link{display:inline-flex;align-items:center;gap:6px;color:var(--accent-text);font-weight:900;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px}
@@ -322,7 +323,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .home-assessment-inner{grid-template-columns:1fr;gap:25px}.home-assessment .button{width:100%}
 }
 @media(max-width:520px){
-  .home-intro-copy h1{font-size:2.35rem;line-height:1.16}.home-intro-copy .lead{font-size:.98rem}.home-intro-actions{align-items:stretch;flex-direction:column}.home-intro-actions .button{width:100%}.home-inline-link{justify-content:center}
+  .home-intro-copy h1{font-size:2.35rem;line-height:1.16}.home-intro-copy .lead{font-size:.98rem}.home-intro-actions{align-items:stretch;flex-direction:column}.home-intro-action-stack{width:100%}.home-intro-actions .button{width:100%}.home-inline-link{justify-content:center}
   .home-proof-list{display:grid}.delivery-brief:before{width:170px;height:170px}.home-trust-grid{grid-template-columns:1fr}.home-trust-grid>a,.home-trust-grid>a:first-child,.home-trust-grid>a:nth-child(odd){border-inline:1px solid var(--line)}
   .section{padding:56px 0}.home-section-head h2{font-size:2rem}.home-solution-card{padding:22px}.home-card-actions{align-items:stretch;flex-direction:column}.home-card-actions .button{width:100%}.home-install-prompt{padding:17px}.home-install-prompt>div{align-items:flex-start}
   .home-process-list li{grid-template-columns:44px 1fr;gap:10px}.home-project-card{grid-template-columns:38px minmax(0,1fr) 20px;gap:10px;padding:18px}.home-project-card p{display:none}
