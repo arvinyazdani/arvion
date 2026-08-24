@@ -28,9 +28,19 @@
           <div class="approval-copy">
             <strong>{{ user.get_full_name|default:user.email }}</strong>
             <small><bdi>{{ user.email }}</bdi>{% if user.mobile %} · <bdi>{{ user.mobile }}</bdi>{% endif %} · {% if lang == 'fa' %}{{ user.date_joined|date:"Y/m/d H:i" }}{% else %}{{ user.date_joined|date:"M j, Y H:i" }}{% endif %}</small>
-            <span class="approval-state is-pending">{% if lang == 'fa' %}منتظر تصمیم مدیر{% else %}Awaiting manager decision{% endif %}</span>
+            <span class="approval-state {% if user.is_active %}is-pending{% else %}is-hidden{% endif %}">{% if user.is_active %}{% if lang == 'fa' %}فعال موقت · نیازمند تأیید تلفنی{% else %}Temporary access · phone verification needed{% endif %}{% else %}{% if lang == 'fa' %}منتظر تکمیل کد پیامکی{% else %}Awaiting SMS verification{% endif %}{% endif %}</span>
           </div>
           <div class="approval-actions">
+            {% if user.is_active %}
+            <form method="post" action="{% url 'management_portal:account_approval' user.pk 'verify_mobile' %}"
+              data-confirm="{% if lang == 'fa' %}تأیید می‌کنید که شماره {{ user.mobile }} پس از تماس با مشتری بررسی شده است؟{% else %}Confirm that {{ user.mobile }} was verified by contacting the customer?{% endif %}"
+              data-confirm-title="{% if lang == 'fa' %}تأیید تلفنی شماره{% else %}Phone verification{% endif %}"
+              data-confirm-approve="{% if lang == 'fa' %}تأیید شماره{% else %}Verify number{% endif %}"
+              data-confirm-cancel="{% if lang == 'fa' %}انصراف{% else %}Cancel{% endif %}">
+              {% csrf_token %}
+              <button type="submit" class="approve">{% if lang == 'fa' %}تأیید تلفنی شماره{% else %}Verify phone by call{% endif %}</button>
+            </form>
+            {% else %}
             <form method="post" action="{% url 'management_portal:account_approval' user.pk 'approve' %}"
               data-confirm="{% if lang == 'fa' %}حساب {{ user.get_full_name|default:user.email }} با ایمیل {{ user.email }} فعال شود؟ پس از تأیید، کاربر به حساب خود دسترسی خواهد داشت.{% else %}Activate the account for {{ user.get_full_name|default:user.email }} ({{ user.email }})? The customer will gain access to their account.{% endif %}"
               data-confirm-title="{% if lang == 'fa' %}تأیید و فعال‌سازی حساب{% else %}Approve and activate account{% endif %}"
@@ -41,6 +51,7 @@
                 {% if lang == 'fa' %}تأیید و فعال‌سازی{% else %}Approve & activate{% endif %}
               </button>
             </form>
+            {% endif %}
             <form method="post" action="{% url 'management_portal:account_approval' user.pk 'reject' %}"
               data-confirm="{% if lang == 'fa' %}درخواست حساب {{ user.get_full_name|default:user.email }} با ایمیل {{ user.email }} رد شود؟ حساب غیرفعال باقی می‌ماند.{% else %}Reject the account request for {{ user.get_full_name|default:user.email }} ({{ user.email }})? The account will remain inactive.{% endif %}"
               data-confirm-title="{% if lang == 'fa' %}رد درخواست حساب{% else %}Reject account request{% endif %}"

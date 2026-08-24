@@ -65,6 +65,7 @@ class SMSBackendTests(SimpleTestCase):
         self.assertEqual(result.reference, "tracking-id")
         self.assertIn(b"from=50004001021100", request.data)
         self.assertIn(b"to=09120373271", request.data)
+        self.assertIn(b"isflash=false", request.data)
         self.assertNotIn(b"secret", str(request.headers).encode())
 
     @settings
@@ -86,6 +87,18 @@ class SMSBackendTests(SimpleTestCase):
         with override_settings(MELIPAYAMAK_OTP_MODE="pattern"):
             with self.assertRaises(ImproperlyConfigured):
                 MelipayamakSMSBackend().send_otp(to="09120373271", code="123456")
+
+    @settings
+    @patch("core.sms.backends.urlopen")
+    def test_sends_otp_with_approved_pattern_payload(self, mocked_open):
+        mocked_open.return_value = FakeResponse({"Value": "otp-id", "RetStatus": 1, "StrRetStatus": "Ok"})
+        with override_settings(MELIPAYAMAK_OTP_MODE="pattern"):
+            MelipayamakSMSBackend().send_otp(to="+989120373271", code="123456")
+        request = mocked_open.call_args.args[0]
+        self.assertEqual(request.full_url, MelipayamakSMSBackend.OTP_URL)
+        self.assertIn(b"to=09120373271", request.data)
+        self.assertIn(b"text=123456", request.data)
+        self.assertIn(b"bodyId=42", request.data)
 
     @settings
     @patch("core.sms.backends.urlopen")

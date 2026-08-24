@@ -218,6 +218,31 @@ class ManagementDashboardTests(TestCase):
         self.assertFalse(customer.is_active)
         self.assertFalse(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
 
+    def test_superuser_can_complete_phone_check_for_temporary_sms_recovery_account(self):
+        root = User.objects.create_superuser(username="phone-check-root", email="phone-check-root@example.com", password="safe-password")
+        customer = User.objects.create_user(
+            username="temporary-phone", email="temporary-phone@example.com", password="safe-password",
+            mobile="989120000098", is_active=True,
+        )
+        self.client.force_login(root)
+
+        queue = self.client.get(reverse("management_portal:approvals"))
+        self.assertContains(queue, "فعال موقت · نیازمند تأیید تلفنی")
+        self.assertContains(queue, customer.mobile)
+        self.assertTrue(ManagementNotification.objects.filter(source_key=f"mobile-verification:{customer.pk}").exists())
+
+        response = self.client.post(reverse("management_portal:account_approval", args=[customer.pk, "verify_mobile"]))
+
+        self.assertRedirects(response, reverse("management_portal:approvals"))
+        customer.refresh_from_db()
+        self.assertIsNotNone(customer.mobile_verified_at)
+        self.assertTrue(customer.email_verified)
+        self.assertTrue(OperationalAudit.objects.filter(action="account_verify_mobile", target_id=str(customer.pk)).exists())
+        self.assertEqual(
+            ManagementNotification.objects.get(source_key=f"mobile-verification:{customer.pk}").status,
+            "resolved",
+        )
+
     def test_payment_approval_grants_access_once_and_records_audit(self):
         root = User.objects.create_superuser(username="pay-root", email="pay-root@example.com", password="safe-password")
         customer = User.objects.create_user(username="buyer", email="buyer@example.com", password="safe-password", is_active=True)

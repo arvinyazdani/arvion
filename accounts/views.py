@@ -42,6 +42,26 @@ def _clear_sms_delivery_failure(request):
     request.session.pop("phone_verification_sms_failed", None)
 
 
+def _activate_with_pending_mobile_verification(request, user, lang):
+    """Grant temporary access only when the SMS provider itself is unavailable.
+
+    The mobile remains explicitly unverified so staff can distinguish this
+    recovery path from a completed OTP verification in the approval queue.
+    """
+    user.is_active = True
+    user.save(update_fields=["is_active"])
+    request.session.pop("phone_verification_user_id", None)
+    _clear_sms_delivery_failure(request)
+    login(request, user)
+    messages.warning(
+        request,
+        "حساب شما موقتاً فعال شد. سرویس پیامک در دسترس نبود؛ کارشناسان آرویون به‌زودی برای تأیید شماره با شما تماس می‌گیرند."
+        if lang == "fa" else
+        "Your account is temporarily active. SMS delivery is unavailable; Rvion specialists will contact you shortly to verify your number.",
+    )
+    return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
+
+
 @method_decorator(never_cache, name="dispatch")
 class RegisterView(LanguageViewMixin, FormView):
     template_name = "accounts/register.html"
@@ -66,13 +86,7 @@ class RegisterView(LanguageViewMixin, FormView):
                 "Too many code requests. Please try again in 10 minutes.",
             )
         except (SMSDeliveryError, ImproperlyConfigured):
-            _remember_sms_delivery_failure(self.request)
-            messages.error(
-                self.request,
-                "حساب ساخته شد، اما سرویس پیامک کد را نپذیرفت. شماره را بررسی کنید و دوباره تلاش کنید؛ اگر تکرار شد با پشتیبانی تماس بگیرید."
-                if self.lang == "fa" else
-                "Your account was created, but the SMS provider did not accept the code. Check the number and retry; contact support if it persists.",
-            )
+            return _activate_with_pending_mobile_verification(self.request, user, self.lang)
         except Exception:
             _remember_sms_delivery_failure(self.request)
             messages.error(
@@ -116,6 +130,8 @@ class RegisterView(LanguageViewMixin, FormView):
                         if self.lang == "fa" else
                         "Too many code requests. Try again in a few minutes.",
                     )
+                except (SMSDeliveryError, ImproperlyConfigured):
+                    return _activate_with_pending_mobile_verification(self.request, user, self.lang)
                 except Exception:
                     _remember_sms_delivery_failure(self.request)
                     messages.error(
@@ -176,6 +192,8 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
             return redirect(f"{reverse('accounts:register')}?lang={self.lang}")
         if request.POST.get("action") == "resend":
             return self._resend()
+        if request.POST.get("action") == "continue_without_sms":
+            return _activate_with_pending_mobile_verification(request, self._user(), self.lang)
         return super().post(request, *args, **kwargs)
 
     def _resend(self):

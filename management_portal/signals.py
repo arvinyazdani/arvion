@@ -37,6 +37,18 @@ def notify(*, category, title, description, target_url, role, source_key, due_at
 
 @receiver(post_save, sender=User)
 def new_user(sender, instance, created, **kwargs):
+    # An active account without a verified mobile is the explicit SMS-outage
+    # recovery path. It must be visible to the manager until verified by call.
+    if not instance.is_staff and instance.is_active and instance.mobile and not instance.mobile_verified_at:
+        notify(
+            category="accounts",
+            title="تأیید تلفنی شماره موبایل لازم است",
+            description=instance.email,
+            target_url=reverse("management_portal:approvals"),
+            role="",
+            source_key=f"mobile-verification:{instance.pk}",
+        )
+        return
     # Registration is not complete until the mobile OTP has been verified.
     # get_or_create inside notify keeps subsequent profile saves idempotent.
     if not instance.is_staff and instance.is_active and instance.mobile_verified_at:

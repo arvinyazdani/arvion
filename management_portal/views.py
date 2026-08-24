@@ -275,7 +275,9 @@ def dashboard(request):
     sla_cards = []
     queues = []
     if user.has_perm("accounts.change_user"):
-        pending_users = User.objects.filter(is_active=False).order_by("-date_joined")
+        pending_users = User.objects.filter(is_staff=False).filter(
+            Q(is_active=False) | Q(is_active=True, mobile__isnull=False, mobile_verified_at__isnull=True),
+        ).order_by("-date_joined")
         metrics.append(_metric("حساب نیازمند تأیید", pending_users.count(), "فعال‌سازی و کنترل ثبت‌نام", reverse("management_portal:approvals"), "warning"))
         queues += [{"kind": "حساب", "title": item.email, "meta": "منتظر فعال‌سازی", "date": item.date_joined, "url": reverse("management_portal:approvals")} for item in pending_users[:4]]
     if user.has_perm("leads.view_lead"):
@@ -566,7 +568,11 @@ def _require_account_or_payment_access(user):
 @staff_member_required(login_url="accounts:login")
 def approvals(request):
     _require_account_or_payment_access(request.user)
-    users = User.objects.filter(is_active=False).order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
+    users = User.objects.filter(
+        is_staff=False,
+    ).filter(
+        Q(is_active=False) | Q(is_active=True, mobile__isnull=False, mobile_verified_at__isnull=True),
+    ).order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
     payments = ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by").order_by("-created_at")[:100] if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
     return render(request, "management_portal/v2/approvals.html", {"pending_users": users, "payments": payments, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
@@ -577,10 +583,21 @@ def approvals(request):
 def account_approval(request, user_id, decision):
     if not request.user.is_superuser and not request.user.has_perm("accounts.change_user"):
         raise PermissionDenied
-    if decision not in {"approve", "reject"}:
+    if decision not in {"approve", "reject", "verify_mobile"}:
         raise Http404
     customer = get_object_or_404(User.objects.select_for_update(), pk=user_id, is_staff=False)
-    if decision == "approve":
+    if decision == "verify_mobile":
+        if not customer.is_active or customer.mobile_verified_at is not None:
+            messages.error(request, "این حساب در وضعیت تأیید تلفنی نیست.")
+            return redirect("management_portal:approvals")
+        customer.mobile_verified_at = timezone.now()
+        customer.email_verified = True
+        customer.save(update_fields=["mobile_verified_at", "email_verified"])
+        ManagementNotification.objects.filter(
+            source_key=f"mobile-verification:{customer.pk}", status__in=("unread", "read"),
+        ).update(status="resolved", resolved_by=request.user, resolved_at=timezone.now())
+        summary = f"شماره موبایل {customer.email} به‌صورت تلفنی تأیید شد"
+    elif decision == "approve":
         if customer.mobile_verified_at is None:
             messages.error(request, "این حساب هنوز کد تأیید پیامکی را وارد نکرده و قابل فعال‌سازی نیست.")
             return redirect("management_portal:approvals")

@@ -161,15 +161,37 @@ class AccountFlowTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
     @patch("accounts.services.send_otp", side_effect=SMSDeliveryError("provider unavailable"))
-    def test_sms_provider_failure_keeps_account_safe_and_shows_recovery_guidance(self, mocked_send):
+    def test_sms_provider_failure_grants_temporary_access_and_records_pending_phone_check(self, mocked_send):
         response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload(), follow=True)
 
         user = User.objects.get(email="arvin@example.com")
-        self.assertFalse(user.is_active)
+        self.assertTrue(user.is_active)
+        self.assertIsNone(user.mobile_verified_at)
         self.assertEqual(user.phone_verifications.count(), 0)
-        self.assertContains(response, "کدی برای این شماره تأیید نشده است")
-        self.assertContains(response, "بدون کد، حساب فعال نمی‌شود")
-        self.assertContains(response, 'href="tel:+989333021100"', html=False)
+        self.assertContains(response, "حساب شما موقتاً فعال شد")
+        self.assertIn("_auth_user_id", self.client.session)
+        mocked_send.assert_called_once()
+
+    def test_customer_can_continue_from_verification_screen_when_resend_fails(self):
+        self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
+        user = User.objects.get(email="arvin@example.com")
+        challenge = user.phone_verifications.first()
+        challenge.resend_available_at = timezone.now() - timedelta(seconds=1)
+        challenge.save(update_fields=["resend_available_at"])
+
+        with patch("accounts.views.issue_phone_verification", side_effect=SMSDeliveryError("provider unavailable")) as mocked_send:
+            failed_resend = self.client.post(
+                reverse("accounts:verify_phone") + "?lang=fa", {"action": "resend"}, follow=True,
+            )
+        self.assertContains(failed_resend, "ادامه با حساب موقت")
+
+        response = self.client.post(
+            reverse("accounts:verify_phone") + "?lang=fa", {"action": "continue_without_sms"}, follow=True,
+        )
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertIsNone(user.mobile_verified_at)
+        self.assertContains(response, "حساب شما موقتاً فعال شد")
         mocked_send.assert_called_once()
 
     @override_settings(MANUAL_ACCOUNT_APPROVAL=True)

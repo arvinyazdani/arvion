@@ -103,7 +103,8 @@ class MelipayamakSMSBackend:
             "from": self.sender,
             "to": melipayamak_recipient(to),
             "text": str(text),
-            "isFlash": "false",
+            # Melipayamak's REST sample uses the lowercase field name.
+            "isflash": "false",
         })
 
     def send_otp(self, *, to, code, body_id=None):
