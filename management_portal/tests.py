@@ -233,6 +233,28 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
         self.assertTrue(OperationalAudit.objects.filter(action="payment_approve", target_id=str(payment.pk)).exists())
 
+    def test_payment_approval_queue_shows_customer_and_transfer_details(self):
+        root = User.objects.create_superuser(username="payment-details-root", email="payment-details@example.com", password="safe-password")
+        customer = User.objects.create_user(
+            username="payment-details-customer", email="buyer-details@example.com", mobile="98912009991",
+            first_name="مینا", last_name="رضایی", password="safe-password", is_active=True,
+        )
+        exam = Exam.objects.create(slug="payment-details-exam", title_fa="آزمون پرداخت", title_en="Payment exam", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
+        order = Order.objects.create(user=customer, exam=exam, amount_irr=100000)
+        payment = ManualPaymentSubmission.objects.create(
+            order=order, payer_name="مینا رضایی", reference_number="DETAILS-REF-1", paid_at=timezone.now(), note="واریز از حساب شرکت",
+        )
+        self.client.force_login(root)
+
+        response = self.client.get(reverse("management_portal:approvals"))
+
+        self.assertContains(response, "مشخصات کامل سفارش و واریز")
+        self.assertContains(response, "buyer-details@example.com")
+        self.assertContains(response, "98912009991")
+        self.assertContains(response, str(order.pk))
+        self.assertContains(response, "واریز از حساب شرکت")
+        self.assertContains(response, f"review-note-{payment.pk}")
+
     @override_settings(PAYMENT_REVIEW_SLA_SECONDS=1800, WEB_PUSH_VAPID_PRIVATE_KEY="")
     def test_overdue_payment_creates_one_sla_alert_before_push_is_configured(self):
         customer = User.objects.create_user(username="sla-buyer", email="sla-buyer@example.com", password="safe-password", is_active=True)

@@ -18,6 +18,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order, PaymentTransaction
 from accounts.security import client_address
+from core.sms.backends import SMSDeliveryError
 
 
 User = get_user_model()
@@ -158,6 +159,18 @@ class AccountFlowTests(TestCase):
         self.assertEqual(user.mobile, "989120373271")
         self.assertEqual(user.phone_verifications.count(), 1)
         self.assertEqual(len(mail.outbox), 0)
+
+    @patch("accounts.services.send_otp", side_effect=SMSDeliveryError("provider unavailable"))
+    def test_sms_provider_failure_keeps_account_safe_and_shows_recovery_guidance(self, mocked_send):
+        response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload(), follow=True)
+
+        user = User.objects.get(email="arvin@example.com")
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.phone_verifications.count(), 0)
+        self.assertContains(response, "کدی برای این شماره تأیید نشده است")
+        self.assertContains(response, "بدون کد، حساب فعال نمی‌شود")
+        self.assertContains(response, 'href="tel:+989333021100"', html=False)
+        mocked_send.assert_called_once()
 
     @override_settings(MANUAL_ACCOUNT_APPROVAL=True)
     def test_sms_verification_supersedes_manual_account_approval(self):
@@ -416,7 +429,7 @@ class AccountFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="message message-error"', html=False)
         self.assertContains(response, 'role="alert" aria-live="assertive"', html=False)
-        self.assertContains(response, "Your account was created, but the SMS could not be sent")
+        self.assertContains(response, "Your account was created, but the code could not be delivered")
 
     def create_result(self, user, exam, version, number):
         order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")

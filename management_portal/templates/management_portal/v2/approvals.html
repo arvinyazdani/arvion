@@ -77,6 +77,18 @@
             <span class="approval-state {% if payment.status == 'pending' %}is-pending{% elif payment.status == 'approved' %}is-live{% else %}is-hidden{% endif %}">
               {% if lang == 'fa' %}{% if payment.status == 'pending' %}منتظر بررسی{% elif payment.status == 'approved' %}تأییدشده و دسترسی صادرشده{% else %}ردشده{% endif %}{% else %}{% if payment.status == 'pending' %}Awaiting review{% elif payment.status == 'approved' %}Approved; access granted{% else %}Rejected{% endif %}{% endif %}
             </span>
+            <details class="payment-customer-details"{% if payment.status == 'pending' %} open{% endif %}>
+              <summary>{% if lang == 'fa' %}مشخصات کامل سفارش و واریز{% else %}Full order and transfer details{% endif %}</summary>
+              <dl>
+                <div><dt>{% if lang == 'fa' %}مشتری{% else %}Customer{% endif %}</dt><dd>{% if payment.order.customer %}{{ payment.order.customer.name }}{% else %}{{ payment.order.user.get_full_name|default:payment.order.user.email }}{% endif %}</dd></div>
+                <div><dt>{% if lang == 'fa' %}موبایل حساب{% else %}Account mobile{% endif %}</dt><dd>{% if payment.order.user.mobile %}<a dir="ltr" href="tel:+{{ payment.order.user.mobile }}">{{ payment.order.user.mobile }}</a>{% else %}—{% endif %}</dd></div>
+                <div><dt>{% if lang == 'fa' %}ایمیل حساب{% else %}Account email{% endif %}</dt><dd><bdi>{{ payment.order.user.email }}</bdi></dd></div>
+                <div><dt>{% if lang == 'fa' %}شناسه سفارش{% else %}Order ID{% endif %}</dt><dd><bdi>{{ payment.order_id }}</bdi></dd></div>
+                <div><dt>{% if lang == 'fa' %}واریزکننده{% else %}Payer{% endif %}</dt><dd>{{ payment.payer_name }}</dd></div>
+                <div><dt>{% if lang == 'fa' %}تاریخ و ساعت واریز{% else %}Transfer time{% endif %}</dt><dd>{% if lang == 'fa' %}{{ payment.paid_at|date:"Y/m/d H:i" }}{% else %}{{ payment.paid_at|date:"M j, Y H:i" }}{% endif %}</dd></div>
+                {% if payment.note %}<div class="payment-note"><dt>{% if lang == 'fa' %}توضیح مشتری{% else %}Customer note{% endif %}</dt><dd>{{ payment.note }}</dd></div>{% endif %}
+              </dl>
+            </details>
           </div>
           {% if payment.status == 'pending' and request.user.is_superuser or payment.status == 'pending' and perms.assessments.change_manualpaymentsubmission %}
             <form class="payment-review" method="post" action="{% url 'management_portal:payment_review' payment.pk 'approve' %}"

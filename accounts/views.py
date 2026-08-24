@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
+from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_str
@@ -23,13 +24,22 @@ import math
 
 from core.views.lang import LanguageViewMixin
 from core.form_accessibility import enhance_form_accessibility
-from core.sms.backends import normalize_iran_mobile
+from core.sms.backends import SMSDeliveryError, normalize_iran_mobile
 
 from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import PhoneVerification, User
 from .services import issue_phone_verification
 from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
+
+
+def _remember_sms_delivery_failure(request):
+    """Keep the verification screen truthful when the provider did not accept a code."""
+    request.session["phone_verification_sms_failed"] = True
+
+
+def _clear_sms_delivery_failure(request):
+    request.session.pop("phone_verification_sms_failed", None)
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -47,13 +57,32 @@ class RegisterView(LanguageViewMixin, FormView):
         self.request.session["phone_verification_user_id"] = user.pk
         try:
             issue_phone_verification(user)
-        except Exception:
+        except PermissionError:
+            _remember_sms_delivery_failure(self.request)
             messages.error(
                 self.request,
-                "حساب ساخته شد، اما ارسال پیامک انجام نشد. از دکمه ارسال کد جدید استفاده کنید."
+                "تعداد درخواست کد زیاد شده است؛ ۱۰ دقیقه دیگر دوباره تلاش کنید."
                 if self.lang == "fa" else
-                "Your account was created, but the SMS could not be sent. Use resend code to try again.",
+                "Too many code requests. Please try again in 10 minutes.",
             )
+        except (SMSDeliveryError, ImproperlyConfigured):
+            _remember_sms_delivery_failure(self.request)
+            messages.error(
+                self.request,
+                "حساب ساخته شد، اما سرویس پیامک کد را نپذیرفت. شماره را بررسی کنید و دوباره تلاش کنید؛ اگر تکرار شد با پشتیبانی تماس بگیرید."
+                if self.lang == "fa" else
+                "Your account was created, but the SMS provider did not accept the code. Check the number and retry; contact support if it persists.",
+            )
+        except Exception:
+            _remember_sms_delivery_failure(self.request)
+            messages.error(
+                self.request,
+                "حساب ساخته شد، اما ارسال کد کامل نشد. کمی بعد دوباره تلاش کنید."
+                if self.lang == "fa" else
+                "Your account was created, but the code could not be delivered. Please try again shortly.",
+            )
+        else:
+            _clear_sms_delivery_failure(self.request)
         return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
 
     def form_invalid(self, form):
@@ -72,6 +101,7 @@ class RegisterView(LanguageViewMixin, FormView):
             if not latest or latest.resend_available_at <= timezone.now():
                 try:
                     issue_phone_verification(user)
+                    _clear_sms_delivery_failure(self.request)
                     messages.success(
                         self.request,
                         "ثبت‌نام نیمه‌کاره پیدا شد و یک کد جدید فرستادیم."
@@ -79,6 +109,7 @@ class RegisterView(LanguageViewMixin, FormView):
                         "We found your interrupted signup and sent a new code.",
                     )
                 except PermissionError:
+                    _remember_sms_delivery_failure(self.request)
                     messages.error(
                         self.request,
                         "تعداد درخواست کد زیاد بوده است؛ چند دقیقه بعد دوباره تلاش کنید."
@@ -86,6 +117,7 @@ class RegisterView(LanguageViewMixin, FormView):
                         "Too many code requests. Try again in a few minutes.",
                     )
                 except Exception:
+                    _remember_sms_delivery_failure(self.request)
                     messages.error(
                         self.request,
                         "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید."
@@ -157,11 +189,17 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
         else:
             try:
                 issue_phone_verification(user)
+                _clear_sms_delivery_failure(self.request)
                 messages.success(self.request, "کد جدید ارسال شد." if self.lang == "fa" else "A new code was sent.")
             except PermissionError:
+                _remember_sms_delivery_failure(self.request)
                 messages.error(self.request, "درخواست‌ها زیاد بوده است؛ ۱۰ دقیقه بعد دوباره امتحان کنید." if self.lang == "fa" else "Too many requests. Try again in 10 minutes.")
+            except (SMSDeliveryError, ImproperlyConfigured):
+                _remember_sms_delivery_failure(self.request)
+                messages.error(self.request, "سرویس پیامک کد را نپذیرفت. شماره و دسترسی پیامک را بررسی کنید و دوباره تلاش کنید." if self.lang == "fa" else "The SMS provider did not accept the code. Check SMS access and retry.")
             except Exception:
-                messages.error(self.request, "ارسال پیامک ممکن نشد. اتصال را بررسی و دوباره تلاش کنید." if self.lang == "fa" else "We could not send the SMS. Check your connection and try again.")
+                _remember_sms_delivery_failure(self.request)
+                messages.error(self.request, "ارسال پیامک کامل نشد. کمی بعد دوباره تلاش کنید." if self.lang == "fa" else "The SMS could not be delivered. Please try again shortly.")
         return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
 
     @transaction.atomic
@@ -210,7 +248,10 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
         remaining = 0
         if latest:
             remaining = max(0, math.ceil((latest.resend_available_at - timezone.now()).total_seconds()))
-        context.update({"mobile_masked": f"{user.mobile[:4]}••••{user.mobile[-4:]}", "resend_seconds": remaining})
+        context.update({
+            "mobile_masked": f"{user.mobile[:4]}••••{user.mobile[-4:]}", "resend_seconds": remaining,
+            "sms_delivery_failed": bool(self.request.session.get("phone_verification_sms_failed")),
+        })
         return context
 
 

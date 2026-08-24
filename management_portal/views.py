@@ -567,7 +567,7 @@ def _require_account_or_payment_access(user):
 def approvals(request):
     _require_account_or_payment_access(request.user)
     users = User.objects.filter(is_active=False).order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
-    payments = ManualPaymentSubmission.objects.select_related("order__user", "order__exam", "reviewed_by").order_by("-created_at")[:100] if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
+    payments = ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by").order_by("-created_at")[:100] if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
     return render(request, "management_portal/v2/approvals.html", {"pending_users": users, "payments": payments, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 

@@ -16,6 +16,8 @@ required = [
 USE_S3_STORAGE = os.getenv("USE_S3_STORAGE", "1") == "1"
 USE_SMTP_EMAIL = os.getenv("USE_SMTP_EMAIL", "1") == "1"
 ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED = USE_SMTP_EMAIL
+if SMS_BACKEND == "core.sms.backends.ConsoleSMSBackend":
+    raise RuntimeError("Production requires a real SMS_BACKEND; the console backend never delivers OTP codes")
 if USE_SMTP_EMAIL:
     required += ["EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD"]
 if USE_S3_STORAGE:
