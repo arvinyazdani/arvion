@@ -10,7 +10,7 @@ from .models import (
     ExamSection, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction,
     Question, Skill, SkillResult, SupportTicket,
 )
-from .services import PaymentVerificationError, verify_gateway_payment
+from .services import PaymentVerificationError, approve_manual_payment
 
 
 @admin.action(description="تأیید پرداخت‌های انتخاب‌شده و فعال‌سازی دسترسی")
@@ -19,18 +19,14 @@ def approve_manual_payments(modeladmin, request, queryset):
     for submission in queryset.filter(status="pending").select_related("order__user", "order__exam"):
         try:
             with transaction.atomic():
-                locked = ManualPaymentSubmission.objects.select_for_update().select_related("order__user", "order__exam").get(pk=submission.pk)
-                if locked.status != "pending":
-                    continue
-                order, created = verify_gateway_payment(
-                    locked.order_id, gateway="card_transfer", external_id=f"card-{locked.reference_number}",
-                    amount_irr=locked.order.amount_irr,
-                    response={"manual_review": True, "reference": locked.reference_number},
+                locked, order, created, applied = approve_manual_payment(
+                    submission.pk,
+                    reviewer=request.user,
+                    review_note="تأیید دستی از پنل مدیریت جنگو",
+                    automatic=False,
                 )
-                locked.status = "approved"
-                locked.reviewed_by = request.user
-                locked.reviewed_at = timezone.now()
-                locked.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+                if not applied:
+                    continue
             if created:
                 send_mail(
                     "پرداخت شما تأیید و دسترسی آزمون فعال شد",

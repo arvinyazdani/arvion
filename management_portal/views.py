@@ -36,7 +36,7 @@ from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
 from .backups import find_backup_inventory
-from assessments.services import PaymentVerificationError, verify_gateway_payment
+from assessments.services import PaymentVerificationError, approve_manual_payment
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
 
 
@@ -293,11 +293,11 @@ def dashboard(request):
         metrics.append(_metric("نیازسنجی کلینیک", clinics.count(), "درخواست‌های تحلیل‌نشده", reverse("management_portal:request_list") + "?kind=clinic", "warning"))
         queues += [{"kind": "کلینیک", "title": item.clinic_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["clinic", item.pk])} for item in clinics[:4]]
     if user.has_perm("assessments.view_manualpaymentsubmission"):
-        payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("-created_at")
+        payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("-updated_at")
         metrics.append(_metric("پرداخت منتظر بررسی", payments.count(), "تأیید بانکی و دسترسی آزمون", reverse("management_portal:approvals"), "danger"))
         queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.created_at, "url": reverse("management_portal:approvals")} for item in payments[:4]]
-        overdue_payments = payments.filter(created_at__lte=now - timedelta(seconds=settings.PAYMENT_REVIEW_SLA_SECONDS)).count()
-        sla_cards.append(_metric("پرداخت خارج از مهلت", overdue_payments, "بیش از ۳۰ دقیقه در انتظار تأیید", reverse("management_portal:approvals"), "danger"))
+        overdue_payments = payments.filter(updated_at__lte=now - timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS)).count()
+        sla_cards.append(_metric("تأیید خودکار معطل", overdue_payments, "بیش از ۳ دقیقه در انتظار مانده", reverse("management_portal:approvals"), "danger"))
     if user.has_perm("assessments.view_supportticket"):
         metrics.append(_metric("تیکت باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("management_portal:assessment_support")))
         overdue_tickets = SupportTicket.objects.filter(status="open", created_at__lte=now - timedelta(seconds=settings.SUPPORT_FIRST_RESPONSE_SLA_SECONDS)).count()
@@ -573,7 +573,13 @@ def approvals(request):
     ).filter(
         Q(is_active=False) | Q(is_active=True, mobile__isnull=False, mobile_verified_at__isnull=True),
     ).order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
-    payments = ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by").order_by("-created_at")[:100] if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
+    payments = list(ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by").order_by("-created_at")[:100]) if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
+    now = timezone.now()
+    for payment in payments:
+        payment.auto_approve_seconds = max(
+            0,
+            int((payment.updated_at + timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS) - now).total_seconds()),
+        )
     return render(request, "management_portal/v2/approvals.html", {"pending_users": users, "payments": payments, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
 
 
@@ -629,17 +635,21 @@ def payment_review(request, payment_id, decision):
     note = request.POST.get("review_note", "").strip()[:500]
     if decision == "approve":
         try:
-            order, created = verify_gateway_payment(payment.order_id, gateway="card_transfer", external_id=f"card-{payment.reference_number}", amount_irr=payment.order.amount_irr, response={"manual_review": True, "reference": payment.reference_number})
+            payment, order, created, applied = approve_manual_payment(
+                payment.pk, reviewer=request.user, review_note=note, automatic=False,
+            )
         except PaymentVerificationError as exc:
             messages.error(request, str(exc))
             return redirect("management_portal:approvals")
-        payment.status = "approved"
+        if not applied:
+            messages.warning(request, "این رسید هم‌زمان توسط سیستم یا مدیر دیگری بررسی شد.")
+            return redirect("management_portal:approvals")
         if created:
             send_mail("پرداخت شما تأیید شد", f"پرداخت سفارش {order.pk} تأیید شد و دسترسی آزمون فعال است.\n{settings.SITE_URL}/fa/account/", settings.DEFAULT_FROM_EMAIL, [order.user.email], fail_silently=True)
     else:
         payment.status = "rejected"
-    payment.reviewed_by, payment.reviewed_at, payment.review_note = request.user, timezone.now(), note
-    payment.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"])
+        payment.reviewed_by, payment.reviewed_at, payment.review_note = request.user, timezone.now(), note
+        payment.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"])
     OperationalAudit.objects.create(actor=request.user, action=f"payment_{decision}", target_type="manual_payment", target_id=str(payment.pk), summary=f"رسید {payment.reference_number}: {payment.status}", metadata={"order": str(payment.order_id)})
     messages.success(request, "بررسی رسید ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Payment review saved.")
     return redirect("management_portal:approvals")

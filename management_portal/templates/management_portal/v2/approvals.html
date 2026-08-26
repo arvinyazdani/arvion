@@ -3,7 +3,7 @@
 
 {% block title %}{% if lang == 'fa' %}تأییدها | آرویون{% else %}Approvals | Rvion{% endif %}{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}حساب و پرداخت{% else %}Accounts & Payments{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/approvals.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/approvals.css' %}?v=5">{% endblock %}
 
 {% block content %}
   <section class="m-page-head">
@@ -88,6 +88,7 @@
             <span class="approval-state {% if payment.status == 'pending' %}is-pending{% elif payment.status == 'approved' %}is-live{% else %}is-hidden{% endif %}">
               {% if lang == 'fa' %}{% if payment.status == 'pending' %}منتظر بررسی{% elif payment.status == 'approved' %}تأییدشده و دسترسی صادرشده{% else %}ردشده{% endif %}{% else %}{% if payment.status == 'pending' %}Awaiting review{% elif payment.status == 'approved' %}Approved; access granted{% else %}Rejected{% endif %}{% endif %}
             </span>
+            {% if payment.status == 'pending' %}<span class="payment-review-deadline">{% if lang == 'fa' %}فرصت بررسی مدیر{% else %}Manager review window{% endif %} · <b data-manager-payment-countdown data-seconds="{{ payment.auto_approve_seconds }}" dir="ltr">03:00</b></span>{% elif payment.status == 'approved' and not payment.reviewed_by %}<span class="payment-auto-approved">{% if lang == 'fa' %}تأیید خودکار سیستم{% else %}Automatically approved by system{% endif %}{% if payment.reviewed_at %} · {{ payment.reviewed_at|date:"Y/m/d H:i:s" }}{% endif %}</span>{% endif %}
             <details class="payment-customer-details"{% if payment.status == 'pending' %} open{% endif %}>
               <summary>{% if lang == 'fa' %}مشخصات کامل سفارش و واریز{% else %}Full order and transfer details{% endif %}</summary>
               <dl>
@@ -131,3 +132,4 @@
     </section>
   {% endif %}
 {% endblock %}
+{% block extra_scripts %}{{ block.super }}<script>(()=>{const rows=document.querySelectorAll('[data-manager-payment-countdown]');const draw=()=>{let active=false;rows.forEach((node)=>{let left=Math.max(0,Number(node.dataset.seconds)||0);node.textContent=`${String(Math.floor(left/60)).padStart(2,'0')}:${String(left%60).padStart(2,'0')}`;if(left>0){node.dataset.seconds=String(left-1);active=true}else{node.closest('.payment-review-deadline')?.classList.add('is-due')}});if(active)window.setTimeout(draw,1000)};draw()})();</script>{% endblock %}

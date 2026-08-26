@@ -123,6 +123,8 @@
 .integrity-score strong{color:var(--status-success-text)}
 .result-panel.integrity-review{border-color:var(--status-warning-border)!important;background:var(--status-warning-surface)!important}
 .integrity-review .integrity-score strong{color:var(--status-warning-text)}
+.payment-auto-timer{display:inline-flex;align-items:center;gap:6px;width:fit-content;margin-top:4px;padding:5px 9px;border:1px solid var(--status-warning-border);border-radius:999px;background:var(--status-warning-surface);color:var(--status-warning-text);font-size:.78rem;font-weight:800}
+.payment-auto-timer b{min-width:4ch;font-variant-numeric:tabular-nums}
 
 @media(max-width:560px){
   .review-nav{max-width:100%;scrollbar-width:thin}.review-card{padding:18px}.review-prompt{font-size:1rem;line-height:1.85}

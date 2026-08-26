@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -21,7 +22,7 @@ from .cases import link_customer_event, link_document, resolve_customer, sync_so
 def notify(*, category, title, description, target_url, role, source_key, due_at=None):
     if due_at is None:
         due_at = timezone.now() + timedelta(seconds={
-            "payments": 30 * 60,
+            "payments": settings.PAYMENT_AUTO_APPROVE_SECONDS,
             "support": 4 * 60 * 60,
             "sales": 24 * 60 * 60,
             "contracts": 24 * 60 * 60,

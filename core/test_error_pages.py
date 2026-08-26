@@ -2,12 +2,17 @@ import uuid
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import translation
 
 from accounts.models import User
 
 
 @override_settings(DEBUG=False)
 class BrandedErrorPageTests(TestCase):
+    def setUp(self):
+        translation.activate("fa")
+        self.addCleanup(translation.deactivate_all)
+
     def test_public_404_is_bilingual_and_has_recovery_actions(self):
         english = self.client.get("/en/this-page-does-not-exist/")
         self.assertEqual(english.status_code, 404)

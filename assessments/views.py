@@ -193,6 +193,10 @@ class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         submission = getattr(self.object, "manual_payment", None)
+        auto_approve_seconds = 0
+        if submission and submission.status == "pending":
+            deadline = submission.updated_at + timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS)
+            auto_approve_seconds = max(0, int((deadline - timezone.now()).total_seconds()))
         context.update({
             "manual_payment_form": ManualPaymentSubmissionForm(
                 instance=submission if submission and submission.status == "rejected" else None,
@@ -200,6 +204,7 @@ class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
             ),
             "card_payment_number": settings.CARD_PAYMENT_NUMBER,
             "card_payment_holder": settings.CARD_PAYMENT_HOLDER,
+            "payment_auto_approve_seconds": auto_approve_seconds,
         })
         return context
 
@@ -251,9 +256,9 @@ class ManualPaymentSubmitView(LoginRequiredMixin, View):
             logger.exception("Manual payment notification failed for order %s", order.pk)
         messages.success(
             request,
-            ("اطلاعات اصلاح‌شده واریز دوباره برای بررسی ارسال شد." if existing else "اطلاعات واریز ثبت شد و پس از تأیید ادمین دسترسی فعال می‌شود.")
+            ("اطلاعات اصلاح‌شده واریز دوباره برای بررسی ارسال شد." if existing else "اطلاعات واریز ثبت شد؛ مدیر تا ۳ دقیقه فرصت بررسی دارد و سپس سیستم دسترسی را خودکار فعال می‌کند.")
             if lang == "fa" else
-            ("Your corrected payment details were resubmitted for review." if existing else "Payment details were submitted. Access will be enabled after admin approval."),
+            ("Your corrected payment details were resubmitted for review." if existing else "Payment details were submitted. A manager has three minutes to review them, then access is activated automatically."),
         )
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={lang}")
 
@@ -276,6 +281,10 @@ class ManualPaymentStatusView(LoginRequiredMixin, View):
         response = JsonResponse({
             "state": state,
             "ready": state == "approved",
+            "auto_approve_seconds": max(
+                0,
+                int((submission.updated_at + timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS) - timezone.now()).total_seconds()),
+            ) if submission and state == "pending" else 0,
             "redirect_url": f"{reverse('accounts:dashboard')}?lang={request.GET.get('lang', 'fa')}"
             if state == "approved" else "",
         })

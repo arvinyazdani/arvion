@@ -9,8 +9,9 @@ from django.utils import timezone, translation
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
-from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, SupportTicket
+from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
 from contracts.models import ContractProposal
+from leads.models import Lead
 from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
 from management_portal.notifications import process_notifications
 from services.models import Service
@@ -258,6 +259,119 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
         self.assertTrue(OperationalAudit.objects.filter(action="payment_approve", target_id=str(payment.pk)).exists())
 
+    @override_settings(
+        PAYMENT_AUTO_APPROVE_SECONDS=180,
+        WEB_PUSH_VAPID_PRIVATE_KEY="",
+        MANAGEMENT_ALERT_SMS_RECIPIENTS=(),
+    )
+    def test_pending_card_transfer_is_auto_approved_after_three_minutes_with_audit_notification(self):
+        root = User.objects.create_superuser(
+            username="auto-pay-root", email="auto-pay-root@example.com", password="safe-password",
+        )
+        customer = User.objects.create_user(
+            username="auto-buyer", email="auto-buyer@example.com", password="safe-password", is_active=True,
+        )
+        exam = Exam.objects.create(
+            slug="auto-payment", title_fa="آزمون خودکار", title_en="Auto payment",
+            description_fa="", description_en="", language_mode="bilingual", price_irr=1_200_000,
+        )
+        order = Order.objects.create(
+            user=customer, exam=exam, subtotal_irr=1_200_000, amount_irr=1_200_000,
+            gateway="card_transfer", terms_version="2026-08", terms_accepted_at=timezone.now(),
+        )
+        payment = ManualPaymentSubmission.objects.create(
+            order=order, payer_name="مشتری آزمایشی", reference_number="AUTO-180-TEST", paid_at=timezone.now(),
+        )
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(
+            updated_at=timezone.now() - timedelta(seconds=181),
+        )
+
+        result = process_notifications(now=timezone.now())
+
+        payment.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(result["auto_approved"], 1)
+        self.assertEqual(payment.status, "approved")
+        self.assertIsNone(payment.reviewed_by)
+        self.assertIn("تأیید خودکار سیستم", payment.review_note)
+        self.assertEqual(order.status, "paid")
+        self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
+        transaction_row = PaymentTransaction.objects.get(order=order)
+        self.assertTrue(transaction_row.raw_response["automatic_review"])
+        self.assertEqual(
+            ManagementNotification.objects.get(source_key=f"payment:{payment.pk}").status,
+            "resolved",
+        )
+        notification = ManagementNotification.objects.get(source_key=f"payment-auto-approved:{payment.pk}")
+        self.assertEqual(notification.title, "پرداخت توسط سیستم تأیید شد")
+        self.assertTrue(NotificationReceipt.objects.filter(notification=notification, user=root).exists())
+
+        repeated = process_notifications(now=timezone.now() + timedelta(minutes=1))
+        self.assertEqual(repeated["auto_approved"], 0)
+        self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
+
+    @override_settings(PAYMENT_AUTO_APPROVE_SECONDS=180, WEB_PUSH_VAPID_PRIVATE_KEY="")
+    def test_pending_card_transfer_remains_pending_before_three_minutes(self):
+        customer = User.objects.create_user(
+            username="early-buyer", email="early-buyer@example.com", password="safe-password", is_active=True,
+        )
+        exam = Exam.objects.create(
+            slug="early-payment", title_fa="آزمون", title_en="Exam",
+            description_fa="", description_en="", language_mode="bilingual", price_irr=100_000,
+        )
+        order = Order.objects.create(
+            user=customer, exam=exam, subtotal_irr=100_000, amount_irr=100_000,
+            gateway="card_transfer", terms_version="2026-08", terms_accepted_at=timezone.now(),
+        )
+        payment = ManualPaymentSubmission.objects.create(
+            order=order, payer_name="خریدار", reference_number="BEFORE-180", paid_at=timezone.now(),
+        )
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(
+            updated_at=timezone.now() - timedelta(seconds=179),
+        )
+
+        result = process_notifications(now=timezone.now())
+
+        payment.refresh_from_db()
+        self.assertEqual(result["auto_approved"], 0)
+        self.assertEqual(payment.status, "pending")
+        self.assertFalse(ExamEntitlement.objects.filter(order=order).exists())
+
+    @override_settings(PAYMENT_AUTO_APPROVE_SECONDS=180, WEB_PUSH_VAPID_PRIVATE_KEY="")
+    def test_resubmitted_receipt_gets_a_fresh_three_minute_review_window(self):
+        customer = User.objects.create_user(
+            username="resubmit-buyer", email="resubmit-buyer@example.com", password="safe-password", is_active=True,
+        )
+        exam = Exam.objects.create(
+            slug="resubmit-payment", title_fa="آزمون", title_en="Exam",
+            description_fa="", description_en="", language_mode="bilingual", price_irr=100_000,
+        )
+        order = Order.objects.create(
+            user=customer, exam=exam, subtotal_irr=100_000, amount_irr=100_000,
+            gateway="card_transfer", terms_version="2026-08", terms_accepted_at=timezone.now(),
+        )
+        payment = ManualPaymentSubmission.objects.create(
+            order=order, payer_name="خریدار", reference_number="RESUBMIT-180",
+            paid_at=timezone.now(), status="rejected",
+        )
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(
+            updated_at=timezone.now() - timedelta(days=1),
+        )
+        payment.refresh_from_db()
+        payment.status = "pending"
+        payment.save()
+        resubmitted_at = payment.updated_at
+
+        early = process_notifications(now=resubmitted_at + timedelta(seconds=179))
+        payment.refresh_from_db()
+        self.assertEqual(early["auto_approved"], 0)
+        self.assertEqual(payment.status, "pending")
+
+        due = process_notifications(now=resubmitted_at + timedelta(seconds=181))
+        payment.refresh_from_db()
+        self.assertEqual(due["auto_approved"], 1)
+        self.assertEqual(payment.status, "approved")
+
     def test_payment_approval_queue_shows_customer_and_transfer_details(self):
         root = User.objects.create_superuser(username="payment-details-root", email="payment-details@example.com", password="safe-password")
         customer = User.objects.create_user(
@@ -286,11 +400,36 @@ class ManagementDashboardTests(TestCase):
         exam = Exam.objects.create(slug="sla-payment", title_fa="آزمون", title_en="Exam", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
         order = Order.objects.create(user=customer, exam=exam, amount_irr=100000)
         payment = ManualPaymentSubmission.objects.create(order=order, payer_name="خریدار", reference_number="SLA-PAYMENT-1", paid_at=timezone.now())
-        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(created_at=timezone.now() - timedelta(minutes=31))
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(updated_at=timezone.now() - timedelta(minutes=31))
         process_notifications(now=timezone.now())
         self.assertTrue(ManagementNotification.objects.filter(source_key=f"sla:payment:{payment.pk}", category="payments").exists())
         process_notifications(now=timezone.now())
         self.assertEqual(ManagementNotification.objects.filter(source_key=f"sla:payment:{payment.pk}").count(), 1)
+
+    @override_settings(
+        SUPPORT_FIRST_RESPONSE_SLA_SECONDS=60,
+        SALES_FOLLOW_UP_SLA_SECONDS=60,
+        WEB_PUSH_VAPID_PRIVATE_KEY="",
+        MANAGEMENT_ALERT_SMS_RECIPIENTS=(),
+    )
+    def test_payment_automation_keeps_support_and_sales_sla_alerts_active(self):
+        customer = User.objects.create_user(
+            username="sla-coverage", email="sla-coverage@example.com", password="safe-password", is_active=True,
+        )
+        ticket = SupportTicket.objects.create(
+            user=customer, category="technical", subject="درخواست قدیمی", message="نیازمند بررسی",
+        )
+        lead = Lead.objects.create(
+            name="مشتری SLA", email_or_telegram="sla-lead@example.com", phone="09120000000",
+            message="پیگیری درخواست", privacy_accepted_at=timezone.now(),
+        )
+        SupportTicket.objects.filter(pk=ticket.pk).update(created_at=timezone.now() - timedelta(seconds=61))
+        Lead.objects.filter(pk=lead.pk).update(created_at=timezone.now() - timedelta(seconds=61))
+
+        process_notifications(now=timezone.now())
+
+        self.assertTrue(ManagementNotification.objects.filter(source_key=f"sla:support:{ticket.pk}").exists())
+        self.assertTrue(ManagementNotification.objects.filter(source_key=f"sla:lead:{lead.pk}").exists())
 
     def test_support_staff_can_update_ticket_without_admin(self):
         staff = User.objects.create_user(username="support", email="support@example.com", password="safe-password", is_staff=True)
@@ -721,9 +860,9 @@ class ManagementDashboardTests(TestCase):
         exam = Exam.objects.create(slug="sla-dashboard-exam", title_fa="آزمون SLA", title_en="SLA test", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
         order = Order.objects.create(user=user, exam=exam, amount_irr=100000)
         payment = ManualPaymentSubmission.objects.create(order=order, payer_name="مشتری", reference_number="SLA-DASH", paid_at=timezone.now())
-        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(created_at=timezone.now() - timedelta(minutes=31))
+        ManualPaymentSubmission.objects.filter(pk=payment.pk).update(updated_at=timezone.now() - timedelta(minutes=31))
         self.client.force_login(root)
         response = self.client.get(reverse("management_portal:dashboard"))
         self.assertContains(response, "مواردی که از SLA عبور کرده‌اند")
-        self.assertContains(response, "پرداخت خارج از مهلت")
+        self.assertContains(response, "تأیید خودکار معطل")
         self.assertContains(response, ">1<")

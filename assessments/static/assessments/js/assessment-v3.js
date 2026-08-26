@@ -73,9 +73,25 @@
     if (!box) return;
     const title = box.querySelector("[data-payment-title]");
     const note = box.querySelector("[data-payment-note]");
+    const countdown = box.querySelector("[data-payment-countdown]");
+    let secondsLeft = Math.max(0, Number(box.dataset.autoApproveSeconds) || 0);
     let stopped = false;
     let failures = 0;
     let timer;
+    let countdownTimer;
+
+    const drawCountdown = () => {
+      if (!countdown || stopped) return;
+      countdown.textContent = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
+      if (secondsLeft <= 0) {
+        note.textContent = document.documentElement.lang === "fa"
+          ? "مهلت بررسی تمام شد؛ تأیید خودکار در حال نهایی‌شدن است."
+          : "The review window has ended; automatic approval is being finalized.";
+        return;
+      }
+      secondsLeft -= 1;
+      countdownTimer = window.setTimeout(drawCountdown, 1000);
+    };
 
     const later = (delay) => {
       window.clearTimeout(timer);
@@ -94,9 +110,13 @@
         });
         if (!response.ok) throw new Error("payment_status_failed");
         const data = await response.json();
+        if (Number.isFinite(Number(data.auto_approve_seconds))) {
+          secondsLeft = Math.max(0, Number(data.auto_approve_seconds));
+        }
         failures = 0;
         if (data.ready) {
           stopped = true;
+          window.clearTimeout(countdownTimer);
           box.classList.add("is-approved");
           title.textContent = box.dataset.approvedTitle;
           note.textContent = box.dataset.approvedNote;
@@ -105,6 +125,7 @@
         }
         if (data.state === "rejected") {
           stopped = true;
+          window.clearTimeout(countdownTimer);
           box.classList.add("is-rejected");
           title.textContent = box.dataset.rejectedTitle;
           note.textContent = box.dataset.rejectedNote;
@@ -118,6 +139,7 @@
         later(Math.min(30000, 5000 * failures));
       }
     };
+    drawCountdown();
     check();
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && !stopped) check();

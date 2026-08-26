@@ -1,13 +1,16 @@
 import json
+import logging
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.mail import send_mail
 from django.db.models import Q
 from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import User
 from assessments.models import ManualPaymentSubmission, SupportTicket
+from assessments.services import PaymentVerificationError, approve_manual_payment
 from clinic_orders.models import ClinicOrder
 from contracts.models import ContractProposal
 from crm_orders.models import CrmOrder
@@ -21,6 +24,7 @@ from .models import CaseTask, CustomerCase, ManagementNotification, Notification
 # The unseen-receipt guard below prevents duplicate SMS after the manager has
 # already opened the corresponding notification.
 URGENT_SMS_CATEGORIES = {"accounts", "payments"}
+logger = logging.getLogger(__name__)
 
 
 def recipients_for(notification):
@@ -70,7 +74,7 @@ def _send_user_push(user, payload):
 def _create_sla_alerts(now):
     """Escalate genuinely overdue work once, without creating a notification loop."""
     payment_cutoff = now - timedelta(seconds=settings.PAYMENT_REVIEW_SLA_SECONDS)
-    for payment in ManualPaymentSubmission.objects.filter(status="pending", created_at__lte=payment_cutoff):
+    for payment in ManualPaymentSubmission.objects.filter(status="pending", updated_at__lte=payment_cutoff):
         item, created = ManagementNotification.objects.get_or_create(
             source_key=f"sla:payment:{payment.pk}",
             defaults={"category": "payments", "title": "تأیید پرداخت از مهلت عبور کرده است", "description": f"شماره پیگیری: {payment.reference_number}", "target_url": reverse("management_portal:approvals"), "role": "assessments"},
@@ -112,8 +116,65 @@ def _create_sla_alerts(now):
                 create_receipts(notification)
 
 
+def _auto_approve_pending_payments(now):
+    """Grant timed card-transfer access once the manager review window closes."""
+    cutoff = now - timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS)
+    candidate_ids = list(
+        ManualPaymentSubmission.objects.filter(
+            status="pending",
+            updated_at__lte=cutoff,
+            order__gateway="card_transfer",
+            order__status="pending",
+            order__terms_accepted_at__isnull=False,
+        ).values_list("pk", flat=True)
+    )
+    approved_count = 0
+    for payment_id in candidate_ids:
+        try:
+            payment, order, transaction_created, applied = approve_manual_payment(
+                payment_id,
+                reviewer=None,
+                review_note="تأیید خودکار سیستم پس از پایان مهلت ۳ دقیقه‌ای بررسی مدیر",
+                automatic=True,
+            )
+        except (ManualPaymentSubmission.DoesNotExist, PaymentVerificationError):
+            logger.exception("Timed payment approval failed for submission %s", payment_id)
+            continue
+        if not applied:
+            continue
+        approved_count += 1
+        ManagementNotification.objects.filter(
+            Q(source_key=f"payment:{payment.pk}")
+            | Q(source_key__startswith=f"payment:{payment.pk}:resubmitted:")
+            | Q(source_key=f"sla:payment:{payment.pk}"),
+            status__in=("unread", "read"),
+        ).update(status="resolved", resolved_at=now)
+        notification, created = ManagementNotification.objects.get_or_create(
+            source_key=f"payment-auto-approved:{payment.pk}",
+            defaults={
+                "category": "payments",
+                "title": "پرداخت توسط سیستم تأیید شد",
+                "description": f"{payment.reference_number} · {order.user.email} · دسترسی آزمون صادر شد",
+                "target_url": reverse("management_portal:approvals"),
+                "role": "assessments",
+                "due_at": now,
+            },
+        )
+        if created:
+            create_receipts(notification)
+        if transaction_created:
+            send_mail(
+                "پرداخت شما تأیید شد",
+                f"پرداخت سفارش {order.pk} پس از پایان زمان بررسی تأیید شد و دسترسی آزمون فعال است.\n{settings.SITE_URL}/fa/account/",
+                settings.DEFAULT_FROM_EMAIL,
+                [order.user.email],
+                fail_silently=True,
+            )
+    return approved_count
+
 def process_notifications(now=None):
     now = now or timezone.now()
+    auto_approved_count = _auto_approve_pending_payments(now)
     _create_sla_alerts(now)
     push_count = sms_count = reminder_count = 0
     for task in CaseTask.objects.select_related("case").filter(status="open", due_at__lte=now):
@@ -166,4 +227,9 @@ def process_notifications(now=None):
         _send_user_push(first.user, {"title": "یادآوری آرویون", "body": f"{count} مورد تازه هنوز دیده نشده است.", "url": "/fa/management/notifications/", "tag": "rvion-hourly-reminder"})
         user_due.update(last_reminded_at=now)
         reminder_count += 1
-    return {"push": push_count, "sms": sms_count, "reminders": reminder_count}
+    return {
+        "auto_approved": auto_approved_count,
+        "push": push_count,
+        "sms": sms_count,
+        "reminders": reminder_count,
+    }

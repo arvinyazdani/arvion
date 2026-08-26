@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, ExamEntitlement,
-    ExamVersion, Order, PaymentTransaction, Question, SkillResult,
+    ExamVersion, ManualPaymentSubmission, Order, PaymentTransaction, Question, SkillResult,
 )
 
 
@@ -123,6 +123,39 @@ def verify_sandbox_payment(order_id):
         amount_irr=order.amount_irr,
         response={"sandbox": gateway == "sandbox", "free_checkout": gateway == "free"},
     )
+
+
+@transaction.atomic
+def approve_manual_payment(submission_id, *, reviewer=None, review_note="", automatic=False):
+    """Approve one pending card transfer exactly once and grant its entitlement.
+
+    Manager actions and the timed fallback share this lock-protected path so a
+    race at the three-minute boundary cannot issue duplicate access.
+    """
+    submission = ManualPaymentSubmission.objects.select_for_update().select_related(
+        "order__user", "order__exam",
+    ).get(pk=submission_id)
+    if submission.status != "pending":
+        return submission, submission.order, False, False
+    order, transaction_created = verify_gateway_payment(
+        submission.order_id,
+        gateway="card_transfer",
+        external_id=f"card-{submission.reference_number}",
+        amount_irr=submission.order.amount_irr,
+        response={
+            "manual_review": not automatic,
+            "automatic_review": automatic,
+            "reference": submission.reference_number,
+        },
+    )
+    submission.status = "approved"
+    submission.reviewed_by = reviewer
+    submission.reviewed_at = timezone.now()
+    submission.review_note = review_note.strip()[:500]
+    submission.save(update_fields=[
+        "status", "reviewed_by", "reviewed_at", "review_note", "updated_at",
+    ])
+    return submission, order, transaction_created, True
 
 
 @transaction.atomic

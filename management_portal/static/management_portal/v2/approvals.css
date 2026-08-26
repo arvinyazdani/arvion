@@ -128,6 +128,29 @@
   color: var(--status-danger-text);
 }
 
+.payment-review-deadline,
+.payment-auto-approved {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: .73rem;
+  font-weight: 850;
+}
+
+.payment-review-deadline {
+  border: 1px solid var(--status-warning-border);
+  background: var(--status-warning-surface);
+  color: var(--status-warning-text);
+}
+
+.payment-review-deadline b { min-width: 4ch; font-variant-numeric: tabular-nums; }
+.payment-review-deadline.is-due { border-color: var(--status-danger-border); background: var(--status-danger-surface); color: var(--status-danger-text); }
+.payment-auto-approved { border: 1px solid var(--status-success-border); background: var(--status-success-surface); color: var(--status-success-text); }
+
 .payment-customer-details {
   width: min(100%, 690px);
   margin-top: 10px;
