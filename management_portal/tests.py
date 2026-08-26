@@ -9,7 +9,7 @@ from django.utils import timezone, translation
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
-from assessments.models import Exam, ExamEntitlement, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
+from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
 from contracts.models import ContractProposal
 from leads.models import Lead
 from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
@@ -157,6 +157,55 @@ class ManagementDashboardTests(TestCase):
         response = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
         self.assertContains(response, "پروژه مالی")
         self.assertContains(response, "آزمون مالی")
+
+    def test_registered_account_without_order_opens_as_customer_followup_record(self):
+        root = User.objects.create_superuser(username="journey-root", email="journey-root@example.com", password="safe-password")
+        account = User.objects.create_user(username="journey-client", email="journey@example.com", mobile="989120001234", password="safe-password", is_active=True)
+        self.client.force_login(root)
+        dashboard = self.client.get(reverse("management_portal:dashboard"))
+        self.assertContains(dashboard, "عضو شده، بدون سفارش")
+        self.assertContains(dashboard, account.mobile)
+        opened = self.client.get(reverse("management_portal:customer_account_open", args=[account.pk]))
+        customer = CustomerContact.objects.get(user=account).customer
+        self.assertRedirects(opened, reverse("management_portal:customer_detail", args=[customer.pk]))
+        detail = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(detail, "دعوت به ثبت سفارش")
+
+    @patch("management_portal.views.send_sms")
+    def test_superuser_can_message_only_a_number_belonging_to_customer(self, mocked_send):
+        mocked_send.return_value = SMSResult(provider="test", reference="customer-ref")
+        root = User.objects.create_superuser(username="message-root", email="message-root@example.com", password="safe-password")
+        customer = Customer.objects.create(name="مشتری پیام", phone="09120004321")
+        self.client.force_login(root)
+        response = self.client.post(reverse("management_portal:customer_message_send", args=[customer.pk]), {
+            "recipient": "09120004321", "message": "پیگیری آزمون", "confirm": "on",
+        })
+        self.assertRedirects(response, reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-message")
+        self.assertTrue(SMSDispatch.objects.filter(recipient="989120004321", status="sent").exists())
+        self.assertTrue(OperationalAudit.objects.filter(action="customer_sms_sent", target_id=str(customer.pk)).exists())
+        rejected = self.client.post(reverse("management_portal:customer_message_send", args=[customer.pk]), {
+            "recipient": "09129999999", "message": "نباید ارسال شود", "confirm": "on",
+        })
+        self.assertEqual(rejected.status_code, 403)
+
+    def test_customer_assessment_detail_exposes_result_without_answer_key(self):
+        root = User.objects.create_superuser(username="result-root", email="result-root@example.com", password="safe-password")
+        account = User.objects.create_user(username="result-user", email="result@example.com", mobile="989120005555", password="safe-password")
+        customer = Customer.objects.create(name="مشتری نتیجه", phone=account.mobile, email=account.email)
+        CustomerContact.objects.create(customer=customer, user=account, name=customer.name, phone=account.mobile, is_primary=True)
+        exam = Exam.objects.create(slug="result-exam", title_fa="آزمون نتیجه", title_en="Result exam", description_fa="", description_en="", language_mode="bilingual")
+        version = ExamVersion.objects.create(exam=exam, version=1, is_published=True)
+        order = Order.objects.create(user=account, customer=customer, exam=exam, amount_irr=1_200_000, status="paid")
+        entitlement = ExamEntitlement.objects.create(user=account, exam=exam, order=order)
+        attempt = Attempt.objects.create(user=account, exam=exam, version=version, entitlement=entitlement, status="completed", started_at=timezone.now() - timedelta(minutes=20), submitted_at=timezone.now())
+        AttemptResult.objects.create(attempt=attempt, correct_count=42, incorrect_count=8, unanswered_count=0, percentage="84.00", level_code="B2", level_title_fa="متوسط رو به بالا", level_title_en="Upper intermediate", summary_fa="خوب", summary_en="Good")
+        self.client.force_login(root)
+        detail = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(detail, "نتیجه آماده")
+        response = self.client.get(reverse("management_portal:customer_assessment_detail", args=[customer.pk, account.pk]))
+        self.assertContains(response, "84.00%")
+        self.assertContains(response, "B2")
+        self.assertNotContains(response, "پاسخ صحیح سؤال")
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):
         user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)
@@ -820,7 +869,7 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(payment.category, "payments")
         self.assertEqual(later.owner, None)
 
-    def test_notification_quick_actions_return_json_and_keep_html_fallback(self):
+    def test_notification_cards_only_refer_to_work_while_legacy_actions_keep_api_fallback(self):
         root = User.objects.create_superuser(username="async-notify-root", email="async-notify@example.com", password="safe-password")
         claimed_item = ManagementNotification.objects.create(category="sales", title="پیگیری سریع", target_url=reverse("management_portal:request_list"), role="", source_key="async:claim")
         resolved_item = ManagementNotification.objects.create(category="payments", title="رسید آماده", target_url=reverse("management_portal:approvals"), role="", source_key="async:resolve")
@@ -829,8 +878,9 @@ class ManagementDashboardTests(TestCase):
         self.client.force_login(root)
 
         inbox = self.client.get(reverse("management_portal:notification_list"))
-        self.assertContains(inbox, 'data-notification-action="claim"')
-        self.assertContains(inbox, "data-no-loader")
+        self.assertNotContains(inbox, 'data-notification-action="claim"')
+        self.assertNotContains(inbox, 'data-notification-action="resolved"')
+        self.assertContains(inbox, "رفتن به محل انجام کار")
         self.assertContains(inbox, "data-notification-queue")
 
         claimed = self.client.post(

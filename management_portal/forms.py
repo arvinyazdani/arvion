@@ -128,6 +128,38 @@ class ManualSMSForm(forms.Form):
         return message
 
 
+class CustomerMessageForm(forms.Form):
+    recipient = forms.CharField(label="شماره گیرنده", max_length=20)
+    message = forms.CharField(
+        label="متن پیام",
+        max_length=1000,
+        widget=forms.Textarea(attrs={"rows": 5, "placeholder": "پیام پیگیری را بنویسید..."}),
+    )
+    confirm = forms.BooleanField(label="شماره و متن را بررسی کرده‌ام")
+
+    def __init__(self, *args, lang="fa", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lang = lang
+        if lang == "en":
+            self.fields["recipient"].label = "Recipient"
+            self.fields["message"].label = "Message"
+            self.fields["message"].widget.attrs["placeholder"] = "Write a follow-up message..."
+            self.fields["confirm"].label = "I reviewed the number and message"
+        enhance_form_accessibility(self, autocomplete={"recipient": "tel", "message": "off"})
+
+    def clean_recipient(self):
+        try:
+            return normalize_iran_mobile(self.cleaned_data["recipient"])
+        except ValueError as exc:
+            raise forms.ValidationError("شماره موبایل معتبر نیست." if self.lang == "fa" else "Enter a valid mobile number.") from exc
+
+    def clean_message(self):
+        value = self.cleaned_data["message"].strip()
+        if not value:
+            raise forms.ValidationError("متن پیام نمی‌تواند خالی باشد." if self.lang == "fa" else "Message cannot be empty.")
+        return value
+
+
 class CustomerCaseForm(forms.ModelForm):
     tags = forms.CharField(required=False)
     class Meta:

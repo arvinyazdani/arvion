@@ -34,7 +34,7 @@ from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
-from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
+from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, CustomerMessageForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
 from .backups import find_backup_inventory
 from assessments.services import PaymentVerificationError, approve_manual_payment
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
@@ -74,6 +74,30 @@ def customer_workspace(request):
             "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(),
         },
     })
+
+
+@staff_member_required(login_url="accounts:login")
+def customer_account_open(request, user_id):
+    """Resolve a registered account into its canonical customer record on demand."""
+    account = get_object_or_404(User, pk=user_id, is_staff=False)
+    contact = CustomerContact.objects.filter(user=account).select_related("customer").first()
+    if contact:
+        return redirect("management_portal:customer_detail", customer_id=contact.customer_id)
+    customer = Customer.objects.filter(email__iexact=account.email).first()
+    if not customer and account.mobile:
+        customer = Customer.objects.filter(phone=account.mobile).first()
+    if not customer:
+        customer = Customer.objects.create(
+            name=account.get_full_name() or account.email or account.mobile or f"کاربر {account.pk}",
+            kind="person", phone=account.mobile or "", email=account.email,
+        )
+    CustomerContact.objects.create(
+        customer=customer, user=account, name=account.get_full_name() or account.email or account.mobile,
+        phone=account.mobile or "", email=account.email, is_primary=not customer.contacts.exists(),
+    )
+    Order.objects.filter(user=account, customer__isnull=True).update(customer=customer)
+    OperationalAudit.objects.create(actor=request.user, action="customer_account_linked", target_type="customer", target_id=str(customer.pk), summary=account.email or account.mobile)
+    return redirect("management_portal:customer_detail", customer_id=customer.pk)
 
 
 @staff_member_required(login_url="accounts:login")
@@ -140,11 +164,117 @@ def customer_merge(request, source_id):
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
-    events = CaseActivity.objects.filter(case__customer=customer).select_related("case", "actor").order_by("-created_at")[:30]
+    case_events = list(CaseActivity.objects.filter(case__customer=customer).select_related("case", "actor").order_by("-created_at")[:60])
     contracts = customer.contracts.select_related("created_by").order_by("-updated_at")[:10]
-    orders = customer.assessment_orders.select_related("exam", "user", "manual_payment").order_by("-created_at")[:10]
+    orders = list(customer.assessment_orders.select_related("exam", "user", "manual_payment").order_by("-created_at")[:20])
+    user_ids = set(customer.contacts.exclude(user__isnull=True).values_list("user_id", flat=True))
+    user_ids.update(order.user_id for order in orders)
+    attempts = list(
+        Attempt.objects.filter(user_id__in=user_ids)
+        .select_related("user", "exam", "entitlement__order", "result")
+        .prefetch_related("result__skill_results__skill", "integrity_events")
+        .order_by("-created_at")[:30]
+    )
     tickets = SupportTicket.objects.filter(Q(order__customer=customer) | Q(user__customer_contact_profiles__customer=customer)).select_related("order__exam", "user").distinct().order_by("-updated_at")[:10]
-    return render(request, "management_portal/v2/customer_detail.html", {"customer": customer, "contact_form": CustomerContactForm(lang=lang), "events": events, "contracts": contracts, "orders": orders, "tickets": tickets, "lang": lang})
+    timeline = []
+    for contact in customer.contacts.all():
+        if contact.user_id:
+            timeline.append({"at": contact.user.date_joined, "kind": "account", "title": "عضویت در سایت", "detail": contact.user.email or contact.user.mobile or contact.name})
+    for order in orders:
+        timeline.append({"at": order.created_at, "kind": "order", "title": "سفارش آزمون ثبت شد", "detail": order.exam.title_fa, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, order.user_id])})
+        if order.paid_at:
+            timeline.append({"at": order.paid_at, "kind": "payment", "title": "پرداخت تأیید شد", "detail": f"{order.amount_irr:,} ریال"})
+        elif hasattr(order, "manual_payment"):
+            timeline.append({"at": order.manual_payment.created_at, "kind": "payment", "title": "رسید کارت‌به‌کارت ثبت شد", "detail": order.manual_payment.get_status_display(), "url": reverse("management_portal:approvals")})
+    for attempt in attempts:
+        timeline.append({"at": attempt.started_at or attempt.created_at, "kind": "assessment", "title": "آزمون شروع شد", "detail": attempt.exam.title_fa, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
+        if attempt.status == "completed" and hasattr(attempt, "result"):
+            timeline.append({"at": attempt.result.generated_at, "kind": "result", "title": "نتیجه آزمون آماده شد", "detail": f"{attempt.result.level_code} · {attempt.result.percentage}%", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
+    for event in case_events:
+        timeline.append({"at": event.created_at, "kind": event.kind, "title": event.title, "detail": event.body, "meta": event.case.code})
+    timeline.sort(key=lambda item: item["at"] or timezone.now(), reverse=True)
+
+    has_account = bool(user_ids)
+    has_order = bool(orders)
+    has_paid = any(order.status == "paid" for order in orders)
+    has_started = bool(attempts)
+    has_completed = any(attempt.status == "completed" for attempt in attempts)
+    journey = [
+        {"label_fa": "عضویت", "label_en": "Account", "done": has_account},
+        {"label_fa": "سفارش", "label_en": "Order", "done": has_order},
+        {"label_fa": "پرداخت", "label_en": "Payment", "done": has_paid},
+        {"label_fa": "شروع آزمون", "label_en": "Started", "done": has_started},
+        {"label_fa": "نتیجه", "label_en": "Result", "done": has_completed},
+    ]
+    if not has_account:
+        next_action = {"title_fa": "اطلاعات حساب را تکمیل کنید", "title_en": "Complete account details", "detail_fa": "یک حساب سایت را به مخاطب اصلی متصل کنید.", "detail_en": "Link a site account to the primary contact.", "url": "#customer-contacts"}
+    elif not has_order:
+        next_action = {"title_fa": "دعوت به ثبت سفارش", "title_en": "Invite to order", "detail_fa": "مشتری عضو شده اما هنوز آزمونی سفارش نداده است.", "detail_en": "The customer registered but has not ordered an assessment.", "url": "#customer-message"}
+    elif not has_paid:
+        next_action = {"title_fa": "پیگیری پرداخت", "title_en": "Follow up payment", "detail_fa": "سفارش ساخته شده اما پرداخت کامل نشده است.", "detail_en": "An order exists but payment is incomplete.", "url": "#customer-message"}
+    elif not has_started:
+        next_action = {"title_fa": "یادآوری شروع آزمون", "title_en": "Remind to start", "detail_fa": "دسترسی فعال است؛ مشتری هنوز آزمون را شروع نکرده است.", "detail_en": "Access is active but the assessment has not started.", "url": "#customer-message"}
+    elif not has_completed:
+        next_action = {"title_fa": "آزمون در جریان است", "title_en": "Assessment in progress", "detail_fa": "وضعیت نشست و رویدادهای سلامت آزمون را بررسی کنید.", "detail_en": "Review the session and assessment integrity events.", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempts[0].user_id])}
+    else:
+        next_action = {"title_fa": "نتیجه آماده پیگیری است", "title_en": "Result ready for follow-up", "detail_fa": "نتیجه را ببینید و پیام پیگیری ارسال کنید.", "detail_en": "Review the result and send a follow-up message.", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempts[0].user_id])}
+    can_message = request.user.is_superuser or request.user.has_perm("management_portal.add_smsdispatch")
+    initial_phone = customer.phone or next((contact.phone for contact in customer.contacts.all() if contact.phone), "")
+    return render(request, "management_portal/v2/customer_detail.html", {"customer": customer, "contact_form": CustomerContactForm(lang=lang), "message_form": CustomerMessageForm(lang=lang, initial={"recipient": initial_phone}), "can_message": can_message, "events": timeline[:80], "contracts": contracts, "orders": orders, "attempts": attempts, "tickets": tickets, "journey": journey, "next_action": next_action, "lang": lang})
+
+
+def _customer_mobile_numbers(customer):
+    from core.sms.backends import normalize_iran_mobile
+    values = [customer.phone, *customer.contacts.exclude(phone="").values_list("phone", flat=True)]
+    numbers = set()
+    for value in values:
+        try:
+            numbers.add(normalize_iran_mobile(value))
+        except ValueError:
+            continue
+    return numbers
+
+
+@staff_member_required(login_url="accounts:login")
+def customer_assessment_detail(request, customer_id, user_id):
+    customer = get_object_or_404(Customer.objects.prefetch_related("contacts"), pk=customer_id)
+    linked_user_ids = set(customer.contacts.exclude(user__isnull=True).values_list("user_id", flat=True))
+    linked_user_ids.update(customer.assessment_orders.values_list("user_id", flat=True))
+    if user_id not in linked_user_ids:
+        raise Http404
+    account = get_object_or_404(User, pk=user_id)
+    attempts = Attempt.objects.filter(user=account).select_related("exam", "entitlement__order", "result").prefetch_related("result__skill_results__skill", "integrity_events").order_by("-created_at")
+    orders = customer.assessment_orders.filter(user=account).select_related("exam", "manual_payment").order_by("-created_at")
+    return render(request, "management_portal/v2/customer_assessment_detail.html", {"customer": customer, "account": account, "attempts": attempts, "orders": orders, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_message_send(request, customer_id):
+    if not (request.user.is_superuser or request.user.has_perm("management_portal.add_smsdispatch")):
+        raise PermissionDenied
+    customer = get_object_or_404(Customer, pk=customer_id)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    form = CustomerMessageForm(request.POST, lang=lang)
+    if not form.is_valid():
+        messages.error(request, "شماره یا متن پیام معتبر نیست." if lang == "fa" else "The number or message is invalid.")
+        return redirect(reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-message")
+    recipient = form.cleaned_data["recipient"]
+    if recipient not in _customer_mobile_numbers(customer):
+        raise PermissionDenied
+    try:
+        result = send_sms(recipient, form.cleaned_data["message"])
+    except (SMSDeliveryError, ImproperlyConfigured, ValueError) as exc:
+        SMSDispatch.objects.create(recipient=recipient, message=form.cleaned_data["message"], status="failed", error_message=str(exc)[:240], sent_by=request.user)
+        messages.error(request, "ارسال پیام ناموفق بود؛ خطا برای پیگیری ثبت شد." if lang == "fa" else "Message delivery failed; the error was recorded.")
+    else:
+        SMSDispatch.objects.create(recipient=recipient, message=form.cleaned_data["message"], status="sent", provider=result.provider, provider_reference=result.reference, sent_by=request.user)
+        OperationalAudit.objects.create(actor=request.user, action="customer_sms_sent", target_type="customer", target_id=str(customer.pk), summary=recipient, metadata={"message_length": len(form.cleaned_data["message"])})
+        latest_case = customer.cases.order_by("-updated_at").first()
+        if latest_case:
+            CaseActivity.objects.create(case=latest_case, actor=request.user, kind="message", title="پیام پیگیری ارسال شد", body=form.cleaned_data["message"])
+        messages.success(request, "پیام برای ارسال پذیرفته شد." if lang == "fa" else "The message was accepted for delivery.")
+    return redirect(reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-message")
 
 
 @staff_member_required(login_url="accounts:login")
@@ -399,6 +529,10 @@ def dashboard(request):
             if item["meta"] == "منتظر فعال‌سازی":
                 item["meta"] = "Awaiting verification"
     recent_customers = Customer.objects.prefetch_related("contacts", "cases").order_by("-updated_at")[:8]
+    registered_without_order = User.objects.filter(is_staff=False, is_active=True, assessment_orders__isnull=True, mobile__isnull=False).exclude(mobile="").order_by("-date_joined")[:6]
+    pending_orders = Order.objects.filter(status="pending").select_related("user", "exam", "customer").order_by("-created_at")[:6]
+    paid_not_started = Order.objects.filter(status="paid", entitlement__attempt__isnull=True).select_related("user", "exam", "customer").order_by("-paid_at", "-updated_at")[:6]
+    completed_attempts = Attempt.objects.filter(status="completed").select_related("user", "exam", "entitlement__order__customer", "result").order_by("-submitted_at", "-updated_at")[:6]
     open_tasks = CaseTask.objects.filter(status="open").select_related("case__customer", "assigned_to").order_by("due_at", "-created_at")[:8]
     inbox_items = unread_notifications.select_related("owner").order_by("-created_at")[:6]
     return render(request, "management_portal/v2/dashboard.html", {
@@ -406,6 +540,12 @@ def dashboard(request):
         "unread_count": unread_count,
         "sla_cards": sla_cards,
         "recent_customers": recent_customers, "open_tasks": open_tasks, "inbox_items": inbox_items,
+        "journey_queues": {
+            "registered": registered_without_order,
+            "pending": pending_orders,
+            "ready": paid_not_started,
+            "completed": completed_attempts,
+        },
         "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
     })
 

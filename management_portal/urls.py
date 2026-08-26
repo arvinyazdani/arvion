@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
+from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_account_open, customer_assessment_detail, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_message_send, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
 from contracts.views import contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke
 from .workspace_views import (
     workspace_access_create,
@@ -20,6 +20,9 @@ urlpatterns = [
     path("customers/duplicates/", customer_duplicates, name="customer_duplicates"),
     path("customers/<int:source_id>/merge/", customer_merge, name="customer_merge"),
     path("customers/<int:customer_id>/", customer_detail, name="customer_detail"),
+    path("customers/accounts/<int:user_id>/open/", customer_account_open, name="customer_account_open"),
+    path("customers/<int:customer_id>/assessments/<int:user_id>/", customer_assessment_detail, name="customer_assessment_detail"),
+    path("customers/<int:customer_id>/message/", customer_message_send, name="customer_message_send"),
     path("customers/<int:customer_id>/contacts/new/", customer_contact_create, name="customer_contact_create"),
     path("crm/", crm_workspace, name="crm_workspace"),
     path("crm/cases/<int:case_id>/", crm_case_detail, name="crm_case_detail"),
