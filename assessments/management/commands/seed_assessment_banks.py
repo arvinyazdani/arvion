@@ -71,7 +71,7 @@ class Command(BaseCommand):
                 "description_fa": "ارزیابی گرامر، واژگان، درک مطلب، کاربرد زبان، شنیدار و مهارت‌های نوشتاری.",
                 "description_en": "A structured assessment of grammar, vocabulary, reading, use of English, listening, and writing skills.",
                 "language_mode": "en", "question_count": 50, "duration_minutes": 75,
-                "price_irr": 500_000, "is_active": True, "display_order": 1,
+                "price_irr": 1_200_000, "is_active": True, "display_order": 1,
             },
             "python-django-professional": {
                 "title_fa": "ارزیابی تخصصی Python و Django", "title_en": "Professional Python & Django Assessment",
