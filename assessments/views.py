@@ -123,7 +123,7 @@ class CreateOrderView(LoginRequiredMixin, View):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
         is_free = settings.ASSESSMENT_FREE_CHECKOUT
         customer = _customer_for_user(request.user)
-        order, _ = Order.objects.get_or_create(
+        order, created = Order.objects.get_or_create(
             user=request.user, exam=exam, status="pending",
             defaults={
                 "customer": customer,
@@ -145,6 +145,27 @@ class CreateOrderView(LoginRequiredMixin, View):
             order.discount_percent = 100
             order.amount_irr = 0
             order.gateway = "free"
+            order.save(update_fields=["subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "updated_at"])
+        elif (
+            not is_free
+            and not created
+            and order.terms_accepted_at is None
+            and not ManualPaymentSubmission.objects.filter(order=order).exists()
+            and (
+                order.subtotal_irr != exam.price_irr
+                or order.amount_irr != exam.price_irr
+                or order.discount_irr
+                or order.discount_percent
+                or order.gateway != settings.PAYMENT_GATEWAY
+            )
+        ):
+            # An abandoned cart is not a price commitment. Refresh only orders
+            # that have neither accepted terms nor submitted payment evidence.
+            order.subtotal_irr = exam.price_irr
+            order.discount_irr = 0
+            order.discount_percent = 0
+            order.amount_irr = exam.price_irr
+            order.gateway = settings.PAYMENT_GATEWAY
             order.save(update_fields=["subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "updated_at"])
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={request.GET.get('lang', 'fa')}")
 

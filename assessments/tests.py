@@ -147,6 +147,39 @@ class AssessmentCommerceTests(TestCase):
         self.assertIn(reverse("accounts:login"), response.url)
 
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_untouched_pending_order_refreshes_to_current_exam_price(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000,
+            amount_irr=500_000, gateway="card_transfer",
+        )
+        self.exam.price_irr = 1_200_000
+        self.exam.save(update_fields=["price_irr"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+
+        self.assertRedirects(response, reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
+        order.refresh_from_db()
+        self.assertEqual(order.subtotal_irr, 1_200_000)
+        self.assertEqual(order.amount_irr, 1_200_000)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_pending_order_keeps_committed_price_after_terms_acceptance(self):
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=500_000,
+            amount_irr=500_000, gateway="card_transfer",
+            terms_accepted_at=timezone.now(), terms_version="test-v1",
+        )
+        self.exam.price_irr = 1_200_000
+        self.exam.save(update_fields=["price_irr"])
+        self.client.force_login(self.user)
+
+        self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+
+        order.refresh_from_db()
+        self.assertEqual(order.amount_irr, 500_000)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
     def test_card_transfer_waits_for_admin_then_grants_access(self):
         self.client.force_login(self.user)
         self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
