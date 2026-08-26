@@ -39,6 +39,8 @@ ops/arvan-user-data-private.sh
 
 # Local config
 local_settings.py
+AGENTS.md
+CLAUDE.md
 
 # Static files cache
 staticfiles/
