@@ -178,6 +178,19 @@ class PhoneVerificationView(LanguageViewMixin, FormView):
         return super().form_invalid(form)
 
     def dispatch(self, request, *args, **kwargs):
+        user_id = request.session.get("phone_verification_user_id")
+        approved_user = User.objects.filter(pk=user_id, is_active=True).first()
+        if approved_user:
+            request.session.pop("phone_verification_user_id", None)
+            _clear_sms_delivery_failure(request)
+            lang = request.GET.get("lang") or getattr(request, "LANGUAGE_CODE", "fa")
+            messages.success(
+                request,
+                "حساب شما توسط مدیر تأیید شد؛ اکنون وارد شوید."
+                if lang == "fa" else
+                "Your account was approved by an administrator. You can now sign in.",
+            )
+            return redirect(f"{reverse('accounts:login')}?lang={lang}")
         if not self._user():
             lang = request.GET.get("lang") or getattr(request, "LANGUAGE_CODE", "fa")
             messages.info(request, "ابتدا فرم ثبت‌نام را تکمیل کنید." if lang == "fa" else "Complete registration first.")

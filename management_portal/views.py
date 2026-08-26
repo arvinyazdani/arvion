@@ -605,12 +605,15 @@ def account_approval(request, user_id, decision):
         summary = f"شماره موبایل {customer.email} به‌صورت تلفنی تأیید شد"
     elif decision == "approve":
         if customer.mobile_verified_at is None:
-            messages.error(request, "این حساب هنوز کد تأیید پیامکی را وارد نکرده و قابل فعال‌سازی نیست.")
-            return redirect("management_portal:approvals")
+            customer.mobile_verified_at = timezone.now()
         customer.is_active = True
         customer.email_verified = True
-        customer.save(update_fields=["is_active", "email_verified"])
-        summary = f"حساب {customer.email} فعال شد"
+        customer.save(update_fields=["is_active", "email_verified", "mobile_verified_at"])
+        ManagementNotification.objects.filter(
+            Q(source_key=f"user:{customer.pk}") | Q(source_key=f"mobile-verification:{customer.pk}"),
+            status__in=("unread", "read"),
+        ).update(status="resolved", resolved_by=request.user, resolved_at=timezone.now())
+        summary = f"حساب {customer.email} با تأیید مدیر فعال شد"
     else:
         customer.is_active = False
         customer.save(update_fields=["is_active"])
@@ -650,6 +653,16 @@ def payment_review(request, payment_id, decision):
         payment.status = "rejected"
         payment.reviewed_by, payment.reviewed_at, payment.review_note = request.user, timezone.now(), note
         payment.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"])
+    ManagementNotification.objects.filter(
+        Q(source_key=f"payment:{payment.pk}")
+        | Q(source_key__startswith=f"payment:{payment.pk}:resubmitted:")
+        | Q(source_key=f"sla:payment:{payment.pk}"),
+        status__in=("unread", "read"),
+    ).update(
+        status="resolved",
+        resolved_by=request.user,
+        resolved_at=timezone.now(),
+    )
     OperationalAudit.objects.create(actor=request.user, action=f"payment_{decision}", target_type="manual_payment", target_id=str(payment.pk), summary=f"رسید {payment.reference_number}: {payment.status}", metadata={"order": str(payment.order_id)})
     messages.success(request, "بررسی رسید ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Payment review saved.")
     return redirect("management_portal:approvals")

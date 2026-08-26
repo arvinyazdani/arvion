@@ -207,7 +207,7 @@ class ManagementDashboardTests(TestCase):
         self.assertTrue(customer.email_verified)
         self.assertTrue(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
 
-    def test_superuser_cannot_approve_account_before_mobile_otp(self):
+    def test_superuser_approval_overrides_missing_mobile_otp(self):
         root = User.objects.create_superuser(username="approval-safe-root", email="approval-safe-root@example.com", password="safe-password")
         customer = User.objects.create_user(username="waiting-otp", email="waiting-otp@example.com", password="safe-password", is_active=False)
         self.client.force_login(root)
@@ -216,8 +216,10 @@ class ManagementDashboardTests(TestCase):
 
         self.assertRedirects(response, reverse("management_portal:approvals"))
         customer.refresh_from_db()
-        self.assertFalse(customer.is_active)
-        self.assertFalse(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
+        self.assertTrue(customer.is_active)
+        self.assertTrue(customer.email_verified)
+        self.assertIsNotNone(customer.mobile_verified_at)
+        self.assertTrue(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
 
     def test_superuser_can_complete_phone_check_for_temporary_sms_recovery_account(self):
         root = User.objects.create_superuser(username="phone-check-root", email="phone-check-root@example.com", password="safe-password")
@@ -258,6 +260,9 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(order.status, "paid")
         self.assertEqual(ExamEntitlement.objects.filter(order=order).count(), 1)
         self.assertTrue(OperationalAudit.objects.filter(action="payment_approve", target_id=str(payment.pk)).exists())
+        notification = ManagementNotification.objects.get(source_key=f"payment:{payment.pk}")
+        self.assertEqual(notification.status, "resolved")
+        self.assertEqual(notification.resolved_by, root)
 
     @override_settings(
         PAYMENT_AUTO_APPROVE_SECONDS=180,
@@ -541,7 +546,7 @@ class ManagementDashboardTests(TestCase):
         self.client.force_login(root)
 
         error_response = self.client.post(
-            reverse("management_portal:account_approval", args=[customer.pk, "approve"]) + "?lang=en",
+            reverse("management_portal:account_approval", args=[customer.pk, "verify_mobile"]) + "?lang=en",
             follow=True,
         )
         self.assertContains(error_response, 'class="m-message error"', html=False)

@@ -202,6 +202,20 @@ class AccountFlowTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
         self.assertContains(response, "Enter the code we texted you")
 
+    def test_verification_screen_redirects_to_login_after_manager_approval(self):
+        self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
+        user = User.objects.get(email="arvin@example.com")
+        user.is_active = True
+        user.email_verified = True
+        user.mobile_verified_at = timezone.now()
+        user.save(update_fields=["is_active", "email_verified", "mobile_verified_at"])
+
+        response = self.client.get(reverse("accounts:verify_phone") + "?lang=fa", follow=True)
+
+        self.assertRedirects(response, reverse("accounts:login") + "?lang=fa")
+        self.assertContains(response, "حساب شما توسط مدیر تأیید شد")
+        self.assertNotIn("phone_verification_user_id", self.client.session)
+
     def test_registration_requires_first_and_last_name(self):
         payload = self.registration_payload()
         payload["first_name"] = ""
