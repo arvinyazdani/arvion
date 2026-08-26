@@ -2,6 +2,26 @@ from django.utils import translation
 from django.conf import settings
 
 
+class FriendlyMethodNotAllowedMiddleware:
+    """Replace bare HTML 405 responses with the branded recovery page."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        accepts_html = "text/html" in request.headers.get("Accept", "text/html")
+        if response.status_code != 405 or not accepts_html:
+            return response
+
+        from core.views.errors import method_not_allowed
+
+        rendered = method_not_allowed(request)
+        if response.has_header("Allow"):
+            rendered["Allow"] = response["Allow"]
+        return rendered
+
+
 class SecurityResponseHeadersMiddleware:
     """Apply browser security boundaries consistently to public and staff pages."""
 

@@ -52,6 +52,16 @@ class AssessmentUISystemTests(SimpleTestCase):
         self.assertIn('window.addEventListener("pageshow"', self.behavior)
         self.assertIn('form.removeAttribute("data-submit-state")', self.behavior)
 
+    def test_payment_consent_overrides_legacy_checkbox_layout(self):
+        self.assertIn(
+            ".manual-payment-form .consent-field{display:grid;grid-template-columns:minmax(0,1fr) auto",
+            self.styles,
+        )
+        self.assertIn(
+            '.manual-payment-form .consent-field input[type="checkbox"]',
+            self.styles,
+        )
+
 
 class AssessmentAdminExportTests(TestCase):
     def setUp(self):
@@ -145,6 +155,18 @@ class AssessmentCommerceTests(TestCase):
         response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response.url)
+
+    def test_legacy_get_purchase_link_returns_to_exam_without_creating_order(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("assessments:create_order", args=[self.exam.slug]))
+
+        self.assertRedirects(
+            response,
+            reverse("assessments:detail", args=[self.exam.slug]) + "?lang=fa",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(Order.objects.exists())
 
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
     def test_untouched_pending_order_refreshes_to_current_exam_price(self):

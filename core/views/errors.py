@@ -26,6 +26,10 @@ def page_not_found(request, exception=None):
     return _render_error(request, 404, management=_is_management_request(request))
 
 
+def method_not_allowed(request):
+    return _render_error(request, 405, management=_is_management_request(request))
+
+
 def server_error(request):
     # Keep the 500 template standalone so it remains renderable when an app,
     # database query, or context processor is the original failure source.

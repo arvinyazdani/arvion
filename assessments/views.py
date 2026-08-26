@@ -119,6 +119,18 @@ class SupportTicketListView(LanguageViewMixin, LoginRequiredMixin, ListView):
 
 
 class CreateOrderView(LoginRequiredMixin, View):
+    def get(self, request, slug):
+        """Recover safely from legacy login redirects to this POST-only action."""
+        exam = get_object_or_404(Exam, slug=slug, is_active=True)
+        lang = request.GET.get("lang", "fa")
+        messages.info(
+            request,
+            "برای ادامه خرید، دکمه خرید آزمون را بزنید."
+            if lang == "fa" else
+            "Select the assessment purchase button to continue.",
+        )
+        return redirect(f"{reverse('assessments:detail', kwargs={'slug': exam.slug})}?lang={lang}")
+
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
         is_free = settings.ASSESSMENT_FREE_CHECKOUT

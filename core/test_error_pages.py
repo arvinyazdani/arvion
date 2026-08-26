@@ -1,3 +1,5 @@
+import uuid
+
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -31,3 +33,19 @@ class BrandedErrorPageTests(TestCase):
         self.assertContains(response, "This action isn’t included in your current role", status_code=403)
         self.assertContains(response, reverse("management_portal:dashboard"), status_code=403)
         self.assertNotContains(response, "403 Forbidden", status_code=403)
+
+    def test_html_405_has_branded_recovery_page_and_preserves_allow_header(self):
+        user = User.objects.create_user(
+            username="method@example.com", email="method@example.com",
+            password="safe-test-password", is_active=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("assessments:manual_payment_submit", args=[uuid.uuid4()]),
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(response.status_code, 405)
+        self.assertContains(response, "این عملیات از این مسیر قابل انجام نیست", status_code=405)
+        self.assertEqual(response.headers["Allow"], "POST, OPTIONS")

@@ -341,6 +341,27 @@ class AccountFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("_auth_user_id", self.client.session)
 
+    def test_login_does_not_redirect_get_request_to_post_only_purchase(self):
+        user = User.objects.create_user(
+            username="purchase@example.com", email="purchase@example.com",
+            password="A-secure-test-password-42", is_active=True, email_verified=True,
+        )
+        exam = Exam.objects.create(
+            slug="login-purchase", title_fa="آزمون", title_en="Assessment",
+            description_fa="توضیح", description_en="Description", language_mode="en",
+        )
+        purchase_url = reverse("assessments:create_order", args=[exam.slug])
+
+        response = self.client.post(
+            reverse("accounts:login") + f"?next={purchase_url}",
+            {"username": user.email, "password": "A-secure-test-password-42", "next": purchase_url},
+        )
+
+        self.assertRedirects(
+            response, reverse("assessments:detail", args=[exam.slug]),
+            fetch_redirect_response=False,
+        )
+
     def test_unverified_user_can_request_a_fresh_sms_after_cooldown(self):
         self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
         user = User.objects.get(email="arvin@example.com")

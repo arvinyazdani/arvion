@@ -47,6 +47,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "traffic.middleware.TrafficAnalyticsMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "core.middleware.FriendlyMethodNotAllowedMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

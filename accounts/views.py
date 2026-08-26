@@ -11,7 +11,7 @@ from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
@@ -21,6 +21,7 @@ from django.views.decorators.cache import never_cache
 from django.contrib.auth.mixins import LoginRequiredMixin
 from collections import OrderedDict
 import math
+from urllib.parse import urlsplit
 
 from core.views.lang import LanguageViewMixin
 from core.form_accessibility import enhance_form_accessibility
@@ -315,6 +316,23 @@ class AccountLoginView(LanguageViewMixin, LoginView):
         context = super().get_context_data(**kwargs)
         context["password_reset_available"] = settings.ACCOUNT_EMAIL_PASSWORD_RESET_ENABLED
         return context
+
+    def get_success_url(self):
+        """Never redirect a successful login to a POST-only purchase action."""
+        target = super().get_success_url()
+        try:
+            match = resolve(urlsplit(target).path)
+        except Resolver404:
+            return target
+        if match.view_name != "assessments:create_order":
+            return target
+        messages.info(
+            self.request,
+            "ورود موفق بود. برای ادامه خرید، دکمه خرید آزمون را بزنید."
+            if self.lang == "fa" else
+            "You are signed in. Select the assessment purchase button to continue.",
+        )
+        return reverse("assessments:detail", kwargs={"slug": match.kwargs["slug"]})
 
     def _throttle(self):
         return AttemptThrottle(
