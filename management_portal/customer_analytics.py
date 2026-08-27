@@ -6,6 +6,18 @@ from django.utils import timezone
 from assessments.models import Attempt, Order
 
 from .models import Customer, CustomerCase, CustomerEvent
+from .customer_segments import CASE_STAGE_CHOICES
+
+
+EVENT_CATEGORY_LABELS = {
+    "identity": ("هویت و عضویت", "Identity"),
+    "order": ("سفارش", "Order"),
+    "payment": ("پرداخت", "Payment"),
+    "assessment": ("آزمون", "Assessment"),
+    "contract": ("قرارداد", "Contract"),
+    "support": ("پشتیبانی", "Support"),
+    "sales": ("فروش و پیگیری", "Sales & follow-up"),
+}
 
 
 def _percent(value, base):
@@ -45,9 +57,16 @@ def build_customer_funnel():
         {"key": "in_progress", "label_fa": "آزمون نیمه‌تمام", "label_en": "Incomplete assessment", "count": Attempt.objects.filter(status="in_progress").values("user_id").distinct().count(), "stale": Attempt.objects.filter(status="in_progress", updated_at__lt=stale_cutoff).values("user_id").distinct().count()},
     )
     case_counts = {row["stage"]: row["total"] for row in CustomerCase.objects.values("stage").annotate(total=Count("pk"))}
-    cases = [{"key": key, "label": label, "count": case_counts.get(key, 0)} for key, label in CustomerCase.STAGES]
+    cases = [
+        {"key": key, "label_fa": label_fa, "label_en": label_en, "count": case_counts.get(key, 0)}
+        for key, label_fa, label_en in CASE_STAGE_CHOICES
+    ]
     since = now - timedelta(days=30)
     event_counts = list(CustomerEvent.objects.filter(occurred_at__gte=since).values("category").annotate(total=Count("pk")).order_by("-total"))
+    for event in event_counts:
+        event["label_fa"], event["label_en"] = EVENT_CATEGORY_LABELS.get(
+            event["category"], (event["category"], event["category"].replace("_", " ").title())
+        )
     return {
         "stages": stages,
         "bottlenecks": bottlenecks,

@@ -166,6 +166,6 @@ class ManagementActionSafetyStaticTests(TestCase):
             / "contracts"
             / "proposal_detail_v2.html"
         ).read_text(encoding="utf-8")
-        self.assertIn("management.css' %}?v=14", base)
+        self.assertIn("management.css' %}?v=15", base)
         self.assertIn("management.js' %}?v=10", base)
         self.assertIn("data-confirm=", contract_detail)

@@ -42,7 +42,7 @@ from .customer_events import record_customer_event
 from assessments.services import PaymentVerificationError, approve_manual_payment
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
-from .customer_segments import JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
+from .customer_segments import CASE_STAGE_CHOICES, JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
 from .customer_analytics import build_customer_funnel
 
 
@@ -74,6 +74,11 @@ def customer_workspace(request):
     customers = Customer.objects.prefetch_related("contacts", "cases__tasks", "cases__activities").order_by("-updated_at")
     customers = apply_customer_filters(customers, filters)
     page = Paginator(customers, 30).get_page(request.GET.get("page"))
+    for customer in page.object_list:
+        identity_text = " ".join(filter(None, (customer.name, customer.email))).lower()
+        customer.identity_warning = (
+            "http://" in identity_text or "https://" in identity_text or len(customer.name.strip()) > 80
+        )
     now = timezone.now()
     no_contact = Customer.objects.annotate(contact_count=Count("contacts")).filter(contact_count=0).order_by("-updated_at")
     no_identity = Customer.objects.filter(phone="", email="").order_by("-updated_at")
@@ -92,7 +97,7 @@ def customer_workspace(request):
     return render(request, "management_portal/v2/customer_workspace.html", {
         "customers": page, "page_obj": page, "query": query, "filters": filters, "lang": lang,
         "saved_segments": visible_segments, "selected_segment": selected_segment,
-        "journey_choices": JOURNEY_CHOICES, "case_stages": CustomerCase.STAGES,
+        "journey_choices": JOURNEY_CHOICES, "case_stage_choices": CASE_STAGE_CHOICES,
         "data_quality": data_quality,
         "stats": {
             "customers": Customer.objects.count(),

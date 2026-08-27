@@ -12,13 +12,21 @@ JOURNEY_CHOICES = (
     ("ready", "پرداخت‌شده و شروع‌نشده", "Paid, not started"),
     ("completed", "نتیجه آماده", "Result ready"),
 )
+CASE_STAGE_CHOICES = (
+    ("new", "جدید", "New"),
+    ("discovery", "نیازسنجی", "Discovery"),
+    ("qualified", "واجد شرایط", "Qualified"),
+    ("proposal", "پیشنهاد/قرارداد", "Proposal / contract"),
+    ("won", "موفق", "Won"),
+    ("lost", "بسته‌شده", "Closed"),
+)
 
 
 def normalize_segment_filters(values):
     filters = {key: str(values.get(key, "")).strip() for key in ALLOWED_SEGMENT_FILTERS}
     if filters["journey"] not in {item[0] for item in JOURNEY_CHOICES}:
         filters["journey"] = ""
-    if filters["case_stage"] not in {"new", "discovery", "qualified", "proposal", "won", "lost"}:
+    if filters["case_stage"] not in {item[0] for item in CASE_STAGE_CHOICES}:
         filters["case_stage"] = ""
     try:
         days = int(filters["inactive_days"] or 0)

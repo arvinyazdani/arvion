@@ -274,6 +274,33 @@ class ManagementDashboardTests(TestCase):
         self.assertIn("@media(max-width:620px)", customer_css)
         self.assertNotIn("min-width:650px", report_css)
 
+    def test_customer_reports_and_filters_localize_operational_labels(self):
+        root = User.objects.create_superuser(username="localized-report-root", email="localized-report@example.com", password="safe-password")
+        customer = Customer.objects.create(name="مشتری ترجمه")
+        CustomerCase.objects.create(kind="general", customer=customer, customer_name=customer.name, stage="discovery")
+        CustomerEvent.objects.create(customer=customer, category="sales", event_type="test", title_fa="پیگیری", title_en="Follow-up")
+        self.client.force_login(root)
+
+        english_report = self.client.get("/en/management/customers/reports/")
+        english_workspace = self.client.get("/en/management/customers/")
+        persian_report = self.client.get("/fa/management/customers/reports/")
+
+        self.assertContains(english_report, "Discovery")
+        self.assertNotContains(english_report, ">نیازسنجی<")
+        self.assertContains(english_workspace, "Proposal / contract")
+        self.assertContains(persian_report, "فروش و پیگیری")
+
+    def test_customer_workspace_surfaces_suspicious_identity_without_hiding_customer(self):
+        root = User.objects.create_superuser(username="identity-review-root", email="identity-review@example.com", password="safe-password")
+        customer = Customer.objects.create(name="Visit https://example.invalid now")
+        self.client.force_login(root)
+
+        response = self.client.get(reverse("management_portal:customer_workspace"))
+
+        self.assertContains(response, "بررسی داده")
+        self.assertContains(response, customer.name)
+        self.assertContains(response, 'href="#customer-directory"')
+
     def test_customer_action_center_creates_audited_task_and_activity(self):
         root = User.objects.create_superuser(username="action-root", email="action-root@example.com", password="safe-password")
         customer = Customer.objects.create(name="مشتری عملیات", phone="989120008888")
@@ -706,7 +733,7 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(en, "What needs your decision today?")
         self.assertContains(en, "Team &amp; access", html=True)
         self.assertContains(en, "Business management")
-        self.assertContains(en, "management.css?v=14")
+        self.assertContains(en, "management.css?v=15")
         self.assertNotContains(en, 'href="/admin/')
 
         management_css = (Path(__file__).resolve().parent / "static" / "management_portal" / "v2" / "management.css").read_text(encoding="utf-8")
