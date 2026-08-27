@@ -243,9 +243,31 @@ def customer_assessment_detail(request, customer_id, user_id):
     if user_id not in linked_user_ids:
         raise Http404
     account = get_object_or_404(User, pk=user_id)
-    attempts = Attempt.objects.filter(user=account).select_related("exam", "entitlement__order", "result").prefetch_related("result__skill_results__skill", "integrity_events").order_by("-created_at")
+    attempts = list(
+        Attempt.objects.filter(user=account)
+        .select_related("exam", "entitlement__order", "result")
+        .prefetch_related(
+            "result__skill_results__skill",
+            "integrity_events__attempt_question",
+            "attempt_questions__integrity_events",
+        )
+        .order_by("-created_at")
+    )
+    integrity_labels = {
+        "tab_hidden": ("خروج از صفحه یا رفتن به برنامه دیگر", "Left the assessment tab or app"),
+        "window_blur": ("پنجره آزمون از حالت فعال خارج شد", "Assessment window lost focus"),
+        "copy": ("فرمان کپی در صفحه سؤال ثبت شد", "Copy command recorded on the question page"),
+        "paste": ("فرمان جای‌گذاری در صفحه سؤال ثبت شد", "Paste command recorded on the question page"),
+        "other": ("رویداد نیازمند بررسی", "Event requiring review"),
+    }
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    for attempt in attempts:
+        attempt.management_questions = list(attempt.attempt_questions.all())
+        for event in attempt.integrity_events.all():
+            labels = integrity_labels.get(event.event_type, integrity_labels["other"])
+            event.management_label = labels[0 if lang == "fa" else 1]
     orders = customer.assessment_orders.filter(user=account).select_related("exam", "manual_payment").order_by("-created_at")
-    return render(request, "management_portal/v2/customer_assessment_detail.html", {"customer": customer, "account": account, "attempts": attempts, "orders": orders, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "management_portal/v2/customer_assessment_detail.html", {"customer": customer, "account": account, "attempts": attempts, "orders": orders, "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")

@@ -412,6 +412,11 @@ class AttemptView(LanguageViewMixin, LoginRequiredMixin, DetailView):
                 Q(selected_choice_snapshot_id__isnull=False) | Q(selected_choice__isnull=False)
             ).count(),
         })
+        now = timezone.now()
+        item.first_seen_at = item.first_seen_at or now
+        item.last_seen_at = now
+        item.visit_count += 1
+        item.save(update_fields=("first_seen_at", "last_seen_at", "visit_count"))
         if attempt.current_position != position:
             attempt.current_position = position
             attempt.save(update_fields=["current_position", "updated_at"])
@@ -476,10 +481,22 @@ class SaveAnswerView(LoginRequiredMixin, View):
         if choice_id not in allowed_choice_ids:
             raise Http404
         choice = Choice.objects.filter(pk=choice_id, question_id=item.question_id).first()
+        previous_choice_id = item.effective_selected_choice_id
         item.selected_choice_snapshot_id = int(choice_id)
         item.selected_choice = choice
         item.answered_at = timezone.now()
-        item.save(update_fields=["selected_choice_snapshot_id", "selected_choice", "answered_at"])
+        if previous_choice_id is not None and previous_choice_id != int(choice_id):
+            item.answer_change_count += 1
+        try:
+            active_seconds = max(0, min(int(request.POST.get("active_seconds", 0)), 900))
+        except (TypeError, ValueError):
+            active_seconds = 0
+        item.active_seconds += active_seconds
+        item.last_seen_at = timezone.now()
+        item.save(update_fields=[
+            "selected_choice_snapshot_id", "selected_choice", "answered_at",
+            "answer_change_count", "active_seconds", "last_seen_at",
+        ])
         answered_count = attempt.attempt_questions.filter(
             Q(selected_choice_snapshot_id__isnull=False) | Q(selected_choice__isnull=False)
         ).count()
@@ -525,6 +542,14 @@ class IntegrityEventView(LoginRequiredMixin, View):
         event_type = request.POST.get("event_type")
         if event_type not in self.allowed_events:
             return JsonResponse({"ok": False}, status=400)
+        item = None
+        item_pk = request.POST.get("item_id", "")
+        if item_pk:
+            item = get_object_or_404(AttemptQuestion, pk=item_pk, attempt=attempt)
+        try:
+            duration_ms = max(0, min(int(request.POST.get("duration_ms", 0)), 900_000))
+        except (TypeError, ValueError):
+            duration_ms = 0
         recent = IntegrityEvent.objects.filter(
             attempt=attempt, event_type=event_type,
             created_at__gte=timezone.now() - timedelta(seconds=10),
@@ -532,7 +557,12 @@ class IntegrityEventView(LoginRequiredMixin, View):
         if recent:
             return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
         prior_count = IntegrityEvent.objects.filter(attempt=attempt, event_type=event_type).count()
-        IntegrityEvent.objects.create(attempt=attempt, event_type=event_type)
+        IntegrityEvent.objects.create(
+            attempt=attempt,
+            attempt_question=item,
+            event_type=event_type,
+            duration_ms=duration_ms,
+        )
         if prior_count < self.deduction_limits[event_type]:
             attempt.integrity_score = max(0, attempt.integrity_score - self.allowed_events[event_type])
             attempt.save(update_fields=["integrity_score", "updated_at"])

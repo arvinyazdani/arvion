@@ -9,7 +9,7 @@ from django.utils import timezone, translation
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
-from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
+from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
 from contracts.models import ContractProposal
 from leads.models import Lead
 from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
@@ -199,12 +199,15 @@ class ManagementDashboardTests(TestCase):
         entitlement = ExamEntitlement.objects.create(user=account, exam=exam, order=order)
         attempt = Attempt.objects.create(user=account, exam=exam, version=version, entitlement=entitlement, status="completed", started_at=timezone.now() - timedelta(minutes=20), submitted_at=timezone.now())
         AttemptResult.objects.create(attempt=attempt, correct_count=42, incorrect_count=8, unanswered_count=0, percentage="84.00", level_code="B2", level_title_fa="متوسط رو به بالا", level_title_en="Upper intermediate", summary_fa="خوب", summary_en="Good")
+        IntegrityEvent.objects.create(attempt=attempt, event_type="copy")
         self.client.force_login(root)
         detail = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
         self.assertContains(detail, "نتیجه آماده")
         response = self.client.get(reverse("management_portal:customer_assessment_detail", args=[customer.pk, account.pk]))
         self.assertContains(response, "84.00%")
         self.assertContains(response, "B2")
+        self.assertContains(response, "فرمان کپی در صفحه سؤال ثبت شد")
+        self.assertContains(response, "به‌تنهایی اثبات تقلب نیستند")
         self.assertNotContains(response, "پاسخ صحیح سؤال")
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):

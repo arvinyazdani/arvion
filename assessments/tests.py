@@ -1019,6 +1019,31 @@ class AssessmentEngineTests(TestCase):
         response = self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), {"choice": foreign_question.choices.first().pk})
         self.assertEqual(response.status_code, 404)
 
+    def test_question_telemetry_counts_visits_time_and_answer_changes(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        choices = list(item.question.choices.order_by("display_order")[:2])
+        self.client.force_login(self.user)
+
+        page = self.client.get(reverse("assessments:attempt", args=[attempt.pk]) + f"?q={item.position}")
+        self.assertEqual(page.status_code, 200)
+        first = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
+            {"choice": choices[0].pk, "active_seconds": "17"},
+        )
+        second = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
+            {"choice": choices[1].pk, "active_seconds": "9999"},
+        )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        item.refresh_from_db()
+        self.assertIsNotNone(item.first_seen_at)
+        self.assertEqual(item.visit_count, 1)
+        self.assertEqual(item.active_seconds, 917)
+        self.assertEqual(item.answer_change_count, 1)
+
     def test_attempt_navigation_waits_for_pending_answer_and_has_timeout_recovery(self):
         attempt = self.start()
         self.client.force_login(self.user)
@@ -1058,6 +1083,34 @@ class AssessmentEngineTests(TestCase):
         attempt.refresh_from_db()
         self.assertEqual(attempt.integrity_score, 98)
         self.assertTrue(IntegrityEvent.objects.filter(attempt=attempt, event_type="tab_hidden").exists())
+
+    def test_integrity_event_is_scoped_to_question_and_rejects_foreign_item(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        other_user = User.objects.create_user(username="other@example.com", password="test-password")
+        other_order = Order.objects.create(user=other_user, exam=self.exam, amount_irr=0, status="paid")
+        other_entitlement = ExamEntitlement.objects.create(user=other_user, exam=self.exam, order=other_order)
+        other_attempt = Attempt.objects.create(
+            user=other_user, exam=self.exam, version=self.version, entitlement=other_entitlement,
+            status="in_progress", started_at=timezone.now(), expires_at=timezone.now() + timedelta(minutes=10),
+        )
+        foreign_item = AttemptQuestion.objects.create(
+            attempt=other_attempt, question=self.questions[-1], position=1,
+            choice_order=[], question_snapshot={}, choices_snapshot=[],
+        )
+        self.client.force_login(self.user)
+        url = reverse("assessments:integrity_event", args=[attempt.pk])
+
+        accepted = self.client.post(url, {
+            "event_type": "copy", "item_id": item.pk, "duration_ms": "9999999",
+        })
+        rejected = self.client.post(url, {"event_type": "paste", "item_id": foreign_item.pk})
+
+        self.assertEqual(accepted.status_code, 200)
+        event = IntegrityEvent.objects.get(attempt=attempt, event_type="copy")
+        self.assertEqual(event.attempt_question, item)
+        self.assertEqual(event.duration_ms, 900_000)
+        self.assertEqual(rejected.status_code, 404)
 
     def test_integrity_events_are_deduplicated_and_deduction_is_capped(self):
         attempt = self.start()

@@ -275,6 +275,11 @@ class AttemptQuestion(models.Model):
     selected_choice_snapshot_id = models.PositiveBigIntegerField(blank=True, null=True, editable=False)
     answered_at = models.DateTimeField(blank=True, null=True)
     audio_play_count = models.PositiveSmallIntegerField(default=0)
+    first_seen_at = models.DateTimeField(blank=True, null=True)
+    last_seen_at = models.DateTimeField(blank=True, null=True)
+    active_seconds = models.PositiveIntegerField(default=0)
+    visit_count = models.PositiveSmallIntegerField(default=0)
+    answer_change_count = models.PositiveSmallIntegerField(default=0)
 
     @property
     def effective_selected_choice_id(self):
@@ -294,7 +299,15 @@ class IntegrityEvent(models.Model):
     EVENT_TYPES = (("tab_hidden", "Tab hidden"), ("window_blur", "Window blur"), ("copy", "Copy"), ("paste", "Paste"), ("other", "Other"))
 
     attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="integrity_events")
+    attempt_question = models.ForeignKey(
+        AttemptQuestion,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="integrity_events",
+    )
     event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    duration_ms = models.PositiveIntegerField(default=0)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
