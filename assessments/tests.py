@@ -1052,12 +1052,28 @@ class AssessmentEngineTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "data-exam-nav")
+        self.assertContains(response, "data-question-nav")
         self.assertContains(response, "const flushSave=")
         self.assertContains(response, "AbortController")
         self.assertContains(response, "15000")
+        self.assertContains(response, "location.replace(link.href)")
+        self.assertContains(response, "else location.assign(link.href)")
         self.assertContains(response, "visibility_hidden")
         self.assertContains(response, "visibility_returned")
         self.assertContains(response, "پاسخ ذخیره نشد؛ اتصال را بررسی")
+
+    def test_reload_without_query_resumes_the_last_server_recorded_question(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        url = reverse("assessments:attempt", args=[attempt.pk])
+
+        moved = self.client.get(url + "?q=2&lang=fa")
+        resumed = self.client.get(url + "?lang=fa")
+
+        self.assertEqual(moved.context["position"], 2)
+        self.assertEqual(resumed.context["position"], 2)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.current_position, 2)
 
     def test_listening_play_count_is_limited_to_two(self):
         Question.objects.filter(pk__in=[question.pk for question in self.questions]).update(
