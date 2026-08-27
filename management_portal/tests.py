@@ -904,7 +904,7 @@ class ManagementDashboardTests(TestCase):
         mocked_send.return_value = SMSResult(provider="test", reference="segment-ref")
         root = User.objects.create_superuser(username="segment-root", email="segment-root@example.com", password="safe-password")
         User.objects.create_user(username="segment-a", email="segment-a@example.com", mobile="09121110001", password="safe-password", is_active=True)
-        User.objects.create_user(username="segment-b", email="segment-b@example.com", mobile="+989121110002", password="safe-password", is_active=True)
+        User.objects.create_user(username="segment-b", email="segment-b@example.com", mobile="09121110002", password="safe-password", is_active=True)
         self.client.force_login(root)
 
         preview = self.client.get(reverse("management_portal:sms_send") + "?audience=registered")

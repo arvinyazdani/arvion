@@ -138,7 +138,11 @@ def _case_project_title(case):
 def ensure_case_workspace(*, case, actor):
     """Create the one active workspace used by a new case, idempotently."""
 
-    case = CustomerCase.objects.select_for_update().select_related("customer", "source_content_type").get(pk=case.pk)
+    case = (
+        CustomerCase.objects.select_for_update(of=("self",))
+        .select_related("customer", "source_content_type")
+        .get(pk=case.pk)
+    )
     proposal = case.contract_proposals.exclude(status__in=("accepted", "expired", "revoked")).order_by("-updated_at").first()
     if proposal:
         return proposal, False
@@ -184,7 +188,11 @@ def ensure_case_workspace(*, case, actor):
 
 @transaction.atomic
 def create_specialist_template_version(*, proposal, schema, actor, name=None, change_note=""):
-    proposal = ContractProposal.objects.select_for_update().select_related("customer_case").get(pk=proposal.pk)
+    proposal = (
+        ContractProposal.objects.select_for_update(of=("self",))
+        .select_related("customer_case")
+        .get(pk=proposal.pk)
+    )
     if proposal.status not in {"draft", "revoked"} or proposal.current_version:
         raise ValidationError("فرم تخصصی پرونده منتشرشده قابل تغییر نیست؛ ابتدا نسخه جدید پرونده بسازید.")
     normalized = normalize_schema(schema)
@@ -367,7 +375,11 @@ def send_workspace_access(*, proposal, grant, recipient_phone, raw_password, act
 
 @transaction.atomic
 def publish_customer_workspace(*, proposal, actor):
-    proposal = ContractProposal.objects.select_for_update().select_related("general_terms_version").get(pk=proposal.pk)
+    proposal = (
+        ContractProposal.objects.select_for_update(of=("self",))
+        .select_related("general_terms_version")
+        .get(pk=proposal.pk)
+    )
     if proposal.status not in {"draft", "revoked"} or proposal.current_version:
         raise ValidationError("این نسخه قبلاً منتشر شده است؛ برای تغییر، نسخه تازه پرونده را آماده کنید.")
     assignment = SpecialistAssignment.objects.filter(proposal=proposal).select_related("version").first()
