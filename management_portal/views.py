@@ -36,6 +36,8 @@ from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerContactForm, CustomerMessageForm, ManualSMSForm, StaffCreateForm, StaffRolesForm
 from .backups import find_backup_inventory
+from .cases import case_for_customer
+from .customer_journey import resolve_customer_journey
 from assessments.services import PaymentVerificationError, approve_manual_payment
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
 
@@ -165,7 +167,7 @@ def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
     case_events = list(CaseActivity.objects.filter(case__customer=customer).select_related("case", "actor").order_by("-created_at")[:60])
-    contracts = customer.contracts.select_related("created_by").order_by("-updated_at")[:10]
+    contracts = list(customer.contracts.select_related("created_by").order_by("-updated_at")[:10])
     orders = list(customer.assessment_orders.select_related("exam", "user", "manual_payment").order_by("-created_at")[:20])
     user_ids = set(customer.contacts.exclude(user__isnull=True).values_list("user_id", flat=True))
     user_ids.update(order.user_id for order in orders)
@@ -179,48 +181,88 @@ def customer_detail(request, customer_id):
     timeline = []
     for contact in customer.contacts.all():
         if contact.user_id:
-            timeline.append({"at": contact.user.date_joined, "kind": "account", "title": "عضویت در سایت", "detail": contact.user.email or contact.user.mobile or contact.name})
+            timeline.append({"at": contact.user.date_joined, "kind": "account", "title": "عضویت در سایت" if lang == "fa" else "Website account created", "detail": contact.user.email or contact.user.mobile or contact.name})
     for order in orders:
-        timeline.append({"at": order.created_at, "kind": "order", "title": "سفارش آزمون ثبت شد", "detail": order.exam.title_fa, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, order.user_id])})
+        timeline.append({"at": order.created_at, "kind": "order", "title": "سفارش آزمون ثبت شد" if lang == "fa" else "Assessment order created", "detail": order.exam.title_fa if lang == "fa" else order.exam.title_en, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, order.user_id])})
         if order.paid_at:
-            timeline.append({"at": order.paid_at, "kind": "payment", "title": "پرداخت تأیید شد", "detail": f"{order.amount_irr:,} ریال"})
+            timeline.append({"at": order.paid_at, "kind": "payment", "title": "پرداخت تأیید شد" if lang == "fa" else "Payment approved", "detail": f"{order.amount_irr:,} {'ریال' if lang == 'fa' else 'IRR'}"})
         elif hasattr(order, "manual_payment"):
-            timeline.append({"at": order.manual_payment.created_at, "kind": "payment", "title": "رسید کارت‌به‌کارت ثبت شد", "detail": order.manual_payment.get_status_display(), "url": reverse("management_portal:approvals")})
+            payment_states = {"pending": ("منتظر بررسی", "Awaiting review"), "approved": ("تأیید شده", "Approved"), "rejected": ("رد شده", "Rejected")}
+            payment_state = payment_states.get(order.manual_payment.status, (order.manual_payment.status, order.manual_payment.status))
+            timeline.append({"at": order.manual_payment.created_at, "kind": "payment", "title": "رسید کارت‌به‌کارت ثبت شد" if lang == "fa" else "Card-transfer receipt submitted", "detail": payment_state[0 if lang == "fa" else 1], "url": reverse("management_portal:approvals")})
     for attempt in attempts:
-        timeline.append({"at": attempt.started_at or attempt.created_at, "kind": "assessment", "title": "آزمون شروع شد", "detail": attempt.exam.title_fa, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
+        timeline.append({"at": attempt.started_at or attempt.created_at, "kind": "assessment", "title": "آزمون شروع شد" if lang == "fa" else "Assessment started", "detail": attempt.exam.title_fa if lang == "fa" else attempt.exam.title_en, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
         if attempt.status == "completed" and hasattr(attempt, "result"):
-            timeline.append({"at": attempt.result.generated_at, "kind": "result", "title": "نتیجه آزمون آماده شد", "detail": f"{attempt.result.level_code} · {attempt.result.percentage}%", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
+            timeline.append({"at": attempt.result.generated_at, "kind": "result", "title": "نتیجه آزمون آماده شد" if lang == "fa" else "Assessment result ready", "detail": f"{attempt.result.level_code} · {attempt.result.percentage}%", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
     for event in case_events:
         timeline.append({"at": event.created_at, "kind": event.kind, "title": event.title, "detail": event.body, "meta": event.case.code})
     timeline.sort(key=lambda item: item["at"] or timezone.now(), reverse=True)
 
-    has_account = bool(user_ids)
-    has_order = bool(orders)
-    has_paid = any(order.status == "paid" for order in orders)
-    has_started = bool(attempts)
-    has_completed = any(attempt.status == "completed" for attempt in attempts)
-    journey = [
-        {"label_fa": "عضویت", "label_en": "Account", "done": has_account},
-        {"label_fa": "سفارش", "label_en": "Order", "done": has_order},
-        {"label_fa": "پرداخت", "label_en": "Payment", "done": has_paid},
-        {"label_fa": "شروع آزمون", "label_en": "Started", "done": has_started},
-        {"label_fa": "نتیجه", "label_en": "Result", "done": has_completed},
-    ]
-    if not has_account:
-        next_action = {"title_fa": "اطلاعات حساب را تکمیل کنید", "title_en": "Complete account details", "detail_fa": "یک حساب سایت را به مخاطب اصلی متصل کنید.", "detail_en": "Link a site account to the primary contact.", "url": "#customer-contacts"}
-    elif not has_order:
-        next_action = {"title_fa": "دعوت به ثبت سفارش", "title_en": "Invite to order", "detail_fa": "مشتری عضو شده اما هنوز آزمونی سفارش نداده است.", "detail_en": "The customer registered but has not ordered an assessment.", "url": "#customer-message"}
-    elif not has_paid:
-        next_action = {"title_fa": "پیگیری پرداخت", "title_en": "Follow up payment", "detail_fa": "سفارش ساخته شده اما پرداخت کامل نشده است.", "detail_en": "An order exists but payment is incomplete.", "url": "#customer-message"}
-    elif not has_started:
-        next_action = {"title_fa": "یادآوری شروع آزمون", "title_en": "Remind to start", "detail_fa": "دسترسی فعال است؛ مشتری هنوز آزمون را شروع نکرده است.", "detail_en": "Access is active but the assessment has not started.", "url": "#customer-message"}
-    elif not has_completed:
-        next_action = {"title_fa": "آزمون در جریان است", "title_en": "Assessment in progress", "detail_fa": "وضعیت نشست و رویدادهای سلامت آزمون را بررسی کنید.", "detail_en": "Review the session and assessment integrity events.", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempts[0].user_id])}
-    else:
-        next_action = {"title_fa": "نتیجه آماده پیگیری است", "title_en": "Result ready for follow-up", "detail_fa": "نتیجه را ببینید و پیام پیگیری ارسال کنید.", "detail_en": "Review the result and send a follow-up message.", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempts[0].user_id])}
     can_message = request.user.is_superuser or request.user.has_perm("management_portal.add_smsdispatch")
+    can_change_case = request.user.is_superuser or request.user.has_perm("management_portal.change_customercase") or request.user.has_perm("crm_orders.change_crmorder") or request.user.has_perm("leads.change_lead") or request.user.has_perm("clinic_orders.change_clinicorder")
+    journey = resolve_customer_journey(
+        customer=customer,
+        orders=orders,
+        attempts=attempts,
+        contracts=contracts,
+        can_message=can_message,
+        can_change_case=can_change_case,
+    )
     initial_phone = customer.phone or next((contact.phone for contact in customer.contacts.all() if contact.phone), "")
-    return render(request, "management_portal/v2/customer_detail.html", {"customer": customer, "contact_form": CustomerContactForm(lang=lang), "message_form": CustomerMessageForm(lang=lang, initial={"recipient": initial_phone}), "can_message": can_message, "events": timeline[:80], "contracts": contracts, "orders": orders, "attempts": attempts, "tickets": tickets, "journey": journey, "next_action": next_action, "lang": lang})
+    return render(request, "management_portal/v2/customer_detail.html", {
+        "customer": customer,
+        "contact_form": CustomerContactForm(lang=lang),
+        "message_form": CustomerMessageForm(lang=lang, initial={"recipient": initial_phone}),
+        "task_form": CaseTaskForm(lang=lang),
+        "activity_form": CaseActivityForm(lang=lang),
+        "can_message": can_message,
+        "can_change_case": can_change_case,
+        "events": timeline[:80], "contracts": contracts, "orders": orders,
+        "attempts": attempts, "tickets": tickets, "journey": journey, "lang": lang,
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_task_create(request, customer_id):
+    _require_case_change(request.user)
+    customer = get_object_or_404(Customer, pk=customer_id)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    form = CaseTaskForm(request.POST, lang=lang)
+    if not form.is_valid():
+        messages.error(request, "اطلاعات پیگیری کامل یا معتبر نیست." if lang == "fa" else "Follow-up details are incomplete or invalid.")
+        return redirect(reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-actions")
+    with transaction.atomic():
+        case = case_for_customer(customer)
+        task = form.save(commit=False)
+        task.case = case
+        task.created_by = request.user
+        task.save()
+        CaseActivity.objects.create(case=case, actor=request.user, kind="task", title="پیگیری جدید ساخته شد", body=task.title, metadata={"task_id": task.pk})
+        OperationalAudit.objects.create(actor=request.user, action="customer_followup_created", target_type="customer", target_id=str(customer.pk), summary=task.title, metadata={"case_id": case.pk, "task_id": task.pk})
+    messages.success(request, "پیگیری ساخته شد و در پرونده مشتری ثبت شد." if lang == "fa" else "The follow-up was created and added to the customer record.")
+    return redirect(reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-actions")
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_activity_create(request, customer_id):
+    _require_case_change(request.user)
+    customer = get_object_or_404(Customer, pk=customer_id)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    form = CaseActivityForm(request.POST, lang=lang)
+    if not form.is_valid():
+        messages.error(request, "نوع و عنوان فعالیت را بررسی کنید." if lang == "fa" else "Review the activity type and title.")
+        return redirect(reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-actions")
+    with transaction.atomic():
+        case = case_for_customer(customer)
+        activity = form.save(commit=False)
+        activity.case = case
+        activity.actor = request.user
+        activity.save()
+        OperationalAudit.objects.create(actor=request.user, action="customer_activity_logged", target_type="customer", target_id=str(customer.pk), summary=activity.title, metadata={"case_id": case.pk, "activity_id": activity.pk, "kind": activity.kind})
+    messages.success(request, "فعالیت در خط زمانی مشتری ثبت شد." if lang == "fa" else "The activity was added to the customer timeline.")
+    return redirect(reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-actions")
 
 
 def _customer_mobile_numbers(customer):
@@ -578,7 +620,7 @@ def _require_sales_access(user):
 
 
 def _require_case_change(user):
-    if not user.is_superuser and not (user.has_perm("leads.change_lead") or user.has_perm("crm_orders.change_crmorder") or user.has_perm("clinic_orders.change_clinicorder")):
+    if not user.is_superuser and not (user.has_perm("management_portal.change_customercase") or user.has_perm("leads.change_lead") or user.has_perm("crm_orders.change_crmorder") or user.has_perm("clinic_orders.change_clinicorder")):
         raise PermissionDenied
 
 

@@ -171,6 +171,75 @@ class ManagementDashboardTests(TestCase):
         detail = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
         self.assertContains(detail, "دعوت به ثبت سفارش")
 
+    def test_customer_journey_is_derived_from_current_domain_state(self):
+        root = User.objects.create_superuser(username="state-root", email="state-root@example.com", password="safe-password")
+        account = User.objects.create_user(username="state-client", email="state-client@example.com", mobile="989120007777", password="safe-password", is_active=True)
+        customer = Customer.objects.create(name="مشتری وضعیت", phone=account.mobile, email=account.email)
+        CustomerContact.objects.create(customer=customer, user=account, name=customer.name, phone=account.mobile, is_primary=True)
+        exam = Exam.objects.create(slug="state-exam", title_fa="آزمون وضعیت", title_en="State exam", description_fa="", description_en="", language_mode="bilingual")
+        self.client.force_login(root)
+
+        registered = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(registered, "عضو شده؛ هنوز سفارشی ندارد")
+        order = Order.objects.create(user=account, customer=customer, exam=exam, amount_irr=1_200_000, status="pending")
+        pending = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(pending, "سفارش ثبت شده؛ پرداخت انجام نشده")
+        order.status = "paid"
+        order.paid_at = timezone.now()
+        order.save(update_fields=("status", "paid_at", "updated_at"))
+        ready = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(ready, "دسترسی فعال؛ آزمون شروع نشده")
+
+    def test_customer_action_center_creates_audited_task_and_activity(self):
+        root = User.objects.create_superuser(username="action-root", email="action-root@example.com", password="safe-password")
+        customer = Customer.objects.create(name="مشتری عملیات", phone="989120008888")
+        self.client.force_login(root)
+
+        task_response = self.client.post(reverse("management_portal:customer_task_create", args=[customer.pk]), {
+            "title": "پیگیری شروع آزمون", "description": "تماس تا پایان امروز", "priority": "high",
+        })
+        activity_response = self.client.post(reverse("management_portal:customer_activity_create", args=[customer.pk]), {
+            "kind": "call", "title": "تماس اولیه", "body": "مشتری پاسخ داد",
+        })
+
+        self.assertRedirects(task_response, reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-actions")
+        self.assertRedirects(activity_response, reverse("management_portal:customer_detail", args=[customer.pk]) + "#customer-actions")
+        case = customer.cases.get()
+        self.assertTrue(case.tasks.filter(title="پیگیری شروع آزمون", created_by=root).exists())
+        self.assertTrue(case.activities.filter(kind="call", title="تماس اولیه", actor=root).exists())
+        self.assertTrue(OperationalAudit.objects.filter(action="customer_followup_created", target_id=str(customer.pk)).exists())
+        self.assertTrue(OperationalAudit.objects.filter(action="customer_activity_logged", target_id=str(customer.pk)).exists())
+
+    def test_english_customer_journey_localizes_system_timeline(self):
+        root = User.objects.create_superuser(username="english-state-root", email="english-state-root@example.com", password="safe-password")
+        account = User.objects.create_user(username="english-state-client", email="english-state-client@example.com", mobile="989120006666", password="safe-password", is_active=True)
+        customer = Customer.objects.create(name="Sample Customer", phone=account.mobile, email=account.email)
+        CustomerContact.objects.create(customer=customer, user=account, name=customer.name, phone=account.mobile, is_primary=True)
+        exam = Exam.objects.create(slug="english-state-exam", title_fa="آزمون نمونه", title_en="Sample assessment", description_fa="", description_en="", language_mode="bilingual")
+        Order.objects.create(user=account, customer=customer, exam=exam, amount_irr=1_200_000, status="paid", paid_at=timezone.now())
+        self.client.force_login(root)
+
+        response = self.client.get(f"/en/management/customers/{customer.pk}/")
+
+        self.assertContains(response, "Assessment order created")
+        self.assertContains(response, "Payment approved")
+        self.assertContains(response, "Sample assessment")
+        self.assertNotContains(response, "سفارش آزمون ثبت شد")
+        self.assertNotContains(response, "پرداخت تأیید شد")
+
+    def test_view_only_staff_cannot_create_customer_operations(self):
+        staff = User.objects.create_user(username="customer-viewer", email="customer-viewer@example.com", password="safe-password", is_staff=True)
+        staff.user_permissions.add(Permission.objects.get(codename="view_crmorder"))
+        customer = Customer.objects.create(name="مشتری فقط خواندنی")
+        self.client.force_login(staff)
+
+        task = self.client.post(reverse("management_portal:customer_task_create", args=[customer.pk]), {"title": "نباید ساخته شود", "priority": "normal"})
+        activity = self.client.post(reverse("management_portal:customer_activity_create", args=[customer.pk]), {"kind": "note", "title": "نباید ثبت شود"})
+
+        self.assertEqual(task.status_code, 403)
+        self.assertEqual(activity.status_code, 403)
+        self.assertFalse(CustomerCase.objects.filter(customer=customer).exists())
+
     @patch("management_portal.views.send_sms")
     def test_superuser_can_message_only_a_number_belonging_to_customer(self, mocked_send):
         mocked_send.return_value = SMSResult(provider="test", reference="customer-ref")

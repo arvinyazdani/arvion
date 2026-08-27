@@ -1,7 +1,7 @@
 {% extends "management_portal/v2/base.html" %}{% load static %}
 {% block title %}{% if lang == 'fa' %}جزئیات آزمون{% else %}Assessment details{% endif %} | Rvion{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}جزئیات آزمون مشتری{% else %}Customer assessment details{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/customer-operations.css' %}?v=6">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/customer-operations.css' %}?v=7">{% endblock %}
 {% block content %}
 <section class="co-detail-hero">
   <div><a href="{% url 'management_portal:customer_detail' customer.pk %}">{% if lang == 'fa' %}پرونده {{ customer.name }} ←{% else %}← {{ customer.name }} record{% endif %}</a><span>{% if lang == 'fa' %}حساب آزمون{% else %}ASSESSMENT ACCOUNT{% endif %}</span><h1>{{ account.get_full_name|default:account.email }}</h1><p><bdi>{{ account.mobile|default:account.email }}</bdi></p></div>

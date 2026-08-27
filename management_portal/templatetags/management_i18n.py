@@ -36,6 +36,8 @@ NOTIFICATION_TITLES_EN = {
 AUDIT_ACTIONS_EN = {
     "customer_merged": "Customer records merged",
     "customer_contact_created": "Customer contact added",
+    "customer_followup_created": "Customer follow-up created",
+    "customer_activity_logged": "Customer activity logged",
     "crm_case_updated": "CRM case updated",
     "crm_case_exported": "CRM case exported",
     "request_exported": "Discovery exported",
@@ -51,6 +53,8 @@ AUDIT_ACTIONS_EN = {
 AUDIT_ACTIONS_FA = {
     "customer_merged": "ادغام سوابق مشتری",
     "customer_contact_created": "افزودن مخاطب مشتری",
+    "customer_followup_created": "ساخت پیگیری مشتری",
+    "customer_activity_logged": "ثبت فعالیت مشتری",
     "crm_case_updated": "به‌روزرسانی پرونده CRM",
     "crm_case_exported": "خروجی پرونده CRM",
     "request_exported": "خروجی نیازسنجی",
