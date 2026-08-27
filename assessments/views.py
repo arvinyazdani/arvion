@@ -23,6 +23,7 @@ from management_portal.models import Customer, CustomerContact
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
+from .integrity import assess_event
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket
 from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
 
@@ -528,8 +529,7 @@ class AudioPlayView(LoginRequiredMixin, View):
 
 
 class IntegrityEventView(LoginRequiredMixin, View):
-    allowed_events = {"tab_hidden": 2, "window_blur": 1, "copy": 1, "paste": 1}
-    deduction_limits = {"tab_hidden": 5, "window_blur": 5, "copy": 3, "paste": 3}
+    allowed_events = {"visibility_hidden", "visibility_returned", "copy", "paste"}
 
     @transaction.atomic
     def post(self, request, pk):
@@ -550,23 +550,40 @@ class IntegrityEventView(LoginRequiredMixin, View):
             duration_ms = max(0, min(int(request.POST.get("duration_ms", 0)), 900_000))
         except (TypeError, ValueError):
             duration_ms = 0
-        recent = IntegrityEvent.objects.filter(
-            attempt=attempt, event_type=event_type,
-            created_at__gte=timezone.now() - timedelta(seconds=10),
-        ).exists()
-        if recent:
-            return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
-        prior_count = IntegrityEvent.objects.filter(attempt=attempt, event_type=event_type).count()
+        now = timezone.now()
+        if event_type in {"copy", "paste"}:
+            recent = IntegrityEvent.objects.filter(
+                attempt=attempt, event_type=event_type, attempt_question=item,
+                created_at__gte=now - timedelta(seconds=3),
+            ).exists()
+            if recent:
+                return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
+        if event_type == "visibility_hidden":
+            latest = IntegrityEvent.objects.filter(attempt=attempt).order_by("-created_at").first()
+            if latest and latest.event_type == "visibility_hidden":
+                return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
+        if event_type == "visibility_returned":
+            last_return = IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_returned").order_by("-created_at").first()
+            hidden = IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_hidden")
+            if last_return:
+                hidden = hidden.filter(created_at__gt=last_return.created_at)
+            hidden = hidden.order_by("-created_at").first()
+            if not hidden:
+                return JsonResponse({"ok": False, "reason": "missing_hidden_event"}, status=409)
+            duration_ms = min(int((now - hidden.created_at).total_seconds() * 1000), 900_000)
+            item = hidden.attempt_question or item
+        assessment = assess_event(event_type, duration_ms)
         IntegrityEvent.objects.create(
             attempt=attempt,
             attempt_question=item,
             event_type=event_type,
             duration_ms=duration_ms,
+            metadata={"risk_points": assessment.points, "severity": assessment.severity},
         )
-        if prior_count < self.deduction_limits[event_type]:
-            attempt.integrity_score = max(0, attempt.integrity_score - self.allowed_events[event_type])
+        if assessment.points:
+            attempt.integrity_score = max(0, attempt.integrity_score - assessment.points)
             attempt.save(update_fields=["integrity_score", "updated_at"])
-        return JsonResponse({"ok": True, "integrity_score": attempt.integrity_score})
+        return JsonResponse({"ok": True, "integrity_score": attempt.integrity_score, "risk_points": assessment.points})
 
 
 class FinishAttemptView(LoginRequiredMixin, View):
@@ -663,6 +680,8 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
         ]
         context["learning_plan"] = self._learning_plan(lang)
         event_labels = {
+            "visibility_hidden": ("خروج‌های ثبت‌شده", "Recorded page exits"),
+            "visibility_returned": ("بازگشت‌های ثبت‌شده", "Recorded returns"),
             "tab_hidden": ("خروج از تب", "Tab switches"),
             "window_blur": ("خروج از پنجره", "Window focus losses"),
             "copy": ("تلاش برای کپی", "Copy attempts"),

@@ -296,7 +296,15 @@ class AttemptQuestion(models.Model):
 
 
 class IntegrityEvent(models.Model):
-    EVENT_TYPES = (("tab_hidden", "Tab hidden"), ("window_blur", "Window blur"), ("copy", "Copy"), ("paste", "Paste"), ("other", "Other"))
+    EVENT_TYPES = (
+        ("visibility_hidden", "Page hidden"),
+        ("visibility_returned", "Returned to page"),
+        ("tab_hidden", "Tab hidden (legacy)"),
+        ("window_blur", "Window blur (legacy)"),
+        ("copy", "Copy"),
+        ("paste", "Paste"),
+        ("other", "Other"),
+    )
 
     attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="integrity_events")
     attempt_question = models.ForeignKey(

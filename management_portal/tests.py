@@ -387,7 +387,7 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "84.00%")
         self.assertContains(response, "B2")
         self.assertContains(response, "فرمان کپی در صفحه سؤال ثبت شد")
-        self.assertContains(response, "به‌تنهایی اثبات تقلب نیستند")
+        self.assertContains(response, "نتیجه نهایی باید با بررسی انسانی اعلام شود")
         self.assertNotContains(response, "پاسخ صحیح سؤال")
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):

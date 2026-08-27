@@ -18,6 +18,8 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from assessments.integrity import assess_event, format_duration
+
 from accounts.models import User
 from assessments.models import Attempt, AttemptResult, Certificate, Exam, ManualPaymentSubmission, Order, SupportTicket
 from clinic_orders.models import ClinicOrder
@@ -349,6 +351,8 @@ def customer_assessment_detail(request, customer_id, user_id):
         .order_by("-created_at")
     )
     integrity_labels = {
+        "visibility_hidden": ("خروج از صفحه ثبت شد", "Page exit recorded"),
+        "visibility_returned": ("بازگشت به آزمون", "Returned to assessment"),
         "tab_hidden": ("خروج از صفحه یا رفتن به برنامه دیگر", "Left the assessment tab or app"),
         "window_blur": ("پنجره آزمون از حالت فعال خارج شد", "Assessment window lost focus"),
         "copy": ("فرمان کپی در صفحه سؤال ثبت شد", "Copy command recorded on the question page"),
@@ -358,9 +362,16 @@ def customer_assessment_detail(request, customer_id, user_id):
     lang = getattr(request, "LANGUAGE_CODE", "fa")
     for attempt in attempts:
         attempt.management_questions = list(attempt.attempt_questions.all())
+        latest_event = None
         for event in attempt.integrity_events.all():
             labels = integrity_labels.get(event.event_type, integrity_labels["other"])
             event.management_label = labels[0 if lang == "fa" else 1]
+            assessment = assess_event(event.event_type, event.duration_ms)
+            event.management_reason = assessment.reason_fa if lang == "fa" else assessment.reason_en
+            event.management_severity = assessment.severity
+            event.management_duration = format_duration(event.duration_ms, lang) if event.event_type == "visibility_returned" else ""
+            latest_event = event
+        attempt.has_open_absence = bool(latest_event and latest_event.event_type == "visibility_hidden")
     orders = customer.assessment_orders.filter(user=account).select_related("exam", "manual_payment").order_by("-created_at")
     return render(request, "management_portal/v2/customer_assessment_detail.html", {"customer": customer, "account": account, "attempts": attempts, "orders": orders, "lang": lang})
 

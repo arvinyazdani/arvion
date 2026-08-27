@@ -1055,6 +1055,8 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(response, "const flushSave=")
         self.assertContains(response, "AbortController")
         self.assertContains(response, "15000")
+        self.assertContains(response, "visibility_hidden")
+        self.assertContains(response, "visibility_returned")
         self.assertContains(response, "پاسخ ذخیره نشد؛ اتصال را بررسی")
 
     def test_listening_play_count_is_limited_to_two(self):
@@ -1075,14 +1077,51 @@ class AssessmentEngineTests(TestCase):
         item.refresh_from_db()
         self.assertEqual(item.audio_play_count, 2)
 
-    def test_integrity_event_is_recorded_and_score_reduced(self):
+    def test_visibility_absence_is_paired_and_scored_by_server_duration(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        url = reverse("assessments:integrity_event", args=[attempt.pk])
+        hidden = self.client.post(url, {"event_type": "visibility_hidden", "item_id": item.pk})
+        event = IntegrityEvent.objects.get(attempt=attempt, event_type="visibility_hidden")
+        IntegrityEvent.objects.filter(pk=event.pk).update(created_at=timezone.now() - timedelta(seconds=20))
+        returned = self.client.post(url, {
+            "event_type": "visibility_returned", "item_id": item.pk, "duration_ms": "1",
+        })
+        self.assertEqual(hidden.status_code, 200)
+        self.assertEqual(returned.status_code, 200)
+        self.assertEqual(returned.json()["risk_points"], 3)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.integrity_score, 97)
+        return_event = IntegrityEvent.objects.get(attempt=attempt, event_type="visibility_returned")
+        self.assertGreaterEqual(return_event.duration_ms, 19_000)
+        self.assertEqual(return_event.attempt_question, item)
+
+    def test_visibility_return_without_recorded_exit_is_rejected(self):
         attempt = self.start()
         self.client.force_login(self.user)
-        response = self.client.post(reverse("assessments:integrity_event", args=[attempt.pk]), {"event_type": "tab_hidden"})
-        self.assertEqual(response.status_code, 200)
+        response = self.client.post(
+            reverse("assessments:integrity_event", args=[attempt.pk]),
+            {"event_type": "visibility_returned", "duration_ms": "60000"},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "missing_hidden_event")
         attempt.refresh_from_db()
-        self.assertEqual(attempt.integrity_score, 98)
-        self.assertTrue(IntegrityEvent.objects.filter(attempt=attempt, event_type="tab_hidden").exists())
+        self.assertEqual(attempt.integrity_score, 100)
+
+    def test_micro_visibility_absence_is_recorded_without_penalty(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        url = reverse("assessments:integrity_event", args=[attempt.pk])
+        self.client.post(url, {"event_type": "visibility_hidden"})
+        hidden = IntegrityEvent.objects.get(attempt=attempt, event_type="visibility_hidden")
+        IntegrityEvent.objects.filter(pk=hidden.pk).update(
+            created_at=timezone.now() - timedelta(seconds=1)
+        )
+        returned = self.client.post(url, {"event_type": "visibility_returned"})
+        attempt.refresh_from_db()
+        self.assertEqual(returned.json()["risk_points"], 0)
+        self.assertEqual(attempt.integrity_score, 100)
 
     def test_integrity_event_is_scoped_to_question_and_rejects_foreign_item(self):
         attempt = self.start()
@@ -1112,22 +1151,18 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(event.duration_ms, 900_000)
         self.assertEqual(rejected.status_code, 404)
 
-    def test_integrity_events_are_deduplicated_and_deduction_is_capped(self):
+    def test_integrity_copy_events_are_deduplicated_per_question(self):
         attempt = self.start()
+        item = attempt.attempt_questions.first()
         self.client.force_login(self.user)
         url = reverse("assessments:integrity_event", args=[attempt.pk])
-        first = self.client.post(url, {"event_type": "tab_hidden"})
-        duplicate = self.client.post(url, {"event_type": "tab_hidden"})
+        first = self.client.post(url, {"event_type": "copy", "item_id": item.pk})
+        duplicate = self.client.post(url, {"event_type": "copy", "item_id": item.pk})
         self.assertEqual(first.status_code, 200)
         self.assertTrue(duplicate.json()["deduplicated"])
         self.assertEqual(IntegrityEvent.objects.filter(attempt=attempt).count(), 1)
-        for _ in range(9):
-            IntegrityEvent.objects.filter(attempt=attempt).update(
-                created_at=timezone.now() - timedelta(seconds=20)
-            )
-            self.client.post(url, {"event_type": "tab_hidden"})
         attempt.refresh_from_db()
-        self.assertEqual(attempt.integrity_score, 90)
+        self.assertEqual(attempt.integrity_score, 98)
 
     def test_finish_submits_attempt(self):
         attempt = self.start()
