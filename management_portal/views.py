@@ -40,18 +40,38 @@ from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
 from .customer_events import record_customer_event
 from assessments.services import PaymentVerificationError, approve_manual_payment
-from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
+from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
+from .customer_segments import JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
 
 
 @staff_member_required(login_url="accounts:login")
 def customer_workspace(request):
     """One connected list of real customers, not a list of isolated forms."""
     lang = getattr(request, "LANGUAGE_CODE", "fa")
-    query = request.GET.get("q", "").strip()
+    visible_segments = SavedCustomerSegment.objects.filter(Q(owner=request.user) | Q(is_shared=True)).select_related("owner").distinct()
+    selected_segment = None
+    segment_id = request.GET.get("segment", "")
+    if segment_id.isdigit():
+        selected_segment = visible_segments.filter(pk=int(segment_id)).first()
+    incoming_filters = selected_segment.filters if selected_segment else request.GET
+    filters = normalize_segment_filters(incoming_filters)
+    query = filters.get("q", "")
+    if request.method == "POST":
+        name = request.POST.get("segment_name", "").strip()
+        saved_filters = normalize_segment_filters(request.POST)
+        if not name or len(name) > 100 or not saved_filters:
+            messages.error(request, "نام و حداقل یک فیلتر معتبر لازم است." if lang == "fa" else "A name and at least one valid filter are required.")
+        else:
+            segment, _created = SavedCustomerSegment.objects.update_or_create(
+                owner=request.user, name=name,
+                defaults={"filters": saved_filters, "is_shared": request.POST.get("is_shared") == "on" and request.user.is_superuser},
+            )
+            OperationalAudit.objects.create(actor=request.user, action="customer_segment_saved", target_type="saved_customer_segment", target_id=str(segment.pk), summary=segment.name, metadata={"filters": saved_filters})
+            messages.success(request, "فیلتر ذخیره شد." if lang == "fa" else "Filter saved.")
+            return redirect(reverse("management_portal:customer_workspace") + f"?segment={segment.pk}")
     customers = Customer.objects.prefetch_related("contacts", "cases__tasks", "cases__activities").order_by("-updated_at")
-    if query:
-        customers = customers.filter(Q(name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query) | Q(contacts__name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).distinct()
+    customers = apply_customer_filters(customers, filters)
     page = Paginator(customers, 30).get_page(request.GET.get("page"))
     now = timezone.now()
     no_contact = Customer.objects.annotate(contact_count=Count("contacts")).filter(contact_count=0).order_by("-updated_at")
@@ -69,7 +89,9 @@ def customer_workspace(request):
         "duplicate_candidates": duplicate_candidates,
     }
     return render(request, "management_portal/v2/customer_workspace.html", {
-        "customers": page, "page_obj": page, "query": query, "lang": lang,
+        "customers": page, "page_obj": page, "query": query, "filters": filters, "lang": lang,
+        "saved_segments": visible_segments, "selected_segment": selected_segment,
+        "journey_choices": JOURNEY_CHOICES, "case_stages": CustomerCase.STAGES,
         "data_quality": data_quality,
         "stats": {
             "customers": Customer.objects.count(),
@@ -78,6 +100,19 @@ def customer_workspace(request):
             "overdue": CaseTask.objects.filter(status="open", due_at__lt=now).count(),
         },
     })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_segment_delete(request, segment_id):
+    segment = get_object_or_404(SavedCustomerSegment, pk=segment_id)
+    if segment.owner_id != request.user.pk and not request.user.is_superuser:
+        raise PermissionDenied
+    name = segment.name
+    segment.delete()
+    OperationalAudit.objects.create(actor=request.user, action="customer_segment_deleted", target_type="saved_customer_segment", target_id=str(segment_id), summary=name)
+    messages.success(request, "فیلتر ذخیره‌شده حذف شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Saved filter deleted.")
+    return redirect("management_portal:customer_workspace")
 
 
 @staff_member_required(login_url="accounts:login")

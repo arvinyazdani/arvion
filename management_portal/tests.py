@@ -12,7 +12,7 @@ from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
 from contracts.models import ContractProposal
 from leads.models import Lead
-from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
+from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -189,6 +189,36 @@ class ManagementDashboardTests(TestCase):
         order.save(update_fields=("status", "paid_at", "updated_at"))
         ready = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
         self.assertContains(ready, "دسترسی فعال؛ آزمون شروع نشده")
+
+    def test_customer_events_form_one_deduplicated_timeline(self):
+        root = User.objects.create_superuser(username="event-root", email="event-root@example.com", password="safe-password")
+        account = User.objects.create_user(username="event-client", email="event-client@example.com", mobile="09120004567", password="safe-password", is_active=True)
+        customer = Customer.objects.create(name="مشتری رویداد", phone=account.mobile, email=account.email)
+        CustomerContact.objects.create(customer=customer, user=account, name=customer.name, phone=account.mobile, is_primary=True)
+        exam = Exam.objects.create(slug="event-exam", title_fa="آزمون رویداد", title_en="Event assessment", description_fa="", description_en="", language_mode="bilingual")
+        order = Order.objects.create(user=account, customer=customer, exam=exam, amount_irr=1_000_000)
+        order.save()
+        self.assertEqual(CustomerEvent.objects.filter(customer=customer, event_type="order_created").count(), 1)
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
+        self.assertContains(response, "سفارش آزمون ثبت شد", count=1)
+
+    def test_staff_can_save_reuse_and_delete_own_customer_segment(self):
+        staff = User.objects.create_user(username="segment-owner", email="segment-owner@example.com", password="safe-password", is_staff=True)
+        old_customer = Customer.objects.create(name="قدیمی")
+        Customer.objects.filter(pk=old_customer.pk).update(updated_at=timezone.now() - timedelta(days=40))
+        self.client.force_login(staff)
+        saved = self.client.post(reverse("management_portal:customer_workspace"), {
+            "segment_name": "پیگیری قدیمی", "inactive_days": "30",
+        })
+        segment = SavedCustomerSegment.objects.get(owner=staff)
+        self.assertRedirects(saved, reverse("management_portal:customer_workspace") + f"?segment={segment.pk}")
+        response = self.client.get(reverse("management_portal:customer_workspace") + f"?segment={segment.pk}")
+        self.assertContains(response, "پیگیری قدیمی")
+        self.assertContains(response, "قدیمی")
+        deleted = self.client.post(reverse("management_portal:customer_segment_delete", args=[segment.pk]))
+        self.assertRedirects(deleted, reverse("management_portal:customer_workspace"))
+        self.assertFalse(SavedCustomerSegment.objects.filter(pk=segment.pk).exists())
 
     def test_customer_action_center_creates_audited_task_and_activity(self):
         root = User.objects.create_superuser(username="action-root", email="action-root@example.com", password="safe-password")
