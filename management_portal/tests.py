@@ -220,6 +220,23 @@ class ManagementDashboardTests(TestCase):
         self.assertRedirects(deleted, reverse("management_portal:customer_workspace"))
         self.assertFalse(SavedCustomerSegment.objects.filter(pk=segment.pk).exists())
 
+    def test_customer_funnel_reports_conversion_and_bottlenecks_from_live_data(self):
+        root = User.objects.create_superuser(username="report-root", email="report-root@example.com", password="safe-password")
+        exam = Exam.objects.create(slug="report-exam", title_fa="آزمون گزارش", title_en="Report assessment", description_fa="", description_en="", language_mode="bilingual")
+        for index, status in enumerate((None, "pending", "paid"), start=1):
+            user = User.objects.create_user(username=f"report-user-{index}", email=f"report-{index}@example.com", mobile=f"0912000100{index}", password="safe-password", is_active=True)
+            customer = Customer.objects.create(name=f"مشتری {index}", phone=user.mobile)
+            CustomerContact.objects.create(customer=customer, user=user, name=customer.name, phone=user.mobile, is_primary=True)
+            if status:
+                Order.objects.create(user=user, customer=customer, exam=exam, amount_irr=1_000_000, status=status, paid_at=timezone.now() if status == "paid" else None)
+        self.client.force_login(root)
+        response = self.client.get(reverse("management_portal:customer_reports"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "قیف تبدیل و نقاط توقف مشتریان")
+        stages = response.context["report"]["stages"]
+        self.assertEqual([stage["count"] for stage in stages[:3]], [3, 2, 1])
+        self.assertEqual(stages[1]["dropoff"], 1)
+
     def test_customer_action_center_creates_audited_task_and_activity(self):
         root = User.objects.create_superuser(username="action-root", email="action-root@example.com", password="safe-password")
         customer = Customer.objects.create(name="مشتری عملیات", phone="989120008888")

@@ -43,6 +43,7 @@ from assessments.services import PaymentVerificationError, approve_manual_paymen
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
 from .customer_segments import JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
+from .customer_analytics import build_customer_funnel
 
 
 @staff_member_required(login_url="accounts:login")
@@ -113,6 +114,14 @@ def customer_segment_delete(request, segment_id):
     OperationalAudit.objects.create(actor=request.user, action="customer_segment_deleted", target_type="saved_customer_segment", target_id=str(segment_id), summary=name)
     messages.success(request, "فیلتر ذخیره‌شده حذف شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Saved filter deleted.")
     return redirect("management_portal:customer_workspace")
+
+
+@staff_member_required(login_url="accounts:login")
+def customer_reports(request):
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    return render(request, "management_portal/v2/customer_reports.html", {
+        "lang": lang, "report": build_customer_funnel(),
+    })
 
 
 @staff_member_required(login_url="accounts:login")

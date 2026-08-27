@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_account_open, customer_activity_create, customer_assessment_detail, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_message_send, customer_segment_delete, customer_task_create, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
+from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_account_open, customer_activity_create, customer_assessment_detail, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_message_send, customer_reports, customer_segment_delete, customer_task_create, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
 from contracts.views import contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke
 from .workspace_views import (
     workspace_access_create,
@@ -17,6 +17,7 @@ from .workspace_views import (
 urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("customers/", customer_workspace, name="customer_workspace"),
+    path("customers/reports/", customer_reports, name="customer_reports"),
     path("customers/duplicates/", customer_duplicates, name="customer_duplicates"),
     path("customers/segments/<int:segment_id>/delete/", customer_segment_delete, name="customer_segment_delete"),
     path("customers/<int:source_id>/merge/", customer_merge, name="customer_merge"),
