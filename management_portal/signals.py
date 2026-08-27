@@ -8,13 +8,14 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User
-from assessments.models import ManualPaymentSubmission, SupportTicket
+from assessments.models import Attempt, AttemptResult, ManualPaymentSubmission, Order, SupportTicket
 from clinic_orders.models import ClinicOrder
 from contracts.models import ContractAcceptance, ContractProposal, ContractReview
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from leads.models import Lead
 
-from .models import CustomerContact, ManagementNotification
+from .models import CaseActivity, CustomerContact, ManagementNotification
+from .customer_events import record_customer_event
 from .notifications import create_receipts
 from .cases import link_customer_event, link_document, resolve_customer, sync_source_case
 
@@ -34,6 +35,11 @@ def notify(*, category, title, description, target_url, role, source_key, due_at
     })
     if created:
         transaction.on_commit(lambda: create_receipts(notification))
+
+
+def _customer_for_user(user):
+    contact = CustomerContact.objects.filter(user=user).select_related("customer").first()
+    return contact.customer if contact else None
 
 
 @receiver(post_save, sender=User)
@@ -99,6 +105,12 @@ def new_payment(sender, instance, created, **kwargs):
             order.save(update_fields=("customer",))
         title = "رسید پرداخت ارسال شد" if created else "رسید پرداخت اصلاح و دوباره ارسال شد"
         link_customer_event(customer, instance, kind="payment", title=title, body=f"شماره پیگیری: {instance.reference_number}", customer_name=customer.name)
+        record_customer_event(
+            customer=customer, category="payment", event_type=f"payment_{instance.status}",
+            title_fa=title, title_en="Payment receipt submitted", description=instance.reference_number,
+            source=instance, occurred_at=instance.updated_at,
+            dedupe_key=f"payment:{instance.pk}:{instance.status}:{int(instance.updated_at.timestamp())}",
+        )
         source_key = f"payment:{instance.pk}" if created else f"payment:{instance.pk}:resubmitted:{int(instance.updated_at.timestamp())}"
         notify(category="payments", title="رسید پرداخت جدید" if created else "رسید پرداخت اصلاح‌شده", description=instance.reference_number, target_url=reverse("management_portal:approvals"), role="assessments", source_key=source_key)
 
@@ -126,6 +138,7 @@ def contract_proposal_created(sender, instance, created, **kwargs):
             instance.customer = customer
             instance.save(update_fields=("customer",))
         link_customer_event(customer, instance, kind="contract", title=f"پیش‌نویس قرارداد: {instance.project_title}", actor=instance.created_by, customer_name=instance.customer_name, phone=instance.customer_phone, email=instance.customer_email)
+        record_customer_event(customer=customer, category="contract", event_type="contract_created", title_fa="پیش‌نویس قرارداد ساخته شد", title_en="Contract draft created", description=instance.project_title, source=instance, actor=instance.created_by, occurred_at=instance.created_at)
 
 
 @receiver(post_save, sender=ContractReview)
@@ -144,6 +157,72 @@ def contract_acceptance(sender, instance, created, **kwargs):
         proposal = instance.version.proposal
         customer = proposal.customer or resolve_customer(customer_name=proposal.customer_name, phone=proposal.customer_phone, email=proposal.customer_email)
         case = link_customer_event(customer, instance, kind="attachment", title="قرارداد تأیید شد", body=proposal.project_title, actor=proposal.created_by, customer_name=proposal.customer_name)
+        record_customer_event(customer=customer, case=case, category="contract", event_type="contract_accepted", title_fa="قرارداد تأیید شد", title_en="Contract accepted", description=proposal.project_title, source=instance, actor=proposal.created_by, occurred_at=instance.accepted_at)
         case.stage = "won"; case.save(update_fields=("stage", "updated_at"))
         target_url = reverse("management_portal:workspace_detail", args=[proposal.customer_case_id]) if proposal.customer_case_id else reverse("management_portal:contract_detail", args=[proposal.pk])
         notify(category="contracts", title="قرارداد تأیید شد", description=proposal.customer_name, target_url=target_url, role="", source_key=f"contract-acceptance:{instance.pk}")
+
+
+@receiver(post_save, sender=Order)
+def order_event(sender, instance, created, **kwargs):
+    customer = instance.customer or _customer_for_user(instance.user)
+    if not customer:
+        return
+    if created:
+        record_customer_event(
+            customer=customer, category="order", event_type="order_created",
+            title_fa="سفارش آزمون ثبت شد", title_en="Assessment order created",
+            description=instance.exam.title_en or instance.exam.title_fa, source=instance,
+            occurred_at=instance.created_at, dedupe_key=f"order:{instance.pk}:created",
+        )
+    if instance.status == "paid":
+        record_customer_event(
+            customer=customer, category="payment", event_type="order_paid",
+            title_fa="پرداخت سفارش تأیید شد", title_en="Payment approved",
+            description=instance.exam.title_en or instance.exam.title_fa, source=instance,
+            occurred_at=instance.paid_at or instance.updated_at,
+            dedupe_key=f"order:{instance.pk}:paid",
+        )
+
+
+@receiver(post_save, sender=Attempt)
+def attempt_event(sender, instance, created, **kwargs):
+    customer = instance.entitlement.order.customer or _customer_for_user(instance.user)
+    if not customer:
+        return
+    state = "started" if instance.started_at else instance.status
+    record_customer_event(
+        customer=customer, category="assessment", event_type=f"assessment_{state}",
+        title_fa="آزمون شروع شد" if instance.started_at else "دسترسی آزمون ساخته شد",
+        title_en="Assessment started" if instance.started_at else "Assessment access created",
+        description=instance.exam.title_fa, source=instance,
+        occurred_at=instance.started_at or instance.created_at,
+        dedupe_key=f"attempt:{instance.pk}:{state}",
+    )
+
+
+@receiver(post_save, sender=AttemptResult)
+def result_event(sender, instance, created, **kwargs):
+    if not created:
+        return
+    attempt = instance.attempt
+    customer = attempt.entitlement.order.customer or _customer_for_user(attempt.user)
+    if customer:
+        record_customer_event(
+            customer=customer, category="assessment", event_type="assessment_completed",
+            title_fa="نتیجه آزمون آماده شد", title_en="Assessment result ready",
+            description=f"{instance.level_code} · {instance.percentage}%", source=instance,
+            occurred_at=instance.generated_at,
+        )
+
+
+@receiver(post_save, sender=CaseActivity)
+def case_activity_event(sender, instance, created, **kwargs):
+    if created and instance.case.customer_id:
+        record_customer_event(
+            customer=instance.case.customer, case=instance.case,
+            category="task" if instance.kind == "task" else "communication" if instance.kind in {"call", "message", "meeting"} else "sales",
+            event_type=f"case_{instance.kind}", title_fa=instance.title,
+            title_en=instance.title, description=instance.body, source=instance,
+            actor=instance.actor, occurred_at=instance.created_at,
+        )

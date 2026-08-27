@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.utils import timezone
 from django.utils.crypto import get_random_string
 
 
@@ -47,6 +48,57 @@ class CustomerContact(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CustomerEvent(models.Model):
+    """Append-only operational ledger; domain models remain the source of truth."""
+
+    CATEGORIES = (
+        ("identity", "هویت و عضویت"),
+        ("sales", "فروش و نیازسنجی"),
+        ("order", "سفارش"),
+        ("payment", "پرداخت"),
+        ("assessment", "آزمون"),
+        ("contract", "قرارداد"),
+        ("support", "پشتیبانی"),
+        ("communication", "ارتباط"),
+        ("task", "وظیفه"),
+        ("system", "سیستم"),
+    )
+
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="events")
+    case = models.ForeignKey("CustomerCase", on_delete=models.PROTECT, blank=True, null=True, related_name="customer_events")
+    category = models.CharField(max_length=20, choices=CATEGORIES, db_index=True)
+    event_type = models.CharField(max_length=60, db_index=True)
+    title_fa = models.CharField(max_length=180)
+    title_en = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    source_type = models.CharField(max_length=60, blank=True, db_index=True)
+    source_id = models.CharField(max_length=80, blank=True, db_index=True)
+    dedupe_key = models.CharField(max_length=180, blank=True, null=True, unique=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, blank=True, null=True, related_name="recorded_customer_events")
+    occurred_at = models.DateTimeField(default=timezone.now, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-occurred_at", "-pk")
+        indexes = [models.Index(fields=("customer", "event_type", "occurred_at"), name="cust_event_timeline_idx")]
+
+
+class SavedCustomerSegment(models.Model):
+    """A reusable, permission-scoped customer filter definition."""
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_customer_segments")
+    name = models.CharField(max_length=100)
+    filters = models.JSONField(default=dict)
+    is_shared = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("name", "pk")
+        constraints = [models.UniqueConstraint(fields=("owner", "name"), name="unique_saved_segment_name_per_owner")]
 
 
 class CustomerCase(models.Model):

@@ -38,8 +38,9 @@ from .forms import CaseActivityForm, CaseTaskForm, CustomerCaseForm, CustomerCon
 from .backups import find_backup_inventory
 from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
+from .customer_events import record_customer_event
 from assessments.services import PaymentVerificationError, approve_manual_payment
-from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
+from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
 
 
@@ -99,6 +100,12 @@ def customer_account_open(request, user_id):
         phone=account.mobile or "", email=account.email, is_primary=not customer.contacts.exists(),
     )
     Order.objects.filter(user=account, customer__isnull=True).update(customer=customer)
+    record_customer_event(
+        customer=customer, category="identity", event_type="account_created",
+        title_fa="عضویت در سایت", title_en="Website account created",
+        description=account.email or account.mobile, source=account,
+        occurred_at=account.date_joined,
+    )
     OperationalAudit.objects.create(actor=request.user, action="customer_account_linked", target_type="customer", target_id=str(customer.pk), summary=account.email or account.mobile)
     return redirect("management_portal:customer_detail", customer_id=customer.pk)
 
@@ -167,7 +174,6 @@ def customer_merge(request, source_id):
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
-    case_events = list(CaseActivity.objects.filter(case__customer=customer).select_related("case", "actor").order_by("-created_at")[:60])
     contracts = list(customer.contracts.select_related("created_by").order_by("-updated_at")[:10])
     orders = list(customer.assessment_orders.select_related("exam", "user", "manual_payment").order_by("-created_at")[:20])
     user_ids = set(customer.contacts.exclude(user__isnull=True).values_list("user_id", flat=True))
@@ -179,25 +185,22 @@ def customer_detail(request, customer_id):
         .order_by("-created_at")[:30]
     )
     tickets = SupportTicket.objects.filter(Q(order__customer=customer) | Q(user__customer_contact_profiles__customer=customer)).select_related("order__exam", "user").distinct().order_by("-updated_at")[:10]
+    attempt_urls = {str(attempt.pk): reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}" for attempt in attempts}
     timeline = []
-    for contact in customer.contacts.all():
-        if contact.user_id:
-            timeline.append({"at": contact.user.date_joined, "kind": "account", "title": "عضویت در سایت" if lang == "fa" else "Website account created", "detail": contact.user.email or contact.user.mobile or contact.name})
-    for order in orders:
-        timeline.append({"at": order.created_at, "kind": "order", "title": "سفارش آزمون ثبت شد" if lang == "fa" else "Assessment order created", "detail": order.exam.title_fa if lang == "fa" else order.exam.title_en, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, order.user_id])})
-        if order.paid_at:
-            timeline.append({"at": order.paid_at, "kind": "payment", "title": "پرداخت تأیید شد" if lang == "fa" else "Payment approved", "detail": f"{order.amount_irr:,} {'ریال' if lang == 'fa' else 'IRR'}"})
-        elif hasattr(order, "manual_payment"):
-            payment_states = {"pending": ("منتظر بررسی", "Awaiting review"), "approved": ("تأیید شده", "Approved"), "rejected": ("رد شده", "Rejected")}
-            payment_state = payment_states.get(order.manual_payment.status, (order.manual_payment.status, order.manual_payment.status))
-            timeline.append({"at": order.manual_payment.created_at, "kind": "payment", "title": "رسید کارت‌به‌کارت ثبت شد" if lang == "fa" else "Card-transfer receipt submitted", "detail": payment_state[0 if lang == "fa" else 1], "url": reverse("management_portal:approvals")})
-    for attempt in attempts:
-        timeline.append({"at": attempt.started_at or attempt.created_at, "kind": "assessment", "title": "آزمون شروع شد" if lang == "fa" else "Assessment started", "detail": attempt.exam.title_fa if lang == "fa" else attempt.exam.title_en, "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
-        if attempt.status == "completed" and hasattr(attempt, "result"):
-            timeline.append({"at": attempt.result.generated_at, "kind": "result", "title": "نتیجه آزمون آماده شد" if lang == "fa" else "Assessment result ready", "detail": f"{attempt.result.level_code} · {attempt.result.percentage}%", "url": reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}"})
-    for event in case_events:
-        timeline.append({"at": event.created_at, "kind": event.kind, "title": event.title, "detail": event.body, "meta": event.case.code})
-    timeline.sort(key=lambda item: item["at"] or timezone.now(), reverse=True)
+    for event in CustomerEvent.objects.filter(customer=customer).select_related("case", "actor")[:100]:
+        url = ""
+        if event.category == "payment":
+            url = reverse("management_portal:approvals")
+        elif event.source_type == "assessments.attempt":
+            url = attempt_urls.get(event.source_id, "")
+        elif event.category == "contract" and event.source_type == "contracts.contractproposal":
+            url = reverse("management_portal:contract_detail", args=[event.source_id])
+        timeline.append({
+            "at": event.occurred_at, "kind": event.category,
+            "title": event.title_fa if lang == "fa" else event.title_en,
+            "detail": event.description, "url": url,
+            "meta": event.case.code if event.case_id else "",
+        })
 
     can_message = request.user.is_superuser or request.user.has_perm("management_portal.add_smsdispatch")
     can_change_case = request.user.is_superuser or request.user.has_perm("management_portal.change_customercase") or request.user.has_perm("crm_orders.change_crmorder") or request.user.has_perm("leads.change_lead") or request.user.has_perm("clinic_orders.change_clinicorder")
