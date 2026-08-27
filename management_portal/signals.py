@@ -187,6 +187,13 @@ def order_event(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Attempt)
 def attempt_event(sender, instance, created, **kwargs):
+    transaction.on_commit(lambda: _record_attempt_event(instance.pk))
+
+
+def _record_attempt_event(attempt_id):
+    instance = Attempt.objects.select_related("entitlement__order__customer", "user", "exam").filter(pk=attempt_id).first()
+    if not instance:
+        return
     customer = instance.entitlement.order.customer or _customer_for_user(instance.user)
     if not customer:
         return

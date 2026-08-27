@@ -3,6 +3,8 @@ from datetime import timedelta
 import json
 from pathlib import Path
 from django.test import TestCase, override_settings
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone, translation
 
@@ -236,6 +238,41 @@ class ManagementDashboardTests(TestCase):
         stages = response.context["report"]["stages"]
         self.assertEqual([stage["count"] for stage in stages[:3]], [3, 2, 1])
         self.assertEqual(stages[1]["dropoff"], 1)
+
+    def test_saved_segment_permissions_are_enforced_server_side(self):
+        owner = User.objects.create_user(username="segment-sec-owner", email="segment-sec-owner@example.com", password="safe-password", is_staff=True)
+        outsider = User.objects.create_user(username="segment-sec-other", email="segment-sec-other@example.com", password="safe-password", is_staff=True)
+        segment = SavedCustomerSegment.objects.create(owner=owner, name="خصوصی", filters={"journey": "registered"})
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.post(reverse("management_portal:customer_segment_delete", args=[segment.pk])).status_code, 403)
+        self.assertTrue(SavedCustomerSegment.objects.filter(pk=segment.pk).exists())
+        self.client.force_login(owner)
+        self.client.post(reverse("management_portal:customer_workspace"), {"segment_name": "تلاش اشتراک", "journey": "registered", "is_shared": "on"})
+        self.assertFalse(SavedCustomerSegment.objects.get(owner=owner, name="تلاش اشتراک").is_shared)
+
+    def test_customer_workspace_stays_paginated_without_n_plus_one_at_scale(self):
+        root = User.objects.create_superuser(username="scale-root", email="scale-root@example.com", password="safe-password")
+        Customer.objects.bulk_create([Customer(name=f"مشتری حجمی {index}", phone=f"0913{index:07d}") for index in range(1000)], batch_size=250)
+        self.client.force_login(root)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse("management_portal:customer_workspace"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["customers"]), 30)
+        self.assertEqual(response.context["page_obj"].paginator.count, 1000)
+        self.assertLessEqual(len(queries), 30)
+
+    def test_customer_reports_and_segments_are_mobile_safe_by_contract(self):
+        root = User.objects.create_superuser(username="mobile-report-root", email="mobile-report-root@example.com", password="safe-password")
+        self.client.force_login(root)
+        reports = self.client.get(reverse("management_portal:customer_reports"))
+        workspace = self.client.get(reverse("management_portal:customer_workspace"))
+        self.assertContains(reports, "customer-reports.css")
+        self.assertContains(workspace, "customer-operations.css")
+        report_css = (Path(__file__).parent / "static/management_portal/v2/customer-reports.css").read_text()
+        customer_css = (Path(__file__).parent / "static/management_portal/v2/customer-operations.css").read_text()
+        self.assertIn("@media(max-width:760px)", report_css)
+        self.assertIn("@media(max-width:620px)", customer_css)
+        self.assertNotIn("min-width:650px", report_css)
 
     def test_customer_action_center_creates_audited_task_and_activity(self):
         root = User.objects.create_superuser(username="action-root", email="action-root@example.com", password="safe-password")

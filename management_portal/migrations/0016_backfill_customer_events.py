@@ -26,7 +26,19 @@ def backfill_events(apps, schema_editor):
     for attempt in Attempt.objects.select_related("entitlement__order", "exam").iterator():
         customer_id = attempt.entitlement.order.customer_id
         if customer_id:
-            add(customer_id=customer_id, category="assessment", event_type="assessment_started", title_fa="آزمون شروع شد", title_en="Assessment started", description=attempt.exam.title_fa, source_type="assessments.attempt", source_id=str(attempt.pk), dedupe_key=f"attempt:{attempt.pk}:started", occurred_at=attempt.started_at or attempt.created_at)
+            started = bool(attempt.started_at)
+            add(
+                customer_id=customer_id,
+                category="assessment",
+                event_type="assessment_started" if started else "assessment_access_created",
+                title_fa="آزمون شروع شد" if started else "دسترسی آزمون ایجاد شد",
+                title_en="Assessment started" if started else "Assessment access created",
+                description=attempt.exam.title_fa,
+                source_type="assessments.attempt",
+                source_id=str(attempt.pk),
+                dedupe_key=f"attempt:{attempt.pk}:{'started' if started else 'access'}",
+                occurred_at=attempt.started_at or attempt.created_at,
+            )
     for result in AttemptResult.objects.select_related("attempt__entitlement__order").iterator():
         customer_id = result.attempt.entitlement.order.customer_id
         if customer_id:

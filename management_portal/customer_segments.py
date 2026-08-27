@@ -40,7 +40,8 @@ def apply_customer_filters(queryset, filters):
     if stage:
         queryset = queryset.filter(cases__stage=stage)
     if filters.get("inactive_days"):
-        queryset = queryset.filter(updated_at__lt=timezone.now() - timedelta(days=int(filters["inactive_days"])))
+        cutoff = timezone.now() - timedelta(days=int(filters["inactive_days"]))
+        queryset = queryset.filter(updated_at__lt=cutoff).exclude(events__occurred_at__gte=cutoff)
     journey = filters.get("journey")
     if journey == "registered":
         queryset = queryset.filter(contacts__user__is_active=True).exclude(assessment_orders__isnull=False)
