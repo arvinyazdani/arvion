@@ -5,7 +5,8 @@ from accounts.models import User
 from accounts.staff_roles import STAFF_ROLES, group_name, sync_staff_role_groups
 from core.form_accessibility import enhance_form_accessibility
 from core.sms.backends import normalize_iran_mobile
-from .models import CaseActivity, CaseTask, CustomerCase, CustomerContact
+from .models import CaseActivity, CaseTask, CustomerCase, CustomerContact, SMSMessageTemplate
+from .sms_audiences import AUDIENCE_LABELS
 
 ROLE_CHOICES = [(key, value["label_fa"]) for key, value in STAFF_ROLES.items()]
 
@@ -74,10 +75,14 @@ class StaffRolesForm(forms.Form):
 
 
 class ManualSMSForm(forms.Form):
+    audience = forms.ChoiceField(required=False)
+    template = forms.ModelChoiceField(queryset=SMSMessageTemplate.objects.none(), required=False)
+    expected_count = forms.IntegerField(required=False, min_value=0, widget=forms.HiddenInput)
     recipients = forms.CharField(
         label="شماره گیرندگان",
         widget=forms.Textarea(attrs={"rows": 6, "placeholder": "هر شماره در یک خط، یا با ویرگول جدا شود\n0912...\n+989..."}),
         help_text="حداکثر ۲۰ شماره ایرانی؛ قالب‌های 09، +98، 0098 و ارقام فارسی پذیرفته می‌شوند.",
+        required=False,
     )
     message = forms.CharField(
         label="متن پیامک",
@@ -90,6 +95,18 @@ class ManualSMSForm(forms.Form):
     def __init__(self, *args, lang="fa", **kwargs):
         super().__init__(*args, **kwargs)
         self.lang = lang
+        self.fields["audience"].choices = [("manual", "ورود دستی" if lang == "fa" else "Manual entry")] + [
+            (key, labels[0 if lang == "fa" else 1]) for key, labels in AUDIENCE_LABELS.items()
+        ]
+        self.fields["audience"].label = "گروه مشتریان" if lang == "fa" else "Customer segment"
+        self.fields["template"].queryset = SMSMessageTemplate.objects.filter(is_active=True)
+        self.fields["template"].label_from_instance = lambda item: item.title_fa if lang == "fa" else item.title_en
+        self.fields["template"].label = "پیام آماده" if lang == "fa" else "Prepared message"
+        self.fields["template"].empty_label = "متن دلخواه" if lang == "fa" else "Custom message"
+        active_audience = self.data.get("audience") if self.is_bound else self.initial.get("audience", "manual")
+        if active_audience and active_audience != "manual":
+            self.fields["recipients"].label = "پیش‌نمایش گیرندگان" if lang == "fa" else "Recipient preview"
+            self.fields["recipients"].help_text = "این فهرست از وضعیت زنده سیستم ساخته می‌شود و هنگام ارسال دوباره کنترل خواهد شد؛ حداکثر ۵۰ نفر." if lang == "fa" else "This list comes from live system state and is checked again before delivery; maximum 50 recipients."
         if lang == "en":
             self.fields["recipients"].label = "Recipients"
             self.fields["recipients"].help_text = "Up to 20 Iranian mobile numbers; 09, +98 and 0098 formats are accepted."
@@ -103,8 +120,10 @@ class ManualSMSForm(forms.Form):
     def clean_recipients(self):
         raw = self.cleaned_data["recipients"]
         values = [item.strip() for item in raw.replace("،", ",").replace(";", ",").replace("\n", ",").split(",") if item.strip()]
-        if not values:
+        if not values and (self.data.get("audience") or "manual") == "manual":
             raise forms.ValidationError("حداقل یک شماره وارد کنید." if self.lang == "fa" else "Enter at least one mobile number.")
+        if not values:
+            return []
         if len(values) > 20:
             raise forms.ValidationError("در هر ارسال حداکثر ۲۰ شماره مجاز است." if self.lang == "fa" else "Each delivery can include no more than 20 numbers.")
         normalized, invalid = [], []
@@ -120,6 +139,9 @@ class ManualSMSForm(forms.Form):
             prefix = "شماره نامعتبر: " if self.lang == "fa" else "Invalid number: "
             raise forms.ValidationError(prefix + ("، " if self.lang == "fa" else ", ").join(invalid[:5]))
         return normalized
+
+    def clean_audience(self):
+        return self.cleaned_data.get("audience") or "manual"
 
     def clean_message(self):
         message = self.cleaned_data["message"].strip()

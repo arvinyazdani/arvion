@@ -21,6 +21,77 @@
   gap: 18px;
 }
 
+.sms-segments,
+.sms-campaigns {
+  margin-bottom: 18px;
+  padding: 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-surface);
+}
+
+.sms-segments header span,
+.sms-campaigns header span {
+  color: var(--color-brand-orange-text);
+  font-size: .68rem;
+  font-weight: 900;
+}
+
+.sms-segments h2,
+.sms-campaigns h2 {
+  margin: 3px 0 14px;
+  font-size: 1.12rem;
+}
+
+.sms-segments > div {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sms-segments a {
+  display: grid;
+  gap: 4px;
+  min-height: 108px;
+  padding: 13px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-surface-2);
+}
+
+.sms-segments a.active {
+  border-color: var(--color-brand-orange);
+  background: var(--color-accent-surface);
+  box-shadow: inset 0 0 0 1px var(--color-brand-orange);
+}
+
+.sms-segments a strong { font-size: .76rem; }
+.sms-segments a b { color: var(--color-brand-orange-text); font-size: 1.35rem; }
+.sms-segments a small { color: var(--color-muted); font-size: .65rem; }
+
+.sms-compose-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.sms-field select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-control-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.sms-campaigns { margin-top: 18px; }
+.sms-campaigns > div { display: grid; gap: 8px; }
+.sms-campaigns article { display: grid; grid-template-columns: 130px 170px 170px minmax(0,1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--color-line); font-size: .75rem; }
+.sms-campaigns article p { margin: 0; color: var(--color-muted); overflow-wrap: anywhere; }
+.sms-campaigns article b { color: var(--color-brand-orange-text); }
+
 .sms-form,
 .sms-guide,
 .sms-history {
@@ -211,6 +282,9 @@
 }
 
 @media (max-width: 800px) {
+  .sms-segments > div { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .sms-campaigns article { grid-template-columns: 1fr 1fr; }
+  .sms-campaigns article p { grid-column: 1/-1; }
   .sms-layout {
     grid-template-columns: 1fr;
   }
@@ -237,6 +311,12 @@
 }
 
 @media (max-width: 460px) {
+  .sms-segments { padding: 16px; }
+  .sms-segments > div { grid-template-columns: 1fr 1fr; }
+  .sms-segments a { min-height: 94px; }
+  .sms-compose-grid { grid-template-columns: 1fr; }
+  .sms-campaigns article { grid-template-columns: 1fr; }
+  .sms-campaigns article p { grid-column: auto; }
   .sms-form {
     padding: 18px;
   }

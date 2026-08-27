@@ -39,7 +39,8 @@ from .backups import find_backup_inventory
 from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
 from assessments.services import PaymentVerificationError, approve_manual_payment
-from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
+from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
+from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
 
 
 @staff_member_required(login_url="accounts:login")
@@ -1203,29 +1204,84 @@ def staff_edit(request, user_id):
 def sms_send(request):
     _require_superuser(request)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
-    form = ManualSMSForm(request.POST or None, lang=lang)
+    selected_audience = request.GET.get("audience", "manual")
+    if selected_audience not in {"manual", *AUDIENCE_LABELS}:
+        selected_audience = "manual"
+    initial = {"audience": selected_audience}
+    selected_snapshot = None
+    if selected_audience != "manual":
+        selected_snapshot = resolve_sms_audience(selected_audience)
+        initial.update({
+            "recipients": "\n".join(selected_snapshot.recipients),
+            "expected_count": selected_snapshot.count,
+        })
+        default_template = SMSMessageTemplate.objects.filter(is_active=True, audience=selected_audience).first()
+        if default_template:
+            initial.update({
+                "template": default_template,
+                "message": default_template.body_fa if lang == "fa" else default_template.body_en,
+            })
+    form = ManualSMSForm(request.POST or None, initial=initial, lang=lang)
     if request.method == "POST" and form.is_valid():
+        audience = form.cleaned_data["audience"]
+        if audience == "manual":
+            recipients = form.cleaned_data["recipients"]
+        else:
+            snapshot = resolve_sms_audience(audience)
+            recipients = list(snapshot.recipients)
+            if form.cleaned_data.get("expected_count") != snapshot.count:
+                form.add_error(None, "اعضای گروه تغییر کرده‌اند؛ پیش‌نمایش را دوباره بازبینی کنید." if lang == "fa" else "The segment changed; review the preview again.")
+            if snapshot.count > 50:
+                form.add_error(None, "برای امنیت ارسال، هر کمپین حداکثر ۵۰ گیرنده دارد." if lang == "fa" else "For delivery safety, each campaign is limited to 50 recipients.")
+            if not recipients:
+                form.add_error(None, "این گروه در حال حاضر گیرنده معتبری ندارد." if lang == "fa" else "This segment currently has no valid recipients.")
+        if form.errors:
+            return render(request, "management_portal/sms_send.html", {
+                "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50],
+                "campaigns": SMSCampaign.objects.select_related("created_by")[:20],
+                "audiences": sms_audience_overview(), "selected_audience": audience,
+                "template_payload": [{"id": item.pk, "body": item.body_fa if lang == "fa" else item.body_en} for item in SMSMessageTemplate.objects.filter(is_active=True)],
+                "lang": lang,
+            })
+        campaign = SMSCampaign.objects.create(
+            audience=audience,
+            message=form.cleaned_data["message"],
+            recipient_count=len(recipients),
+            created_by=request.user,
+        )
         sent = failed = 0
-        for recipient in form.cleaned_data["recipients"]:
+        for recipient in recipients:
             try:
                 result = send_sms(recipient, form.cleaned_data["message"])
             except (SMSDeliveryError, ImproperlyConfigured, ValueError) as exc:
                 failed += 1
                 SMSDispatch.objects.create(
                     recipient=recipient, message=form.cleaned_data["message"], status="failed",
-                    error_message=str(exc)[:240], sent_by=request.user,
+                    error_message=str(exc)[:240], sent_by=request.user, campaign=campaign,
                 )
             else:
                 sent += 1
                 SMSDispatch.objects.create(
                     recipient=recipient, message=form.cleaned_data["message"], status="sent",
-                    provider=result.provider, provider_reference=result.reference, sent_by=request.user,
+                    provider=result.provider, provider_reference=result.reference, sent_by=request.user, campaign=campaign,
                 )
+        campaign.sent_count = sent
+        campaign.failed_count = failed
+        campaign.save(update_fields=("sent_count", "failed_count"))
+        OperationalAudit.objects.create(
+            actor=request.user, action="sms_campaign_sent", target_type="sms_campaign",
+            target_id=str(campaign.pk), summary=f"{audience}: {sent}/{len(recipients)}",
+            metadata={"audience": audience, "recipient_count": len(recipients), "sent": sent, "failed": failed},
+        )
         if sent:
             messages.success(request, f"{sent} پیامک برای ارسال پذیرفته شد." if lang == "fa" else f"{sent} SMS messages were accepted for delivery.")
         if failed:
             messages.error(request, f"ارسال برای {failed} شماره ناموفق بود؛ جزئیات در سابقه ثبت شد." if lang == "fa" else f"Delivery failed for {failed} numbers; details were recorded in history.")
         return redirect("management_portal:sms_send")
     return render(request, "management_portal/sms_send.html", {
-        "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50], "lang": getattr(request, "LANGUAGE_CODE", "fa"),
+        "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50],
+        "campaigns": SMSCampaign.objects.select_related("created_by")[:20],
+        "audiences": sms_audience_overview(), "selected_audience": selected_audience,
+        "template_payload": [{"id": item.pk, "body": item.body_fa if lang == "fa" else item.body_en} for item in SMSMessageTemplate.objects.filter(is_active=True)],
+        "lang": lang,
     })

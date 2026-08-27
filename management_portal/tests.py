@@ -12,7 +12,7 @@ from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
 from contracts.models import ContractProposal
 from leads.models import Lead
-from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSDispatch, StaffAccessAudit, SystemLog
+from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from management_portal.notifications import process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -898,6 +898,49 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         mocked_send.assert_not_called()
         self.assertContains(response, "شماره نامعتبر")
+
+    @patch("management_portal.views.send_sms")
+    def test_superuser_can_send_live_registered_segment_with_campaign_audit(self, mocked_send):
+        mocked_send.return_value = SMSResult(provider="test", reference="segment-ref")
+        root = User.objects.create_superuser(username="segment-root", email="segment-root@example.com", password="safe-password")
+        User.objects.create_user(username="segment-a", email="segment-a@example.com", mobile="09121110001", password="safe-password", is_active=True)
+        User.objects.create_user(username="segment-b", email="segment-b@example.com", mobile="+989121110002", password="safe-password", is_active=True)
+        self.client.force_login(root)
+
+        preview = self.client.get(reverse("management_portal:sms_send") + "?audience=registered")
+        self.assertContains(preview, "عضو بدون سفارش")
+        self.assertContains(preview, "989121110001")
+        response = self.client.post(reverse("management_portal:sms_send"), {
+            "audience": "registered", "expected_count": "2", "recipients": "",
+            "message": "پیگیری ثبت سفارش آرویون", "confirm": "on",
+        })
+
+        self.assertRedirects(response, reverse("management_portal:sms_send"))
+        self.assertEqual(mocked_send.call_count, 2)
+        campaign = SMSCampaign.objects.get()
+        self.assertEqual((campaign.recipient_count, campaign.sent_count, campaign.failed_count), (2, 2, 0))
+        self.assertEqual(campaign.dispatches.count(), 2)
+        self.assertTrue(OperationalAudit.objects.filter(action="sms_campaign_sent", target_id=str(campaign.pk)).exists())
+
+    @patch("management_portal.views.send_sms")
+    def test_changed_segment_requires_a_fresh_preview(self, mocked_send):
+        root = User.objects.create_superuser(username="segment-race-root", email="segment-race-root@example.com", password="safe-password")
+        User.objects.create_user(username="segment-race", email="segment-race@example.com", mobile="09121110003", password="safe-password", is_active=True)
+        self.client.force_login(root)
+
+        response = self.client.post(reverse("management_portal:sms_send"), {
+            "audience": "registered", "expected_count": "0", "recipients": "",
+            "message": "نباید ارسال شود", "confirm": "on",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "اعضای گروه تغییر کرده‌اند")
+        mocked_send.assert_not_called()
+        self.assertFalse(SMSCampaign.objects.exists())
+
+    def test_prepared_sms_templates_are_seeded(self):
+        self.assertEqual(SMSMessageTemplate.objects.filter(is_active=True).count(), 5)
+        self.assertTrue(SMSMessageTemplate.objects.filter(audience="ready", body_fa__contains="rvionai.com").exists())
 
     def test_payment_and_ticket_are_saved_in_the_customer_timeline(self):
         user = User.objects.create_user(username="timeline-user", email="timeline@example.com", mobile="09120003344", password="safe-password")

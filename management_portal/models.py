@@ -203,12 +203,54 @@ class SMSDispatch(models.Model):
     provider_reference = models.CharField(max_length=120, blank=True)
     error_message = models.CharField(max_length=240, blank=True)
     sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="manual_sms_dispatches")
+    campaign = models.ForeignKey("SMSCampaign", on_delete=models.PROTECT, blank=True, null=True, related_name="dispatches")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ("-created_at",)
         verbose_name = "ارسال دستی پیامک"
         verbose_name_plural = "ارسال‌های دستی پیامک"
+
+
+class SMSMessageTemplate(models.Model):
+    AUDIENCES = (
+        ("registered", "عضو بدون سفارش"),
+        ("unpaid", "سفارش پرداخت‌نشده"),
+        ("payment_review", "پرداخت منتظر بررسی"),
+        ("ready", "پرداخت‌شده و شروع‌نشده"),
+        ("completed", "نتیجه آماده"),
+        ("manual", "دستی"),
+    )
+
+    key = models.SlugField(max_length=60, unique=True)
+    title_fa = models.CharField(max_length=120)
+    title_en = models.CharField(max_length=120)
+    body_fa = models.TextField(max_length=1000)
+    body_en = models.TextField(max_length=1000)
+    audience = models.CharField(max_length=24, choices=AUDIENCES, default="manual", db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("display_order", "pk")
+
+    def __str__(self):
+        return self.title_fa
+
+
+class SMSCampaign(models.Model):
+    audience = models.CharField(max_length=24, choices=SMSMessageTemplate.AUDIENCES, db_index=True)
+    message = models.TextField(max_length=1000)
+    recipient_count = models.PositiveIntegerField(default=0)
+    sent_count = models.PositiveIntegerField(default=0)
+    failed_count = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sms_campaigns")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
 
 
 class OperationalAudit(models.Model):

@@ -38,6 +38,7 @@ AUDIT_ACTIONS_EN = {
     "customer_contact_created": "Customer contact added",
     "customer_followup_created": "Customer follow-up created",
     "customer_activity_logged": "Customer activity logged",
+    "sms_campaign_sent": "SMS campaign sent",
     "crm_case_updated": "CRM case updated",
     "crm_case_exported": "CRM case exported",
     "request_exported": "Discovery exported",
@@ -55,6 +56,7 @@ AUDIT_ACTIONS_FA = {
     "customer_contact_created": "افزودن مخاطب مشتری",
     "customer_followup_created": "ساخت پیگیری مشتری",
     "customer_activity_logged": "ثبت فعالیت مشتری",
+    "sms_campaign_sent": "ارسال کمپین پیامکی",
     "crm_case_updated": "به‌روزرسانی پرونده CRM",
     "crm_case_exported": "خروجی پرونده CRM",
     "request_exported": "خروجی نیازسنجی",
@@ -81,6 +83,7 @@ TARGET_TYPES_EN = {
     "project": "Project",
     "service": "Service",
     "exam": "Assessment",
+    "sms_campaign": "SMS campaign",
 }
 
 TARGET_TYPES_FA = {
@@ -97,6 +100,7 @@ TARGET_TYPES_FA = {
     "project": "پروژه",
     "service": "خدمت",
     "exam": "آزمون",
+    "sms_campaign": "کمپین پیامکی",
 }
 
 STATUS_EN = {
