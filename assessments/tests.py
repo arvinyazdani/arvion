@@ -18,6 +18,7 @@ from .models import (
     ManualPaymentSubmission, PaymentTransaction, Question, Skill, SupportTicket,
 )
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
+from .integrity import assess_event
 from .services import (
     AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
     verify_gateway_payment, verify_sandbox_payment,
@@ -1058,6 +1059,8 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(response, "15000")
         self.assertContains(response, "location.replace(link.href)")
         self.assertContains(response, "else location.assign(link.href)")
+        self.assertContains(response, "internalNavigation=true")
+        self.assertContains(response, "if(internalNavigation)return")
         self.assertContains(response, "visibility_hidden")
         self.assertContains(response, "visibility_returned")
         self.assertContains(response, "پاسخ ذخیره نشد؛ اتصال را بررسی")
@@ -1138,6 +1141,13 @@ class AssessmentEngineTests(TestCase):
         attempt.refresh_from_db()
         self.assertEqual(returned.json()["risk_points"], 0)
         self.assertEqual(attempt.integrity_score, 100)
+
+    def test_legacy_navigation_events_are_not_treated_as_reliable_evidence(self):
+        legacy = assess_event("tab_hidden", 60_000)
+
+        self.assertEqual(legacy.points, 0)
+        self.assertEqual(legacy.severity, "info")
+        self.assertIn("غیرقابل اتکا", legacy.reason_fa)
 
     def test_integrity_event_is_scoped_to_question_and_rejects_foreign_item(self):
         attempt = self.start()
@@ -1333,7 +1343,7 @@ class AssessmentEngineTests(TestCase):
         )
 
         self.assertContains(report, "Review by receiving organization")
-        self.assertContains(report, "Tab switches")
+        self.assertContains(report, "Legacy unreliable event")
         self.assertContains(report, "Copy attempts")
         self.assertContains(certificate, "MANUAL REVIEW REQUIRED")
         self.assertContains(certificate, "72%")

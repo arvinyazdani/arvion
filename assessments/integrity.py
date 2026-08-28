@@ -25,6 +25,8 @@ def assess_event(event_type, duration_ms=0):
         return IntegrityAssessment(6, "high", "خروج بیش از یک دقیقه از آزمون", "Away for more than one minute")
     if event_type == "visibility_hidden":
         return IntegrityAssessment(0, "info", "خروج از صفحه ثبت شد؛ در انتظار بازگشت", "Page exit recorded; awaiting return")
+    if event_type in {"tab_hidden", "window_blur"}:
+        return IntegrityAssessment(0, "info", "رویداد قدیمی و غیرقابل اتکا؛ در تصمیم‌گیری استفاده نشود", "Legacy unreliable event; exclude from decisions")
     if event_type == "copy":
         return IntegrityAssessment(2, "medium", "فرمان کپی روی سؤال اجرا شد", "Copy command used on the question")
     if event_type == "paste":

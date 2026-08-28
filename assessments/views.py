@@ -682,8 +682,8 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
         event_labels = {
             "visibility_hidden": ("خروج‌های ثبت‌شده", "Recorded page exits"),
             "visibility_returned": ("بازگشت‌های ثبت‌شده", "Recorded returns"),
-            "tab_hidden": ("خروج از تب", "Tab switches"),
-            "window_blur": ("خروج از پنجره", "Window focus losses"),
+            "tab_hidden": ("رویداد قدیمی غیرقابل اتکا", "Legacy unreliable event"),
+            "window_blur": ("رویداد قدیمی غیرقابل اتکا", "Legacy unreliable event"),
             "copy": ("تلاش برای کپی", "Copy attempts"),
             "paste": ("تلاش برای جای‌گذاری", "Paste attempts"),
             "other": ("سایر رخدادها", "Other events"),

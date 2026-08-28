@@ -353,8 +353,8 @@ def customer_assessment_detail(request, customer_id, user_id):
     integrity_labels = {
         "visibility_hidden": ("خروج از صفحه ثبت شد", "Page exit recorded"),
         "visibility_returned": ("بازگشت به آزمون", "Returned to assessment"),
-        "tab_hidden": ("خروج از صفحه یا رفتن به برنامه دیگر", "Left the assessment tab or app"),
-        "window_blur": ("پنجره آزمون از حالت فعال خارج شد", "Assessment window lost focus"),
+        "tab_hidden": ("رویداد قدیمی غیرقابل اتکا", "Legacy unreliable event"),
+        "window_blur": ("رویداد قدیمی غیرقابل اتکا", "Legacy unreliable event"),
         "copy": ("فرمان کپی در صفحه سؤال ثبت شد", "Copy command recorded on the question page"),
         "paste": ("فرمان جای‌گذاری در صفحه سؤال ثبت شد", "Paste command recorded on the question page"),
         "other": ("رویداد نیازمند بررسی", "Event requiring review"),
