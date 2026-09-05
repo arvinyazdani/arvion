@@ -280,6 +280,7 @@ class AttemptQuestion(models.Model):
     active_seconds = models.PositiveIntegerField(default=0)
     visit_count = models.PositiveSmallIntegerField(default=0)
     answer_change_count = models.PositiveSmallIntegerField(default=0)
+    last_save_token = models.CharField(max_length=36, blank=True, editable=False)
 
     @property
     def effective_selected_choice_id(self):

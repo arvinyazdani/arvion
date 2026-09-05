@@ -11,26 +11,19 @@ from leads.models import Lead
 
 
 class PublicUserJourneyTests(TestCase):
-    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="journey-ref"))
-    def test_visitor_can_register_verify_and_reach_private_dashboard(self, mocked_send):
+    def test_visitor_can_register_and_reach_private_dashboard(self):
         response = self.client.post(reverse("accounts:register") + "?lang=en", {
             "first_name": "Journey", "last_name": "Tester",
             "email": "journey@example.com",
             "mobile": "09121234567",
             "password1": "A-secure-journey-password-42",
             "password2": "A-secure-journey-password-42",
-        })
-        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=en")
-        verification_code = mocked_send.call_args.args[1]
+        }, follow=True)
 
-        verified = self.client.post(
-            reverse("accounts:verify_phone") + "?lang=en", {"code": verification_code}, follow=True
-        )
-
-        self.assertEqual(verified.status_code, 200)
-        self.assertTemplateUsed(verified, "accounts/dashboard.html")
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "accounts/dashboard.html")
         user = User.objects.get(email="journey@example.com")
-        self.assertTrue(user.email_verified)
+        self.assertTrue(user.is_active)
         self.assertEqual(self.client.session["_auth_user_id"], str(user.pk))
 
     def test_visitor_can_submit_general_enquiry_and_use_reference_page(self):

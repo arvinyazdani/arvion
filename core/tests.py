@@ -32,10 +32,11 @@ class CorePagesTests(TestCase):
         self.assertContains(response, 'data-app-welcome', html=False)
         self.assertRedirects(self.client.get("/favicon.ico"), "/static/core/favicon.svg", status_code=301, fetch_redirect_response=False)
 
-    def test_home_links_directly_to_english_assessment(self):
+    def test_home_links_to_english_assessment_briefing_before_the_price(self):
         response = self.client.get("/fa/")
         self.assertContains(response, "شروع آزمون زبان انگلیسی")
-        self.assertContains(response, 'href="/fa/assessments/english-placement-a1-c1/"', html=False)
+        # The briefing explains scope, proctoring and the fee before the price.
+        self.assertContains(response, 'href="/fa/assessments/english-placement-a1-c1/about/"', html=False)
 
     def test_public_and_staff_mobile_navigation_always_has_five_destinations(self):
         response = self.client.get("/fa/")

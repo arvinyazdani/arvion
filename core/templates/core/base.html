@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="{{ lang|default:'fa' }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
+<html lang="{{ lang|default:'fa' }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}" data-welcome-sound="{% static 'core/audio/welcome-chime.m4a' %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -42,6 +42,7 @@
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/welcome-sound.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/wizard-engine.js' %}?v=2" defer></script>
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=2" defer></script>{% endif %}
   {% block extra_head %}{% endblock %}
@@ -71,7 +72,7 @@
           {% if request.user.is_staff %}<a class="nav-utility nav-management" href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Management{% endif %}</span></a>{% endif %}
           <a class="nav-utility nav-account" href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if request.user.is_authenticated %}{% if lang == 'fa' %}حساب من{% else %}My account{% endif %}{% else %}{% if lang == 'fa' %}ورود{% else %}Sign in{% endif %}{% endif %}</span></a>
           <a class="nav-utility lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}" aria-label="{% if lang == 'fa' %}نمایش نسخه انگلیسی{% else %}View the Persian version{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#globe"></use></svg><span>{% if lang == 'fa' %}EN{% else %}فا{% endif %}</span></a>
-          <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg><span>{% if lang == 'fa' %}ظاهر{% else %}Theme{% endif %}</span></button>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg><span>{% if lang == 'fa' %}ظاهر{% else %}Theme{% endif %}</span></button><button class="theme-toggle sound-toggle" type="button" data-sound-toggle aria-pressed="true" aria-label="{% if lang == 'fa' %}خاموش‌کردن صدای خوش‌آمد{% else %}Turn welcome sound off{% endif %}">🔊</button>
           <a class="nav-cta" href="{% url 'project_start' %}"{% if request.resolver_match.url_name == 'project_start' %} aria-current="page"{% endif %}><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
         </div>
       </nav>

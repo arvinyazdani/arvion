@@ -11,11 +11,11 @@ from django.utils import timezone, translation
 from accounts.models import User
 from accounts.staff_roles import group_name
 from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
-from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction, SupportTicket
+from assessments.models import Attempt, AttemptQuestion, AttemptResult, Exam, ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction, Question, Skill, SupportTicket
 from contracts.models import ContractProposal
 from leads.models import Lead
 from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
-from management_portal.notifications import process_notifications
+from management_portal.notifications import _send_user_push, process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
 from unittest.mock import patch
@@ -378,6 +378,18 @@ class ManagementDashboardTests(TestCase):
         order = Order.objects.create(user=account, customer=customer, exam=exam, amount_irr=1_200_000, status="paid")
         entitlement = ExamEntitlement.objects.create(user=account, exam=exam, order=order)
         attempt = Attempt.objects.create(user=account, exam=exam, version=version, entitlement=entitlement, status="completed", started_at=timezone.now() - timedelta(minutes=20), submitted_at=timezone.now())
+        skill = Skill.objects.create(exam=exam, code="report-skill", title_fa="مهارت", title_en="Skill")
+        section = ExamSection.objects.create(version=version, code="report-section", title_fa="بخش", title_en="Section", question_count=1)
+        question = Question.objects.create(
+            version=version, section=section, skill=skill, prompt_fa="پرسش", prompt_en="Question",
+            difficulty=4, suggested_seconds=60,
+        )
+        AttemptQuestion.objects.create(
+            attempt=attempt, question=question, position=1, active_seconds=2,
+            answered_at=timezone.now(), selected_choice_snapshot_id=10,
+            question_snapshot={"difficulty": 4, "suggested_seconds": 60},
+            choices_snapshot=[{"id": 10, "is_correct": False}],
+        )
         AttemptResult.objects.create(attempt=attempt, correct_count=42, incorrect_count=8, unanswered_count=0, percentage="84.00", level_code="B2", level_title_fa="متوسط رو به بالا", level_title_en="Upper intermediate", summary_fa="خوب", summary_en="Good")
         IntegrityEvent.objects.create(attempt=attempt, event_type="copy")
         self.client.force_login(root)
@@ -388,7 +400,14 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "B2")
         self.assertContains(response, "فرمان کپی در صفحه سؤال ثبت شد")
         self.assertContains(response, "نتیجه نهایی باید با بررسی انسانی اعلام شود")
+        self.assertContains(response, "تکمیل‌شده")
+        self.assertContains(response, "سریع و نادرست")
+        self.assertContains(response, "سرعت به‌تنهایی امتیاز سلامت را کم نمی‌کند")
         self.assertNotContains(response, "پاسخ صحیح سؤال")
+        english = self.client.get(f"/en/management/customers/{customer.pk}/assessments/{account.pk}/")
+        self.assertContains(english, "Completed")
+        self.assertContains(english, "Fast, incorrect")
+        self.assertContains(english, "pace alone does not reduce integrity")
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):
         user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)
@@ -453,7 +472,7 @@ class ManagementDashboardTests(TestCase):
         self.assertIsNotNone(customer.mobile_verified_at)
         self.assertTrue(OperationalAudit.objects.filter(action="account_approve", target_id=str(customer.pk)).exists())
 
-    def test_superuser_can_complete_phone_check_for_temporary_sms_recovery_account(self):
+    def test_unverified_mobile_stays_out_of_queue_but_staff_can_still_verify(self):
         root = User.objects.create_superuser(username="phone-check-root", email="phone-check-root@example.com", password="safe-password")
         customer = User.objects.create_user(
             username="temporary-phone", email="temporary-phone@example.com", password="safe-password",
@@ -461,11 +480,13 @@ class ManagementDashboardTests(TestCase):
         )
         self.client.force_login(root)
 
+        # Signup no longer verifies by SMS, so an unverified mobile is normal and
+        # must not queue an approval task for every customer.
         queue = self.client.get(reverse("management_portal:approvals"))
-        self.assertContains(queue, "فعال موقت · نیازمند تأیید تلفنی")
-        self.assertContains(queue, customer.mobile)
-        self.assertTrue(ManagementNotification.objects.filter(source_key=f"mobile-verification:{customer.pk}").exists())
+        self.assertNotContains(queue, "فعال موقت · نیازمند تأیید تلفنی")
+        self.assertFalse(ManagementNotification.objects.filter(source_key=f"mobile-verification:{customer.pk}").exists())
 
+        # Staff can still confirm a number manually after a phone call.
         response = self.client.post(reverse("management_portal:account_approval", args=[customer.pk, "verify_mobile"]))
 
         self.assertRedirects(response, reverse("management_portal:approvals"))
@@ -473,10 +494,6 @@ class ManagementDashboardTests(TestCase):
         self.assertIsNotNone(customer.mobile_verified_at)
         self.assertTrue(customer.email_verified)
         self.assertTrue(OperationalAudit.objects.filter(action="account_verify_mobile", target_id=str(customer.pk)).exists())
-        self.assertEqual(
-            ManagementNotification.objects.get(source_key=f"mobile-verification:{customer.pk}").status,
-            "resolved",
-        )
 
     def test_payment_approval_grants_access_once_and_records_audit(self):
         root = User.objects.create_superuser(username="pay-root", email="pay-root@example.com", password="safe-password")
@@ -839,6 +856,10 @@ class ManagementDashboardTests(TestCase):
         notification = ManagementNotification.objects.get(source_key=f"user:{customer.pk}")
         self.assertEqual(notification.category, "accounts")
         self.assertEqual(notification.status, "unread")
+        self.assertEqual(
+            notification.target_url,
+            reverse("management_portal:customer_account_open", args=[customer.pk]),
+        )
 
     def test_incomplete_registration_does_not_create_stale_account_notification(self):
         customer = User.objects.create_user(
@@ -890,6 +911,48 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(mocked_sms.call_count, 1)
         self.assertGreaterEqual(mocked_push.call_count, 1)
 
+    @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key")
+    @patch("management_portal.notifications._send_user_push", return_value="")
+    def test_payment_push_is_delivered_even_when_auto_approval_runs_same_tick(self, mocked_push):
+        """Auto-approval resolves the notification; the push must go out first."""
+        root = User.objects.create_superuser(username="race-root", email="race-root@example.com", password="safe-password")
+        item = ManagementNotification.objects.create(
+            category="payments", title="رسید جدید", description="REF-RACE",
+            target_url="/fa/management/approvals/", role="", source_key="alert:payment-race",
+        )
+        receipt = NotificationReceipt.objects.create(user=root, notification=item)
+        item.status = "resolved"
+
+        result = process_notifications()
+
+        receipt.refresh_from_db()
+        self.assertEqual(result["push"], 1)
+        self.assertIsNotNone(receipt.push_sent_at)
+        self.assertEqual(mocked_push.call_count, 1)
+
+    @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key")
+    @patch("management_portal.notifications._send_user_push", return_value="provider unavailable")
+    def test_failed_push_is_retried_on_the_next_run(self, mocked_push):
+        root = User.objects.create_superuser(username="retry-root", email="retry-root@example.com", password="safe-password")
+        item = ManagementNotification.objects.create(
+            category="payments", title="رسید جدید", description="REF-RETRY",
+            target_url="/fa/management/approvals/", role="", source_key="alert:payment-retry",
+        )
+        receipt = NotificationReceipt.objects.create(user=root, notification=item)
+
+        first = process_notifications()
+        receipt.refresh_from_db()
+
+        self.assertEqual(first["push"], 0)
+        self.assertIsNone(receipt.push_sent_at)
+        self.assertIn("provider unavailable", receipt.last_error)
+
+        process_notifications()
+        self.assertEqual(mocked_push.call_count, 1)
+        receipt.refresh_from_db()
+        process_notifications(now=receipt.push_retry_at + timedelta(seconds=1))
+        self.assertEqual(mocked_push.call_count, 2)
+
     @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key", MANAGEMENT_REMINDER_SECONDS=3600)
     @patch("management_portal.notifications._send_user_push", return_value="")
     def test_seen_notifications_do_not_send_hourly_reminder_but_new_items_do(self, mocked_push):
@@ -898,6 +961,9 @@ class ManagementDashboardTests(TestCase):
         receipt = NotificationReceipt.objects.create(user=root, notification=old, push_sent_at=timezone.now()-timedelta(hours=2))
         self.client.force_login(root)
         self.client.get(reverse("management_portal:notification_list"))
+        receipt.refresh_from_db()
+        self.assertIsNone(receipt.seen_at)
+        self.client.get(reverse("management_portal:notification_open", args=[old.pk]))
         receipt.refresh_from_db()
         self.assertIsNotNone(receipt.seen_at)
         result = process_notifications(now=timezone.now())
@@ -909,6 +975,34 @@ class ManagementDashboardTests(TestCase):
         self.assertEqual(result["reminders"], 1)
         new_receipt.refresh_from_db()
         self.assertIsNotNone(new_receipt.last_reminded_at)
+
+    @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key", MANAGEMENT_REMINDER_SECONDS=3600)
+    @patch("management_portal.notifications._send_user_push", return_value="")
+    def test_english_staff_receives_localized_push_and_hourly_reminder(self, mocked_push):
+        manager = User.objects.create_superuser(
+            username="english-push-root", email="english-push@example.com",
+            password="safe-password", preferred_language="en",
+        )
+        item = ManagementNotification.objects.create(
+            category="payments", title="پرداخت توسط سیستم تأیید شد",
+            description="REF-EN · customer@example.com · دسترسی آزمون صادر شد",
+            target_url="/fa/management/approvals/", role="", source_key="alert:english-push",
+        )
+        receipt = NotificationReceipt.objects.create(user=manager, notification=item)
+
+        process_notifications(now=timezone.now())
+
+        initial_payload = mocked_push.call_args_list[0].args[1]
+        self.assertEqual(initial_payload["title"], "Payment auto-approved")
+        self.assertIn("assessment access granted", initial_payload["body"])
+        self.assertTrue(initial_payload["url"].startswith("/en/management/"))
+
+        receipt.refresh_from_db()
+        reminder_time = receipt.push_sent_at + timedelta(seconds=3601)
+        process_notifications(now=reminder_time)
+        reminder_payload = mocked_push.call_args_list[-1].args[1]
+        self.assertEqual(reminder_payload["title"], "Rvion reminder")
+        self.assertTrue(reminder_payload["url"].startswith("/en/management/"))
 
     def test_staff_can_register_push_subscription(self):
         root = User.objects.create_superuser(username="push-root", email="push-root@example.com", password="safe-password")
@@ -1083,17 +1177,159 @@ class ManagementDashboardTests(TestCase):
         later = ManagementNotification.objects.create(category="sales", title="پیگیری بعدی", target_url=reverse("management_portal:request_list"), role="", source_key="queue:later", due_at=timezone.now() + timedelta(days=2))
         self.client.force_login(root)
         response = self.client.get(reverse("management_portal:notification_list"))
-        self.assertContains(response, "اکنون رسیدگی کنید")
+        # Payments outrank sales, so the payment alert must lead the queue.
+        self.assertContains(response, "رسید فوری")
         self.assertContains(response, "پیگیری امروز")
         self.assertContains(response, "پیگیری بعدی")
+        self.assertContains(response, "n-priority--critical")
+        self.assertLess(
+            response.content.decode().index("رسید فوری"),
+            response.content.decode().index("پیگیری امروز"),
+        )
         claimed = self.client.post(reverse("management_portal:notification_claim", args=[today.pk]))
         self.assertRedirects(claimed, reverse("management_portal:notification_list"))
         today.refresh_from_db()
         self.assertEqual(today.owner, root)
-        self.assertEqual(today.status, "read")
+        self.assertEqual(today.status, "unread")
         self.assertTrue(OperationalAudit.objects.filter(action="notification_claimed", target_id=str(today.pk)).exists())
         self.assertEqual(payment.category, "payments")
         self.assertEqual(later.owner, None)
+
+    def test_snoozed_alert_leaves_the_queue_and_is_re_delivered_later(self):
+        root = User.objects.create_superuser(username="snooze-root", email="snooze@example.com", password="safe-password")
+        item = ManagementNotification.objects.create(
+            category="sales", title="پیگیری قابل تعویق", target_url=reverse("management_portal:request_list"),
+            role="", source_key="queue:snooze",
+        )
+        receipt = NotificationReceipt.objects.create(user=root, notification=item, push_sent_at=timezone.now(), seen_at=timezone.now())
+        self.client.force_login(root)
+
+        response = self.client.post(reverse("management_portal:notification_snooze", args=[item.pk]), {"duration": "1h"})
+
+        self.assertRedirects(response, reverse("management_portal:notification_list"))
+        item.refresh_from_db()
+        receipt.refresh_from_db()
+        self.assertIsNotNone(item.snoozed_until)
+        # A snooze must alert again later, so delivery state is reopened.
+        self.assertIsNone(receipt.push_sent_at)
+        self.assertIsNone(receipt.seen_at)
+        # It leaves the working queue but stays visible under "snoozed".
+        page = self.client.get(reverse("management_portal:notification_list"))
+        self.assertNotIn(item, page.context["overdue_notifications"])
+        self.assertNotIn(item, page.context["upcoming_notifications"])
+        self.assertIn(item, page.context["snoozed_notifications"])
+        self.assertTrue(OperationalAudit.objects.filter(action="notification_snoozed", target_id=str(item.pk)).exists())
+
+    @override_settings(WEB_PUSH_VAPID_PRIVATE_KEY="test-key")
+    @patch("management_portal.notifications._send_user_push", return_value="")
+    def test_snoozed_alert_is_not_pushed_before_its_deadline(self, mocked_push):
+        root = User.objects.create_superuser(username="snooze-boundary", email="snooze-boundary@example.com", password="safe-password")
+        now = timezone.now()
+        item = ManagementNotification.objects.create(
+            category="sales", title="بعداً", target_url="/fa/management/",
+            role="", source_key="queue:snooze-boundary", snoozed_until=now + timedelta(hours=1),
+        )
+        receipt = NotificationReceipt.objects.create(user=root, notification=item)
+
+        process_notifications(now=now)
+        mocked_push.assert_not_called()
+
+        process_notifications(now=item.snoozed_until + timedelta(seconds=1))
+        mocked_push.assert_called_once()
+        receipt.refresh_from_db()
+        self.assertIsNotNone(receipt.push_sent_at)
+
+    def test_no_subscription_is_not_reported_as_success(self):
+        root = User.objects.create_superuser(username="no-push-device", email="no-push@example.com", password="safe-password")
+        self.assertEqual(_send_user_push(root, {"title": "Test"}), "no active push subscription")
+
+    def test_alert_can_be_assigned_to_a_colleague_who_then_receives_it(self):
+        root = User.objects.create_superuser(username="assign-root", email="assign-root@example.com", password="safe-password")
+        colleague = User.objects.create_user(username="assign-mate", email="mate@example.com", password="safe-password", is_staff=True)
+        from accounts.staff_roles import sync_staff_role_groups
+        colleague.groups.add(sync_staff_role_groups()["support"])
+        item = ManagementNotification.objects.create(
+            category="support", title="تیکت واگذارشدنی", target_url=reverse("management_portal:assessment_support"),
+            role="support", source_key="queue:assign",
+        )
+        self.client.force_login(root)
+
+        response = self.client.post(
+            reverse("management_portal:notification_assign", args=[item.pk]),
+            {"user_id": colleague.pk}, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.owner, colleague)
+        self.assertEqual(item.status, "unread")
+        self.assertTrue(NotificationReceipt.objects.filter(user=colleague, notification=item).exists())
+        self.assertTrue(OperationalAudit.objects.filter(action="notification_assigned", target_id=str(item.pk)).exists())
+
+        self.client.force_login(colleague)
+        self.assertContains(self.client.get(reverse("management_portal:notification_list")), "تیکت واگذارشدنی")
+        feed = self.client.get(reverse("management_portal:notification_feed")).json()
+        self.assertEqual(feed["notifications"][0]["title"], "تیکت واگذارشدنی")
+        self.assertEqual(
+            self.client.get(reverse("management_portal:notification_open", args=[item.pk]), follow=True).status_code,
+            200,
+        )
+
+    def test_payment_quick_action_rejects_invalid_or_replayed_decisions_without_mutation(self):
+        root = User.objects.create_superuser(username="quick-pay-root", email="quick-pay-root@example.com", password="safe-password")
+        customer = User.objects.create_user(username="quick-buyer", email="quick-buyer@example.com", password="safe-password")
+        exam = Exam.objects.create(slug="quick-payment", title_fa="آزمون", title_en="Exam", description_fa="", description_en="", language_mode="bilingual", price_irr=100000)
+        order = Order.objects.create(user=customer, exam=exam, amount_irr=100000, subtotal_irr=100000, gateway="card_transfer", terms_version="v1", terms_accepted_at=timezone.now())
+        payment = ManualPaymentSubmission.objects.create(order=order, payer_name="خریدار", reference_number="QUICK-1", paid_at=timezone.now())
+        item = ManagementNotification.objects.get(source_key=f"payment:{payment.pk}")
+        self.client.force_login(root)
+
+        invalid = self.client.post(reverse("management_portal:notification_payment_action", args=[item.pk, "anything"]))
+        self.assertEqual(invalid.status_code, 404)
+        payment.refresh_from_db(); order.refresh_from_db()
+        self.assertEqual(payment.status, "pending")
+        self.assertEqual(order.status, "pending")
+
+        approved = self.client.post(reverse("management_portal:notification_payment_action", args=[item.pk, "approve"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(approved.status_code, 200)
+        replay = self.client.post(reverse("management_portal:notification_payment_action", args=[item.pk, "reject"]), {"review_note": "رسید نامعتبر"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(replay.status_code, 409)
+        payment.refresh_from_db(); order.refresh_from_db()
+        self.assertEqual(payment.status, "approved")
+        self.assertEqual(order.status, "paid")
+
+    def test_english_inbox_localizes_all_system_labels_and_hides_non_receipt_payment_actions(self):
+        root = User.objects.create_superuser(username="inbox-en-root", email="inbox-en@example.com", password="safe-password")
+        ManagementNotification.objects.create(
+            category="payments", title="تأیید پرداخت از مهلت عبور کرده است",
+            description="شماره پیگیری: EN-1", target_url="/en/management/approvals/",
+            role="", source_key="sla:payment:999",
+        )
+        self.client.force_login(root)
+        response = self.client.get("/en/management/notifications/")
+        self.assertContains(response, "Payment review is overdue")
+        self.assertContains(response, "Reference: EN-1")
+        self.assertContains(response, "Critical")
+        self.assertContains(response, "Payments")
+        self.assertNotContains(response, "تأیید پرداخت")
+        self.assertNotContains(response, "Approve payment")
+
+    def test_assigning_to_a_non_staff_user_is_rejected(self):
+        root = User.objects.create_superuser(username="assign-guard", email="assign-guard@example.com", password="safe-password")
+        outsider = User.objects.create_user(username="outsider", email="outsider@example.com", password="safe-password")
+        item = ManagementNotification.objects.create(
+            category="support", title="تیکت", target_url="/fa/management/", role="", source_key="queue:assign-guard",
+        )
+        self.client.force_login(root)
+
+        response = self.client.post(
+            reverse("management_portal:notification_assign", args=[item.pk]),
+            {"user_id": outsider.pk}, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        item.refresh_from_db()
+        self.assertIsNone(item.owner)
 
     def test_notification_cards_only_refer_to_work_while_legacy_actions_keep_api_fallback(self):
         root = User.objects.create_superuser(username="async-notify-root", email="async-notify@example.com", password="safe-password")
@@ -1104,10 +1340,10 @@ class ManagementDashboardTests(TestCase):
         self.client.force_login(root)
 
         inbox = self.client.get(reverse("management_portal:notification_list"))
-        self.assertNotContains(inbox, 'data-notification-action="claim"')
-        self.assertNotContains(inbox, 'data-notification-action="resolved"')
-        self.assertContains(inbox, "رفتن به محل انجام کار")
-        self.assertContains(inbox, "data-notification-queue")
+        self.assertContains(inbox, "باز کردن پرونده")
+        self.assertContains(inbox, "data-notification-action")
+        self.assertContains(inbox, "یادآوری بعداً")
+        self.assertContains(inbox, "به عهده من")
 
         claimed = self.client.post(
             reverse("management_portal:notification_claim", args=[claimed_item.pk]),
@@ -1116,7 +1352,7 @@ class ManagementDashboardTests(TestCase):
         )
         self.assertEqual(claimed.status_code, 200)
         self.assertEqual(claimed.json()["action"], "claim")
-        self.assertEqual(claimed.json()["status"], "read")
+        self.assertEqual(claimed.json()["status"], "unread")
         self.assertEqual(claimed.json()["owner"], root.email)
         claimed_item.refresh_from_db()
         self.assertEqual(claimed_item.owner, root)

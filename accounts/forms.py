@@ -48,6 +48,18 @@ class RegistrationForm(UserCreationForm):
                 "The email domain looks mistyped; did you mean gmail.com?"
             )
             raise forms.ValidationError(message, code="mistyped_email_domain")
+        existing = User.objects.filter(email__iexact=email).first()
+        if existing and (existing.is_staff or existing.is_superuser):
+            raise forms.ValidationError(
+                "این حساب فقط توسط مدیر ارشد قابل بازیابی است."
+                if self.lang == "fa" else "This account can only be recovered by a super administrator."
+            )
+        if existing and existing.is_active:
+            raise forms.ValidationError(
+                "این ایمیل قبلاً ثبت شده است؛ از صفحه ورود استفاده کنید."
+                if self.lang == "fa" else "This email is already registered. Please sign in."
+            )
+        self.resume_user = existing
         return email
 
     def clean_mobile(self):
@@ -58,20 +70,78 @@ class RegistrationForm(UserCreationForm):
                 "شماره موبایل معتبر نیست؛ مانند 09121234567 وارد کنید."
                 if self.lang == "fa" else "Enter a valid Iranian mobile number, such as 09121234567."
             )
-        if User.objects.filter(mobile=mobile).exists():
+        existing = User.objects.filter(mobile=mobile).first()
+        if existing and (existing.is_staff or existing.is_superuser):
+            raise forms.ValidationError(
+                "این شماره به حساب مدیریتی متصل است."
+                if self.lang == "fa" else "This number belongs to a management account."
+            )
+        if existing and existing.is_active:
             raise forms.ValidationError(
                 "این شماره قبلاً ثبت شده است؛ از صفحه ورود استفاده کنید."
                 if self.lang == "fa" else "This number is already registered. Please sign in."
             )
+        if existing:
+            email = self.cleaned_data.get("email", "")
+            if existing.email.casefold() != email.casefold():
+                raise forms.ValidationError(
+                    "این شماره به حساب دیگری متصل است؛ با پشتیبانی تماس بگیرید."
+                    if self.lang == "fa" else "This number belongs to another account. Contact support."
+                )
+            self.resume_user = existing
         return mobile
 
+    def validate_unique(self):
+        exclude = self._get_validation_exclusions()
+        if getattr(self, "resume_user", None):
+            exclude.update(["email", "mobile", "username"])
+        try:
+            self.instance.validate_unique(exclude=exclude)
+        except forms.ValidationError as error:
+            self._update_errors(error)
+
+    def clean(self):
+        cleaned = super().clean()
+        existing = getattr(self, "resume_user", None)
+        password = cleaned.get("password1")
+        if existing:
+            # `is_active=False` is also used for administrative suspension.  A
+            # public signup may only resume an account left by the retired OTP
+            # flow, never an arbitrary deactivated customer account.
+            resumable = (
+                existing.last_login is None
+                and existing.phone_verifications.filter(used_at__isnull=True).exists()
+                and not existing.assessment_orders.exists()
+                and not existing.exam_attempts.exists()
+            )
+            if not resumable:
+                raise forms.ValidationError(
+                    "این حساب قابل فعال‌سازی از ثبت‌نام نیست؛ وارد شوید، رمز را بازیابی کنید یا با پشتیبانی تماس بگیرید."
+                    if self.lang == "fa" else
+                    "This account cannot be reactivated through signup. Sign in, reset the password, or contact support.",
+                    code="account_not_resumable",
+                )
+        if existing and password and not existing.check_password(password):
+            raise forms.ValidationError(
+                "برای بازیابی ثبت‌نام نیمه‌تمام، همان رمز عبور قبلی را وارد کنید؛ در صورت فراموشی از بازیابی رمز استفاده کنید."
+                if self.lang == "fa" else
+                "To recover an interrupted registration, enter the existing password or use password recovery.",
+                code="legacy_account_password_mismatch",
+            )
+        return cleaned
+
     def save(self, commit=True):
-        user = super().save(commit=False)
+        user = getattr(self, "resume_user", None) or super().save(commit=False)
         user.email = self.cleaned_data["email"]
         user.username = user.email
         user.mobile = self.cleaned_data["mobile"]
         user.preferred_language = self.lang
-        user.is_active = False
+        user.first_name = self.cleaned_data["first_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        if not getattr(self, "resume_user", None):
+            user.set_password(self.cleaned_data["password1"])
+        # Signup no longer waits on an SMS code: the account is usable immediately.
+        user.is_active = True
         if commit:
             user.save()
         return user

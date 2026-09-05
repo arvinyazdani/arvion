@@ -18,6 +18,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order, PaymentTransaction
 from accounts.security import client_address
+from accounts.services import issue_phone_verification
 from core.sms.backends import SMSDeliveryError
 
 
@@ -149,32 +150,95 @@ class AccountFlowTests(TestCase):
             "password2": "A-secure-test-password-42",
         }
 
-    def test_registration_creates_inactive_user_and_sends_sms_verification(self):
+    def start_pending_verification(self, email="pending@example.com", mobile="989120373272"):
+        """Put an inactive account into the staff-initiated OTP flow.
+
+        Signup no longer issues codes, so OTP tests set this state directly.
+        """
+        user = User.objects.create_user(
+            username=email, email=email, mobile=mobile,
+            password="A-secure-test-password-42", is_active=False,
+        )
+        session = self.client.session
+        session["phone_verification_user_id"] = user.pk
+        session.save()
+        return user
+
+    def test_registration_activates_user_and_signs_them_in(self):
         response = self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
-        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=en")
-        user = User.objects.get(email="arvin@example.com")
-        self.assertFalse(user.is_active)
-        self.assertFalse(user.email_verified)
-        self.assertEqual(user.username, user.email)
-        self.assertEqual(user.mobile, "989120373271")
-        self.assertEqual(user.phone_verifications.count(), 1)
-        self.assertEqual(len(mail.outbox), 0)
-
-    @patch("accounts.services.send_otp", side_effect=SMSDeliveryError("provider unavailable"))
-    def test_sms_provider_failure_grants_temporary_access_and_records_pending_phone_check(self, mocked_send):
-        response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload(), follow=True)
-
+        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=en")
         user = User.objects.get(email="arvin@example.com")
         self.assertTrue(user.is_active)
-        self.assertIsNone(user.mobile_verified_at)
+        self.assertEqual(user.username, user.email)
+        self.assertEqual(user.mobile, "989120373271")
         self.assertEqual(user.phone_verifications.count(), 0)
-        self.assertContains(response, "حساب شما موقتاً فعال شد")
         self.assertIn("_auth_user_id", self.client.session)
-        mocked_send.assert_called_once()
+        self.assertEqual(len(mail.outbox), 0)
 
-    def test_customer_can_continue_from_verification_screen_when_resend_fails(self):
-        self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
-        user = User.objects.get(email="arvin@example.com")
+    def test_registration_recovers_matching_inactive_legacy_account(self):
+        old = User.objects.create_user(
+            username="arvin@example.com", email="arvin@example.com", mobile="989120373271",
+            password="A-secure-test-password-42", is_active=False,
+        )
+        old.phone_verifications.create(
+            code_hash="retired-flow-marker", expires_at=timezone.now() - timedelta(minutes=1),
+            resend_available_at=timezone.now() - timedelta(minutes=2),
+        )
+        response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
+        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=fa")
+        self.assertEqual(User.objects.filter(email="arvin@example.com").count(), 1)
+        old.refresh_from_db()
+        self.assertTrue(old.is_active)
+        self.assertTrue(old.check_password("A-secure-test-password-42"))
+
+    def test_registration_cannot_take_over_inactive_legacy_account_with_new_password(self):
+        old = User.objects.create_user(
+            username="arvin@example.com", email="arvin@example.com", mobile="989120373271",
+            password="Original-safe-password-42", is_active=False,
+        )
+        old.phone_verifications.create(
+            code_hash="retired-flow-marker", expires_at=timezone.now() - timedelta(minutes=1),
+            resend_available_at=timezone.now() - timedelta(minutes=2),
+        )
+
+        response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "همان رمز عبور قبلی")
+        account = User.objects.get(email="arvin@example.com")
+        self.assertFalse(account.is_active)
+        self.assertTrue(account.check_password("Original-safe-password-42"))
+
+    def test_public_registration_cannot_reactivate_inactive_staff_account(self):
+        User.objects.create_user(
+            username="arvin@example.com", email="arvin@example.com", mobile="989120373271",
+            password="A-secure-test-password-42", is_active=False, is_staff=True,
+        )
+
+        response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "فقط توسط مدیر ارشد")
+        staff = User.objects.get(email="arvin@example.com")
+        self.assertFalse(staff.is_active)
+
+    def test_public_registration_cannot_reactivate_suspended_customer(self):
+        suspended = User.objects.create_user(
+            username="arvin@example.com", email="arvin@example.com", mobile="989120373271",
+            password="A-secure-test-password-42", is_active=False,
+        )
+
+        response = self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "قابل فعال‌سازی از ثبت‌نام نیست")
+        suspended.refresh_from_db()
+        self.assertFalse(suspended.is_active)
+
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
+    def test_customer_can_continue_from_verification_screen_when_resend_fails(self, mocked_otp):
+        user = self.start_pending_verification()
+        issue_phone_verification(user)
         challenge = user.phone_verifications.first()
         challenge.resend_available_at = timezone.now() - timedelta(seconds=1)
         challenge.save(update_fields=["resend_available_at"])
@@ -194,17 +258,8 @@ class AccountFlowTests(TestCase):
         self.assertContains(response, "حساب شما موقتاً فعال شد")
         mocked_send.assert_called_once()
 
-    @override_settings(MANUAL_ACCOUNT_APPROVAL=True)
-    def test_sms_verification_supersedes_manual_account_approval(self):
-        response = self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload(), follow=True)
-        user = User.objects.get(email="arvin@example.com")
-        self.assertFalse(user.is_active)
-        self.assertEqual(len(mail.outbox), 0)
-        self.assertContains(response, "Enter the code we texted you")
-
     def test_verification_screen_redirects_to_login_after_manager_approval(self):
-        self.client.post(reverse("accounts:register") + "?lang=fa", self.registration_payload())
-        user = User.objects.get(email="arvin@example.com")
+        user = self.start_pending_verification()
         user.is_active = True
         user.email_verified = True
         user.mobile_verified_at = timezone.now()
@@ -290,20 +345,22 @@ class AccountFlowTests(TestCase):
 
     @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
     def test_phone_verification_activates_and_logs_user_in(self, mocked_send):
-        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
+        user = self.start_pending_verification()
+        issue_phone_verification(user)
         code = mocked_send.call_args.args[1]
         response = self.client.post(reverse("accounts:verify_phone") + "?lang=en", {"code": code})
-        user = User.objects.get(email="arvin@example.com")
+        user.refresh_from_db()
         self.assertTrue(user.is_active)
         self.assertTrue(user.email_verified)
         self.assertIsNotNone(user.mobile_verified_at)
         self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=en")
 
-    def test_unverified_user_cannot_log_in(self):
+    def test_registered_user_can_log_in_immediately_without_sms(self):
         self.client.post(reverse("accounts:register"), self.registration_payload())
+        self.client.logout()
         response = self.client.post(reverse("accounts:login"), {"username": "arvin@example.com", "password": "A-secure-test-password-42"})
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("_auth_user_id", self.client.session)
 
     def test_legacy_email_link_cannot_bypass_mobile_otp(self):
         user = User.objects.create_user(
@@ -376,9 +433,10 @@ class AccountFlowTests(TestCase):
             fetch_redirect_response=False,
         )
 
-    def test_unverified_user_can_request_a_fresh_sms_after_cooldown(self):
-        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
-        user = User.objects.get(email="arvin@example.com")
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
+    def test_unverified_user_can_request_a_fresh_sms_after_cooldown(self, mocked_otp):
+        user = self.start_pending_verification()
+        issue_phone_verification(user)
         challenge = user.phone_verifications.first()
         challenge.resend_available_at = timezone.now() - timedelta(seconds=1)
         challenge.save(update_fields=["resend_available_at"])
@@ -388,55 +446,26 @@ class AccountFlowTests(TestCase):
         self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=en")
         self.assertEqual(user.phone_verifications.count(), 2)
 
-    def test_resend_is_disabled_during_two_minute_cooldown(self):
-        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
-        user = User.objects.get(email="arvin@example.com")
+    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
+    def test_resend_is_disabled_during_two_minute_cooldown(self, mocked_otp):
+        user = self.start_pending_verification()
+        issue_phone_verification(user)
         response = self.client.post(reverse("accounts:verify_phone") + "?lang=en", {"action": "resend"}, follow=True)
         self.assertEqual(user.phone_verifications.count(), 1)
         self.assertContains(response, "Wait until the timer finishes")
 
-    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="resume-ref"))
-    def test_interrupted_registration_can_resume_securely_with_same_password(self, mocked_send):
-        payload = self.registration_payload()
-        self.client.post(reverse("accounts:register") + "?lang=fa", payload)
-        user = User.objects.get(email="arvin@example.com")
-        challenge = user.phone_verifications.first()
-        challenge.resend_available_at = timezone.now() - timedelta(seconds=1)
-        challenge.save(update_fields=["resend_available_at"])
-        self.client.session.flush()
-
-        response = self.client.post(reverse("accounts:register") + "?lang=fa", payload)
-
-        self.assertRedirects(response, reverse("accounts:verify_phone") + "?lang=fa")
-        self.assertEqual(User.objects.filter(email="arvin@example.com").count(), 1)
-        self.assertEqual(user.phone_verifications.count(), 2)
-        self.assertEqual(mocked_send.call_count, 2)
-        self.assertEqual(self.client.session["phone_verification_user_id"], user.pk)
-
-    @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="resume-ref"))
-    def test_interrupted_registration_cannot_resume_with_wrong_password(self, mocked_send):
-        payload = self.registration_payload()
-        self.client.post(reverse("accounts:register") + "?lang=en", payload)
-        self.client.session.flush()
-        payload["password1"] = payload["password2"] = "Different-safe-password-84"
-
-        response = self.client.post(reverse("accounts:register") + "?lang=en", payload)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("phone_verification_user_id", self.client.session)
-        self.assertContains(response, "already exists")
-        self.assertEqual(mocked_send.call_count, 1)
-
     @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
     def test_wrong_code_has_five_attempt_limit_and_clear_hint(self, mocked_send):
-        self.client.post(reverse("accounts:register") + "?lang=en", self.registration_payload())
+        user = self.start_pending_verification()
+        issue_phone_verification(user)
         url = reverse("accounts:verify_phone") + "?lang=en"
         for remaining in range(4, -1, -1):
             response = self.client.post(url, {"code": "000000"})
             self.assertContains(response, f"{remaining} attempts remain")
         response = self.client.post(url, {"code": mocked_send.call_args.args[1]})
         self.assertContains(response, "Too many attempts")
-        self.assertFalse(User.objects.get(email="arvin@example.com").is_active)
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("accounts:dashboard"))
@@ -477,16 +506,16 @@ class AccountFlowTests(TestCase):
 
     @patch("accounts.views.issue_phone_verification", side_effect=RuntimeError("sms unavailable"))
     def test_global_feedback_renders_error_with_assertive_semantics(self, mocked_issue):
+        user = self.start_pending_verification()
         response = self.client.post(
-            reverse("accounts:register") + "?lang=en",
-            self.registration_payload(),
+            reverse("accounts:verify_phone") + "?lang=en",
+            {"action": "resend"},
             follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="message message-error"', html=False)
         self.assertContains(response, 'role="alert" aria-live="assertive"', html=False)
-        self.assertContains(response, "Your account was created, but the code could not be delivered")
 
     def create_result(self, user, exam, version, number):
         order = Order.objects.create(user=user, exam=exam, amount_irr=500_000, status="paid")

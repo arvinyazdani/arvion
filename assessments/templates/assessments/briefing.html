@@ -1,0 +1,54 @@
+{% extends "core/base.html" %}{% load static %}
+{% block title %}{% if lang == 'fa' %}پیش از شروع {{ exam.title_fa }} | آرویون{% else %}Before you start {{ exam.title_en }} | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}آنچه این آزمون می‌سنجد، نحوه رصد سلامت آزمون، تحلیل پاسخ‌های اشتباه و اینکه هزینه آزمون صرف چه چیزی می‌شود.{% else %}What this assessment measures, how exam integrity is monitored, how wrong answers are analysed, and what the fee funds.{% endif %}{% endblock %}
+{% block body_class %}exam-briefing-page{% endblock %}
+{% block content %}
+<section class="page-hero briefing-hero">
+  <div class="shell">
+    <span class="eyebrow">{% if lang == 'fa' %}پیش از شروع{% else %}BEFORE YOU START{% endif %}</span>
+    <h1>{% if lang == 'fa' %}{{ exam.title_fa }}{% else %}{{ exam.title_en }}{% endif %}</h1>
+    <p class="lead">{% if lang == 'fa' %}چند دقیقه وقت بگذارید و بدانید این آزمون دقیقاً چه چیزی را می‌سنجد و چرا هزینه دارد. بعد از این صفحه، قیمت و ادامه پرداخت را می‌بینید.{% else %}Take a moment to see exactly what this assessment measures and why it is paid. The price and payment step come after this page.{% endif %}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="shell briefing-grid">
+
+    <article class="card briefing-card">
+      <span class="card-number">01</span>
+      <h2>{% if lang == 'fa' %}چه مهارت‌هایی سنجیده می‌شود{% else %}What is measured{% endif %}</h2>
+      <p>{% if lang == 'fa' %}{{ exam.description_fa }}{% else %}{{ exam.description_en }}{% endif %}</p>
+      {% if sections %}
+      <ul class="briefing-list">
+        {% for section in sections %}<li>{% if lang == 'fa' %}{{ section.title_fa }}{% else %}{{ section.title_en }}{% endif %}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      <p class="briefing-meta">{{ exam.question_count }} {% if lang == 'fa' %}سؤال · {{ exam.duration_minutes }} دقیقه{% else %}questions · {{ exam.duration_minutes }} minutes{% endif %}</p>
+    </article>
+
+    <article class="card briefing-card">
+      <span class="card-number">02</span>
+      <h2>{% if lang == 'fa' %}سلامت آزمون رصد می‌شود{% else %}Exam integrity is monitored{% endif %}</h2>
+      <p>{% if lang == 'fa' %}این آزمون سیستم ضدتقلب دارد. خروج از صفحه آزمون، مدت غیبت، کپی و جای‌گذاری، و زمان پاسخ‌دهی به هر سؤال ثبت می‌شود و در گزارش نهایی و اعتبار گواهی اثر دارد. هدف، ارزش‌دار نگه‌داشتن نتیجه شماست، نه محدودکردن شما.{% else %}This assessment is proctored by software. Leaving the exam page, how long you were away, copy and paste actions, and your response time per question are recorded, and they affect the final report and certificate validity. The goal is to keep your result meaningful.{% endif %}</p>
+    </article>
+
+    <article class="card briefing-card">
+      <span class="card-number">03</span>
+      <h2>{% if lang == 'fa' %}پاسخ‌های اشتباه تحلیل می‌شود{% else %}Wrong answers are analysed{% endif %}</h2>
+      <p>{% if lang == 'fa' %}آزمون فقط نمره نمی‌دهد. سیستم پاسخ‌های نادرست شما را بررسی می‌کند، نقاط ضعف را دسته‌بندی می‌کند و دلیل درست‌بودن پاسخ صحیح را برای مرور شما توضیح می‌دهد.{% else %}You do not just receive a score. The system reviews your incorrect answers, groups your weak areas, and explains why the correct answer is correct so you can review it.{% endif %}</p>
+    </article>
+
+    <article class="card briefing-card">
+      <span class="card-number">04</span>
+      <h2>{% if lang == 'fa' %}هزینه صرف چه چیزی می‌شود{% else %}What the fee funds{% endif %}</h2>
+      <p>{% if lang == 'fa' %}مبلغ پرداختی صرف زیرساخت امن اجرای آزمون، نگه‌داری بانک سؤال، پردازش گزارش مهارت و توسعه مداوم این سامانه می‌شود.{% else %}Your payment funds secure assessment infrastructure, question-bank maintenance, skill-report processing, and continued platform development.{% endif %}</p>
+    </article>
+
+  </div>
+
+  <div class="shell briefing-actions">
+    <a class="button" href="{% url 'assessments:detail' exam.slug %}">{% if lang == 'fa' %}مشاهده قیمت و ادامه{% else %}See the price and continue{% endif %}</a>
+    <a class="button secondary" href="{% url 'assessments:list' %}">{% if lang == 'fa' %}بازگشت به فهرست آزمون‌ها{% else %}Back to all assessments{% endif %}</a>
+  </div>
+</section>
+{% endblock %}

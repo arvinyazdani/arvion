@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import F, Subquery
 from django.utils import timezone
 
+from .integrity import pace_risk_points
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, ExamEntitlement,
     ExamVersion, ManualPaymentSubmission, Order, PaymentTransaction, Question, SkillResult,
@@ -338,6 +339,11 @@ def score_attempt(attempt_id):
         elif selected_choice_id is not None:
             incorrect += 1
     percentage = ((earned / maximum * 100) if maximum else Decimal("0")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    # Timing evidence is only assessable once every answer is final, so pace risk
+    # is applied here rather than per event during the exam.
+    pace_penalty = pace_risk_points(attempt)
+    if pace_penalty:
+        attempt.integrity_score = max(0, attempt.integrity_score - pace_penalty)
     level_code, level_fa, level_en = _level_for(attempt.exam, percentage)
     skill_payload = []
     strengths = []
@@ -373,5 +379,5 @@ def score_attempt(attempt_id):
         verification_code=secrets.token_hex(6).upper(),
     )
     attempt.status = "completed"
-    attempt.save(update_fields=["status", "updated_at"])
+    attempt.save(update_fields=["status", "integrity_score", "updated_at"])
     return result, True

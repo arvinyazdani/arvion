@@ -14,7 +14,7 @@ User = get_user_model()
 class UrgentNotificationPolicyTests(TestCase):
     @override_settings(MANAGEMENT_ALERT_SMS_RECIPIENTS=["989120373271"])
     @patch("management_portal.notifications.send_sms")
-    def test_account_verification_sends_sms_even_when_push_is_not_configured(self, mocked_sms):
+    def test_account_alert_does_not_send_immediate_sms(self, mocked_sms):
         manager = User.objects.create_superuser(
             username="account-manager", email="account-manager@example.com",
             password="safe-password",
@@ -31,8 +31,8 @@ class UrgentNotificationPolicyTests(TestCase):
         result = process_notifications()
 
         self.assertEqual(result["push"], 0)
-        self.assertEqual(result["sms"], 1)
-        mocked_sms.assert_called_once()
+        self.assertEqual(result["sms"], 0)
+        mocked_sms.assert_not_called()
 
     @override_settings(
         WEB_PUSH_VAPID_PRIVATE_KEY="test-key",

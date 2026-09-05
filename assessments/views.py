@@ -62,6 +62,23 @@ class ExamDetailView(LanguageViewMixin, DetailView):
         return Exam.objects.filter(is_active=True)
 
 
+class ExamBriefingView(LanguageViewMixin, DetailView):
+    """Explain what the exam measures and what the fee funds, before the price."""
+
+    model = Exam
+    template_name = "assessments/briefing.html"
+    context_object_name = "exam"
+
+    def get_queryset(self):
+        return Exam.objects.filter(is_active=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        version = self.object.versions.filter(is_published=True).order_by("-version").first()
+        context["sections"] = version.sections.all() if version else []
+        return context
+
+
 class AssessmentTermsView(LanguageViewMixin, TemplateView):
     template_name = "assessments/terms.html"
 
@@ -328,13 +345,6 @@ class StartAttemptView(LoginRequiredMixin, View):
     def post(self, request, pk):
         entitlement = get_object_or_404(ExamEntitlement, pk=pk, user=request.user)
         lang = request.GET.get("lang", "fa")
-        if not request.user.email_verified:
-            messages.error(
-                request,
-                "برای شروع آزمون باید ایمیل شما تأیید شده باشد."
-                if lang == "fa" else "Verify your email before starting the assessment.",
-            )
-            return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
         if not request.user.first_name.strip() or not request.user.last_name.strip():
             messages.error(
                 request,
@@ -482,6 +492,8 @@ class SaveAnswerView(LoginRequiredMixin, View):
         if choice_id not in allowed_choice_ids:
             raise Http404
         choice = Choice.objects.filter(pk=choice_id, question_id=item.question_id).first()
+        save_token = request.POST.get("save_token", "")[:36]
+        duplicate_save = bool(save_token and save_token == item.last_save_token)
         previous_choice_id = item.effective_selected_choice_id
         item.selected_choice_snapshot_id = int(choice_id)
         item.selected_choice = choice
@@ -492,11 +504,17 @@ class SaveAnswerView(LoginRequiredMixin, View):
             active_seconds = max(0, min(int(request.POST.get("active_seconds", 0)), 900))
         except (TypeError, ValueError):
             active_seconds = 0
-        item.active_seconds += active_seconds
+        if not duplicate_save:
+            # Browser timing is supporting evidence only. Bound it by the
+            # server-observed time since this question was last shown so a
+            # forged payload cannot manufacture or hide long activity.
+            server_elapsed = max(0, int((timezone.now() - (item.last_seen_at or timezone.now())).total_seconds()) + 2)
+            item.active_seconds += min(active_seconds, server_elapsed, 900)
+            item.last_save_token = save_token
         item.last_seen_at = timezone.now()
         item.save(update_fields=[
             "selected_choice_snapshot_id", "selected_choice", "answered_at",
-            "answer_change_count", "active_seconds", "last_seen_at",
+            "answer_change_count", "active_seconds", "last_seen_at", "last_save_token",
         ])
         answered_count = attempt.attempt_questions.filter(
             Q(selected_choice_snapshot_id__isnull=False) | Q(selected_choice__isnull=False)
@@ -559,8 +577,14 @@ class IntegrityEventView(LoginRequiredMixin, View):
             if recent:
                 return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
         if event_type == "visibility_hidden":
-            latest = IntegrityEvent.objects.filter(attempt=attempt).order_by("-created_at").first()
-            if latest and latest.event_type == "visibility_hidden":
+            # Only deduplicate a network retry from the same page transition.
+            # A stale unmatched hidden event from a killed browser must not
+            # suppress a later, real exit after the user resumes the attempt.
+            recent_hidden = IntegrityEvent.objects.filter(
+                attempt=attempt, event_type="visibility_hidden",
+                created_at__gte=now - timedelta(seconds=3),
+            ).exists()
+            if recent_hidden:
                 return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
         if event_type == "visibility_returned":
             last_return = IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_returned").order_by("-created_at").first()

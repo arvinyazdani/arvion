@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_account_open, customer_activity_create, customer_assessment_detail, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_message_send, customer_reports, customer_segment_delete, customer_task_create, customer_workspace, dashboard, notification_claim, notification_feed, notification_list, notification_open, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
+from .views import account_approval, approvals, assessment_support, audit_log, content_center, content_toggle, crm_activity_create, crm_case_detail, crm_case_export, crm_case_update, crm_task_create, crm_task_toggle, crm_workspace, customer_account_open, customer_activity_create, customer_assessment_detail, customer_contact_create, customer_detail, customer_duplicates, customer_merge, customer_message_send, customer_reports, customer_segment_delete, customer_task_create, customer_workspace, dashboard, notification_assign, notification_claim, notification_feed, notification_list, notification_open, notification_payment_action, notification_snooze, notification_status, payment_review, push_subscribe, request_detail, request_export, request_list, request_update, sms_send, staff_create, staff_edit, staff_list, system_log, ticket_status
 from contracts.views import contract_settings, proposal_clauses, proposal_create, proposal_delete, proposal_detail, proposal_edit, proposal_list, proposal_preview, proposal_publish, proposal_revoke
 from .workspace_views import (
     workspace_access_create,
@@ -52,6 +52,9 @@ urlpatterns = [
     path("notifications/push/subscribe/", push_subscribe, name="push_subscribe"),
     path("notifications/<int:notification_id>/open/", notification_open, name="notification_open"),
     path("notifications/<int:notification_id>/claim/", notification_claim, name="notification_claim"),
+    path("notifications/<int:notification_id>/snooze/", notification_snooze, name="notification_snooze"),
+    path("notifications/<int:notification_id>/assign/", notification_assign, name="notification_assign"),
+    path("notifications/<int:notification_id>/payment/<str:decision>/", notification_payment_action, name="notification_payment_action"),
     path("notifications/<int:notification_id>/<str:status>/", notification_status, name="notification_status"),
     path("sms/", sms_send, name="sms_send"),
     path("requests/", request_list, name="request_list"),

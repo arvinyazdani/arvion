@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import AssessmentTermsView, AttemptReviewView, AudioPlayView, AttemptView, CertificateVerifyView, CertificateView, CheckoutView, CreateOrderView, ExamDetailView, ExamListView, FinishAttemptView, IntegrityEventView, ManualPaymentStatusView, ManualPaymentSubmitView, ResultView, SandboxPayView, SaveAnswerView, StartAttemptView, SupportTicketCreateView, SupportTicketListView
+from .views import AssessmentTermsView, AttemptReviewView, AudioPlayView, AttemptView, CertificateVerifyView, CertificateView, CheckoutView, CreateOrderView, ExamBriefingView, ExamDetailView, ExamListView, FinishAttemptView, IntegrityEventView, ManualPaymentStatusView, ManualPaymentSubmitView, ResultView, SandboxPayView, SaveAnswerView, StartAttemptView, SupportTicketCreateView, SupportTicketListView
 
 app_name = "assessments"
 
@@ -23,6 +23,7 @@ urlpatterns = [
     path("support/", SupportTicketCreateView.as_view(), name="support_create"),
     path("support/history/", SupportTicketListView.as_view(), name="support_history"),
     path("certificate/<str:code>/", CertificateView.as_view(), name="certificate"),
+    path("<slug:slug>/about/", ExamBriefingView.as_view(), name="briefing"),
     path("<slug:slug>/buy/", CreateOrderView.as_view(), name="create_order"),
     path("<slug:slug>/", ExamDetailView.as_view(), name="detail"),
 ]

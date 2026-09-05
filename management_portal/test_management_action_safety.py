@@ -134,10 +134,14 @@ class ManagementActionSafetyStaticTests(TestCase):
         self.assertIn("submission.form.requestSubmit(submission.submitter || undefined)", script)
         self.assertIn('form.dataset.submitting = "true"', script)
         self.assertNotIn("window.confirm(", script)
-        self.assertIn('form[data-notification-action]', script)
-        self.assertIn('"X-Requested-With": "XMLHttpRequest"', script)
-        self.assertIn("HTMLFormElement.prototype.submit.call(form)", script)
-        self.assertIn("updateQueueAfterRemoval(card)", script)
+        # Inbox actions live in notifications.js; the shell only needs to leave
+        # those forms alone so the two handlers never double-submit.
+        self.assertIn('form.dataset.notificationAction', script)
+
+        inbox_script = (STATIC_V2 / "notifications.js").read_text(encoding="utf-8")
+        self.assertIn('"X-Requested-With": "XMLHttpRequest"', inbox_script)
+        self.assertIn("event.preventDefault()", inbox_script)
+        self.assertNotIn("window.confirm(", inbox_script)
 
         contract_script = (CONTRACT_STATIC / "manager-contracts.js").read_text(encoding="utf-8")
         self.assertNotIn("window.confirm(", contract_script)

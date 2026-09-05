@@ -224,6 +224,13 @@ class StaffAccessAudit(models.Model):
 class ManagementNotification(models.Model):
     STATUSES = (("unread", "خوانده‌نشده"), ("read", "خوانده‌شده"), ("resolved", "مختومه"))
     CATEGORIES = (("accounts", "حساب‌ها"), ("sales", "فروش و سفارش"), ("payments", "پرداخت"), ("support", "پشتیبانی"), ("contracts", "قرارداد"))
+    PRIORITIES = (("critical", "بحرانی"), ("high", "زیاد"), ("normal", "معمولی"), ("low", "کم"))
+    # Payments block a customer from taking a paid exam, so they outrank the
+    # rest of the queue by default.
+    DEFAULT_PRIORITY_BY_CATEGORY = {
+        "payments": "critical", "contracts": "high", "support": "high",
+        "accounts": "normal", "sales": "normal",
+    }
 
     category = models.CharField(max_length=20, choices=CATEGORIES, db_index=True)
     title = models.CharField(max_length=180)
@@ -233,6 +240,8 @@ class ManagementNotification(models.Model):
     source_key = models.CharField(max_length=120, unique=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name="owned_management_notifications")
     due_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    priority = models.CharField(max_length=10, choices=PRIORITIES, default="normal", db_index=True)
+    snoozed_until = models.DateTimeField(blank=True, null=True, db_index=True)
     status = models.CharField(max_length=12, choices=STATUSES, default="unread", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -243,6 +252,24 @@ class ManagementNotification(models.Model):
         ordering = ("-created_at",)
         verbose_name = "اعلان مدیریتی"
         verbose_name_plural = "اعلان‌های مدیریتی"
+
+    PRIORITY_ORDER = {"critical": 0, "high": 1, "normal": 2, "low": 3}
+
+    def save(self, *args, **kwargs):
+        # Derive priority from the category on first save so every creation
+        # path — signals, management commands or admin — is ranked the same.
+        if not self.pk and "priority" not in (kwargs.get("update_fields") or []):
+            if self.priority == "normal":
+                self.priority = self.DEFAULT_PRIORITY_BY_CATEGORY.get(self.category, "normal")
+        return super().save(*args, **kwargs)
+
+    @property
+    def priority_rank(self):
+        return self.PRIORITY_ORDER.get(self.priority, 2)
+
+    @property
+    def is_snoozed(self):
+        return bool(self.snoozed_until and self.snoozed_until > timezone.now())
 
 
 class SMSDispatch(models.Model):
@@ -339,6 +366,10 @@ class NotificationReceipt(models.Model):
     sms_sent_at = models.DateTimeField(blank=True, null=True)
     last_reminded_at = models.DateTimeField(blank=True, null=True)
     last_error = models.CharField(max_length=240, blank=True)
+    push_attempt_count = models.PositiveSmallIntegerField(default=0)
+    push_retry_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    sms_attempt_count = models.PositiveSmallIntegerField(default=0)
+    sms_retry_at = models.DateTimeField(blank=True, null=True, db_index=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=("user", "notification"), name="unique_user_notification_receipt")]

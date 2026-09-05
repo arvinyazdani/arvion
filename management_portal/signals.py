@@ -20,7 +20,7 @@ from .notifications import create_receipts
 from .cases import link_customer_event, link_document, resolve_customer, sync_source_case
 
 
-def notify(*, category, title, description, target_url, role, source_key, due_at=None):
+def notify(*, category, title, description, target_url, role, source_key, due_at=None, priority=None):
     if due_at is None:
         due_at = timezone.now() + timedelta(seconds={
             "payments": settings.PAYMENT_AUTO_APPROVE_SECONDS,
@@ -32,6 +32,7 @@ def notify(*, category, title, description, target_url, role, source_key, due_at
     notification, created = ManagementNotification.objects.get_or_create(source_key=source_key, defaults={
         "category": category, "title": title, "description": description,
         "target_url": target_url, "role": role, "due_at": due_at,
+        "priority": priority or ManagementNotification.DEFAULT_PRIORITY_BY_CATEGORY.get(category, "normal"),
     })
     if created:
         transaction.on_commit(lambda: create_receipts(notification))
@@ -44,22 +45,15 @@ def _customer_for_user(user):
 
 @receiver(post_save, sender=User)
 def new_user(sender, instance, created, **kwargs):
-    # An active account without a verified mobile is the explicit SMS-outage
-    # recovery path. It must be visible to the manager until verified by call.
-    if not instance.is_staff and instance.is_active and instance.mobile and not instance.mobile_verified_at:
-        notify(
-            category="accounts",
-            title="تأیید تلفنی شماره موبایل لازم است",
-            description=instance.email,
-            target_url=reverse("management_portal:approvals"),
-            role="",
-            source_key=f"mobile-verification:{instance.pk}",
-        )
-        return
-    # Registration is not complete until the mobile OTP has been verified.
+    # Signup no longer depends on an SMS code, so an unverified mobile is the
+    # normal state and must not raise a verification task for every customer.
     # get_or_create inside notify keeps subsequent profile saves idempotent.
-    if not instance.is_staff and instance.is_active and instance.mobile_verified_at:
-        notify(category="accounts", title="عضویت کاربر جدید", description=instance.email, target_url=reverse("management_portal:approvals"), role="", source_key=f"user:{instance.pk}")
+    if not instance.is_staff and instance.is_active:
+        notify(
+            category="accounts", title="عضویت کاربر جدید", description=instance.email,
+            target_url=reverse("management_portal:customer_account_open", args=[instance.pk]),
+            role="", source_key=f"user:{instance.pk}",
+        )
 
 
 @receiver(post_save, sender=Lead)

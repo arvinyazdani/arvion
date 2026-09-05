@@ -1028,10 +1028,12 @@ class AssessmentEngineTests(TestCase):
 
         page = self.client.get(reverse("assessments:attempt", args=[attempt.pk]) + f"?q={item.position}")
         self.assertEqual(page.status_code, 200)
+        AttemptQuestion.objects.filter(pk=item.pk).update(last_seen_at=timezone.now() - timedelta(seconds=17))
         first = self.client.post(
             reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
             {"choice": choices[0].pk, "active_seconds": "17"},
         )
+        AttemptQuestion.objects.filter(pk=item.pk).update(last_seen_at=timezone.now() - timedelta(seconds=900))
         second = self.client.post(
             reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
             {"choice": choices[1].pk, "active_seconds": "9999"},
@@ -1448,6 +1450,43 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(result_page, "Show audio transcript")
         self.assertContains(result_page, "Private transcript for post-assessment review.")
 
+    def test_active_unverified_account_can_start_paid_assessment(self):
+        self.user.email_verified = False
+        self.user.save(update_fields=["email_verified"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("assessments:start_attempt", args=[self.entitlement.pk]))
+
+        attempt = Attempt.objects.get(entitlement=self.entitlement)
+        self.assertRedirects(response, attempt.get_absolute_url() + "?lang=fa")
+
+    def test_answer_save_token_makes_timing_retry_idempotent(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        choice = item.question.choices.first()
+        self.client.force_login(self.user)
+        self.client.get(reverse("assessments:attempt", args=[attempt.pk]) + f"?q={item.position}")
+        AttemptQuestion.objects.filter(pk=item.pk).update(last_seen_at=timezone.now() - timedelta(seconds=30))
+        payload = {"choice": choice.pk, "active_seconds": "30", "save_token": "same-request-token"}
+
+        self.assertEqual(self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), payload).status_code, 200)
+        self.assertEqual(self.client.post(reverse("assessments:save_answer", args=[attempt.pk, item.pk]), payload).status_code, 200)
+
+        item.refresh_from_db()
+        self.assertEqual(item.active_seconds, 30)
+
+    def test_stale_unmatched_hidden_event_does_not_suppress_next_exit(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        url = reverse("assessments:integrity_event", args=[attempt.pk])
+        payload = {"event_type": "visibility_hidden", "item_id": item.pk}
+
+        self.assertEqual(self.client.post(url, payload).status_code, 200)
+        IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_hidden").update(created_at=timezone.now() - timedelta(seconds=10))
+        self.assertEqual(self.client.post(url, payload).status_code, 200)
+        self.assertEqual(IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_hidden").count(), 2)
+
     def test_complete_candidate_journey_from_start_to_report(self):
         self.client.force_login(self.user)
         start_response = self.client.post(reverse("assessments:start_attempt", args=[self.entitlement.pk]))
@@ -1470,3 +1509,46 @@ class AssessmentEngineTests(TestCase):
         report = self.client.get(reverse("assessments:result", args=[result.pk]))
         self.assertContains(report, "100")
         self.assertEqual(result.percentage, 100)
+
+class QuestionPaceIntegrityTests(TestCase):
+    def test_expected_time_scales_with_difficulty(self):
+        from assessments.integrity import expected_seconds
+
+        self.assertEqual(expected_seconds(60, 3), 60)
+        self.assertGreater(expected_seconds(60, 5), expected_seconds(60, 3))
+        self.assertLess(expected_seconds(60, 1), expected_seconds(60, 3))
+
+    def test_implausibly_fast_answer_is_flagged_with_expectation_in_reason(self):
+        from assessments.integrity import assess_pace
+
+        pace = assess_pace(active_seconds=5, suggested_seconds=60, difficulty=4)
+
+        self.assertEqual(pace.verdict, "implausible")
+        self.assertEqual(pace.severity, "high")
+        self.assertGreater(pace.points, 0)
+        # The reason must state both the time taken and the expected time.
+        self.assertIn("5", pace.reason_en)
+        self.assertIn("75", pace.reason_en)
+
+    def test_normal_and_slow_pace_carry_no_penalty(self):
+        from assessments.integrity import assess_pace
+
+        self.assertEqual(assess_pace(60, 60, 3).points, 0)
+        self.assertEqual(assess_pace(400, 60, 3).verdict, "slow")
+        self.assertEqual(assess_pace(400, 60, 3).points, 0)
+
+    def test_unanswered_question_is_not_penalised_for_pace(self):
+        from assessments.integrity import assess_pace
+
+        pace = assess_pace(active_seconds=2, suggested_seconds=60, difficulty=5, answered=False)
+
+        self.assertEqual(pace.verdict, "unanswered")
+        self.assertEqual(pace.points, 0)
+
+    def test_fast_incorrect_answer_is_review_evidence_not_a_penalty(self):
+        from assessments.integrity import assess_pace
+
+        pace = assess_pace(4, 60, 5, answered=True, is_correct=False)
+
+        self.assertEqual(pace.verdict, "fast_incorrect")
+        self.assertEqual(pace.points, 0)

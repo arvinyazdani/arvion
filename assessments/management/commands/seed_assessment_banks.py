@@ -71,14 +71,14 @@ class Command(BaseCommand):
                 "description_fa": "ارزیابی گرامر، واژگان، درک مطلب، کاربرد زبان، شنیدار و مهارت‌های نوشتاری.",
                 "description_en": "A structured assessment of grammar, vocabulary, reading, use of English, listening, and writing skills.",
                 "language_mode": "en", "question_count": 50, "duration_minutes": 75,
-                "price_irr": 1_200_000, "is_active": True, "display_order": 1,
+                "price_irr": 2_000_000, "is_active": True, "display_order": 1,
             },
             "python-django-professional": {
                 "title_fa": "ارزیابی تخصصی Python و Django", "title_en": "Professional Python & Django Assessment",
                 "description_fa": "سنجش عملی Python، حل مسئله، دیتابیس، تست، امنیت و استقرار پروژه‌های Django.",
                 "description_en": "A practical assessment of Python, problem solving, databases, testing, security, and Django deployment.",
                 "language_mode": "bilingual", "question_count": 50, "duration_minutes": 70,
-                "price_irr": 500_000, "is_active": True, "display_order": 2,
+                "price_irr": 2_000_000, "is_active": True, "display_order": 2,
             },
         }
         exam, _ = Exam.objects.update_or_create(slug=slug, defaults=catalog[slug])

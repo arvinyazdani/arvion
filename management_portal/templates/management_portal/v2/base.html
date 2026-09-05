@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="{{ lang }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
+<html lang="{{ lang }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}" data-welcome-sound="{% static 'core/audio/welcome-chime.m4a' %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -56,13 +56,13 @@
         <a class="m-icon-action" href="{% url 'management_portal:notification_list' %}" aria-label="{% if lang == 'fa' %}صندوق اعلان‌ها؛ {{ unread_count }} خوانده‌نشده{% else %}Notification inbox; {{ unread_count }} unread{% endif %}" data-notification-link data-label-fa="صندوق اعلان‌ها" data-label-en="Notification inbox"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#bell"></use></svg><em data-notification-badge aria-hidden="true"{% if not unread_count %} hidden{% endif %}>{{ unread_count }}</em></a>
         <a class="m-language" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}" aria-label="{% if lang == 'fa' %}نمایش نسخه انگلیسی{% else %}View Persian version{% endif %}">{% if lang == 'fa' %}EN{% else %}فا{% endif %}</a>
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg></button>
+        <button class="theme-toggle" type="button" data-sound-toggle aria-pressed="true" aria-label="{% if lang == 'fa' %}خاموش‌کردن صدای خوش‌آمد{% else %}Turn welcome sound off{% endif %}">🔊</button>
       </div>
     </header>
 
     <main class="m-workspace" id="workspace" tabindex="-1">
       {% if messages %}<div class="m-messages" aria-atomic="true">{% for message in messages %}<div class="m-message {{ message.tags|default:'info' }}"{% if message.tags == 'error' %} role="alert" aria-live="assertive"{% else %} role="status" aria-live="polite"{% endif %}>{{ message }}</div>{% endfor %}</div>{% endif %}
       <div class="m-sr-only" id="notification-status" data-notification-status role="status" aria-live="polite" aria-atomic="true"></div>
-      <div class="m-async-toast" data-async-toast role="status" aria-live="polite" aria-atomic="true" hidden></div>
       {% block content %}{% endblock %}
     </main>
 
@@ -104,6 +104,7 @@
 
   <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js?v=4',{updateViaCache:'none'}).catch(()=>{})}window.RVION_STAFF_PUSH=true;window.RVION_NOTIFICATION_FEED="{% url 'management_portal:notification_feed' %}";window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script>
   <script src="{% static 'core/js/staff-push.js' %}?v=2" defer></script>
+  <script src="{% static 'core/js/welcome-sound.js' %}?v=2" defer></script>
   <script src="{% static 'management_portal/v2/management.js' %}?v=10" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>

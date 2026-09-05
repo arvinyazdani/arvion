@@ -124,7 +124,7 @@ class PublishedPythonBankTests(TestCase):
         self.assertEqual(Exam.objects.count(), 2)
         english = Exam.objects.get(slug="english-placement-a1-c1")
         python = Exam.objects.get(slug="python-django-professional")
-        self.assertEqual(english.price_irr, 1_200_000)
+        self.assertEqual(english.price_irr, 2_000_000)
         self.assertEqual(english.versions.get(version=ENGLISH_BANK_VERSION).questions.count(), 200)
         self.assertEqual(python.versions.get(version=PYTHON_BANK_VERSION).questions.count(), 200)
         self.assertEqual(english.versions.filter(version=ENGLISH_BANK_VERSION).count(), 1)

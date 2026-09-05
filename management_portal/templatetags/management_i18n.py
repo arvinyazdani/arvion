@@ -22,6 +22,7 @@ NOTIFICATION_TITLES_EN = {
     "نیازسنجی کلینیک جدید": "New clinic discovery",
     "رسید پرداخت جدید": "New payment receipt",
     "رسید پرداخت اصلاح‌شده": "Updated payment receipt",
+    "پرداخت توسط سیستم تأیید شد": "Payment auto-approved",
     "تیکت پشتیبانی جدید": "New support ticket",
     "بازخورد قرارداد ثبت شد": "Contract feedback received",
     "قرارداد تأیید شد": "Contract accepted",
@@ -167,6 +168,8 @@ def management_notification_description(value, lang="fa"):
     text = str(value)
     if text.startswith("شماره پیگیری:"):
         return "Reference:" + text.removeprefix("شماره پیگیری:")
+    if "دسترسی آزمون صادر شد" in text:
+        return text.replace("دسترسی آزمون صادر شد", "assessment access granted")
     return text
 
 

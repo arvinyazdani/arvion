@@ -173,6 +173,9 @@ LOGGING = {
     },
     "loggers": {
         "django.request": {"handlers": ["console", "system_log"], "level": "ERROR", "propagate": False},
+        # Push/SMS delivery failures must be visible on the system log page,
+        # otherwise a silently dropped manager alert leaves no trace.
+        "management_portal": {"handlers": ["console", "system_log"], "level": "WARNING", "propagate": False},
     },
 }
 

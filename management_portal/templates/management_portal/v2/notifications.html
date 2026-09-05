@@ -1,0 +1,40 @@
+{% extends "management_portal/v2/base.html" %}{% load static management_i18n %}
+{% block title %}{% if lang == 'fa' %}اعلان‌ها | مرکز مدیریت{% else %}Alerts | Management{% endif %}{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}اعلان‌ها{% else %}Alerts{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/notifications.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<section class="m-page-head">
+  <div>
+    <span>{% if lang == 'fa' %}صف کاری{% else %}WORK QUEUE{% endif %}</span>
+    <h1>{% if lang == 'fa' %}اعلان‌ها{% else %}Alerts{% endif %}</h1>
+    <p>{% if lang == 'fa' %}با باز کردن هر اعلان، فقط همان مورد دیده‌شده ثبت می‌شود. اقدام اصلی را انجام دهید یا برای زمان مناسب یادآور بگذارید.{% else %}Only the alert you open is marked as seen. Complete its primary action or snooze it until the right time.{% endif %}</p>
+  </div>
+</section>
+
+<form class="m-filters n-filters" method="get">
+  <select name="priority" aria-label="{% if lang == 'fa' %}اولویت{% else %}Priority{% endif %}">
+    <option value="">{% if lang == 'fa' %}همه اولویت‌ها{% else %}All priorities{% endif %}</option>
+    {% for value, label in priorities %}<option value="{{ value }}"{% if active_priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="category" aria-label="{% if lang == 'fa' %}دسته{% else %}Category{% endif %}">
+    <option value="">{% if lang == 'fa' %}همه دسته‌ها{% else %}All categories{% endif %}</option>
+    {% for value, label in categories %}<option value="{{ value }}"{% if active_category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="status" aria-label="{% if lang == 'fa' %}وضعیت{% else %}Status{% endif %}">
+    <option value="">{% if lang == 'fa' %}همه وضعیت‌ها{% else %}All statuses{% endif %}</option>
+    {% for value, label in statuses %}<option value="{{ value }}"{% if active_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button type="submit">{% if lang == 'fa' %}اعمال{% else %}Apply{% endif %}</button>
+</form>
+
+{% include "management_portal/v2/_notification_group.html" with items=overdue_notifications group_title_fa="عقب‌افتاده" group_title_en="Overdue" group_tone="overdue" %}
+{% include "management_portal/v2/_notification_group.html" with items=upcoming_notifications group_title_fa="در جریان" group_title_en="Open" group_tone="open" %}
+{% include "management_portal/v2/_notification_group.html" with items=snoozed_notifications group_title_fa="یادآوری‌شده برای بعد" group_title_en="Snoozed" group_tone="snoozed" %}
+{% include "management_portal/v2/_notification_group.html" with items=resolved_notifications group_title_fa="مختومه" group_title_en="Resolved" group_tone="resolved" %}
+{% if not overdue_notifications and not upcoming_notifications and not snoozed_notifications and not resolved_notifications %}
+<section class="n-empty"><span aria-hidden="true">✓</span><h2>{% if lang == 'fa' %}صف کار خالی است{% else %}Your queue is clear{% endif %}</h2><p>{% if lang == 'fa' %}در حال حاضر اعلان یا اقدام معوقی ندارید.{% else %}There are no alerts or pending actions right now.{% endif %}</p></section>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'management_portal/v2/notifications.js' %}?v=1" defer></script>{% endblock %}

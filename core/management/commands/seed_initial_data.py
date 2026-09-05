@@ -129,7 +129,7 @@ class Command(BaseCommand):
             "description_fa": "ارزیابی مهارت‌های اصلی زبان شامل گرامر، واژگان، درک مطلب و کاربرد زبان.",
             "description_en": "A structured assessment of grammar, vocabulary, reading and use of English.",
             "language_mode": "en", "question_count": 50, "duration_minutes": 55,
-            "price_irr": 500_000, "is_active": True, "display_order": 1,
+            "price_irr": 2_000_000, "is_active": True, "display_order": 1,
         })
         Exam.objects.update_or_create(slug="python-django-professional", defaults={
             "title_fa": "ارزیابی تخصصی Python و Django",
@@ -137,7 +137,7 @@ class Command(BaseCommand):
             "description_fa": "سنجش عملی Python، حل مسئله، دیتابیس، امنیت وب و مهارت‌های لازم برای توسعه پروژه Django.",
             "description_en": "A practical assessment of Python, problem solving, databases, web security and production Django skills.",
             "language_mode": "bilingual", "question_count": 50, "duration_minutes": 70,
-            "price_irr": 500_000, "is_active": True, "display_order": 2,
+            "price_irr": 2_000_000, "is_active": True, "display_order": 2,
         })
 
         self.stdout.write(self.style.SUCCESS("✅ Seed done."))

@@ -1,9 +1,0 @@
-{% load management_i18n %}<article class="notice-card {{ item.status }} category-{{ item.category }}" data-notification-card data-notification-id="{{ item.pk }}">
-  <div class="notice-card-top">
-    <span class="notice-type">{% if lang == 'fa' %}{{ item.get_category_display }}{% elif item.category == 'accounts' %}Accounts{% elif item.category == 'sales' %}Sales & orders{% elif item.category == 'payments' %}Payments{% elif item.category == 'support' %}Support{% else %}Contracts{% endif %}</span>
-    <time>{% if item.due_at %}{% if lang == 'fa' %}موعد: {{ item.due_at|date:"Y/m/d H:i" }}{% else %}Due: {{ item.due_at|date:"M j, Y H:i" }}{% endif %}{% else %}{% if lang == 'fa' %}{{ item.created_at|date:"Y/m/d H:i" }}{% else %}{{ item.created_at|date:"M j, Y H:i" }}{% endif %}{% endif %}</time>
-  </div>
-  <h3>{{ item.title|management_notification_title:lang }}</h3>
-  <p>{{ item.description|management_notification_description:lang|default:"—" }}</p>
-  <div class="notification-actions"><a class="notice-open" href="{% url 'management_portal:notification_open' item.pk %}"><span><b>{% if lang == 'fa' %}رفتن به محل انجام کار{% else %}Go to the action{% endif %}</b><small>{% if lang == 'fa' %}با بازشدن، این اعلان برای شما دیده‌شده ثبت می‌شود{% else %}Opening marks this alert as seen{% endif %}</small></span><i>←</i></a></div>
-</article>

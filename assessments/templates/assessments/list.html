@@ -37,7 +37,7 @@
     </div>
     <div class="assessment-list">
       {% for exam in exams %}
-      <a class="assessment-card" href="{{ exam.get_absolute_url }}">
+      <a class="assessment-card" href="{% url 'assessments:briefing' exam.slug %}">
         <div>
           <span class="card-number">{% if lang == 'fa' %}آزمون{% else %}ASSESSMENT{% endif %} / 0{{ forloop.counter }}</span>
           <h2>{% if lang == 'fa' %}{{ exam.title_fa }}{% else %}{{ exam.title_en }}{% endif %}</h2>

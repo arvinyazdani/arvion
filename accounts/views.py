@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 
 from core.views.lang import LanguageViewMixin
 from core.form_accessibility import enhance_form_accessibility
-from core.sms.backends import SMSDeliveryError, normalize_iran_mobile
+from core.sms.backends import SMSDeliveryError
 
 from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdentityForm, RegistrationForm, ResendVerificationForm
 from .models import PhoneVerification, User
@@ -73,83 +73,35 @@ class RegisterView(LanguageViewMixin, FormView):
         kwargs["lang"] = self.lang
         return kwargs
 
-    def form_valid(self, form):
-        user = form.save()
-        self.request.session["phone_verification_user_id"] = user.pk
-        try:
-            issue_phone_verification(user)
-        except PermissionError:
-            _remember_sms_delivery_failure(self.request)
+    def post(self, request, *args, **kwargs):
+        identity = request.POST.get("mobile") or request.POST.get("email") or "anonymous"
+        throttle = AttemptThrottle("register", request, identity, 8, 600)
+        if throttle.blocked():
             messages.error(
-                self.request,
-                "تعداد درخواست کد زیاد شده است؛ ۱۰ دقیقه دیگر دوباره تلاش کنید."
-                if self.lang == "fa" else
-                "Too many code requests. Please try again in 10 minutes.",
+                request,
+                "درخواست‌های زیادی ثبت شده است؛ ۱۰ دقیقه دیگر تلاش کنید."
+                if self.lang == "fa" else "Too many attempts. Try again in 10 minutes.",
             )
-        except (SMSDeliveryError, ImproperlyConfigured):
-            return _activate_with_pending_mobile_verification(self.request, user, self.lang)
-        except Exception:
-            _remember_sms_delivery_failure(self.request)
-            messages.error(
-                self.request,
-                "حساب ساخته شد، اما ارسال کد کامل نشد. کمی بعد دوباره تلاش کنید."
-                if self.lang == "fa" else
-                "Your account was created, but the code could not be delivered. Please try again shortly.",
-            )
-        else:
-            _clear_sms_delivery_failure(self.request)
-        return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
+            return redirect(f"{reverse('accounts:register')}?lang={self.lang}")
+        throttle.failure()
+        return super().post(request, *args, **kwargs)
 
-    def form_invalid(self, form):
-        """Resume an interrupted signup only after proving the saved password."""
-        email = self.request.POST.get("email", "").strip().lower()
-        try:
-            mobile = normalize_iran_mobile(self.request.POST.get("mobile", ""))
-        except ValueError:
-            mobile = None
-        user = User.objects.filter(
-            email__iexact=email, mobile=mobile, is_active=False, mobile_verified_at__isnull=True,
-        ).first() if email and mobile else None
-        if user and user.check_password(self.request.POST.get("password1", "")):
-            self.request.session["phone_verification_user_id"] = user.pk
-            latest = user.phone_verifications.first()
-            if not latest or latest.resend_available_at <= timezone.now():
-                try:
-                    issue_phone_verification(user)
-                    _clear_sms_delivery_failure(self.request)
-                    messages.success(
-                        self.request,
-                        "ثبت‌نام نیمه‌کاره پیدا شد و یک کد جدید فرستادیم."
-                        if self.lang == "fa" else
-                        "We found your interrupted signup and sent a new code.",
-                    )
-                except PermissionError:
-                    _remember_sms_delivery_failure(self.request)
-                    messages.error(
-                        self.request,
-                        "تعداد درخواست کد زیاد بوده است؛ چند دقیقه بعد دوباره تلاش کنید."
-                        if self.lang == "fa" else
-                        "Too many code requests. Try again in a few minutes.",
-                    )
-                except (SMSDeliveryError, ImproperlyConfigured):
-                    return _activate_with_pending_mobile_verification(self.request, user, self.lang)
-                except Exception:
-                    _remember_sms_delivery_failure(self.request)
-                    messages.error(
-                        self.request,
-                        "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید."
-                        if self.lang == "fa" else
-                        "The code could not be sent. Try again shortly.",
-                    )
-            else:
-                messages.info(
-                    self.request,
-                    "ثبت‌نام قبلی پیدا شد؛ تا پایان تایمر می‌توانید همان کد را وارد کنید."
-                    if self.lang == "fa" else
-                    "We found your previous signup. You can use the current code until the timer ends.",
-                )
-            return redirect(f"{reverse('accounts:verify_phone')}?lang={self.lang}")
-        return super().form_invalid(form)
+    def form_valid(self, form):
+        """Create the account and sign the customer in immediately.
+
+        Phone verification is deliberately out of the signup path: the SMS
+        provider was unreliable and blocked real customers from registering.
+        The OTP machinery is still available for staff-initiated verification.
+        """
+        user = form.save()
+        login(self.request, user)
+        messages.success(
+            self.request,
+            "حساب شما ساخته شد و وارد شدید."
+            if self.lang == "fa" else
+            "Your account was created and you are now signed in.",
+        )
+        return redirect(f"{reverse('accounts:dashboard')}?lang={self.lang}")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -308,9 +260,9 @@ class ResendVerificationView(LanguageViewMixin, FormView):
     def _sms_recovery(self):
         messages.info(
             self.request,
-            "فعال‌سازی حساب فقط با کد پیامکی انجام می‌شود. فرم ثبت‌نام را با همان اطلاعات قبلی کامل کنید تا ادامه ثبت‌نام بازیابی شود."
+            "اگر ثبت‌نام قبلی نیمه‌تمام مانده است، فرم ثبت‌نام را با همان ایمیل و شماره کامل کنید تا حساب بازیابی و فعال شود."
             if self.lang == "fa" else
-            "Accounts are activated by SMS only. Submit the registration form with the same details to resume an interrupted signup.",
+            "If an earlier registration was interrupted, submit the form with the same email and mobile number to recover and activate the account.",
         )
         return redirect(f"{reverse('accounts:register')}?lang={self.lang}")
 
