@@ -158,7 +158,7 @@ svg{display:block;width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;str
   .m-top-actions{gap:6px}
   .m-icon-action,.m-language,.theme-toggle{width:44px;min-width:44px;height:44px}
   .m-workspace{width:100%;margin-inline-start:0;padding:calc(var(--m-topbar-height) + 20px) 13px calc(92px + env(safe-area-inset-bottom,0px))}
-  .m-bottom{position:fixed;z-index:40;inset-inline:8px;inset-block-end:calc(8px + env(safe-area-inset-bottom,0px));display:flex;align-items:stretch;justify-content:space-around;min-height:68px;padding:7px;border:1px solid var(--m-line);border-radius:19px;background:var(--surface-glass);box-shadow:var(--shadow-md);backdrop-filter:blur(18px)}
+  .m-bottom{position:fixed;z-index:40;inset-inline:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:flex;align-items:stretch;justify-content:space-around;width:auto;height:68px;min-height:68px;flex-shrink:0;padding:7px;border:1px solid var(--m-line);border-radius:19px;background:var(--color-surface);background:color-mix(in srgb,var(--color-surface) 96%,transparent);box-shadow:var(--shadow-md);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0);will-change:transform;contain:layout paint;isolation:isolate;touch-action:manipulation}
   .m-bottom>a,.m-bottom>button{display:grid;min-width:0;flex:1;gap:3px;place-items:center;padding:6px 3px;border:0;border-radius:12px;background:transparent;color:var(--m-muted);font:800 .75rem/1.2 var(--font-family-base);cursor:pointer}
   .m-bottom svg{width:21px;height:21px}
   .m-bottom>a.active,.m-bottom>button.active{background:var(--m-inverse);color:#fff}

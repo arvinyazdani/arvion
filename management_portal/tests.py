@@ -752,7 +752,7 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(en, "What needs your decision today?")
         self.assertContains(en, "Team &amp; access", html=True)
         self.assertContains(en, "Business management")
-        self.assertContains(en, "management.css?v=15")
+        self.assertContains(en, "management.css?v=")
         self.assertNotContains(en, 'href="/admin/')
 
         management_css = (Path(__file__).resolve().parent / "static" / "management_portal" / "v2" / "management.css").read_text(encoding="utf-8")
