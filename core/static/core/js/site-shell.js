@@ -49,7 +49,7 @@
   }
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
-    window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js?v=4", {updateViaCache: "none"}).catch(() => {}));
+    window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js?v=5", {updateViaCache: "none"}).catch(() => {}));
   }
 
   const welcome = document.querySelector("[data-app-welcome]");

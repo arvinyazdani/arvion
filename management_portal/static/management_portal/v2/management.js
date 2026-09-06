@@ -226,7 +226,9 @@
   };
   const label = (text, state = "") => {
     buttons.forEach((button) => {
-      button.textContent = text;
+      const title = button.querySelector("b");
+      if (title) title.textContent = text;
+      else button.textContent = text;
       button.dataset.state = state;
       button.setAttribute("aria-busy", String(state === "loading"));
     });
@@ -270,7 +272,7 @@
       explainBlocked();
       return;
     }
-    const registration = await navigator.serviceWorker.register("/service-worker.js?v=4", { updateViaCache: "none" });
+    const registration = await navigator.serviceWorker.register("/service-worker.js?v=5", { updateViaCache: "none" });
     await registration.update();
     await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
@@ -296,7 +298,9 @@
         icon: "/static/core/icons/icon-192.png",
         badge: "/static/core/icons/icon-192.png",
         data: { url: location.pathname },
+        silent: false,
       });
+      window.RvionSounds?.playNotification("normal").catch(() => {});
     }
     setHelp(localTest
       ? (fa ? "تست محلی ارسال شد؛ اکنون باید اعلان تست روی همین دستگاه دیده شود." : "Local test sent; a test notification should now appear on this device.")

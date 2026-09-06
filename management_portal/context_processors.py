@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.middleware.csrf import get_token
+from django.db.models import Q
+from django.utils import timezone
 
 
 def management_alerts(request):
@@ -18,7 +20,10 @@ def management_alerts(request):
     if unread_count is None:
         unread_count = request.user.notification_receipts.filter(
             seen_at__isnull=True,
-            notification__status="unread",
+            dismissed_at__isnull=True,
+            notification__status__in=("unread", "read"),
+        ).filter(
+            Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=timezone.now()),
         ).count()
     return {
         "web_push_public_key": settings.WEB_PUSH_VAPID_PUBLIC_KEY,

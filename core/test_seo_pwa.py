@@ -27,10 +27,12 @@ class PWAEndpointTests(TestCase):
         self.assertIn("no-cache", response["Cache-Control"])
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
-        self.assertContains(response, 'const CACHE = "rvion-shell-v4"')
+        self.assertContains(response, 'const CACHE = "rvion-shell-v5"')
         self.assertContains(response, 'const OFFLINE_URL_FA = "/offline/fa/"')
         self.assertContains(response, 'const OFFLINE_URL_EN = "/offline/en/"')
         self.assertContains(response, 'url.pathname.startsWith("/en/")')
+        self.assertContains(response, "silent: false")
+        self.assertContains(response, 'type: "rvion-notification"')
         self.assertEqual(len(queries), 0)
 
     def test_offline_fallback_is_public_data_free_and_not_tracked(self):

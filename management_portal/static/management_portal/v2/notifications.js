@@ -66,9 +66,14 @@
           });
           counters.forEach((node) => (node.textContent = String(data.unread_count)));
         }
+        if ("BroadcastChannel" in window) {
+          const channel = new BroadcastChannel("rvion-notifications");
+          channel.postMessage({ type: "action", id: data.id, action: data.action, count: data.unread_count });
+          channel.close();
+        }
         // A resolved or snoozed item leaves this queue; fade it out in place
         // so the manager keeps their scroll position.
-        if (data.action === "resolved" || data.action === "snooze" || String(data.action).startsWith("payment_")) {
+        if (["resolved", "snooze", "dismiss"].includes(data.action) || String(data.action).startsWith("payment_")) {
           card?.classList.add("is-leaving");
           setTimeout(() => card?.remove(), 900);
         } else {

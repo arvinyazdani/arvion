@@ -20,8 +20,8 @@ from .notifications import create_receipts
 from .cases import link_customer_event, link_document, resolve_customer, sync_source_case
 
 
-def notify(*, category, title, description, target_url, role, source_key, due_at=None, priority=None):
-    if due_at is None:
+def notify(*, category, title, description, target_url, role, source_key, due_at=None, priority=None, requires_action=True):
+    if requires_action and due_at is None:
         due_at = timezone.now() + timedelta(seconds={
             "payments": settings.PAYMENT_AUTO_APPROVE_SECONDS,
             "support": 4 * 60 * 60,
@@ -32,6 +32,7 @@ def notify(*, category, title, description, target_url, role, source_key, due_at
     notification, created = ManagementNotification.objects.get_or_create(source_key=source_key, defaults={
         "category": category, "title": title, "description": description,
         "target_url": target_url, "role": role, "due_at": due_at,
+        "requires_action": requires_action,
         "priority": priority or ManagementNotification.DEFAULT_PRIORITY_BY_CATEGORY.get(category, "normal"),
     })
     if created:
@@ -52,7 +53,7 @@ def new_user(sender, instance, created, **kwargs):
         notify(
             category="accounts", title="عضویت کاربر جدید", description=instance.email,
             target_url=reverse("management_portal:customer_account_open", args=[instance.pk]),
-            role="", source_key=f"user:{instance.pk}",
+            role="", source_key=f"user:{instance.pk}", requires_action=False,
         )
 
 
@@ -154,7 +155,7 @@ def contract_acceptance(sender, instance, created, **kwargs):
         record_customer_event(customer=customer, case=case, category="contract", event_type="contract_accepted", title_fa="قرارداد تأیید شد", title_en="Contract accepted", description=proposal.project_title, source=instance, actor=proposal.created_by, occurred_at=instance.accepted_at)
         case.stage = "won"; case.save(update_fields=("stage", "updated_at"))
         target_url = reverse("management_portal:workspace_detail", args=[proposal.customer_case_id]) if proposal.customer_case_id else reverse("management_portal:contract_detail", args=[proposal.pk])
-        notify(category="contracts", title="قرارداد تأیید شد", description=proposal.customer_name, target_url=target_url, role="", source_key=f"contract-acceptance:{instance.pk}")
+        notify(category="contracts", title="قرارداد تأیید شد", description=proposal.customer_name, target_url=target_url, role="", source_key=f"contract-acceptance:{instance.pk}", requires_action=False)
 
 
 @receiver(post_save, sender=Order)
@@ -214,6 +215,19 @@ def result_event(sender, instance, created, **kwargs):
             title_fa="نتیجه آزمون آماده شد", title_en="Assessment result ready",
             description=f"{instance.level_code} · {instance.percentage}%", source=instance,
             occurred_at=instance.generated_at,
+        )
+        notify(
+            category="assessments",
+            title="نتیجه آزمون آماده شد",
+            description=f"{customer.name} · {instance.level_code} · {instance.percentage}%",
+            target_url=reverse(
+                "management_portal:customer_assessment_detail",
+                args=[customer.pk, attempt.user_id],
+            ),
+            role="assessments",
+            source_key=f"assessment-result:{instance.pk}",
+            priority="normal",
+            requires_action=False,
         )
 
 

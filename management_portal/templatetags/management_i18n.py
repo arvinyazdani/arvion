@@ -23,6 +23,7 @@ NOTIFICATION_TITLES_EN = {
     "رسید پرداخت جدید": "New payment receipt",
     "رسید پرداخت اصلاح‌شده": "Updated payment receipt",
     "پرداخت توسط سیستم تأیید شد": "Payment auto-approved",
+    "نتیجه آزمون آماده شد": "Assessment result ready",
     "تیکت پشتیبانی جدید": "New support ticket",
     "بازخورد قرارداد ثبت شد": "Contract feedback received",
     "قرارداد تأیید شد": "Contract accepted",

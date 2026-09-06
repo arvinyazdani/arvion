@@ -9,12 +9,8 @@ from django.utils import timezone, translation
 from django.urls import reverse
 
 from accounts.models import User
-from assessments.models import ManualPaymentSubmission, SupportTicket
+from assessments.models import ManualPaymentSubmission
 from assessments.services import PaymentVerificationError, approve_manual_payment
-from clinic_orders.models import ClinicOrder
-from contracts.models import ContractProposal
-from crm_orders.models import CrmOrder
-from leads.models import Lead
 from core.sms import send_sms
 from core.sms.backends import SMSDeliveryError
 from .models import CaseTask, CustomerCase, ManagementNotification, NotificationReceipt, PushSubscription
@@ -50,12 +46,14 @@ def create_receipts(notification):
 def _push(subscription, payload):
     from pywebpush import WebPushException, webpush
     try:
+        transport_payload = dict(payload)
+        ttl = transport_payload.pop("ttl", 3600)
         webpush(
             subscription_info={"endpoint": subscription.endpoint, "keys": {"p256dh": subscription.p256dh, "auth": subscription.auth}},
-            data=json.dumps(payload, ensure_ascii=False),
+            data=json.dumps(transport_payload, ensure_ascii=False),
             vapid_private_key=settings.WEB_PUSH_VAPID_PRIVATE_KEY,
             vapid_claims={"sub": settings.WEB_PUSH_VAPID_SUBJECT},
-            ttl=3600,
+            ttl=ttl,
         )
         return ""
     except WebPushException as exc:
@@ -102,54 +100,14 @@ def _notification_push_payload(user, item):
         "title": management_notification_title(item.title, lang),
         "body": management_notification_description(item.description, lang),
         "url": target,
-        "tag": f"rvion-{item.pk}",
-        "urgent": item.category in URGENT_SMS_CATEGORIES,
+        "tag": item.source_key.split(":resubmitted:", 1)[0].replace(":", "-"),
+        "urgent": item.category in URGENT_SMS_CATEGORIES and item.requires_action,
+        "priority": item.priority,
+        "notification_id": item.pk,
+        # A receipt waiting for a three-minute decision must not arrive as an
+        # actionable stale alert long after the system has auto-approved it.
+        "ttl": 180 if item.category == "payments" and item.requires_action else 3600,
     }
-
-
-def _create_sla_alerts(now):
-    """Escalate genuinely overdue work once, without creating a notification loop."""
-    payment_cutoff = now - timedelta(seconds=settings.PAYMENT_REVIEW_SLA_SECONDS)
-    for payment in ManualPaymentSubmission.objects.filter(status="pending", updated_at__lte=payment_cutoff):
-        item, created = ManagementNotification.objects.get_or_create(
-            source_key=f"sla:payment:{payment.pk}",
-            defaults={"category": "payments", "title": "تأیید پرداخت از مهلت عبور کرده است", "description": f"شماره پیگیری: {payment.reference_number}", "target_url": reverse("management_portal:approvals"), "role": "assessments"},
-        )
-        if created:
-            create_receipts(item)
-
-    support_cutoff = now - timedelta(seconds=settings.SUPPORT_FIRST_RESPONSE_SLA_SECONDS)
-    for ticket in SupportTicket.objects.filter(status="open", created_at__lte=support_cutoff):
-        item, created = ManagementNotification.objects.get_or_create(
-            source_key=f"sla:support:{ticket.pk}",
-            defaults={"category": "support", "title": "تیکت بدون پاسخ مانده است", "description": ticket.subject, "target_url": reverse("management_portal:assessment_support"), "role": "support"},
-        )
-        if created:
-            create_receipts(item)
-
-    sales_cutoff = now - timedelta(seconds=settings.SALES_FOLLOW_UP_SLA_SECONDS)
-    sales_sources = (
-        (Lead.objects.filter(status="new", created_at__lte=sales_cutoff), "lead", lambda item: item.business_name or item.name),
-        (CrmOrder.objects.filter(status="new", created_at__lte=sales_cutoff), "crm", lambda item: item.organization_name),
-        (ClinicOrder.objects.filter(status="new", created_at__lte=sales_cutoff), "clinic", lambda item: item.clinic_name),
-        (ContractProposal.objects.filter(status__in=("sent", "review"), created_at__lte=sales_cutoff), "contract", lambda item: item.customer_name),
-    )
-    for queryset, source, label in sales_sources:
-        for item in queryset:
-            if source == "contract":
-                target = (
-                    reverse("management_portal:workspace_detail", args=[item.customer_case_id])
-                    if item.customer_case_id
-                    else reverse("management_portal:contract_detail", args=[item.pk])
-                )
-            else:
-                target = reverse("management_portal:request_detail", args=[source, item.pk])
-            notification, created = ManagementNotification.objects.get_or_create(
-                source_key=f"sla:{source}:{item.pk}",
-                defaults={"category": "sales" if source != "contract" else "contracts", "title": "پیگیری قرارداد از مهلت عبور کرده است" if source == "contract" else "فرم جدید نیازمند پیگیری است", "description": label(item), "target_url": target, "role": "sales" if source != "contract" else ""},
-            )
-            if created:
-                create_receipts(notification)
 
 
 def _auto_approve_pending_payments(now):
@@ -193,7 +151,9 @@ def _auto_approve_pending_payments(now):
                 "description": f"{payment.reference_number} · {order.user.email} · دسترسی آزمون صادر شد",
                 "target_url": reverse("management_portal:approvals"),
                 "role": "assessments",
-                "due_at": now,
+                "due_at": None,
+                "requires_action": False,
+                "priority": "normal",
             },
         )
         if created:
@@ -219,10 +179,13 @@ def _deliver_pending_pushes(now, attempted_ids=None):
         return 0
     delivered = 0
     pending = NotificationReceipt.objects.select_related("notification", "user").filter(
-        push_sent_at__isnull=True, notification__status__in=("unread", "read"),
+        push_sent_at__isnull=True,
+        seen_at__isnull=True,
+        notification__status__in=("unread", "read"),
     ).filter(
-        Q(notification__snoozed_until__isnull=True) | Q(notification__snoozed_until__lte=now),
+        Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=now),
         Q(push_retry_at__isnull=True) | Q(push_retry_at__lte=now),
+        dismissed_at__isnull=True,
     ).order_by("pk")
     if attempted_ids:
         pending = pending.exclude(pk__in=attempted_ids)
@@ -255,7 +218,6 @@ def process_notifications(now=None):
     attempted_push_ids = set()
     push_count = _deliver_pending_pushes(now, attempted_push_ids)
     auto_approved_count = _auto_approve_pending_payments(now)
-    _create_sla_alerts(now)
     sms_count = reminder_count = 0
     for task in CaseTask.objects.select_related("case").filter(status="open", due_at__lte=now):
         item, created = ManagementNotification.objects.get_or_create(source_key=f"crm-task-overdue:{task.pk}:{task.due_at.isoformat()}", defaults={"category": "sales", "title": "وظیفه CRM عقب افتاده", "description": f"{task.case.customer_name}: {task.title}", "target_url": reverse("management_portal:crm_case_detail", args=[task.case_id]), "role": "sales"})
@@ -271,12 +233,14 @@ def process_notifications(now=None):
     # for urgent receipts that are still unseen.
     urgent = ManagementNotification.objects.filter(
         category__in=URGENT_SMS_CATEGORIES,
+        requires_action=True,
         status="unread",
         receipts__sms_sent_at__isnull=True,
         receipts__seen_at__isnull=True,
     ).filter(
-        Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=now),
+        Q(receipts__snoozed_until__isnull=True) | Q(receipts__snoozed_until__lte=now),
         Q(receipts__sms_retry_at__isnull=True) | Q(receipts__sms_retry_at__lte=now),
+        receipts__dismissed_at__isnull=True,
     ).distinct()
     for item in urgent:
         if not settings.MANAGEMENT_ALERT_SMS_RECIPIENTS:
@@ -303,8 +267,13 @@ def process_notifications(now=None):
     cutoff = now - timedelta(seconds=settings.MANAGEMENT_REMINDER_SECONDS)
     due = NotificationReceipt.objects.select_related("notification", "user").filter(
         seen_at__isnull=True, push_sent_at__isnull=False, push_sent_at__lte=cutoff,
-        notification__status="unread", notification__created_at__lte=cutoff,
-    ).filter(Q(last_reminded_at__isnull=True) | Q(last_reminded_at__lte=cutoff))
+        dismissed_at__isnull=True,
+        notification__requires_action=True,
+        notification__status__in=("unread", "read"), notification__created_at__lte=cutoff,
+    ).filter(
+        Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=now),
+        Q(last_reminded_at__isnull=True) | Q(last_reminded_at__lte=cutoff),
+    )
     for user_id in due.values_list("user_id", flat=True).distinct():
         user_due = due.filter(user_id=user_id)
         count = user_due.count()

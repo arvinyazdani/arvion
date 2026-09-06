@@ -22,8 +22,8 @@ class StaffAccessAuditAdmin(admin.ModelAdmin):
 
 @admin.register(ManagementNotification)
 class ManagementNotificationAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "role", "status", "created_at")
-    list_filter = ("category", "role", "status", "created_at")
+    list_display = ("title", "category", "requires_action", "role", "status", "created_at")
+    list_filter = ("category", "requires_action", "role", "status", "created_at")
     search_fields = ("title", "description", "source_key")
     readonly_fields = ("category", "title", "description", "target_url", "role", "source_key", "created_at", "updated_at", "resolved_by", "resolved_at")
 

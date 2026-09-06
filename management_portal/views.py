@@ -10,7 +10,7 @@ from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.db.models import Case, Count, IntegerField, Max, OuterRef, Q, Subquery, Value, When
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -49,6 +49,7 @@ from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerCont
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
 from .customer_segments import CASE_STAGE_CHOICES, JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
 from .customer_analytics import build_customer_funnel
+from .templatetags.management_i18n import management_notification_description, management_notification_title
 
 
 @staff_member_required(login_url="accounts:login")
@@ -610,9 +611,12 @@ def dashboard(request):
     queues.sort(key=lambda item: item["date"], reverse=True)
     notifications = _visible_notifications(user)
     unread_notifications = notifications.filter(
-        status="unread",
+        status__in=("unread", "read"),
         receipts__user=user,
         receipts__seen_at__isnull=True,
+        receipts__dismissed_at__isnull=True,
+    ).filter(
+        Q(receipts__snoozed_until__isnull=True) | Q(receipts__snoozed_until__lte=now),
     )
     unread_count = unread_notifications.count()
     # The management context processor runs during template rendering. Reuse
@@ -1093,10 +1097,37 @@ def _notification_json_requested(request):
 
 
 def _notification_unread_count(user):
+    now = timezone.now()
     return user.notification_receipts.filter(
         seen_at__isnull=True,
-        notification__status="unread",
+        dismissed_at__isnull=True,
+        notification__status__in=("unread", "read"),
+    ).filter(
+        Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=now),
     ).count()
+
+
+def _notifications_for_viewer(user):
+    receipt = NotificationReceipt.objects.filter(user=user, notification_id=OuterRef("pk"))
+    return _visible_notifications(user).annotate(
+        viewer_seen_at=Subquery(receipt.values("seen_at")[:1]),
+        viewer_snoozed_until=Subquery(receipt.values("snoozed_until")[:1]),
+        viewer_dismissed_at=Subquery(receipt.values("dismissed_at")[:1]),
+    )
+
+
+def _notification_display_state(notification, user, fa):
+    if notification.status == "resolved":
+        return "مختومه" if fa else "Resolved"
+    if getattr(notification, "viewer_snoozed_until", None) and notification.viewer_snoozed_until > timezone.now():
+        return "یادآوری بعداً" if fa else "Snoozed"
+    if not getattr(notification, "viewer_seen_at", None):
+        return "جدید" if fa else "New"
+    if notification.requires_action:
+        if notification.owner_id == user.pk:
+            return "در دست من" if fa else "Assigned to me"
+        return "دیده‌شده؛ باز" if fa else "Seen; open"
+    return "دیده‌شده" if fa else "Seen"
 
 
 def _notification_action_payload(request, notification, message, action):
@@ -1104,17 +1135,15 @@ def _notification_action_payload(request, notification, message, action):
     if notification.owner:
         owner_label = notification.owner.get_full_name() or notification.owner.email
     fa = getattr(request, "LANGUAGE_CODE", "fa") == "fa"
-    status_labels = {
-        "unread": ("خوانده‌نشده", "Unread"),
-        "read": ("خوانده‌شده", "Read"),
-        "resolved": ("مختومه", "Resolved"),
-    }
+    receipt = NotificationReceipt.objects.filter(user=request.user, notification=notification).first()
+    notification.viewer_seen_at = receipt.seen_at if receipt else None
+    notification.viewer_snoozed_until = receipt.snoozed_until if receipt else None
     return {
         "ok": True,
         "id": notification.pk,
         "action": action,
         "status": notification.status,
-        "display_status": status_labels[notification.status][0 if fa else 1],
+        "display_status": _notification_display_state(notification, request.user, fa),
         "owner": owner_label,
         "unread_count": _notification_unread_count(request.user),
         "message": message,
@@ -1125,7 +1154,10 @@ def _notification_action_payload(request, notification, message, action):
 def notification_list(request):
     status, category = request.GET.get("status", ""), request.GET.get("category", "")
     priority = request.GET.get("priority", "")
-    queryset = _visible_notifications(request.user).select_related("owner")
+    active_view = request.GET.get("view", "action")
+    if active_view not in {"action", "mine", "events", "snoozed", "archive"}:
+        active_view = "action"
+    queryset = _notifications_for_viewer(request.user).select_related("owner")
     if status in dict(ManagementNotification.STATUSES):
         queryset = queryset.filter(status=status)
     if category in dict(ManagementNotification.CATEGORIES):
@@ -1133,32 +1165,41 @@ def notification_list(request):
     if priority in dict(ManagementNotification.PRIORITIES):
         queryset = queryset.filter(priority=priority)
     now = timezone.now()
-    active = queryset.exclude(status="resolved").filter(
-        Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=now)
-    )
+    open_items = queryset.exclude(status="resolved").filter(viewer_dismissed_at__isnull=True)
+    awake = open_items.filter(Q(viewer_snoozed_until__isnull=True) | Q(viewer_snoozed_until__lte=now))
     priority_order = Case(
         *[When(priority=value, then=Value(rank)) for value, rank in ManagementNotification.PRIORITY_ORDER.items()],
         default=Value(2), output_field=IntegerField(),
     )
-    active = active.annotate(priority_rank_db=priority_order).order_by("priority_rank_db", "due_at", "-created_at")
-    overdue = active.filter(due_at__lt=now)
-    upcoming = active.exclude(pk__in=overdue.values("pk"))
-    snoozed = queryset.exclude(status="resolved").filter(snoozed_until__gt=now).order_by("snoozed_until")
+    action_items = awake.filter(requires_action=True)
+    if active_view == "mine":
+        action_items = action_items.filter(owner=request.user)
+    action_items = action_items.annotate(priority_rank_db=priority_order).order_by("priority_rank_db", "due_at", "-created_at")
+    overdue = action_items.filter(due_at__lt=now) if active_view in {"action", "mine"} else action_items.none()
+    upcoming = action_items.exclude(pk__in=overdue.values("pk")) if active_view in {"action", "mine"} else action_items.none()
+    snoozed = queryset.none()
+    resolved = queryset.none()
+    if active_view == "events":
+        upcoming = awake.filter(requires_action=False).order_by("-created_at")
+    elif active_view == "snoozed":
+        snoozed = open_items.filter(viewer_snoozed_until__gt=now).order_by("viewer_snoozed_until")
+    elif active_view == "archive":
+        resolved = queryset.filter(Q(status="resolved") | Q(viewer_dismissed_at__isnull=False)).order_by("-updated_at")
     can_review_payments = request.user.is_superuser or request.user.has_perm("assessments.change_manualpaymentsubmission")
     groups = [
         list(overdue[:40]), list(upcoming[:40]), list(snoozed[:20]),
-        list(queryset.filter(status="resolved")[:20]),
+        list(resolved[:50]),
     ]
     fa = getattr(request, "LANGUAGE_CODE", "fa") == "fa"
     localized = {
         "status": {
-            "unread": ("خوانده‌نشده", "Unread"), "read": ("خوانده‌شده", "Read"),
+            "unread": ("باز", "Open"), "read": ("در جریان", "In progress"),
             "resolved": ("مختومه", "Resolved"),
         },
         "category": {
             "accounts": ("حساب‌ها", "Accounts"), "sales": ("فروش و سفارش", "Sales & orders"),
             "payments": ("پرداخت", "Payments"), "support": ("پشتیبانی", "Support"),
-            "contracts": ("قرارداد", "Contracts"),
+            "contracts": ("قرارداد", "Contracts"), "assessments": ("آزمون‌ها", "Assessments"),
         },
         "priority": {
             "critical": ("بحرانی", "Critical"), "high": ("زیاد", "High"),
@@ -1167,9 +1208,10 @@ def notification_list(request):
     }
     for group in groups:
         for item in group:
-            item.display_status = localized["status"][item.status][0 if fa else 1]
-            item.display_category = localized["category"][item.category][0 if fa else 1]
+            item.display_status = _notification_display_state(item, request.user, fa)
+            item.display_category = localized["category"].get(item.category, ("سیستم", "System"))[0 if fa else 1]
             item.display_priority = localized["priority"][item.priority][0 if fa else 1]
+            item.snoozed_until = getattr(item, "viewer_snoozed_until", None)
             parts = item.source_key.split(":")
             item.can_review_payment = (
                 item.category == "payments" and len(parts) >= 2
@@ -1190,6 +1232,13 @@ def notification_list(request):
     statuses = [(value, localized["status"][value][0 if fa else 1]) for value, _ in ManagementNotification.STATUSES]
     categories = [(value, localized["category"][value][0 if fa else 1]) for value, _ in ManagementNotification.CATEGORIES]
     priorities = [(value, localized["priority"][value][0 if fa else 1]) for value, _ in ManagementNotification.PRIORITIES]
+    counts = {
+        "action": awake.filter(requires_action=True).count(),
+        "mine": awake.filter(requires_action=True, owner=request.user).count(),
+        "events": awake.filter(requires_action=False).count(),
+        "snoozed": open_items.filter(viewer_snoozed_until__gt=now).count(),
+        "archive": queryset.filter(Q(status="resolved") | Q(viewer_dismissed_at__isnull=False)).count(),
+    }
     return render(request, "management_portal/v2/notifications.html", {
         "overdue_notifications": groups[0],
         "upcoming_notifications": groups[1],
@@ -1199,6 +1248,7 @@ def notification_list(request):
         "categories": categories,
         "priorities": priorities,
         "active_status": status, "active_category": category, "active_priority": priority,
+        "active_view": active_view, "notification_counts": counts,
         "can_review_payments": can_review_payments,
         "snooze_choices": (
             [("15m", "۱۵ دقیقه"), ("1h", "۱ ساعت"), ("4h", "۴ ساعت"), ("tomorrow", "فردا")]
@@ -1244,20 +1294,28 @@ def notification_snooze(request, notification_id):
             return JsonResponse({"ok": False, "message": message}, status=400)
         messages.error(request, message)
         return redirect(_safe_notification_redirect(request, request.POST.get("next")))
-    notification.snoozed_until = timezone.now() + timedelta(seconds=seconds)
-    if notification.status == "unread":
-        notification.status = "read"
-    notification.save(update_fields=["snoozed_until", "status", "updated_at"])
-    # A snooze must re-alert later, so the receipts are reopened for delivery.
-    NotificationReceipt.objects.filter(notification=notification).update(push_sent_at=None, seen_at=None)
+    snoozed_until = timezone.now() + timedelta(seconds=seconds)
+    receipt, _ = NotificationReceipt.objects.get_or_create(user=request.user, notification=notification)
+    # Delivery/view state belongs to this manager. Another manager's queue and
+    # device must never be changed by this snooze.
+    receipt.snoozed_until = snoozed_until
+    receipt.dismissed_at = None
+    receipt.seen_at = None
+    receipt.push_sent_at = None
+    receipt.push_retry_at = None
+    receipt.push_attempt_count = 0
+    receipt.save(update_fields=[
+        "snoozed_until", "dismissed_at", "seen_at", "push_sent_at",
+        "push_retry_at", "push_attempt_count",
+    ])
     OperationalAudit.objects.create(
         actor=request.user, action="notification_snoozed", target_type="management_notification",
         target_id=str(notification.pk), summary=notification.title,
-        metadata={"until": notification.snoozed_until.isoformat()},
+        metadata={"until": snoozed_until.isoformat(), "user_id": request.user.pk},
     )
     message = (
-        f"این اعلان تا {notification.snoozed_until:%H:%M} به تعویق افتاد."
-        if fa else f"Snoozed until {notification.snoozed_until:%H:%M}."
+        f"این اعلان تا {snoozed_until:%H:%M} فقط برای شما به تعویق افتاد."
+        if fa else f"Snoozed for you until {snoozed_until:%H:%M}."
     )
     if _notification_json_requested(request):
         return JsonResponse(_notification_action_payload(request, notification, message, "snooze"))
@@ -1287,9 +1345,11 @@ def notification_assign(request, notification_id):
     if assignee_receipt.seen_at:
         assignee_receipt.seen_at = None
     assignee_receipt.push_sent_at = None
+    assignee_receipt.snoozed_until = None
+    assignee_receipt.dismissed_at = None
     assignee_receipt.push_retry_at = None
     assignee_receipt.push_attempt_count = 0
-    assignee_receipt.save(update_fields=["seen_at", "push_sent_at", "push_retry_at", "push_attempt_count"])
+    assignee_receipt.save(update_fields=["seen_at", "push_sent_at", "snoozed_until", "dismissed_at", "push_retry_at", "push_attempt_count"])
     OperationalAudit.objects.create(
         actor=request.user, action="notification_assigned", target_type="management_notification",
         target_id=str(notification.pk), summary=notification.title,
@@ -1375,21 +1435,52 @@ def notification_payment_action(request, notification_id, decision):
 @staff_member_required(login_url="accounts:login")
 def notification_feed(request):
     since = request.GET.get("since")
+    bootstrap = request.GET.get("bootstrap") == "1"
     now = timezone.now()
-    queryset = _visible_notifications(request.user).filter(status="unread").filter(
-        Q(snoozed_until__isnull=True) | Q(snoozed_until__lte=now)
-    )
+    viewer_items = _notifications_for_viewer(request.user)
+    open_items = viewer_items.exclude(status="resolved").filter(viewer_dismissed_at__isnull=True)
+    awake = open_items.filter(
+        viewer_dismissed_at__isnull=True,
+    ).filter(Q(viewer_snoozed_until__isnull=True) | Q(viewer_snoozed_until__lte=now))
+    latest_available_id = awake.aggregate(value=Max("pk"))["value"] or 0
+    queryset = awake
     if since and since.isdigit():
         queryset = queryset.filter(pk__gt=int(since))
-    items = list(queryset.order_by("pk")[:25])
-    return JsonResponse({"notifications": [{
+    items = [] if bootstrap else list(queryset.order_by("pk")[:100])
+    latest_id = items[-1].pk if items else latest_available_id
+    has_more = bool(items and queryset.filter(pk__gt=latest_id).exists())
+    fa = getattr(request, "LANGUAGE_CODE", "fa") == "fa"
+    category_labels = {
+        "accounts": ("حساب‌ها", "Accounts"), "sales": ("فروش و سفارش", "Sales & orders"),
+        "payments": ("پرداخت", "Payments"), "assessments": ("آزمون‌ها", "Assessments"),
+        "support": ("پشتیبانی", "Support"), "contracts": ("قرارداد", "Contracts"),
+    }
+    payload = {"notifications": [{
         "id": item.pk,
-        "title": item.title,
-        "description": item.description,
+        "title": management_notification_title(item.title, "fa" if fa else "en"),
+        "description": management_notification_description(item.description, "fa" if fa else "en"),
         # Always route through the audited opener.  A stored target URL must
         # never become a client-side open redirect.
         "url": reverse("management_portal:notification_open", args=[item.pk]),
-    } for item in items]})
+        "priority": item.priority,
+        "category": category_labels.get(item.category, ("سیستم", "System"))[0 if fa else 1],
+        "requires_action": item.requires_action,
+        "created_at": item.created_at.isoformat(),
+    } for item in items],
+        "latest_id": latest_id,
+        "has_more": has_more,
+        "unread_count": _notification_unread_count(request.user),
+        "counts": {
+            "action": awake.filter(requires_action=True).count(),
+            "mine": awake.filter(requires_action=True, owner=request.user).count(),
+            "events": awake.filter(requires_action=False).count(),
+            "snoozed": open_items.filter(viewer_snoozed_until__gt=now).count(),
+            "archive": viewer_items.filter(Q(status="resolved") | Q(viewer_dismissed_at__isnull=False)).count(),
+        },
+    }
+    response = JsonResponse(payload)
+    response["Cache-Control"] = "no-store, private"
+    return response
 
 
 @staff_member_required(login_url="accounts:login")
@@ -1427,18 +1518,25 @@ def notification_status(request, notification_id, status):
     if status not in dict(ManagementNotification.STATUSES):
         raise Http404
     notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
-    notification.status = status
+    action = status
+    if status == "read":
+        receipt, _ = NotificationReceipt.objects.get_or_create(user=request.user, notification=notification)
+        receipt.seen_at = receipt.seen_at or timezone.now()
+        receipt.dismissed_at = timezone.now()
+        receipt.snoozed_until = None
+        receipt.save(update_fields=["seen_at", "dismissed_at", "snoozed_until"])
+        action = "dismiss"
+    else:
+        notification.status = status
     if status == "resolved":
         notification.resolved_by, notification.resolved_at = request.user, timezone.now()
-    else:
-        notification.resolved_by, notification.resolved_at = None, None
-    notification.save(update_fields=["status", "resolved_by", "resolved_at", "updated_at"])
+        notification.save(update_fields=["status", "resolved_by", "resolved_at", "updated_at"])
     if getattr(request, "LANGUAGE_CODE", "fa") == "fa":
-        message = "اعلان مختومه شد." if status == "resolved" else "اعلان به‌عنوان خوانده‌شده ثبت شد."
+        message = "کار مختومه شد." if status == "resolved" else "این رویداد از صندوق شما بایگانی شد."
     else:
-        message = "The alert was resolved." if status == "resolved" else "The alert was marked as read."
+        message = "The work item was resolved." if status == "resolved" else "This event was archived for you."
     if _notification_json_requested(request):
-        return JsonResponse(_notification_action_payload(request, notification, message, status))
+        return JsonResponse(_notification_action_payload(request, notification, message, action))
     messages.success(request, message)
     return redirect(_safe_notification_redirect(request, request.POST.get("next")))
 
@@ -1446,7 +1544,10 @@ def notification_status(request, notification_id, status):
 @staff_member_required(login_url="accounts:login")
 def notification_open(request, notification_id):
     notification = get_object_or_404(_visible_notifications(request.user), pk=notification_id)
-    NotificationReceipt.objects.filter(user=request.user, notification=notification, seen_at__isnull=True).update(seen_at=timezone.now())
+    receipt, _ = NotificationReceipt.objects.get_or_create(user=request.user, notification=notification)
+    if not receipt.seen_at:
+        receipt.seen_at = timezone.now()
+        receipt.save(update_fields=["seen_at"])
     target = notification.target_url or ""
     legacy_targets = {
         "/admin/assessments/manualpaymentsubmission/": reverse("management_portal:approvals"),

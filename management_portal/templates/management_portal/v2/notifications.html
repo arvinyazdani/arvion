@@ -1,40 +1,52 @@
 {% extends "management_portal/v2/base.html" %}{% load static management_i18n %}
-{% block title %}{% if lang == 'fa' %}اعلان‌ها | مرکز مدیریت{% else %}Alerts | Management{% endif %}{% endblock %}
-{% block page_title %}{% if lang == 'fa' %}اعلان‌ها{% else %}Alerts{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/notifications.css' %}?v=1">{% endblock %}
+{% block title %}{% if lang == 'fa' %}مرکز اعلان‌ها | مدیریت آرویون{% else %}Notification center | Rvion Management{% endif %}{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}مرکز اعلان‌ها{% else %}Notification center{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/notifications.css' %}?v=3">{% endblock %}
 
 {% block content %}
-<section class="m-page-head">
-  <div>
-    <span>{% if lang == 'fa' %}صف کاری{% else %}WORK QUEUE{% endif %}</span>
-    <h1>{% if lang == 'fa' %}اعلان‌ها{% else %}Alerts{% endif %}</h1>
-    <p>{% if lang == 'fa' %}با باز کردن هر اعلان، فقط همان مورد دیده‌شده ثبت می‌شود. اقدام اصلی را انجام دهید یا برای زمان مناسب یادآور بگذارید.{% else %}Only the alert you open is marked as seen. Complete its primary action or snooze it until the right time.{% endif %}</p>
-  </div>
+<section class="n-hero">
+  <div><span>{% if lang == 'fa' %}صندوق عملیات زنده{% else %}LIVE OPERATIONS INBOX{% endif %}</span><h1>{% if lang == 'fa' %}فقط چیزی که اکنون مهم است{% else %}Only what matters now{% endif %}</h1><p>{% if lang == 'fa' %}کارهای نیازمند تصمیم از رویدادهای اطلاع‌رسانی جدا شده‌اند. این صفحه هنگام بازبودن، خودکار به‌روز می‌شود.{% else %}Work that needs a decision is separated from informational events. This page refreshes itself while open.{% endif %}</p></div>
+  <div class="n-live-state"><i aria-hidden="true"></i><span>{% if lang == 'fa' %}همگام‌سازی زنده هر ۱۵ ثانیه{% else %}Live sync every 15 seconds{% endif %}</span></div>
 </section>
 
-<form class="m-filters n-filters" method="get">
-  <select name="priority" aria-label="{% if lang == 'fa' %}اولویت{% else %}Priority{% endif %}">
-    <option value="">{% if lang == 'fa' %}همه اولویت‌ها{% else %}All priorities{% endif %}</option>
-    {% for value, label in priorities %}<option value="{{ value }}"{% if active_priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-  </select>
-  <select name="category" aria-label="{% if lang == 'fa' %}دسته{% else %}Category{% endif %}">
-    <option value="">{% if lang == 'fa' %}همه دسته‌ها{% else %}All categories{% endif %}</option>
-    {% for value, label in categories %}<option value="{{ value }}"{% if active_category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-  </select>
-  <select name="status" aria-label="{% if lang == 'fa' %}وضعیت{% else %}Status{% endif %}">
-    <option value="">{% if lang == 'fa' %}همه وضعیت‌ها{% else %}All statuses{% endif %}</option>
-    {% for value, label in statuses %}<option value="{{ value }}"{% if active_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-  </select>
-  <button type="submit">{% if lang == 'fa' %}اعمال{% else %}Apply{% endif %}</button>
-</form>
+<nav class="n-views" aria-label="{% if lang == 'fa' %}نماهای اعلان{% else %}Notification views{% endif %}">
+  <a href="?view=action"{% if active_view == 'action' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}نیازمند اقدام{% else %}Needs action{% endif %}</span><b data-notification-view-count="action">{{ notification_counts.action }}</b></a>
+  <a href="?view=mine"{% if active_view == 'mine' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}کارهای من{% else %}My work{% endif %}</span><b data-notification-view-count="mine">{{ notification_counts.mine }}</b></a>
+  <a href="?view=events"{% if active_view == 'events' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}رویدادها{% else %}Updates{% endif %}</span><b data-notification-view-count="events">{{ notification_counts.events }}</b></a>
+  <a href="?view=snoozed"{% if active_view == 'snoozed' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}یادآوری بعداً{% else %}Snoozed{% endif %}</span><b data-notification-view-count="snoozed">{{ notification_counts.snoozed }}</b></a>
+  <a href="?view=archive"{% if active_view == 'archive' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}آرشیو{% else %}Archive{% endif %}</span><b data-notification-view-count="archive">{{ notification_counts.archive }}</b></a>
+</nav>
 
-{% include "management_portal/v2/_notification_group.html" with items=overdue_notifications group_title_fa="عقب‌افتاده" group_title_en="Overdue" group_tone="overdue" %}
-{% include "management_portal/v2/_notification_group.html" with items=upcoming_notifications group_title_fa="در جریان" group_title_en="Open" group_tone="open" %}
-{% include "management_portal/v2/_notification_group.html" with items=snoozed_notifications group_title_fa="یادآوری‌شده برای بعد" group_title_en="Snoozed" group_tone="snoozed" %}
-{% include "management_portal/v2/_notification_group.html" with items=resolved_notifications group_title_fa="مختومه" group_title_en="Resolved" group_tone="resolved" %}
-{% if not overdue_notifications and not upcoming_notifications and not snoozed_notifications and not resolved_notifications %}
-<section class="n-empty"><span aria-hidden="true">✓</span><h2>{% if lang == 'fa' %}صف کار خالی است{% else %}Your queue is clear{% endif %}</h2><p>{% if lang == 'fa' %}در حال حاضر اعلان یا اقدام معوقی ندارید.{% else %}There are no alerts or pending actions right now.{% endif %}</p></section>
+<section class="n-live-banner" data-notification-live-banner hidden role="status" aria-live="polite"><div><i aria-hidden="true"></i><strong data-notification-live-copy></strong></div><button type="button" data-notification-live-refresh>{% if lang == 'fa' %}نمایش موارد تازه{% else %}Show new items{% endif %}</button></section>
+
+<div class="n-toolbar">
+  <details class="n-filter-panel"{% if active_priority or active_category or active_status %} open{% endif %}>
+    <summary>{% if lang == 'fa' %}فیلتر دقیق{% else %}Refine results{% endif %}{% if active_priority or active_category or active_status %}<em>{% if lang == 'fa' %}فعال{% else %}Active{% endif %}</em>{% endif %}</summary>
+    <form class="m-filters n-filters" method="get"><input type="hidden" name="view" value="{{ active_view }}">
+      <select name="priority" aria-label="{% if lang == 'fa' %}اولویت{% else %}Priority{% endif %}"><option value="">{% if lang == 'fa' %}همه اولویت‌ها{% else %}All priorities{% endif %}</option>{% for value, label in priorities %}<option value="{{ value }}"{% if active_priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <select name="category" aria-label="{% if lang == 'fa' %}دسته{% else %}Category{% endif %}"><option value="">{% if lang == 'fa' %}همه دسته‌ها{% else %}All categories{% endif %}</option>{% for value, label in categories %}<option value="{{ value }}"{% if active_category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <select name="status" aria-label="{% if lang == 'fa' %}وضعیت کار{% else %}Work status{% endif %}"><option value="">{% if lang == 'fa' %}همه وضعیت‌ها{% else %}All statuses{% endif %}</option>{% for value, label in statuses %}<option value="{{ value }}"{% if active_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <button type="submit">{% if lang == 'fa' %}اعمال فیلتر{% else %}Apply filters{% endif %}</button>
+    </form>
+  </details>
+  <details class="n-sound-panel"><summary>{% if lang == 'fa' %}صدا و اعلان دستگاه{% else %}Sound & device alerts{% endif %}</summary><div>
+    <button type="button" data-sound-toggle="welcome" aria-pressed="true"><span>♪</span><b>{% if lang == 'fa' %}صدای ورود{% else %}Welcome sound{% endif %}</b><small data-sound-state="welcome"></small></button>
+    <button type="button" data-sound-toggle="notification" aria-pressed="true"><span>●</span><b>{% if lang == 'fa' %}صدای اعلان تازه{% else %}New alert sound{% endif %}</b><small data-sound-state="notification"></small></button>
+    <button class="m-alert-enable" type="button"><span>◌</span><b>{% if lang == 'fa' %}اعلان دستگاه{% else %}Device notifications{% endif %}</b><small>{% if lang == 'fa' %}فعال‌سازی یا ارسال تست محلی{% else %}Enable or run a local test{% endif %}</small></button>
+    <p data-notification-help>{% if lang == 'fa' %}صدای داخل برنامه مستقل از صدای اعلان سیستم‌عامل است.{% else %}In-app sound is separate from your operating system notification sound.{% endif %}</p>
+  </div></details>
+</div>
+
+{% if active_view == 'action' or active_view == 'mine' %}
+  {% include "management_portal/v2/_notification_group.html" with items=overdue_notifications group_title_fa="فوری و عقب‌افتاده" group_title_en="Urgent & overdue" group_tone="overdue" %}
+  {% include "management_portal/v2/_notification_group.html" with items=upcoming_notifications group_title_fa="در صف رسیدگی" group_title_en="Ready for review" group_tone="open" %}
+{% elif active_view == 'events' %}
+  {% include "management_portal/v2/_notification_group.html" with items=upcoming_notifications group_title_fa="آخرین رویدادها" group_title_en="Latest updates" group_tone="events" %}
+{% elif active_view == 'snoozed' %}
+  {% include "management_portal/v2/_notification_group.html" with items=snoozed_notifications group_title_fa="یادآوری‌های برنامه‌ریزی‌شده" group_title_en="Scheduled reminders" group_tone="snoozed" %}
+{% else %}
+  {% include "management_portal/v2/_notification_group.html" with items=resolved_notifications group_title_fa="سوابق مختومه و بایگانی‌شده" group_title_en="Resolved and archived history" group_tone="resolved" %}
 {% endif %}
+{% if not overdue_notifications and not upcoming_notifications and not snoozed_notifications and not resolved_notifications %}<section class="n-empty"><span aria-hidden="true">✓</span><h2>{% if lang == 'fa' %}این بخش خالی است{% else %}Nothing here{% endif %}</h2><p>{% if lang == 'fa' %}در حال حاضر موردی متناسب با این نما و فیلترها ندارید.{% else %}No item currently matches this view and its filters.{% endif %}</p></section>{% endif %}
 {% endblock %}
-
-{% block extra_scripts %}<script src="{% static 'management_portal/v2/notifications.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'management_portal/v2/notifications.js' %}?v=2" defer></script>{% endblock %}

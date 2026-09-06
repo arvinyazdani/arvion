@@ -1,4 +1,4 @@
-const CACHE = "rvion-shell-v4";
+const CACHE = "rvion-shell-v5";
 const OFFLINE_URL_FA = "/offline/fa/";
 const OFFLINE_URL_EN = "/offline/en/";
 const SHELL = [
@@ -67,5 +67,29 @@ self.addEventListener("fetch", event => {
     event.respondWith(staticAsset(event));
   }
 });
-self.addEventListener("push", event => { let data={};try{data=event.data?event.data.json():{}}catch(error){data={body:event.data?event.data.text():""}}event.waitUntil(self.registration.showNotification(data.title || "آرویون", {body:data.body || "رویداد تازه‌ای نیازمند بررسی است.",tag:data.tag || "rvion-management",icon:"/static/core/icons/icon-192.png",badge:"/static/core/icons/icon-192.png",data:{url:data.url || "/fa/management/notifications/"},requireInteraction:Boolean(data.urgent)})); });
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (error) { data = { body: event.data ? event.data.text() : "" }; }
+  event.waitUntil((async () => {
+    const openClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    const activeManagement = openClients.find(client =>
+      client.url.includes("/management/") && (client.focused || client.visibilityState === "visible")
+    );
+    if (activeManagement) {
+      activeManagement.postMessage({ type: "rvion-notification", payload: data });
+      return;
+    }
+    await self.registration.showNotification(data.title || "آرویون", {
+      body: data.body || "رویداد تازه‌ای نیازمند بررسی است.",
+      tag: data.tag || "rvion-management",
+      icon: "/static/core/icons/icon-192.png",
+      badge: "/static/core/icons/icon-192.png",
+      data: { url: data.url || "/fa/management/notifications/" },
+      requireInteraction: Boolean(data.urgent),
+      silent: false,
+      vibrate: data.urgent ? [120, 70, 120] : [90],
+    });
+  })());
+});
 self.addEventListener("notificationclick", event => { const fallback="/fa/management/notifications/";let target;try{target=new URL(event.notification.data?.url || fallback,self.location.origin)}catch(error){target=new URL(fallback,self.location.origin)}if(target.origin!==self.location.origin)target=new URL(fallback,self.location.origin);event.notification.close();event.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(items => { const match=items.find(item=>item.url.includes("/management/")); return match ? match.focus().then(()=>match.navigate(target.href)) : clients.openWindow(target.href); })); });

@@ -223,13 +223,17 @@ class StaffAccessAudit(models.Model):
 
 class ManagementNotification(models.Model):
     STATUSES = (("unread", "خوانده‌نشده"), ("read", "خوانده‌شده"), ("resolved", "مختومه"))
-    CATEGORIES = (("accounts", "حساب‌ها"), ("sales", "فروش و سفارش"), ("payments", "پرداخت"), ("support", "پشتیبانی"), ("contracts", "قرارداد"))
+    CATEGORIES = (
+        ("accounts", "حساب‌ها"), ("sales", "فروش و سفارش"),
+        ("payments", "پرداخت"), ("assessments", "آزمون‌ها"),
+        ("support", "پشتیبانی"), ("contracts", "قرارداد"),
+    )
     PRIORITIES = (("critical", "بحرانی"), ("high", "زیاد"), ("normal", "معمولی"), ("low", "کم"))
     # Payments block a customer from taking a paid exam, so they outrank the
     # rest of the queue by default.
     DEFAULT_PRIORITY_BY_CATEGORY = {
         "payments": "critical", "contracts": "high", "support": "high",
-        "accounts": "normal", "sales": "normal",
+        "accounts": "normal", "sales": "normal", "assessments": "normal",
     }
 
     category = models.CharField(max_length=20, choices=CATEGORIES, db_index=True)
@@ -241,7 +245,7 @@ class ManagementNotification(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name="owned_management_notifications")
     due_at = models.DateTimeField(blank=True, null=True, db_index=True)
     priority = models.CharField(max_length=10, choices=PRIORITIES, default="normal", db_index=True)
-    snoozed_until = models.DateTimeField(blank=True, null=True, db_index=True)
+    requires_action = models.BooleanField(default=True, db_index=True)
     status = models.CharField(max_length=12, choices=STATUSES, default="unread", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -266,11 +270,6 @@ class ManagementNotification(models.Model):
     @property
     def priority_rank(self):
         return self.PRIORITY_ORDER.get(self.priority, 2)
-
-    @property
-    def is_snoozed(self):
-        return bool(self.snoozed_until and self.snoozed_until > timezone.now())
-
 
 class SMSDispatch(models.Model):
     STATUSES = (("sent", "ارسال شد"), ("failed", "ناموفق"))
@@ -362,6 +361,8 @@ class NotificationReceipt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notification_receipts")
     notification = models.ForeignKey(ManagementNotification, on_delete=models.CASCADE, related_name="receipts")
     seen_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    snoozed_until = models.DateTimeField(blank=True, null=True, db_index=True)
+    dismissed_at = models.DateTimeField(blank=True, null=True, db_index=True)
     push_sent_at = models.DateTimeField(blank=True, null=True)
     sms_sent_at = models.DateTimeField(blank=True, null=True)
     last_reminded_at = models.DateTimeField(blank=True, null=True)
