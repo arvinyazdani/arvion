@@ -9,7 +9,7 @@
 <section class="page-hero assessment-detail-hero">
   <div class="shell content-grid">
     <div>
-      <span class="eyebrow">{% if lang == 'fa' %}آزمون آرویون · حساب تأییدشده{% else %}RVION ASSESSMENT / VERIFIED ACCOUNT{% endif %}</span>
+      <span class="eyebrow">{% if lang == 'fa' %}ارزیابی مهارت آرویون{% else %}RVION SKILL ASSESSMENT{% endif %}</span>
       <h1>{% if lang == 'fa' %}{{ exam.title_fa }}{% else %}{{ exam.title_en }}{% endif %}</h1>
       <p class="lead">{% if lang == 'fa' %}{{ exam.description_fa }}{% else %}{{ exam.description_en }}{% endif %}</p>
     </div>
@@ -23,10 +23,10 @@
         <span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>{% if lang == 'fa' %}گزارش مهارتی{% else %}Skill report{% endif %}</span>
         <span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>{% if lang == 'fa' %}گواهی غیررسمی{% else %}Non-accredited certificate{% endif %}</span>
       </div>
-      <form method="post" action="{% url 'assessments:create_order' exam.slug %}">
+      <form method="post" action="{% url 'assessments:create_order' exam.slug %}?lang={{ lang }}">
         {% csrf_token %}
         <button class="button primary large" type="submit">
-          <span>{% if request.user.is_authenticated %}{% if assessment_free_checkout %}{% if lang == 'fa' %}دریافت رایگان یک نوبت{% else %}Get one free attempt{% endif %}{% elif lang == 'fa' %}خرید یک نوبت{% else %}Buy one attempt{% endif %}{% else %}{% if lang == 'fa' %}ورود و دریافت{% else %}Sign in to continue{% endif %}{% endif %}</span>
+          <span>{% if request.user.is_authenticated %}{% if assessment_free_checkout %}{% if lang == 'fa' %}فعال‌سازی نوبت رایگان{% else %}Activate free attempt{% endif %}{% elif lang == 'fa' %}ادامه به پرداخت{% else %}Continue to payment{% endif %}{% else %}{% if lang == 'fa' %}ورود و ادامه پرداخت{% else %}Sign in and continue to payment{% endif %}{% endif %}</span>
           <svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
         </button>
       </form>

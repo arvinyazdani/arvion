@@ -1,15 +1,17 @@
 from datetime import timedelta
 from pathlib import Path
 import random
+import threading
+from unittest import skipUnless
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.db import connection
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.db import close_old_connections, connection
+from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 from core.jalali import format_jalali
 
 from .models import (
@@ -20,7 +22,7 @@ from .models import (
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .integrity import assess_event
 from .services import (
-    AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_expired_attempt, score_attempt, start_attempt,
+    AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_attempt_submission, finalize_expired_attempt, score_attempt, start_attempt,
     verify_gateway_payment, verify_sandbox_payment,
 )
 
@@ -130,6 +132,9 @@ class AssessmentAdminExportTests(TestCase):
 
 class AssessmentCommerceTests(TestCase):
     def setUp(self):
+        previous_language = translation.get_language()
+        translation.activate("fa")
+        self.addCleanup(translation.activate, previous_language)
         self.user = User.objects.create_user(
             username="buyer@example.com",
             email="buyer@example.com",
@@ -156,6 +161,44 @@ class AssessmentCommerceTests(TestCase):
         response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response.url)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_prefix_only_english_purchase_and_status_stay_english(self):
+        self.client.force_login(self.user)
+        with translation.override("en"):
+            purchase_url = reverse("assessments:create_order", args=[self.exam.slug])
+
+        created = self.client.post(purchase_url)
+
+        order = Order.objects.get(user=self.user, exam=self.exam)
+        with translation.override("en"):
+            checkout_url = reverse("assessments:checkout", args=[order.pk])
+            payment_url = reverse("assessments:manual_payment_submit", args=[order.pk])
+            status_url = reverse("assessments:manual_payment_status", args=[order.pk])
+            dashboard_url = reverse("accounts:dashboard")
+        self.assertEqual(created.url, f"{checkout_url}?lang=en")
+        self.assertNotIn("lang=fa", created.url)
+        checkout = self.client.get(checkout_url)
+        self.assertContains(checkout, '<html lang="en" dir="ltr">', html=False)
+        self.assertContains(checkout, "Submit your payment details")
+
+        now = timezone.localtime()
+        submitted = self.client.post(
+            payment_url,
+            {
+                "payer_name": "English buyer", "reference_number": "ENGLISH123",
+                "payment_date": now.date().isoformat(),
+                "payment_time": now.strftime("%H:%M"), "note": "", "accept_terms": "on",
+            },
+        )
+        self.assertEqual(submitted.url, f"{checkout_url}?lang=en")
+        self.assertNotIn("lang=fa", submitted.url)
+        ManualPaymentSubmission.objects.get(order=order)
+        order.status = "paid"
+        order.save(update_fields=["status"])
+        status = self.client.get(status_url)
+        self.assertEqual(status.json()["redirect_url"], f"{dashboard_url}?lang=en")
+        self.assertNotIn("lang=fa", status.json()["redirect_url"])
 
     def test_legacy_get_purchase_link_returns_to_exam_without_creating_order(self):
         self.client.force_login(self.user)
@@ -629,6 +672,9 @@ class AssessmentCommerceTests(TestCase):
 
 class AssessmentEngineTests(TestCase):
     def setUp(self):
+        previous_language = translation.get_language()
+        translation.activate("fa")
+        self.addCleanup(translation.activate, previous_language)
         self.user = User.objects.create_user(
             username="candidate@example.com", email="candidate@example.com",
             password="test-password-42", is_active=True, email_verified=True,
@@ -1059,6 +1105,8 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(response, "const flushSave=")
         self.assertContains(response, "AbortController")
         self.assertContains(response, "15000")
+        self.assertContains(response, "pendingActiveSeconds=activeSeconds()")
+        self.assertContains(response, "acknowledgeActiveSeconds(pendingActiveSeconds)")
         self.assertContains(response, "location.replace(link.href)")
         self.assertContains(response, "else location.assign(link.href)")
         self.assertContains(response, "internalNavigation=true")
@@ -1066,6 +1114,63 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(response, "visibility_hidden")
         self.assertContains(response, "visibility_returned")
         self.assertContains(response, "پاسخ ذخیره نشد؛ اتصال را بررسی")
+
+    def test_attempt_has_working_manual_save_fallback(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        choice = item.question.choices.first()
+        self.client.force_login(self.user)
+        page_url = reverse("assessments:attempt", args=[attempt.pk]) + f"?q={item.position}&lang=fa"
+
+        page = self.client.get(page_url)
+        saved = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]) + "?lang=fa",
+            {"choice": choice.pk},
+            HTTP_ACCEPT="text/html,application/xhtml+xml",
+        )
+
+        self.assertContains(page, "ذخیره خودکار فعال نشد")
+        self.assertContains(page, "ذخیره دستی پاسخ")
+        self.assertContains(page, "required")
+        self.assertContains(page, "form.classList.add('is-enhanced')")
+        self.assertRedirects(saved, page_url, fetch_redirect_response=False)
+        item.refresh_from_db()
+        self.assertEqual(item.effective_selected_choice_id, choice.pk)
+
+    def test_server_visible_time_prevents_false_instant_answer_and_excludes_absence(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        choice = item.question.choices.first()
+        self.client.force_login(self.user)
+        self.client.get(reverse("assessments:attempt", args=[attempt.pk]) + f"?q={item.position}")
+        observed_at = timezone.now()
+        AttemptQuestion.objects.filter(pk=item.pk).update(
+            last_seen_at=observed_at - timedelta(seconds=20)
+        )
+        hidden = IntegrityEvent.objects.create(
+            attempt=attempt, attempt_question=item, event_type="visibility_hidden",
+        )
+        returned = IntegrityEvent.objects.create(
+            attempt=attempt, attempt_question=item, event_type="visibility_returned",
+            duration_ms=10_000,
+        )
+        IntegrityEvent.objects.filter(pk=hidden.pk).update(
+            created_at=observed_at - timedelta(seconds=15)
+        )
+        IntegrityEvent.objects.filter(pk=returned.pk).update(
+            created_at=observed_at - timedelta(seconds=5)
+        )
+
+        response = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
+            {"choice": choice.pk, "active_seconds": "0", "save_token": "under-report"},
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertGreaterEqual(item.active_seconds, 9)
+        self.assertLessEqual(item.active_seconds, 11)
 
     def test_reload_without_query_resumes_the_last_server_recorded_question(self):
         attempt = self.start()
@@ -1206,6 +1311,44 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(attempt.completion_reason, "manual")
         self.assertTrue(Certificate.objects.filter(result=result).exists())
 
+    def test_prefix_only_english_start_save_review_finish_and_result_stay_english(self):
+        self.client.force_login(self.user)
+        with translation.override("en"):
+            start_url = reverse("assessments:start_attempt", args=[self.entitlement.pk])
+
+        started = self.client.post(start_url)
+        attempt = Attempt.objects.get(entitlement=self.entitlement)
+        with translation.override("en"):
+            attempt_url = reverse("assessments:attempt", args=[attempt.pk])
+            review_url = reverse("assessments:attempt_review", args=[attempt.pk])
+            finish_url = reverse("assessments:finish_attempt", args=[attempt.pk])
+        self.assertEqual(started.url, f"{attempt_url}?lang=en")
+        self.assertNotIn("lang=fa", started.url)
+
+        page = self.client.get(attempt_url)
+        self.assertContains(page, '<html lang="en" dir="ltr">', html=False)
+        self.assertContains(page, "Question")
+        item = attempt.attempt_questions.first()
+        choice = item.question.choices.first()
+        saved = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]),
+            {"choice": choice.pk},
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(saved.status_code, 200)
+        review = self.client.get(review_url)
+        self.assertContains(review, "Review before submitting")
+
+        finished = self.client.post(finish_url, {"confirm_submission": "yes"})
+        result = AttemptResult.objects.get(attempt=attempt)
+        with translation.override("en"):
+            result_url = reverse("assessments:result", args=[result.pk])
+        self.assertEqual(finished.url, f"{result_url}?lang=en")
+        self.assertNotIn("lang=fa", finished.url)
+        report = self.client.get(result_url)
+        self.assertContains(report, '<html lang="en" dir="ltr">', html=False)
+        self.assertContains(report, "Your result")
+
     def test_finish_requires_named_confirmation_on_server(self):
         attempt = self.start()
         self.client.force_login(self.user)
@@ -1241,6 +1384,49 @@ class AssessmentEngineTests(TestCase):
         self.assertEqual(attempt.status, "completed")
         self.assertEqual(attempt.completion_reason, "timeout")
         self.assertTrue(AttemptResult.objects.filter(attempt=attempt).exists())
+
+    def test_expired_manual_save_fallback_redirects_to_result(self):
+        attempt = self.start()
+        attempt.expires_at = timezone.now()
+        attempt.save(update_fields=["expires_at"])
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("assessments:save_answer", args=[attempt.pk, item.pk]) + "?lang=fa",
+            {"choice": item.question.choices.first().pk},
+            HTTP_ACCEPT="text/html,application/xhtml+xml",
+            follow=True,
+        )
+
+        result = AttemptResult.objects.get(attempt=attempt)
+        self.assertRedirects(
+            response,
+            reverse("assessments:result", args=[result.pk]) + "?lang=fa",
+        )
+        self.assertContains(response, "زمان آزمون به پایان رسید؛ نتیجه شما آماده است.")
+        item.refresh_from_db()
+        self.assertIsNone(item.effective_selected_choice_id)
+
+    def test_expired_finish_scores_without_requiring_manual_confirmation(self):
+        attempt = self.start()
+        attempt.expires_at = timezone.now()
+        attempt.save(update_fields=["expires_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("assessments:finish_attempt", args=[attempt.pk]),
+            {},
+        )
+
+        result = AttemptResult.objects.get(attempt=attempt)
+        self.assertRedirects(
+            response,
+            reverse("assessments:result", args=[result.pk]) + "?lang=fa",
+        )
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, "completed")
+        self.assertEqual(attempt.completion_reason, "timeout")
 
     def test_timeout_is_scored_once_and_attempt_page_redirects_to_result(self):
         attempt = self.start()
@@ -1292,6 +1478,20 @@ class AssessmentEngineTests(TestCase):
         self.assertFalse(created)
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(AttemptResult.objects.count(), 1)
+
+    def test_existing_result_repairs_stale_attempt_status(self):
+        attempt = self.start()
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        Attempt.objects.filter(pk=attempt.pk).update(status="submitted")
+
+        same_result, created = score_attempt(attempt.pk)
+
+        attempt.refresh_from_db()
+        self.assertFalse(created)
+        self.assertEqual(same_result.pk, result.pk)
+        self.assertEqual(attempt.status, "completed")
 
     def test_certificate_holder_name_is_frozen_at_issue_time(self):
         attempt = self.start()
@@ -1349,6 +1549,29 @@ class AssessmentEngineTests(TestCase):
         self.assertContains(report, "Copy attempts")
         self.assertContains(certificate, "MANUAL REVIEW REQUIRED")
         self.assertContains(certificate, "72%")
+
+    def test_result_explains_pace_penalty_without_claiming_proven_misconduct(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        item.selected_choice = item.question.choices.get(is_correct=True)
+        item.selected_choice_snapshot_id = item.selected_choice_id
+        item.active_seconds = 2
+        item.save(update_fields=[
+            "selected_choice", "selected_choice_snapshot_id", "active_seconds",
+        ])
+        attempt.status = "submitted"
+        attempt.save(update_fields=["status"])
+        result, _ = score_attempt(attempt.pk)
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("assessments:result", args=[result.pk]) + "?lang=fa"
+        )
+
+        self.assertEqual(result.attempt.integrity_score, 96)
+        self.assertContains(response, "سرعت غیرعادی پاسخ در 1 سؤال")
+        self.assertContains(response, "به‌تنهایی تقلب را ثابت نمی‌کند")
+        self.assertNotContains(response, "هیچ شاهد نظارتی ثبت نشده است")
 
     def test_public_verifier_accepts_formatted_persian_digit_code_without_private_email(self):
         attempt = self.start()
@@ -1509,6 +1732,96 @@ class AssessmentEngineTests(TestCase):
         report = self.client.get(reverse("assessments:result", args=[result.pk]))
         self.assertContains(report, "100")
         self.assertEqual(result.percentage, 100)
+
+
+@skipUnless(connection.vendor == "postgresql", "PostgreSQL row locks are required")
+class AssessmentFinishConcurrencyTests(TransactionTestCase):
+    reset_sequences = True
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="concurrent@example.com",
+            email="concurrent@example.com",
+            password="test-password-42",
+            first_name="Concurrent",
+            last_name="Candidate",
+        )
+        exam = Exam.objects.create(
+            slug="concurrent-finish", title_fa="هم‌زمان", title_en="Concurrent",
+            description_fa="توضیح", description_en="Description",
+            question_count=1, duration_minutes=10,
+        )
+        version = ExamVersion.objects.create(
+            exam=exam, version=1, is_published=True, published_at=timezone.now(),
+        )
+        section = ExamSection.objects.create(
+            version=version, code="core", title_fa="پایه", title_en="Core",
+            question_count=1,
+        )
+        skill = Skill.objects.create(
+            exam=exam, code="core", title_fa="پایه", title_en="Core",
+        )
+        question = Question.objects.create(
+            version=version, section=section, skill=skill,
+            prompt_fa="سؤال", prompt_en="Question", difficulty=3,
+        )
+        choice = Choice.objects.create(
+            question=question, text_fa="درست", text_en="Correct", is_correct=True,
+        )
+        order = Order.objects.create(user=self.user, exam=exam, amount_irr=0, status="paid")
+        entitlement = ExamEntitlement.objects.create(
+            user=self.user, exam=exam, order=order, attempts_remaining=0,
+        )
+        self.attempt = Attempt.objects.create(
+            user=self.user, exam=exam, version=version, entitlement=entitlement,
+            status="in_progress", started_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+        AttemptQuestion.objects.create(
+            attempt=self.attempt, question=question, position=1,
+            choice_order=[choice.pk], selected_choice=choice,
+            selected_choice_snapshot_id=choice.pk,
+            question_snapshot={
+                "weight": "1", "difficulty": 3, "suggested_seconds": 60,
+            },
+            choices_snapshot=[{
+                "id": choice.pk, "text_fa": "درست", "text_en": "Correct",
+                "explanation_fa": "", "explanation_en": "", "is_correct": True,
+            }],
+        )
+
+    def test_concurrent_final_submit_keeps_completed_state_and_one_result(self):
+        barrier = threading.Barrier(2)
+        results = []
+        errors = []
+
+        def submit():
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                result, _ = finalize_attempt_submission(self.attempt.pk, self.user.pk)
+                results.append(result.pk)
+            except Exception as exc:  # pragma: no cover - asserted below
+                errors.append(exc)
+            finally:
+                close_old_connections()
+
+        close_old_connections()
+        threads = [threading.Thread(target=submit), threading.Thread(target=submit)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(errors, [])
+        self.assertEqual(len(results), 2)
+        self.assertEqual(len(set(results)), 1)
+        self.attempt.refresh_from_db()
+        self.assertEqual(self.attempt.status, "completed")
+        self.assertEqual(AttemptResult.objects.filter(attempt=self.attempt).count(), 1)
+        self.assertEqual(Certificate.objects.filter(result__attempt=self.attempt).count(), 1)
+
 
 class QuestionPaceIntegrityTests(TestCase):
     def test_expected_time_scales_with_difficulty(self):

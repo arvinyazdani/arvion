@@ -47,7 +47,7 @@
   </div>
 
   <div class="shell briefing-actions">
-    <a class="button" href="{% url 'assessments:detail' exam.slug %}">{% if lang == 'fa' %}مشاهده قیمت و ادامه{% else %}See the price and continue{% endif %}</a>
+    <a class="button" href="{% url 'assessments:detail' exam.slug %}">{% if lang == 'fa' %}مشاهده قیمت و ادامه پرداخت{% else %}See the price and continue to payment{% endif %}</a>
     <a class="button secondary" href="{% url 'assessments:list' %}">{% if lang == 'fa' %}بازگشت به فهرست آزمون‌ها{% else %}Back to all assessments{% endif %}</a>
   </div>
 </section>

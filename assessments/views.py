@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.http import Http404
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -23,12 +23,42 @@ from management_portal.models import Customer, CustomerContact
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
-from .integrity import assess_event
+from .integrity import assess_event, question_pace_rows
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket
-from .services import AttemptLimitError, ExamContentError, finalize_expired_attempt, score_attempt, start_attempt, verify_sandbox_payment
+from .services import AttemptLimitError, ExamContentError, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
 
 
 logger = logging.getLogger(__name__)
+
+
+def _request_language(request):
+    """Resolve fa/en for action views that do not render through the mixin."""
+    candidates = (
+        request.GET.get("lang"),
+        getattr(request, "LANGUAGE_CODE", None),
+        request.session.get("lang"),
+    )
+    return next((value.lower() for value in candidates if value and value.lower() in {"fa", "en"}), "fa")
+
+
+def _server_visible_seconds(attempt, item, now):
+    """Estimate visible page time from server timestamps and paired absences."""
+    if not item.last_seen_at:
+        return 0
+    elapsed_ms = max(0, min(int((now - item.last_seen_at).total_seconds() * 1000), 900_000))
+    visibility_events = IntegrityEvent.objects.filter(
+        attempt=attempt,
+        attempt_question=item,
+        created_at__gte=item.last_seen_at,
+        event_type__in={"visibility_hidden", "visibility_returned"},
+    )
+    away_ms = visibility_events.filter(event_type="visibility_returned").aggregate(
+        total=Sum("duration_ms")
+    )["total"] or 0
+    latest_visibility = visibility_events.order_by("-created_at").first()
+    if latest_visibility and latest_visibility.event_type == "visibility_hidden":
+        away_ms += max(0, int((now - latest_visibility.created_at).total_seconds() * 1000))
+    return max(0, min(900, int(max(0, elapsed_ms - away_ms) / 1000)))
 
 
 def _customer_for_user(user):
@@ -140,7 +170,7 @@ class CreateOrderView(LoginRequiredMixin, View):
     def get(self, request, slug):
         """Recover safely from legacy login redirects to this POST-only action."""
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
-        lang = request.GET.get("lang", "fa")
+        lang = _request_language(request)
         messages.info(
             request,
             "برای ادامه خرید، دکمه خرید آزمون را بزنید."
@@ -197,7 +227,7 @@ class CreateOrderView(LoginRequiredMixin, View):
             order.amount_irr = exam.price_irr
             order.gateway = settings.PAYMENT_GATEWAY
             order.save(update_fields=["subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "updated_at"])
-        return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={request.GET.get('lang', 'fa')}")
+        return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={_request_language(request)}")
 
 
 class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
@@ -230,7 +260,7 @@ class CheckoutView(LanguageViewMixin, LoginRequiredMixin, DetailView):
 class ManualPaymentSubmitView(LoginRequiredMixin, View):
     @transaction.atomic
     def post(self, request, pk):
-        lang = request.GET.get("lang", "fa")
+        lang = _request_language(request)
         order = get_object_or_404(
             Order.objects.select_for_update(),
             pk=pk, user=request.user, status="pending", gateway="card_transfer",
@@ -303,7 +333,7 @@ class ManualPaymentStatusView(LoginRequiredMixin, View):
                 0,
                 int((submission.updated_at + timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS) - timezone.now()).total_seconds()),
             ) if submission and state == "pending" else 0,
-            "redirect_url": f"{reverse('accounts:dashboard')}?lang={request.GET.get('lang', 'fa')}"
+            "redirect_url": f"{reverse('accounts:dashboard')}?lang={_request_language(request)}"
             if state == "approved" else "",
         })
         response["Cache-Control"] = "no-store, private"
@@ -315,7 +345,7 @@ class SandboxPayView(LoginRequiredMixin, View):
         if not settings.DEBUG or settings.PAYMENT_GATEWAY != "sandbox":
             raise Http404
         order = get_object_or_404(Order, pk=pk, user=request.user)
-        lang = request.GET.get("lang", "fa")
+        lang = _request_language(request)
         if request.POST.get("accept_terms") != "yes":
             messages.error(
                 request,
@@ -344,7 +374,7 @@ class SandboxPayView(LoginRequiredMixin, View):
 class StartAttemptView(LoginRequiredMixin, View):
     def post(self, request, pk):
         entitlement = get_object_or_404(ExamEntitlement, pk=pk, user=request.user)
-        lang = request.GET.get("lang", "fa")
+        lang = _request_language(request)
         if not request.user.first_name.strip() or not request.user.last_name.strip():
             messages.error(
                 request,
@@ -471,11 +501,32 @@ class AttemptReviewView(LanguageViewMixin, LoginRequiredMixin, DetailView):
 class SaveAnswerView(LoginRequiredMixin, View):
     @transaction.atomic
     def post(self, request, pk, item_pk):
+        accepted_types = request.headers.get("Accept", "")
+        wants_html = "text/html" in accepted_types and "application/json" not in accepted_types
         attempt = get_object_or_404(
             Attempt.objects.select_for_update(), pk=pk, user=request.user,
         )
         result = finalize_expired_attempt(attempt.pk)
         if result or attempt.status != "in_progress":
+            if wants_html:
+                lang = _request_language(request)
+                if result:
+                    messages.info(
+                        request,
+                        "زمان آزمون به پایان رسید؛ نتیجه شما آماده است."
+                        if lang == "fa" else
+                        "Your assessment time ended. Your result is ready.",
+                    )
+                    return redirect(
+                        f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={lang}"
+                    )
+                messages.warning(
+                    request,
+                    "این آزمون دیگر امکان ثبت پاسخ ندارد."
+                    if lang == "fa" else
+                    "This assessment no longer accepts answers.",
+                )
+                return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
             return JsonResponse({
                 "ok": False, "reason": "attempt_closed",
                 "result_url": reverse("assessments:result", kwargs={"pk": result.pk}) if result else "",
@@ -501,15 +552,23 @@ class SaveAnswerView(LoginRequiredMixin, View):
         if previous_choice_id is not None and previous_choice_id != int(choice_id):
             item.answer_change_count += 1
         try:
-            active_seconds = max(0, min(int(request.POST.get("active_seconds", 0)), 900))
+            client_active_seconds = max(0, min(int(request.POST.get("active_seconds", 0)), 900))
         except (TypeError, ValueError):
-            active_seconds = 0
+            client_active_seconds = 0
         if not duplicate_save:
-            # Browser timing is supporting evidence only. Bound it by the
-            # server-observed time since this question was last shown so a
-            # forged payload cannot manufacture or hide long activity.
-            server_elapsed = max(0, int((timezone.now() - (item.last_seen_at or timezone.now())).total_seconds()) + 2)
-            item.active_seconds += min(active_seconds, server_elapsed, 900)
+            now = timezone.now()
+            server_elapsed = max(
+                0,
+                min(int((now - (item.last_seen_at or now)).total_seconds()), 900),
+            )
+            # Client time is never allowed above the server-observed interval.
+            # Server-visible time is also a conservative floor, so a failed
+            # request or forged low value cannot create a false "instant"
+            # answer while recorded absences remain excluded.
+            visible_seconds = _server_visible_seconds(attempt, item, now)
+            item.active_seconds += min(
+                max(client_active_seconds, visible_seconds), server_elapsed, 900
+            )
             item.last_save_token = save_token
         item.last_seen_at = timezone.now()
         item.save(update_fields=[
@@ -519,6 +578,14 @@ class SaveAnswerView(LoginRequiredMixin, View):
         answered_count = attempt.attempt_questions.filter(
             Q(selected_choice_snapshot_id__isnull=False) | Q(selected_choice__isnull=False)
         ).count()
+        if wants_html:
+            messages.success(
+                request,
+                "پاسخ ذخیره شد؛ اکنون می‌توانید ادامه دهید."
+                if _request_language(request) == "fa" else
+                "Your answer was saved. You can continue now.",
+            )
+            return redirect(f"{attempt.get_absolute_url()}?q={item.position}&lang={_request_language(request)}")
         return JsonResponse({"ok": True, "answered": answered_count})
 
 
@@ -613,10 +680,12 @@ class IntegrityEventView(LoginRequiredMixin, View):
 class FinishAttemptView(LoginRequiredMixin, View):
     def post(self, request, pk):
         attempt = get_object_or_404(Attempt, pk=pk, user=request.user)
-        lang = request.GET.get("lang", "fa")
+        lang = _request_language(request)
         expired_result = finalize_expired_attempt(attempt.pk)
         if expired_result:
-            return redirect(f"{reverse('assessments:result', kwargs={'pk': expired_result.pk})}?lang={lang}")
+            return redirect(
+                f"{reverse('assessments:result', kwargs={'pk': expired_result.pk})}?lang={lang}"
+            )
         if attempt.status == "in_progress":
             form = FinishAttemptForm(request.POST, lang=lang)
             if not form.is_valid():
@@ -629,15 +698,14 @@ class FinishAttemptView(LoginRequiredMixin, View):
                 return redirect(
                     f"{reverse('assessments:attempt_review', kwargs={'pk': attempt.pk})}?lang={lang}"
                 )
-            attempt.status = "submitted"
-            attempt.completion_reason = "manual"
-            attempt.submitted_at = timezone.now()
-            attempt.save(update_fields=["status", "completion_reason", "submitted_at", "updated_at"])
-            result, _ = score_attempt(attempt.pk)
-            messages.success(request, "آزمون با موفقیت تصحیح شد." if lang == "fa" else "Your assessment has been scored.")
+        try:
+            result, created = finalize_attempt_submission(attempt.pk, request.user.pk)
+        except Attempt.DoesNotExist:
+            raise Http404
+        if result:
+            if created:
+                messages.success(request, "آزمون با موفقیت تصحیح شد." if lang == "fa" else "Your assessment has been scored.")
             return redirect(f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={lang}")
-        if hasattr(attempt, "result"):
-            return redirect(f"{reverse('assessments:result', kwargs={'pk': attempt.result.pk})}?lang={lang}")
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
 
 
@@ -719,6 +787,11 @@ class ResultView(LanguageViewMixin, LoginRequiredMixin, DetailView):
             }
             for item in self.object.attempt.integrity_events.values("event_type").annotate(total=Count("id")).order_by("event_type")
         ]
+        pace_rows = question_pace_rows(self.object.attempt, lang)
+        context["pace_flagged_count"] = sum(row["risk_points"] > 0 for row in pace_rows)
+        context["pace_risk_points"] = min(
+            sum(row["risk_points"] for row in pace_rows), 25
+        )
         context["integrity_needs_review"] = (
             self.object.attempt.integrity_score < settings.ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD
         )

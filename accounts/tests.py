@@ -433,6 +433,51 @@ class AccountFlowTests(TestCase):
             fetch_redirect_response=False,
         )
 
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_assessment_purchase_destination_survives_login_to_registration(self):
+        exam = Exam.objects.create(
+            slug="signup-purchase", title_fa="آزمون زبان", title_en="English assessment",
+            description_fa="توضیح", description_en="Description", language_mode="en",
+        )
+        with translation.override("en"):
+            login_url = reverse("accounts:login")
+            register_url = reverse("accounts:register")
+            purchase_url = reverse("assessments:create_order", args=[exam.slug])
+            detail_url = reverse("assessments:detail", args=[exam.slug])
+
+        login_page = self.client.get(login_url, {"next": purchase_url})
+        self.assertContains(login_page, f'{register_url}?next=', html=False)
+        self.assertContains(login_page, purchase_url, html=False)
+        register_page = self.client.get(register_url, {"next": purchase_url})
+        self.assertEqual(register_page.context["next"], purchase_url)
+
+        payload = self.registration_payload()
+        payload["next"] = purchase_url
+        response = self.client.post(register_url, payload)
+
+        self.assertRedirects(response, detail_url, fetch_redirect_response=False)
+        self.assertFalse(Order.objects.exists())
+        detail = self.client.get(response.url)
+        self.assertContains(detail, "Continue to payment")
+        self.assertNotContains(detail, "Verified account")
+
+        checkout = self.client.post(purchase_url)
+        order = Order.objects.get(user__email="arvin@example.com", exam=exam)
+        self.assertEqual(checkout.url, f"{reverse('assessments:checkout', args=[order.pk])}?lang=en")
+
+    def test_registration_rejects_external_continuation_and_uses_truthful_account_copy(self):
+        payload = self.registration_payload()
+        payload["next"] = "https://evil.example/collect"
+
+        response = self.client.post(
+            reverse("accounts:register") + "?lang=fa", payload, follow=True,
+        )
+
+        self.assertRedirects(response, reverse("accounts:dashboard") + "?lang=fa")
+        self.assertContains(response, "حساب فعال آرویون")
+        self.assertContains(response, "حساب آماده استفاده")
+        self.assertNotContains(response, "هویت تأییدشده")
+
     @patch("accounts.services.send_otp", return_value=SimpleNamespace(reference="test-ref"))
     def test_unverified_user_can_request_a_fresh_sms_after_cooldown(self, mocked_otp):
         user = self.start_pending_verification()

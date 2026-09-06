@@ -9,12 +9,12 @@
   <div class="shell">
     <header class="account-workspace-head" data-ui-reveal>
       <div>
-        <span class="eyebrow">{% if lang == 'fa' %}حساب تأییدشده آرویون{% else %}Verified Rvion account{% endif %}</span>
+        <span class="eyebrow">{% if lang == 'fa' %}حساب فعال آرویون{% else %}Active Rvion account{% endif %}</span>
         <h1>{% if lang == 'fa' %}سلام{% if request.user.first_name %} {{ request.user.first_name }}{% endif %}{% else %}Hello{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}{% endif %}</h1>
         {% if not request.user.first_name %}<bdi class="account-head-identity">{{ request.user.email }}</bdi>{% endif %}
         <p>{% if lang == 'fa' %}کارهای در انتظار، آزمون‌ها و سوابق حسابتان را از همین‌جا دنبال کنید.{% else %}Continue pending work and review your assessments and account history here.{% endif %}</p>
       </div>
-      <span class="account-verified"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg>{% if lang == 'fa' %}هویت تأییدشده{% else %}Identity verified{% endif %}</span>
+      <span class="account-verified"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg>{% if lang == 'fa' %}حساب آماده استفاده{% else %}Account ready{% endif %}</span>
     </header>
 
     <nav class="account-compass" aria-label="{% if lang == 'fa' %}کارهای اصلی حساب{% else %}Primary account actions{% endif %}" data-ui-reveal>

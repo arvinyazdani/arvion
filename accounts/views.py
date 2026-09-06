@@ -13,7 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_decode
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode
 from django.utils import timezone
 from django.views.generic import DetailView, FormView, ListView, UpdateView
 from django.utils.decorators import method_decorator
@@ -32,6 +32,23 @@ from .models import PhoneVerification, User
 from .services import issue_phone_verification
 from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
+
+
+def _safe_auth_destination(request, target):
+    """Return a same-origin GET-safe destination for an auth continuation."""
+    if not target or not url_has_allowed_host_and_scheme(
+        target,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return None, False
+    try:
+        match = resolve(urlsplit(target).path)
+    except Resolver404:
+        return None, False
+    if match.view_name == "assessments:create_order":
+        return reverse("assessments:detail", kwargs={"slug": match.kwargs["slug"]}), True
+    return target, False
 
 
 def _remember_sms_delivery_failure(request):
@@ -95,17 +112,32 @@ class RegisterView(LanguageViewMixin, FormView):
         """
         user = form.save()
         login(self.request, user)
+        destination, continues_purchase = _safe_auth_destination(
+            self.request, self.request.POST.get("next", "")
+        )
         messages.success(
             self.request,
-            "حساب شما ساخته شد و وارد شدید."
+            (
+                "حساب شما ساخته شد؛ برای ادامه پرداخت همین آزمون را تأیید کنید."
+                if continues_purchase else
+                "حساب شما ساخته شد و وارد شدید."
+            )
             if self.lang == "fa" else
-            "Your account was created and you are now signed in.",
+            (
+                "Your account is ready. Confirm this assessment to continue to payment."
+                if continues_purchase else
+                "Your account was created and you are now signed in."
+            ),
         )
+        if destination:
+            return redirect(destination)
         return redirect(f"{reverse('accounts:dashboard')}?lang={self.lang}")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["manual_approval"] = settings.MANUAL_ACCOUNT_APPROVAL
+        target = self.request.POST.get("next") or self.request.GET.get("next", "")
+        context["next"] = target if _safe_auth_destination(self.request, target)[0] else ""
         return context
 
 
@@ -285,19 +317,17 @@ class AccountLoginView(LanguageViewMixin, LoginView):
     def get_success_url(self):
         """Never redirect a successful login to a POST-only purchase action."""
         target = super().get_success_url()
-        try:
-            match = resolve(urlsplit(target).path)
-        except Resolver404:
+        destination, continues_purchase = _safe_auth_destination(self.request, target)
+        if not destination:
             return target
-        if match.view_name != "assessments:create_order":
-            return target
-        messages.info(
-            self.request,
-            "ورود موفق بود. برای ادامه خرید، دکمه خرید آزمون را بزنید."
-            if self.lang == "fa" else
-            "You are signed in. Select the assessment purchase button to continue.",
-        )
-        return reverse("assessments:detail", kwargs={"slug": match.kwargs["slug"]})
+        if continues_purchase:
+            messages.info(
+                self.request,
+                "ورود موفق بود؛ برای رفتن به پرداخت، همین آزمون را تأیید کنید."
+                if self.lang == "fa" else
+                "You are signed in. Confirm this assessment to continue to payment.",
+            )
+        return destination
 
     def _throttle(self):
         return AttemptThrottle(

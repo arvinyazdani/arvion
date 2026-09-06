@@ -272,10 +272,37 @@ def finalize_expired_attempt(attempt_id):
     attempt = Attempt.objects.select_for_update().get(pk=attempt_id)
     expire_if_needed(attempt)
     if hasattr(attempt, "result"):
+        if attempt.status != "completed":
+            attempt.status = "completed"
+            attempt.save(update_fields=["status", "updated_at"])
         return attempt.result
     if attempt.status == "expired":
         return score_attempt(attempt.pk)[0]
     return None
+
+
+@transaction.atomic
+def finalize_attempt_submission(attempt_id, user_id):
+    """Submit and score one owned attempt under a single database row lock.
+
+    The lock spans the state transition and scoring so concurrent final-submit
+    requests cannot move a completed attempt back to ``submitted``.
+    """
+    attempt = Attempt.objects.select_for_update().get(pk=attempt_id, user_id=user_id)
+    expire_if_needed(attempt)
+    if hasattr(attempt, "result"):
+        if attempt.status != "completed":
+            attempt.status = "completed"
+            attempt.save(update_fields=["status", "updated_at"])
+        return attempt.result, False
+    if attempt.status == "in_progress":
+        attempt.status = "submitted"
+        attempt.completion_reason = "manual"
+        attempt.submitted_at = timezone.now()
+        attempt.save(update_fields=["status", "completion_reason", "submitted_at", "updated_at"])
+    if attempt.status in {"submitted", "expired", "scoring"}:
+        return score_attempt(attempt.pk)
+    return None, False
 
 
 def _level_for(exam, percentage):
@@ -299,6 +326,9 @@ def _level_for(exam, percentage):
 def score_attempt(attempt_id):
     attempt = Attempt.objects.select_for_update().select_related("exam").get(pk=attempt_id)
     if hasattr(attempt, "result"):
+        if attempt.status != "completed":
+            attempt.status = "completed"
+            attempt.save(update_fields=["status", "updated_at"])
         return attempt.result, False
     if attempt.status not in {"submitted", "expired", "scoring"}:
         raise ExamContentError("Attempt is not ready for scoring")
