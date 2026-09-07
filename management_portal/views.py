@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 
 from assessments.integrity import (
     DIFFICULTY_LABELS_EN, DIFFICULTY_LABELS_FA, assess_event, assess_pace,
-    expected_seconds, format_duration,
+    expected_seconds, format_duration, integrity_evidence_summary,
 )
 
 from accounts.models import User
@@ -373,6 +373,69 @@ def customer_assessment_detail(request, customer_id, user_id):
     for attempt in attempts:
         status_pair = attempt_status_labels.get(attempt.status, (attempt.status, attempt.status))
         attempt.management_status = status_pair[0 if lang == "fa" else 1]
+        attempt.management_integrity = integrity_evidence_summary(attempt, lang)
+        attempt.management_integrity["total_away"] = format_duration(
+            attempt.management_integrity["total_away_ms"], lang,
+        )
+        returned_transition_ids = {
+            (event.metadata or {}).get("transition_id")
+            for event in attempt.integrity_events.all()
+            if event.event_type == "visibility_returned"
+            and (event.metadata or {}).get("transition_id")
+        }
+
+        def prepare_event(event):
+            metadata = event.metadata or {}
+            labels = integrity_labels.get(event.event_type, integrity_labels["other"])
+            event.management_label = labels[0 if lang == "fa" else 1]
+            assessment = assess_event(
+                event.event_type,
+                event.duration_ms,
+                pairing_status=metadata.get("pairing_status", "server_paired"),
+                connection_state=metadata.get("connection_state", "unknown"),
+            )
+            # New events keep the reason generated at collection time so a
+            # future threshold change does not rewrite historical evidence.
+            reason_key = "reason_fa" if lang == "fa" else "reason_en"
+            event.management_reason = metadata.get(reason_key) or (
+                assessment.reason_fa if lang == "fa" else assessment.reason_en
+            )
+            event.management_severity = metadata.get("severity") or assessment.severity
+            severity_labels = {
+                "info": ("اطلاعاتی", "Informational"),
+                "low": ("کم", "Low"),
+                "medium": ("متوسط", "Medium"),
+                "high": ("زیاد", "High"),
+            }
+            severity_pair = severity_labels.get(
+                event.management_severity, severity_labels["info"],
+            )
+            event.management_severity_label = severity_pair[0 if lang == "fa" else 1]
+            event.management_duration = (
+                format_duration(event.duration_ms, lang)
+                if event.event_type == "visibility_returned" else ""
+            )
+            pairing = metadata.get("pairing_status", "")
+            if (
+                event.event_type == "visibility_hidden"
+                and metadata.get("transition_id") in returned_transition_ids
+            ):
+                pairing = "server_paired"
+                event.management_reason = (
+                    "خروج از صفحه ثبت شد و بازگشت متناظر با زمان سرور تأیید شد"
+                    if lang == "fa" else
+                    "The page exit was recorded and its matching return was confirmed using server time"
+                )
+            pairing_labels = {
+                "server_paired": ("تأییدشده با زمان سرور", "Paired using server time"),
+                "client_only": ("داده ناقص؛ بدون جریمه", "Partial telemetry; no penalty"),
+                "awaiting_return": ("بازگشت ثبت نشده", "Return not recorded"),
+                "not_applicable": ("رخداد مستقیم", "Direct event"),
+            }
+            pairing_pair = pairing_labels.get(pairing, ("داده قدیمی", "Legacy data"))
+            event.management_pairing = pairing_pair[0 if lang == "fa" else 1]
+            return event
+
         # Each row states the time taken alongside the difficulty and the time
         # the question was authored to take, so a reviewer can judge the pace.
         attempt.management_questions = list(attempt.attempt_questions.all())
@@ -396,16 +459,30 @@ def customer_assessment_detail(request, customer_id, user_id):
             item.pace_verdict = pace.verdict
             item.pace_severity = pace.severity
             item.pace_reason = pace.reason_fa if lang == "fa" else pace.reason_en
-        latest_event = None
+            prompt_key = (
+                "prompt_en"
+                if attempt.exam.language_mode == "en" or lang == "en"
+                else "prompt_fa"
+            )
+            item.management_prompt = str(snapshot.get(prompt_key, "")).strip()
+            item.management_events = [prepare_event(event) for event in item.integrity_events.all()]
+            item.management_absence_count = sum(
+                event.event_type == "visibility_returned"
+                for event in item.management_events
+            )
+            item.management_away = format_duration(
+                sum(
+                    event.duration_ms
+                    for event in item.management_events
+                    if event.event_type == "visibility_returned"
+                ),
+                lang,
+            )
         for event in attempt.integrity_events.all():
-            labels = integrity_labels.get(event.event_type, integrity_labels["other"])
-            event.management_label = labels[0 if lang == "fa" else 1]
-            assessment = assess_event(event.event_type, event.duration_ms)
-            event.management_reason = assessment.reason_fa if lang == "fa" else assessment.reason_en
-            event.management_severity = assessment.severity
-            event.management_duration = format_duration(event.duration_ms, lang) if event.event_type == "visibility_returned" else ""
-            latest_event = event
-        attempt.has_open_absence = bool(latest_event and latest_event.event_type == "visibility_hidden")
+            prepare_event(event)
+        attempt.has_open_absence = bool(
+            attempt.management_integrity["open_absence_count"]
+        )
     orders = customer.assessment_orders.filter(user=account).select_related("exam", "manual_payment").order_by("-created_at")
     return render(request, "management_portal/v2/customer_assessment_detail.html", {"customer": customer, "account": account, "attempts": attempts, "orders": orders, "lang": lang})
 

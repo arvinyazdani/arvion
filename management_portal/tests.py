@@ -384,14 +384,53 @@ class ManagementDashboardTests(TestCase):
             version=version, section=section, skill=skill, prompt_fa="پرسش", prompt_en="Question",
             difficulty=4, suggested_seconds=60,
         )
-        AttemptQuestion.objects.create(
+        attempt_question = AttemptQuestion.objects.create(
             attempt=attempt, question=question, position=1, active_seconds=2,
             answered_at=timezone.now(), selected_choice_snapshot_id=10,
-            question_snapshot={"difficulty": 4, "suggested_seconds": 60},
+            question_snapshot={
+                "difficulty": 4,
+                "suggested_seconds": 60,
+                "prompt_fa": "متن دقیق سؤال برای بررسی مدیر",
+                "prompt_en": "Exact question text for manager review",
+            },
             choices_snapshot=[{"id": 10, "is_correct": False}],
         )
         AttemptResult.objects.create(attempt=attempt, correct_count=42, incorrect_count=8, unanswered_count=0, percentage="84.00", level_code="B2", level_title_fa="متوسط رو به بالا", level_title_en="Upper intermediate", summary_fa="خوب", summary_en="Good")
-        IntegrityEvent.objects.create(attempt=attempt, event_type="copy")
+        IntegrityEvent.objects.create(
+            attempt=attempt,
+            attempt_question=attempt_question,
+            event_type="copy",
+            metadata={
+                "risk_points": 2,
+                "severity": "medium",
+                "reason_fa": "دلیل ثبت‌شده تاریخی",
+                "reason_en": "Stored historical reason",
+                "pairing_status": "not_applicable",
+            },
+        )
+        IntegrityEvent.objects.create(
+            attempt=attempt,
+            attempt_question=attempt_question,
+            event_type="visibility_hidden",
+            metadata={
+                "risk_points": 0,
+                "severity": "info",
+                "pairing_status": "awaiting_return",
+                "transition_id": "manager_pair_123",
+            },
+        )
+        IntegrityEvent.objects.create(
+            attempt=attempt,
+            attempt_question=attempt_question,
+            event_type="visibility_returned",
+            duration_ms=4000,
+            metadata={
+                "risk_points": 1,
+                "severity": "low",
+                "pairing_status": "server_paired",
+                "transition_id": "manager_pair_123",
+            },
+        )
         self.client.force_login(root)
         detail = self.client.get(reverse("management_portal:customer_detail", args=[customer.pk]))
         self.assertContains(detail, "نتیجه آماده")
@@ -399,6 +438,13 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "84.00%")
         self.assertContains(response, "B2")
         self.assertContains(response, "فرمان کپی در صفحه سؤال ثبت شد")
+        self.assertContains(response, "جمع‌بندی شواهد")
+        self.assertContains(response, "دارای شواهد قابل بررسی")
+        self.assertContains(response, "متن دقیق سؤال برای بررسی مدیر")
+        self.assertContains(response, "دلیل ثبت‌شده تاریخی")
+        self.assertContains(response, "رخداد مستقیم")
+        self.assertContains(response, "تأییدشده با زمان سرور", count=4)
+        self.assertContains(response, "خروج از صفحه ثبت شد و بازگشت متناظر با زمان سرور تأیید شد")
         self.assertContains(response, "نتیجه نهایی باید با بررسی انسانی اعلام شود")
         self.assertContains(response, "تکمیل‌شده")
         self.assertContains(response, "سریع و نادرست")
@@ -408,6 +454,9 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(english, "Completed")
         self.assertContains(english, "Fast, incorrect")
         self.assertContains(english, "pace alone does not reduce integrity")
+        self.assertContains(english, "Exact question text for manager review")
+        self.assertContains(english, "Stored historical reason")
+        self.assertContains(english, "matching return was confirmed using server time")
 
     def test_sales_staff_can_update_request_status_and_internal_note(self):
         user = User.objects.create_user(username="sales-change", email="sales-change@example.com", password="safe-password", is_staff=True)

@@ -1,15 +1,15 @@
 """Curated English placement bank. Choices are stored with the correct answer first."""
 
-BANK_VERSION = 4
+BANK_VERSION = 5
 
 SECTIONS = (
-    ("grammar", "گرامر", "Grammar", 32, 8),
-    ("vocabulary", "واژگان", "Vocabulary", 32, 8),
-    ("reading", "درک مطلب", "Reading", 32, 8),
-    ("use-of-english", "کاربرد زبان", "Use of English", 32, 8),
-    ("listening", "مهارت شنیداری", "Listening", 32, 8),
-    ("writing-objective", "مهارت‌های نوشتاری", "Writing Objective", 20, 5),
-    ("advanced", "ساختارهای پیشرفته", "Advanced Structures", 20, 5),
+    ("grammar", "گرامر", "Grammar", 32, 8, {"2": 1, "3": 2, "4": 3, "5": 2}),
+    ("vocabulary", "واژگان", "Vocabulary", 32, 8, {"2": 1, "3": 2, "4": 3, "5": 2}),
+    ("reading", "درک مطلب", "Reading", 32, 8, {"3": 1, "4": 3, "5": 4}),
+    ("use-of-english", "کاربرد زبان", "Use of English", 32, 8, {"3": 2, "4": 3, "5": 3}),
+    ("listening", "مهارت شنیداری", "Listening", 32, 8, {"3": 1, "4": 3, "5": 4}),
+    ("writing-objective", "مهارت‌های نوشتاری", "Writing Objective", 20, 5, {"4": 3, "5": 2}),
+    ("advanced", "ساختارهای پیشرفته", "Advanced Structures", 20, 5, {"4": 2, "5": 3}),
 )
 
 
@@ -151,3 +151,10 @@ from .english_listening import QUESTIONS as LISTENING_QUESTIONS  # noqa: E402
 
 QUESTIONS.extend(ADDITIONAL_QUESTIONS)
 QUESTIONS.extend(LISTENING_QUESTIONS)
+
+# Version 5 is a high-selectivity teacher-screening bank.  The upgrade replaces
+# weak items and reclassifies legacy calibration material without mutating any
+# already-published database version or attempt snapshot.
+from .english_teacher_v5 import upgrade_bank  # noqa: E402
+
+QUESTIONS = upgrade_bank(QUESTIONS)

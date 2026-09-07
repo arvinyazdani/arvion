@@ -305,9 +305,20 @@ def finalize_attempt_submission(attempt_id, user_id):
     return None, False
 
 
-def _level_for(exam, percentage):
+def _level_for(exam, percentage, *, version_number=None):
     value = float(percentage)
-    if exam.slug == "english-placement-a1-c1":
+    if exam.slug == "english-placement-a1-c1" and version_number is not None and version_number >= 5:
+        # Version 5 is intentionally a high-selectivity teacher screen.  These
+        # labels describe performance on this objective instrument; they do not
+        # replace a productive writing/speaking observation.
+        bands = (
+            (65, "below-benchmark", "زیر معیار گزینش", "Below selection benchmark"),
+            (77, "B2", "B2 قوی", "Strong B2"),
+            (87, "C1", "C1 پیشرفته", "Advanced C1"),
+            (94, "C1+", "C1+ بسیار قوی", "Very strong C1+"),
+            (101, "exceptional-objective", "عملکرد عینی ممتاز", "Exceptional objective performance"),
+        )
+    elif exam.slug == "english-placement-a1-c1":
         bands = (
             (20, "A1", "مقدماتی", "Beginner"), (40, "A2", "پایه", "Elementary"),
             (60, "B1", "متوسط", "Intermediate"), (75, "B2", "بالاتر از متوسط", "Upper-intermediate"),
@@ -324,7 +335,7 @@ def _level_for(exam, percentage):
 
 @transaction.atomic
 def score_attempt(attempt_id):
-    attempt = Attempt.objects.select_for_update().select_related("exam").get(pk=attempt_id)
+    attempt = Attempt.objects.select_for_update().select_related("exam", "version").get(pk=attempt_id)
     if hasattr(attempt, "result"):
         if attempt.status != "completed":
             attempt.status = "completed"
@@ -374,7 +385,11 @@ def score_attempt(attempt_id):
     pace_penalty = pace_risk_points(attempt)
     if pace_penalty:
         attempt.integrity_score = max(0, attempt.integrity_score - pace_penalty)
-    level_code, level_fa, level_en = _level_for(attempt.exam, percentage)
+    level_code, level_fa, level_en = _level_for(
+        attempt.exam,
+        percentage,
+        version_number=attempt.version.version,
+    )
     skill_payload = []
     strengths = []
     weaknesses = []

@@ -1,3 +1,5 @@
+from collections import Counter
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
@@ -12,7 +14,9 @@ from assessments.question_banks.python_django import QUESTIONS as PY_QUESTIONS, 
 def section_spec(section):
     if len(section) == 4:
         code, title_fa, title_en, count = section
-        return code, title_fa, title_en, count, count
+        return code, title_fa, title_en, count, count, None
+    if len(section) == 5:
+        return (*section, None)
     return section
 
 
@@ -27,8 +31,10 @@ def scaled_difficulty_distribution(counts, bank_count, exam_count):
 
 
 def validate_bank(questions, sections):
-    bank_counts = {code: bank_count for code, _fa, _en, bank_count, _exam_count in map(section_spec, sections)}
+    specs = {section_spec(section)[0]: section_spec(section) for section in sections}
+    bank_counts = {code: spec[3] for code, spec in specs.items()}
     counts = {code: 0 for code in bank_counts}
+    difficulty_counts = {code: Counter() for code in bank_counts}
     seen_prompts = set()
     for index, item in enumerate(questions, start=1):
         prompt_en = item.get("prompt_en", item.get("prompt", "")).strip()
@@ -51,8 +57,22 @@ def validate_bank(questions, sections):
         if not 1 <= item["difficulty"] <= 5:
             raise CommandError(f"Question {index} has an invalid difficulty")
         counts[item["section"]] += 1
+        difficulty_counts[item["section"]][item["difficulty"]] += 1
     if counts != bank_counts:
         raise CommandError(f"Section counts {counts} do not match bank targets {bank_counts}")
+    for code, (_code, _fa, _en, _bank_count, exam_count, distribution) in specs.items():
+        if not distribution:
+            continue
+        normalized = {int(level): int(quota) for level, quota in distribution.items()}
+        if any(level not in range(1, 6) or quota < 1 for level, quota in normalized.items()):
+            raise CommandError(f"Section {code} has an invalid explicit difficulty blueprint")
+        if sum(normalized.values()) != exam_count:
+            raise CommandError(f"Section {code} difficulty blueprint does not match its exam quota")
+        for difficulty, quota in normalized.items():
+            if difficulty_counts[code][difficulty] < quota:
+                raise CommandError(
+                    f"Section {code} does not have {quota} questions at difficulty {difficulty}"
+                )
 
 
 class Command(BaseCommand):
@@ -91,7 +111,7 @@ class Command(BaseCommand):
         section_models = {}
         skill_models = {}
         for order, raw_section in enumerate(sections, start=1):
-            code, title_fa, title_en, bank_count, exam_count = section_spec(raw_section)
+            code, title_fa, title_en, bank_count, exam_count, explicit_distribution = section_spec(raw_section)
             difficulty_distribution = Counter(
                 item["difficulty"] for item in questions if item["section"] == code
             )
@@ -102,8 +122,9 @@ class Command(BaseCommand):
             section_models[code] = ExamSection.objects.create(
                 version=version, code=code, title_fa=title_fa, title_en=title_en,
                 question_count=exam_count,
-                difficulty_distribution=scaled_difficulty_distribution(
-                    difficulty_distribution, bank_count, exam_count,
+                difficulty_distribution=(
+                    explicit_distribution
+                    or scaled_difficulty_distribution(difficulty_distribution, bank_count, exam_count)
                 ),
                 display_order=order,
             )
@@ -137,4 +158,3 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Published {slug} v{version_number} with {len(questions)} validated questions."
         ))
-from collections import Counter

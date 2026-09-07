@@ -20,7 +20,7 @@ from .models import (
     ManualPaymentSubmission, PaymentTransaction, Question, Skill, SupportTicket,
 )
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
-from .integrity import assess_event
+from .integrity import assess_event, integrity_evidence_summary
 from .services import (
     AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_attempt_submission, finalize_expired_attempt, score_attempt, start_attempt,
     verify_gateway_payment, verify_sandbox_payment,
@@ -42,6 +42,9 @@ class AssessmentUISystemTests(SimpleTestCase):
         cls.behavior = (ASSESSMENT_STATIC_ROOT / "js" / "assessment-v3.js").read_text(
             encoding="utf-8"
         )
+        cls.attempt_template = (
+            Path(__file__).resolve().parent / "templates" / "assessments" / "attempt.html"
+        ).read_text(encoding="utf-8")
 
     def test_exam_mode_removes_hidden_mobile_navigation_inset(self):
         self.assertIn("body.exam-mode{padding-block-end:0}", self.styles)
@@ -54,6 +57,17 @@ class AssessmentUISystemTests(SimpleTestCase):
         self.assertIn("button.dataset.originalLabel", self.behavior)
         self.assertIn('window.addEventListener("pageshow"', self.behavior)
         self.assertIn('form.removeAttribute("data-submit-state")', self.behavior)
+
+    def test_attempt_telemetry_pairs_exit_and_return_without_device_fingerprinting(self):
+        self.assertIn("transition_id:transitionId", self.attempt_template)
+        self.assertIn("page_session_id:pageSessionId", self.attempt_template)
+        self.assertIn("connection_state:navigator.onLine", self.attempt_template)
+        self.assertNotIn("navigator.userAgent", self.attempt_template)
+
+    def test_clipboard_telemetry_is_limited_to_question_content(self):
+        self.assertIn("const monitoredContent=document.querySelector('.question-stage')", self.attempt_template)
+        self.assertIn("#assessment-question-title,.choice-list,.listening-player", self.attempt_template)
+        self.assertNotIn("document.addEventListener('copy'", self.attempt_template)
 
     def test_payment_consent_overrides_legacy_checkbox_layout(self):
         self.assertIn(
@@ -1222,6 +1236,89 @@ class AssessmentEngineTests(TestCase):
         return_event = IntegrityEvent.objects.get(attempt=attempt, event_type="visibility_returned")
         self.assertGreaterEqual(return_event.duration_ms, 19_000)
         self.assertEqual(return_event.attempt_question, item)
+
+    def test_visibility_transition_id_pairs_exact_events_and_snapshots_reason(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        url = reverse("assessments:integrity_event", args=[attempt.pk])
+        payload = {
+            "item_id": item.pk,
+            "transition_id": "transition_12345",
+            "page_session_id": "session_12345678",
+            "connection_state": "online",
+        }
+        hidden = self.client.post(url, {**payload, "event_type": "visibility_hidden"})
+        hidden_event = IntegrityEvent.objects.get(pk=hidden.json()["evidence_id"])
+        IntegrityEvent.objects.filter(pk=hidden_event.pk).update(
+            created_at=timezone.now() - timedelta(seconds=20)
+        )
+
+        returned = self.client.post(url, {
+            **payload,
+            "event_type": "visibility_returned",
+            "duration_ms": "1",
+        })
+
+        self.assertEqual(returned.status_code, 200)
+        self.assertEqual(returned.json()["pairing_status"], "server_paired")
+        self.assertEqual(returned.json()["risk_points"], 3)
+        event = IntegrityEvent.objects.get(pk=returned.json()["evidence_id"])
+        self.assertEqual(event.attempt_question, item)
+        self.assertEqual(event.metadata["transition_id"], "transition_12345")
+        self.assertEqual(event.metadata["page_session_id"], "session_12345678")
+        self.assertEqual(event.metadata["pairing_status"], "server_paired")
+        self.assertIn("۱۵ تا ۶۰", event.metadata["reason_fa"])
+
+    def test_unpaired_client_return_is_kept_as_technical_gap_without_penalty(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("assessments:integrity_event", args=[attempt.pk]),
+            {
+                "event_type": "visibility_returned",
+                "item_id": item.pk,
+                "duration_ms": "45000",
+                "transition_id": "missing_exit_123",
+                "page_session_id": "session_87654321",
+                "connection_state": "offline",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["pairing_status"], "client_only")
+        self.assertEqual(response.json()["risk_points"], 0)
+        event = IntegrityEvent.objects.get(pk=response.json()["evidence_id"])
+        self.assertEqual(event.metadata["pairing_status"], "client_only")
+        self.assertIn("آفلاین", event.metadata["reason_fa"])
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.integrity_score, 100)
+        summary = integrity_evidence_summary(attempt, "fa")
+        self.assertEqual(summary["technical_gap_count"], 1)
+        self.assertEqual(summary["quality"], "partial")
+
+    def test_integrity_metadata_accepts_only_bounded_non_identifying_values(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("assessments:integrity_event", args=[attempt.pk]),
+            {
+                "event_type": "copy",
+                "item_id": item.pk,
+                "transition_id": "bad token with spaces and private text",
+                "page_session_id": "x" * 500,
+                "connection_state": "arbitrary-browser-fingerprint",
+                "user_agent": "must-not-be-stored",
+            },
+        )
+
+        event = IntegrityEvent.objects.get(pk=response.json()["evidence_id"])
+        self.assertNotIn("transition_id", event.metadata)
+        self.assertNotIn("page_session_id", event.metadata)
+        self.assertNotIn("user_agent", event.metadata)
+        self.assertEqual(event.metadata["connection_state"], "unknown")
 
     def test_visibility_return_without_recorded_exit_is_rejected(self):
         attempt = self.start()

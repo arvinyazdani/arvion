@@ -31,6 +31,14 @@ from .services import AttemptLimitError, ExamContentError, finalize_attempt_subm
 logger = logging.getLogger(__name__)
 
 
+TELEMETRY_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+
+
+def _telemetry_token(value):
+    value = str(value or "").strip()
+    return value if TELEMETRY_TOKEN_RE.fullmatch(value) else ""
+
+
 def _request_language(request):
     """Resolve fa/en for action views that do not render through the mixin."""
     candidates = (
@@ -635,6 +643,12 @@ class IntegrityEventView(LoginRequiredMixin, View):
             duration_ms = max(0, min(int(request.POST.get("duration_ms", 0)), 900_000))
         except (TypeError, ValueError):
             duration_ms = 0
+        transition_id = _telemetry_token(request.POST.get("transition_id"))
+        page_session_id = _telemetry_token(request.POST.get("page_session_id"))
+        connection_state = request.POST.get("connection_state", "unknown")
+        if connection_state not in {"online", "offline", "unknown"}:
+            connection_state = "unknown"
+        pairing_status = "not_applicable"
         now = timezone.now()
         if event_type in {"copy", "paste"}:
             recent = IntegrityEvent.objects.filter(
@@ -643,7 +657,21 @@ class IntegrityEventView(LoginRequiredMixin, View):
             ).exists()
             if recent:
                 return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
-        if event_type == "visibility_hidden":
+        if event_type == "visibility_hidden" and transition_id:
+            existing_hidden = IntegrityEvent.objects.filter(
+                attempt=attempt,
+                event_type="visibility_hidden",
+                metadata__transition_id=transition_id,
+            ).first()
+            if existing_hidden:
+                return JsonResponse({
+                    "ok": True,
+                    "deduplicated": True,
+                    "integrity_score": attempt.integrity_score,
+                    "evidence_id": existing_hidden.pk,
+                })
+            pairing_status = "awaiting_return"
+        elif event_type == "visibility_hidden":
             # Only deduplicate a network retry from the same page transition.
             # A stale unmatched hidden event from a killed browser must not
             # suppress a later, real exit after the user resumes the attempt.
@@ -654,27 +682,91 @@ class IntegrityEventView(LoginRequiredMixin, View):
             if recent_hidden:
                 return JsonResponse({"ok": True, "deduplicated": True, "integrity_score": attempt.integrity_score})
         if event_type == "visibility_returned":
-            last_return = IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_returned").order_by("-created_at").first()
-            hidden = IntegrityEvent.objects.filter(attempt=attempt, event_type="visibility_hidden")
-            if last_return:
-                hidden = hidden.filter(created_at__gt=last_return.created_at)
-            hidden = hidden.order_by("-created_at").first()
-            if not hidden:
-                return JsonResponse({"ok": False, "reason": "missing_hidden_event"}, status=409)
-            duration_ms = min(int((now - hidden.created_at).total_seconds() * 1000), 900_000)
-            item = hidden.attempt_question or item
-        assessment = assess_event(event_type, duration_ms)
-        IntegrityEvent.objects.create(
+            if transition_id:
+                existing_return = IntegrityEvent.objects.filter(
+                    attempt=attempt,
+                    event_type="visibility_returned",
+                    metadata__transition_id=transition_id,
+                ).first()
+                if existing_return:
+                    return JsonResponse({
+                        "ok": True,
+                        "deduplicated": True,
+                        "integrity_score": attempt.integrity_score,
+                        "evidence_id": existing_return.pk,
+                    })
+                hidden = IntegrityEvent.objects.filter(
+                    attempt=attempt,
+                    event_type="visibility_hidden",
+                    metadata__transition_id=transition_id,
+                ).order_by("-created_at").first()
+                if hidden:
+                    duration_ms = min(
+                        int((now - hidden.created_at).total_seconds() * 1000),
+                        900_000,
+                    )
+                    item = hidden.attempt_question or item
+                    pairing_status = "server_paired"
+                else:
+                    # A return can arrive after an exit request was lost because
+                    # the browser suspended the page or the connection failed.
+                    # Keep the evidence, but never penalise an unpaired duration.
+                    pairing_status = "client_only"
+            else:
+                last_return = IntegrityEvent.objects.filter(
+                    attempt=attempt,
+                    event_type="visibility_returned",
+                ).order_by("-created_at").first()
+                hidden = IntegrityEvent.objects.filter(
+                    attempt=attempt,
+                    event_type="visibility_hidden",
+                )
+                if last_return:
+                    hidden = hidden.filter(created_at__gt=last_return.created_at)
+                hidden = hidden.order_by("-created_at").first()
+                if not hidden:
+                    return JsonResponse({"ok": False, "reason": "missing_hidden_event"}, status=409)
+                duration_ms = min(
+                    int((now - hidden.created_at).total_seconds() * 1000),
+                    900_000,
+                )
+                item = hidden.attempt_question or item
+                pairing_status = "server_paired"
+        assessment = assess_event(
+            event_type,
+            duration_ms,
+            pairing_status=pairing_status,
+            connection_state=connection_state,
+        )
+        metadata = {
+            "risk_points": assessment.points,
+            "severity": assessment.severity,
+            "reason_fa": assessment.reason_fa,
+            "reason_en": assessment.reason_en,
+            "pairing_status": pairing_status,
+            "connection_state": connection_state,
+        }
+        if transition_id:
+            metadata["transition_id"] = transition_id
+        if page_session_id:
+            metadata["page_session_id"] = page_session_id
+        event = IntegrityEvent.objects.create(
             attempt=attempt,
             attempt_question=item,
             event_type=event_type,
             duration_ms=duration_ms,
-            metadata={"risk_points": assessment.points, "severity": assessment.severity},
+            metadata=metadata,
         )
         if assessment.points:
             attempt.integrity_score = max(0, attempt.integrity_score - assessment.points)
             attempt.save(update_fields=["integrity_score", "updated_at"])
-        return JsonResponse({"ok": True, "integrity_score": attempt.integrity_score, "risk_points": assessment.points})
+        return JsonResponse({
+            "ok": True,
+            "integrity_score": attempt.integrity_score,
+            "risk_points": assessment.points,
+            "evidence_id": event.pk,
+            "pairing_status": pairing_status,
+        })
 
 
 class FinishAttemptView(LoginRequiredMixin, View):

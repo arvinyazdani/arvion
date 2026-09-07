@@ -1,3 +1,7 @@
+from collections import Counter
+from pathlib import Path
+
+from django.conf import settings
 from django.core.management.base import CommandError
 from django.core.management import call_command
 from django.contrib.auth import get_user_model
@@ -8,7 +12,8 @@ from .question_banks.english import BANK_VERSION as ENGLISH_BANK_VERSION, QUESTI
 from .question_banks.python_django import BANK_VERSION as PYTHON_BANK_VERSION, QUESTIONS as PYTHON_QUESTIONS, SECTIONS as PYTHON_SECTIONS
 from .templatetags.assessment_extras import inline_code
 from .models import Exam, ExamEntitlement, ExamVersion, Order
-from .services import start_attempt
+from .integrity import expected_seconds
+from .services import _level_for, start_attempt
 from .quality import audit_bank
 
 
@@ -19,12 +24,72 @@ class EnglishQuestionBankTests(SimpleTestCase):
 
     def test_final_blueprint_selects_fifty_questions(self):
         self.assertEqual(sum(section[4] for section in SECTIONS), 50)
+        distribution = Counter()
+        for section in SECTIONS:
+            distribution.update({int(level): count for level, count in section[5].items()})
+        self.assertEqual(distribution, {2: 2, 3: 8, 4: 20, 5: 20})
 
-    def test_writing_objective_has_twenty_longer_items(self):
+    def test_every_v5_selectable_question_is_curated_for_teacher_screening(self):
+        selectable = []
+        for section in SECTIONS:
+            allowed_levels = {int(level) for level in section[5]}
+            selectable.extend(
+                question for question in QUESTIONS
+                if question["section"] == section[0] and question["difficulty"] in allowed_levels
+            )
+
+        self.assertTrue(selectable)
+        self.assertTrue(all(question.get("teacher_v5_curated") is True for question in selectable))
+        prompts = {question["prompt"] for question in selectable}
+        self.assertNotIn("He asked me where I ___ the file.", prompts)
+        self.assertNotIn("She ___ coffee every morning.", prompts)
+        self.assertTrue(all(question["difficulty"] >= 2 for question in selectable))
+
+    def test_v5_selectable_choices_do_not_reveal_the_key_by_length(self):
+        by_section = {}
+        for question in QUESTIONS:
+            if question["difficulty"] not in {2, 3, 4, 5}:
+                continue
+            lengths = [len(choice.split()) for choice in question["choices"]]
+            by_section.setdefault(question["section"], []).append(lengths[0] > max(lengths[1:]))
+
+        all_flags = [flag for flags in by_section.values() for flag in flags]
+        self.assertLessEqual(sum(all_flags) / len(all_flags), .25)
+        for section, flags in by_section.items():
+            with self.subTest(section=section):
+                self.assertLessEqual(sum(flags) / len(flags), .35)
+
+    def test_v5_pedagogy_distractors_are_plausible_and_professional(self):
+        selectable_choices = [
+            choice.casefold()
+            for question in QUESTIONS if question["difficulty"] in {2, 3, 4, 5}
+            for choice in question["choices"]
+        ]
+        childish_markers = (
+            "larger font", "ban indirect requests", "rewrite everything",
+            "never make claims", "spelling of ‘window’", "no relationship to common cases",
+        )
+        for marker in childish_markers:
+            self.assertFalse(any(marker in choice for choice in selectable_choices), marker)
+
+        stance_item = next(
+            question for question in QUESTIONS
+            if question["prompt"].startswith("A C1 learner repeatedly writes")
+        )
+        self.assertTrue(all(len(choice.split()) >= 9 for choice in stance_item["choices"]))
+        validity_item = next(
+            question for question in QUESTIONS
+            if question["prompt"].startswith("A test labels a candidate C2")
+        )
+        self.assertIn("productive, interactive", validity_item["choices"][0])
+
+    def test_writing_objective_has_twenty_curated_items(self):
         writing = [question for question in QUESTIONS if question["section"] == "writing-objective"]
         self.assertEqual(len(writing), 20)
         self.assertTrue(all(question["question_type"] == "writing_objective" for question in writing))
-        self.assertTrue(all(question["suggested_seconds"] >= 180 for question in writing))
+        selectable = [question for question in writing if question["difficulty"] in {4, 5}]
+        self.assertTrue(all(question.get("teacher_v5_curated") is True for question in selectable))
+        self.assertTrue(all(question["suggested_seconds"] == 70 for question in selectable))
 
     def test_listening_has_thirty_two_items_and_real_audio_assets(self):
         listening = [question for question in QUESTIONS if question["section"] == "listening"]
@@ -48,6 +113,14 @@ class EnglishQuestionBankTests(SimpleTestCase):
         invalid = [{"section": "only", "choices": ("a", "a", "b", "c"), "difficulty": 1}]
         with self.assertRaises(CommandError):
             validate_bank(invalid, (("only", "بخش", "Section", 1),))
+
+    def test_validator_rejects_an_impossible_explicit_blueprint(self):
+        invalid = [{
+            "section": "only", "prompt": "A complete prompt", "choices": ("a", "b", "c", "d"),
+            "difficulty": 3, "explanation": "A specific explanation",
+        }]
+        with self.assertRaisesMessage(CommandError, "does not have 1 questions at difficulty 5"):
+            validate_bank(invalid, (("only", "بخش", "Section", 1, 1, {"5": 1}),))
 
 
 class PythonQuestionBankTests(SimpleTestCase):
@@ -168,6 +241,69 @@ class PublishedPythonBankTests(TestCase):
             for difficulty in rows.values_list("question__difficulty", flat=True):
                 actual[str(difficulty)] = actual.get(str(difficulty), 0) + 1
             self.assertEqual(actual, section.difficulty_distribution)
-from pathlib import Path
 
-from django.conf import settings
+    def test_english_teacher_attempt_uses_the_high_selectivity_blueprint(self):
+        call_command("seed_assessment_banks", verbosity=0)
+        exam = Exam.objects.get(slug="english-placement-a1-c1")
+        user = get_user_model().objects.create_user(
+            username="teacher-bank-test@example.com",
+            email="teacher-bank-test@example.com",
+            password="test",
+        )
+        order = Order.objects.create(user=user, exam=exam, amount_irr=2_000_000, status="paid")
+        entitlement = ExamEntitlement.objects.create(
+            user=user, exam=exam, order=order, attempts_remaining=1,
+        )
+
+        attempt, created = start_attempt(entitlement.pk, user)
+
+        self.assertTrue(created)
+        self.assertEqual(attempt.version.version, ENGLISH_BANK_VERSION)
+        self.assertEqual(
+            Counter(attempt.attempt_questions.values_list("question__difficulty", flat=True)),
+            {2: 2, 3: 8, 4: 20, 5: 20},
+        )
+        authored_seconds = sum(
+            expected_seconds(row.question.suggested_seconds, row.question.difficulty)
+            for row in attempt.attempt_questions.select_related("question")
+        )
+        sampled_totals = [authored_seconds]
+        sampled_question_sets = [{
+            *attempt.attempt_questions.values_list("question_id", flat=True),
+        }]
+        for index in range(4):
+            sample_user = get_user_model().objects.create_user(
+                username=f"teacher-bank-sample-{index}@example.com",
+                email=f"teacher-bank-sample-{index}@example.com",
+                password="test",
+            )
+            sample_order = Order.objects.create(
+                user=sample_user, exam=exam, amount_irr=2_000_000, status="paid",
+            )
+            sample_entitlement = ExamEntitlement.objects.create(
+                user=sample_user, exam=exam, order=sample_order, attempts_remaining=1,
+            )
+            sample_attempt, _ = start_attempt(sample_entitlement.pk, sample_user)
+            sampled_totals.append(sum(
+                expected_seconds(row.question.suggested_seconds, row.question.difficulty)
+                for row in sample_attempt.attempt_questions.select_related("question")
+            ))
+            sampled_question_sets.append({
+                *sample_attempt.attempt_questions.values_list("question_id", flat=True),
+            })
+
+        self.assertTrue(all(70 * 60 <= total <= 80 * 60 for total in sampled_totals))
+        self.assertGreater(len({frozenset(question_ids) for question_ids in sampled_question_sets}), 1)
+
+    def test_teacher_level_bands_apply_only_to_version_five_and_later(self):
+        exam = Exam.objects.create(
+            slug="english-placement-a1-c1", title_fa="انگلیسی", title_en="English",
+            description_fa="توضیح", description_en="Description", language_mode="en",
+            question_count=50,
+        )
+
+        self.assertEqual(_level_for(exam, 50, version_number=4)[0], "B1")
+        self.assertEqual(_level_for(exam, 50, version_number=5)[0], "below-benchmark")
+        self.assertEqual(_level_for(exam, 90, version_number=4)[0], "C1")
+        self.assertEqual(_level_for(exam, 90, version_number=5)[0], "C1+")
+        self.assertEqual(_level_for(exam, 97, version_number=5)[0], "exceptional-objective")
