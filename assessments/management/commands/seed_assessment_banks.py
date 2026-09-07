@@ -87,9 +87,10 @@ class Command(BaseCommand):
         validate_bank(questions, sections)
         catalog = {
             "english-placement-a1-c1": {
-                "title_fa": "تعیین سطح انگلیسی A1 تا C1", "title_en": "English Placement Test A1–C1",
-                "description_fa": "ارزیابی گرامر، واژگان، درک مطلب، کاربرد زبان، شنیدار و مهارت‌های نوشتاری.",
-                "description_en": "A structured assessment of grammar, vocabulary, reading, use of English, listening, and writing skills.",
+                "title_fa": "ارزیابی پیشرفته زبان انگلیسی مدرسان",
+                "title_en": "Advanced English Teacher Assessment",
+                "description_fa": "غربالگری سطح بالای گرامر، دقت واژگانی، خواندن انتقادی، شنیدار، ویرایش و تحلیل آموزشی برای انتخاب مدرس.",
+                "description_en": "Advanced screening of grammar, lexical precision, critical reading, listening, editing, and pedagogical analysis for teacher selection.",
                 "language_mode": "en", "question_count": 50, "duration_minutes": 75,
                 "price_irr": 2_000_000, "is_active": True, "display_order": 1,
             },
