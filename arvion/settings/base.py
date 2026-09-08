@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -159,6 +160,13 @@ PAYMENT_GATEWAY = os.getenv("PAYMENT_GATEWAY", "sandbox")
 CARD_PAYMENT_NUMBER = os.getenv("CARD_PAYMENT_NUMBER", "6219861821208849")
 CARD_PAYMENT_HOLDER = os.getenv("CARD_PAYMENT_HOLDER", "آروین یزدانی")
 ASSESSMENT_FREE_CHECKOUT = os.getenv("ASSESSMENT_FREE_CHECKOUT", "0") == "1"
+# This campaign is evaluated on the server, so changing a browser clock cannot
+# extend the offer. Keep the normal catalogue price as the source of truth.
+ASSESSMENT_PROMOTION_SLUG = os.getenv("ASSESSMENT_PROMOTION_SLUG", "english-placement-a1-c1")
+ASSESSMENT_PROMOTION_PRICE_IRR = int(os.getenv("ASSESSMENT_PROMOTION_PRICE_IRR", "900000"))
+ASSESSMENT_PROMOTION_ENDS_AT = datetime.fromisoformat(
+    os.getenv("ASSESSMENT_PROMOTION_ENDS_AT", "2026-09-11T16:30:00+03:30")
+)
 ASSESSMENT_ATTEMPTS_PER_DAY = int(os.getenv("ASSESSMENT_ATTEMPTS_PER_DAY", "5"))
 ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD = int(os.getenv("ASSESSMENT_INTEGRITY_REVIEW_THRESHOLD", "80"))
 ASSESSMENT_TERMS_VERSION = os.getenv("ASSESSMENT_TERMS_VERSION", "2026-08-05")

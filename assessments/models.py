@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 
 
 class Exam(models.Model):
@@ -30,6 +31,49 @@ class Exam(models.Model):
 
     def get_absolute_url(self):
         return reverse("assessments:detail", kwargs={"slug": self.slug})
+
+    def price_quote(self, now=None):
+        """Return one internally consistent, server-timed purchase quote."""
+        now = now or timezone.now()
+        promotion_end = self.promotion_ends_at
+        promotion_is_active = bool(
+            promotion_end
+            and now < promotion_end
+            and 0 < settings.ASSESSMENT_PROMOTION_PRICE_IRR < self.price_irr
+        )
+        amount_irr = settings.ASSESSMENT_PROMOTION_PRICE_IRR if promotion_is_active else self.price_irr
+        discount_irr = self.price_irr - amount_irr
+        return {
+            "subtotal_irr": self.price_irr,
+            "amount_irr": amount_irr,
+            "discount_irr": discount_irr,
+            "discount_percent": round((discount_irr / self.price_irr) * 100) if discount_irr else 0,
+            "promotion_is_active": promotion_is_active,
+            "promotion_ends_at": promotion_end,
+            "promotion_seconds_left": max(0, int((promotion_end - now).total_seconds())) if promotion_is_active else 0,
+        }
+
+    @property
+    def promotion_ends_at(self):
+        if self.slug != settings.ASSESSMENT_PROMOTION_SLUG:
+            return None
+        return settings.ASSESSMENT_PROMOTION_ENDS_AT
+
+    @property
+    def promotion_is_active(self):
+        return self.price_quote()["promotion_is_active"]
+
+    @property
+    def current_price_irr(self):
+        return self.price_quote()["amount_irr"]
+
+    @property
+    def current_discount_irr(self):
+        return self.price_quote()["discount_irr"]
+
+    @property
+    def current_discount_percent(self):
+        return self.price_quote()["discount_percent"]
 
 
 class Order(models.Model):

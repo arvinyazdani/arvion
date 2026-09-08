@@ -176,6 +176,96 @@ class AssessmentCommerceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response.url)
 
+    def test_pricing_requires_an_account_after_the_public_briefing(self):
+        briefing = self.client.get(reverse("assessments:briefing", args=[self.exam.slug]))
+        self.assertContains(briefing, "حساب بساز و قیمت را ببین")
+        self.assertNotContains(briefing, str(self.exam.price_irr))
+
+        response = self.client.get(reverse("assessments:detail", args=[self.exam.slug]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:register"), response.url)
+        self.assertIn("next=", response.url)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_active_server_side_promotion_is_copied_to_a_new_order(self):
+        self.exam.slug = "english-placement-a1-c1"
+        self.exam.price_irr = 2_000_000
+        self.exam.save(update_fields=["slug", "price_irr"])
+        self.client.force_login(self.user)
+        with override_settings(
+            ASSESSMENT_PROMOTION_SLUG=self.exam.slug,
+            ASSESSMENT_PROMOTION_PRICE_IRR=900_000,
+            ASSESSMENT_PROMOTION_ENDS_AT=timezone.now() + timedelta(hours=1),
+        ):
+            response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+
+        order = Order.objects.get(user=self.user, exam=self.exam)
+        self.assertRedirects(response, reverse("assessments:checkout", args=[order.pk]) + "?lang=fa")
+        self.assertEqual(order.subtotal_irr, 2_000_000)
+        self.assertEqual(order.discount_irr, 1_100_000)
+        self.assertEqual(order.discount_percent, 55)
+        self.assertEqual(order.amount_irr, 900_000)
+        self.assertEqual(order.subtotal_irr - order.discount_irr, order.amount_irr)
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_expired_promotion_uses_the_normal_price(self):
+        self.exam.slug = "english-placement-a1-c1"
+        self.exam.price_irr = 2_000_000
+        self.exam.save(update_fields=["slug", "price_irr"])
+        self.client.force_login(self.user)
+        with override_settings(
+            ASSESSMENT_PROMOTION_SLUG=self.exam.slug,
+            ASSESSMENT_PROMOTION_PRICE_IRR=900_000,
+            ASSESSMENT_PROMOTION_ENDS_AT=timezone.now() - timedelta(seconds=1),
+        ):
+            self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+
+        order = Order.objects.get(user=self.user, exam=self.exam)
+        self.assertEqual(order.discount_irr, 0)
+        self.assertEqual(order.discount_percent, 0)
+        self.assertEqual(order.amount_irr, 2_000_000)
+        self.assertEqual(order.subtotal_irr - order.discount_irr, order.amount_irr)
+
+    def test_price_quote_is_consistent_on_both_sides_of_the_expiry_boundary(self):
+        self.exam.slug = "english-placement-a1-c1"
+        self.exam.price_irr = 2_000_000
+        self.exam.save(update_fields=["slug", "price_irr"])
+        expiry = timezone.now()
+        with override_settings(
+            ASSESSMENT_PROMOTION_SLUG=self.exam.slug,
+            ASSESSMENT_PROMOTION_PRICE_IRR=900_000,
+            ASSESSMENT_PROMOTION_ENDS_AT=expiry,
+        ):
+            for quote_time, expected_amount in (
+                (expiry - timedelta(microseconds=1), 900_000),
+                (expiry, 2_000_000),
+            ):
+                quote = self.exam.price_quote(quote_time)
+                self.assertEqual(quote["amount_irr"], expected_amount)
+                self.assertEqual(quote["subtotal_irr"] - quote["discount_irr"], quote["amount_irr"])
+
+    @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
+    def test_abandoned_order_refreshes_when_the_promotion_has_expired(self):
+        self.exam.slug = "english-placement-a1-c1"
+        self.exam.price_irr = 2_000_000
+        self.exam.save(update_fields=["slug", "price_irr"])
+        order = Order.objects.create(
+            user=self.user, exam=self.exam, subtotal_irr=2_000_000,
+            discount_irr=1_100_000, discount_percent=55, amount_irr=900_000,
+            gateway="card_transfer",
+        )
+        self.client.force_login(self.user)
+        with override_settings(
+            ASSESSMENT_PROMOTION_SLUG=self.exam.slug,
+            ASSESSMENT_PROMOTION_PRICE_IRR=900_000,
+            ASSESSMENT_PROMOTION_ENDS_AT=timezone.now() - timedelta(seconds=1),
+        ):
+            self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))
+
+        order.refresh_from_db()
+        self.assertEqual(order.subtotal_irr - order.discount_irr, order.amount_irr)
+        self.assertEqual(order.amount_irr, 2_000_000)
+
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
     def test_prefix_only_english_purchase_and_status_stay_english(self):
         self.client.force_login(self.user)

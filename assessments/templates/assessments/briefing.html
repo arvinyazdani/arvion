@@ -7,7 +7,7 @@
   <div class="shell">
     <span class="eyebrow">{% if lang == 'fa' %}پیش از شروع{% else %}BEFORE YOU START{% endif %}</span>
     <h1>{% if lang == 'fa' %}{{ exam.title_fa }}{% else %}{{ exam.title_en }}{% endif %}</h1>
-    <p class="lead">{% if lang == 'fa' %}چند دقیقه وقت بگذارید و بدانید این آزمون دقیقاً چه چیزی را می‌سنجد و چرا هزینه دارد. بعد از این صفحه، قیمت و ادامه پرداخت را می‌بینید.{% else %}Take a moment to see exactly what this assessment measures and why it is paid. The price and payment step come after this page.{% endif %}</p>
+    <p class="lead">{% if lang == 'fa' %}چند دقیقه وقت بگذارید و بدانید این آزمون دقیقاً چه چیزی را می‌سنجد و چرا هزینه دارد. برای دیدن قیمت و ادامه پرداخت، پس از این صفحه وارد حساب خود شوید یا حساب بسازید.{% else %}Take a moment to see exactly what this assessment measures and why it is paid. Create an account or sign in after this page to view the price and continue to payment.{% endif %}</p>
   </div>
 </section>
 
@@ -29,7 +29,7 @@
     <article class="card briefing-card">
       <span class="card-number">02</span>
       <h2>{% if lang == 'fa' %}سلامت آزمون رصد می‌شود{% else %}Exam integrity is monitored{% endif %}</h2>
-      <p>{% if lang == 'fa' %}این آزمون سیستم ضدتقلب دارد. خروج از صفحه آزمون، مدت غیبت، کپی و جای‌گذاری، و زمان پاسخ‌دهی به هر سؤال ثبت می‌شود و در گزارش نهایی و اعتبار گواهی اثر دارد. هدف، ارزش‌دار نگه‌داشتن نتیجه شماست، نه محدودکردن شما.{% else %}This assessment is proctored by software. Leaving the exam page, how long you were away, copy and paste actions, and your response time per question are recorded, and they affect the final report and certificate validity. The goal is to keep your result meaningful.{% endif %}</p>
+      <p>{% if lang == 'fa' %}پایش سلامت آزمون چندلایه و مبتنی بر زمان سرور است: خروج و بازگشت به صفحه، مدت غیبت، کپی و جای‌گذاری در محتوای سؤال، زمان پاسخ نسبت به زمان مورد انتظار و اختلال اتصال جداگانه ثبت می‌شوند. گزارش، موردِ نیازمند بررسی را نشان می‌دهد؛ به‌تنهایی حکم قطعی تقلب صادر نمی‌کند. دوربین، میکروفن، کلیدهای تایپ‌شده یا اثرانگشت دستگاه جمع‌آوری نمی‌شود.{% else %}Integrity monitoring is multi-signal and server-timed: leaving and returning to the page, time away, copying or pasting within question content, answer pace against the expected time, and connection disruption are recorded separately. The report flags evidence for review; it does not make a conclusive cheating judgement on its own. No camera, microphone, keystrokes, or device fingerprint is collected.{% endif %}</p>
     </article>
 
     <article class="card briefing-card">
@@ -47,7 +47,12 @@
   </div>
 
   <div class="shell briefing-actions">
-    <a class="button" href="{% url 'assessments:detail' exam.slug %}">{% if lang == 'fa' %}مشاهده قیمت و ادامه پرداخت{% else %}See the price and continue to payment{% endif %}</a>
+    {% if request.user.is_authenticated %}
+    <a class="button primary" href="{{ pricing_url }}">{% if lang == 'fa' %}مشاهده قیمت و ادامه پرداخت{% else %}See the price and continue to payment{% endif %}</a>
+    {% else %}
+    <a class="button primary" href="{{ register_for_pricing_url }}">{% if lang == 'fa' %}حساب بساز و قیمت را ببین{% else %}Create an account to view the price{% endif %}</a>
+    <a class="button secondary" href="{{ login_for_pricing_url }}">{% if lang == 'fa' %}حساب دارم؛ وارد می‌شوم{% else %}I have an account; sign in{% endif %}</a>
+    {% endif %}
     <a class="button secondary" href="{% url 'assessments:list' %}">{% if lang == 'fa' %}بازگشت به فهرست آزمون‌ها{% else %}Back to all assessments{% endif %}</a>
   </div>
 </section>

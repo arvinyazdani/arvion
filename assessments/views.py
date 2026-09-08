@@ -1,6 +1,7 @@
 from datetime import timedelta
 import logging
 import re
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -90,14 +91,29 @@ class ExamListView(LanguageViewMixin, ListView):
     def get_queryset(self):
         return Exam.objects.filter(is_active=True)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        quote_time = timezone.now()
+        for exam in context["exams"]:
+            exam.purchase_quote = exam.price_quote(quote_time)
+        return context
 
-class ExamDetailView(LanguageViewMixin, DetailView):
+
+class ExamDetailView(LanguageViewMixin, LoginRequiredMixin, DetailView):
+    """Keep pricing behind an account while the public briefing stays open."""
+
+    login_url = "accounts:register"
     model = Exam
     template_name = "assessments/detail.html"
     context_object_name = "exam"
 
     def get_queryset(self):
         return Exam.objects.filter(is_active=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["price_quote"] = self.object.price_quote(timezone.now())
+        return context
 
 
 class ExamBriefingView(LanguageViewMixin, DetailView):
@@ -114,6 +130,14 @@ class ExamBriefingView(LanguageViewMixin, DetailView):
         context = super().get_context_data(**kwargs)
         version = self.object.versions.filter(is_published=True).order_by("-version").first()
         context["sections"] = version.sections.all() if version else []
+        pricing_url = f"{reverse('assessments:detail', kwargs={'slug': self.object.slug})}?lang={self.lang}"
+        context["pricing_url"] = pricing_url
+        context["register_for_pricing_url"] = (
+            f"{reverse('accounts:register')}?{urlencode({'next': pricing_url})}"
+        )
+        context["login_for_pricing_url"] = (
+            f"{reverse('accounts:login')}?{urlencode({'next': pricing_url})}"
+        )
         return context
 
 
@@ -190,15 +214,16 @@ class CreateOrderView(LoginRequiredMixin, View):
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
         is_free = settings.ASSESSMENT_FREE_CHECKOUT
+        price_quote = exam.price_quote(timezone.now())
         customer = _customer_for_user(request.user)
         order, created = Order.objects.get_or_create(
             user=request.user, exam=exam, status="pending",
             defaults={
                 "customer": customer,
-                "subtotal_irr": exam.price_irr,
-                "discount_irr": exam.price_irr if is_free else 0,
-                "discount_percent": 100 if is_free else 0,
-                "amount_irr": 0 if is_free else exam.price_irr,
+                "subtotal_irr": price_quote["subtotal_irr"],
+                "discount_irr": price_quote["subtotal_irr"] if is_free else price_quote["discount_irr"],
+                "discount_percent": 100 if is_free else price_quote["discount_percent"],
+                "amount_irr": 0 if is_free else price_quote["amount_irr"],
                 "gateway": "free" if is_free else settings.PAYMENT_GATEWAY,
             },
         )
@@ -206,10 +231,10 @@ class CreateOrderView(LoginRequiredMixin, View):
             order.customer = customer
             order.save(update_fields=["customer", "updated_at"])
         if is_free and order.status == "pending" and (
-            order.amount_irr or order.discount_percent != 100 or order.subtotal_irr != exam.price_irr
+            order.amount_irr or order.discount_percent != 100 or order.subtotal_irr != price_quote["subtotal_irr"]
         ):
-            order.subtotal_irr = exam.price_irr
-            order.discount_irr = exam.price_irr
+            order.subtotal_irr = price_quote["subtotal_irr"]
+            order.discount_irr = price_quote["subtotal_irr"]
             order.discount_percent = 100
             order.amount_irr = 0
             order.gateway = "free"
@@ -220,19 +245,19 @@ class CreateOrderView(LoginRequiredMixin, View):
             and order.terms_accepted_at is None
             and not ManualPaymentSubmission.objects.filter(order=order).exists()
             and (
-                order.subtotal_irr != exam.price_irr
-                or order.amount_irr != exam.price_irr
-                or order.discount_irr
-                or order.discount_percent
+                order.subtotal_irr != price_quote["subtotal_irr"]
+                or order.amount_irr != price_quote["amount_irr"]
+                or order.discount_irr != price_quote["discount_irr"]
+                or order.discount_percent != price_quote["discount_percent"]
                 or order.gateway != settings.PAYMENT_GATEWAY
             )
         ):
             # An abandoned cart is not a price commitment. Refresh only orders
             # that have neither accepted terms nor submitted payment evidence.
-            order.subtotal_irr = exam.price_irr
-            order.discount_irr = 0
-            order.discount_percent = 0
-            order.amount_irr = exam.price_irr
+            order.subtotal_irr = price_quote["subtotal_irr"]
+            order.discount_irr = price_quote["discount_irr"]
+            order.discount_percent = price_quote["discount_percent"]
+            order.amount_irr = price_quote["amount_irr"]
             order.gateway = settings.PAYMENT_GATEWAY
             order.save(update_fields=["subtotal_irr", "discount_irr", "discount_percent", "amount_irr", "gateway", "updated_at"])
         return redirect(f"{reverse('assessments:checkout', kwargs={'pk': order.pk})}?lang={_request_language(request)}")

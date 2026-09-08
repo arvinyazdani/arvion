@@ -46,7 +46,11 @@
         <div class="assessment-meta">
           <span><strong>{{ exam.question_count }}</strong>{% if lang == 'fa' %} سؤال{% else %} questions{% endif %}</span>
           <span><strong>{{ exam.duration_minutes }}</strong>{% if lang == 'fa' %} دقیقه{% else %} minutes{% endif %}</span>
-          <span><strong>{{ exam.price_irr|group_digits }}</strong>{% if lang == 'fa' %} ریال{% else %} IRR{% endif %}{% if assessment_free_checkout %}<small> · {% if lang == 'fa' %}رایگان در محیط آزمایشی{% else %}Free in local preview{% endif %}</small>{% endif %}</span>
+          {% if request.user.is_authenticated %}
+          <span><strong>{{ exam.purchase_quote.amount_irr|group_digits }}</strong>{% if lang == 'fa' %} ریال{% else %} IRR{% endif %}{% if assessment_free_checkout %}<small> · {% if lang == 'fa' %}رایگان در محیط آزمایشی{% else %}Free in local preview{% endif %}</small>{% endif %}</span>
+          {% else %}
+          <span><strong>{% if lang == 'fa' %}پس از ورود{% else %}After sign-in{% endif %}</strong>{% if lang == 'fa' %} قیمت نمایش داده می‌شود{% else %} the price is shown{% endif %}</span>
+          {% endif %}
           <b aria-hidden="true"><svg class="ui-icon ui-icon--directional"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></b>
         </div>
       </a>

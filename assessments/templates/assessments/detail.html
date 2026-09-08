@@ -15,7 +15,16 @@
     </div>
     <aside class="purchase-card">
       <span class="card-number">{% if lang == 'fa' %}یک نوبت آزمون{% else %}ONE ATTEMPT{% endif %}</span>
+      {% if price_quote.promotion_is_active %}
+      <div class="promotion-offer" data-promotion-seconds-left="{{ price_quote.promotion_seconds_left }}">
+        <span class="promotion-badge">{% if lang == 'fa' %}پیشنهاد ۷۲ ساعته{% else %}72-hour offer{% endif %}</span>
+        <span class="price-original">{{ price_quote.subtotal_irr|group_digits }} {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</span>
+        <strong class="price">{{ price_quote.amount_irr|group_digits }} <small>{% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</small></strong>
+        <span class="promotion-countdown">{% if lang == 'fa' %}پایان تخفیف تا{% else %}Offer ends in{% endif %} <b data-promotion-countdown>--:--:--</b></span>
+      </div>
+      {% else %}
       <strong class="price">{{ exam.price_irr|group_digits }} <small>{% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</small></strong>
+      {% endif %}
       {% if assessment_free_checkout %}<span class="free-checkout-badge">100% {% if lang == 'fa' %}تخفیف محیط آزمایشی{% else %}local testing discount{% endif %}</span>{% endif %}
       <div class="purchase-facts">
         <span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>{{ exam.question_count }} {% if lang == 'fa' %}سؤال تصادفی{% else %}random questions{% endif %}</span>

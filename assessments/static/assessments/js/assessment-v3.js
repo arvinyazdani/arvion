@@ -146,6 +146,27 @@
     });
   };
 
+  const watchPromotionCountdown = () => {
+    document.querySelectorAll("[data-promotion-seconds-left]").forEach((offer) => {
+      const countdown = offer.querySelector("[data-promotion-countdown]");
+      let secondsLeft = Math.max(0, Number(offer.dataset.promotionSecondsLeft) || 0);
+      if (!countdown || !secondsLeft) return;
+      const draw = () => {
+        if (!secondsLeft) {
+          window.location.reload();
+          return;
+        }
+        const hours = Math.floor(secondsLeft / 3600);
+        const minutes = Math.floor((secondsLeft % 3600) / 60);
+        const remainingSeconds = secondsLeft % 60;
+        countdown.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+        secondsLeft -= 1;
+        window.setTimeout(draw, 1000);
+      };
+      draw();
+    });
+  };
+
   const revealContent = () => {
     const items = [...document.querySelectorAll(
       ".assessment-card, .purchase-card, .checkout-card-v3, .support-ticket, .learning-card, .result-panel"
@@ -169,5 +190,6 @@
   connectFieldErrors();
   enhanceSubmits();
   watchPayment();
+  watchPromotionCountdown();
   revealContent();
 })();

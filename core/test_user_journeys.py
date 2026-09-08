@@ -95,8 +95,10 @@ class PublicUserJourneyTests(TestCase):
         detail_url = reverse("assessments:detail", args=[exam.slug])
         purchase_url = reverse("assessments:create_order", args=[exam.slug])
         self.assertContains(home, briefing_url)
-        self.assertContains(self.client.get(briefing_url), "مشاهده قیمت و ادامه پرداخت")
-        self.assertContains(self.client.get(detail_url), "ورود و ادامه پرداخت")
+        self.assertContains(self.client.get(briefing_url), "حساب بساز و قیمت را ببین")
+        pricing_gate = self.client.get(detail_url)
+        self.assertEqual(pricing_gate.status_code, 302)
+        self.assertIn(reverse("accounts:register"), pricing_gate.url)
 
         requires_login = self.client.post(purchase_url)
         self.assertIn(reverse("accounts:login"), requires_login.url)
