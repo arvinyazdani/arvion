@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Project
+from .models import DemoSelection, DemoTemplate, Project
 
 
 class ProjectTests(TestCase):
@@ -29,3 +29,20 @@ class ProjectTests(TestCase):
         self.project.is_active = False
         self.project.save()
         self.assertEqual(self.client.get(self.project.get_absolute_url()).status_code, 404)
+
+    def test_gallery_shows_fictional_demos_and_configurator_creates_session_selection(self):
+        demo = DemoTemplate.objects.create(
+            slug="demo-test", category="ecommerce", title_fa="دموی تست", title_en="Test demo",
+            tagline_fa="نمونه فرضی", tagline_en="Fictional demo", fictional_brand_fa="برند فرضی",
+            fictional_brand_en="TEST BRAND", style_key="minimal", default_features=["payment"],
+        )
+        gallery = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
+        self.assertContains(gallery, "دموی تست")
+        preview = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
+        self.assertContains(preview, "برند فرضی")
+        response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
+            "theme": "warm", "personality": "minimal", "features": ["payment", "catalog"],
+        })
+        selection = DemoSelection.objects.get()
+        self.assertRedirects(response, reverse("leads:contact") + f"?demo={selection.public_token}&request_type=ecommerce")
+        self.assertEqual(selection.selections["features"], ["payment", "catalog"])

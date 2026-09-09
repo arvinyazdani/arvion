@@ -51,7 +51,7 @@
           <div><small>{% if lang == 'fa' %}مرحله ۳{% else %}Step 3{% endif %}</small><b>{% if lang == 'fa' %}ساخت، استقرار و همراهی{% else %}Build, launch and support{% endif %}</b></div>
         </li>
       </ol>
-      <a href="{% url 'projects:list' %}">{% if lang == 'fa' %}نمونه پروژه‌ها{% else %}View selected work{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+      <a href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}دیدن دمو و انتخاب سبک{% else %}Explore demos and choose a style{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
     </aside>
   </div>
 </section>

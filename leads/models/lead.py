@@ -53,6 +53,10 @@ class Lead(models.Model):
     budget_range = models.CharField(max_length=20, choices=BUDGETS, default="unsure")
     timeline = models.CharField(max_length=20, choices=TIMELINES, default="flexible")
     preferred_contact = models.CharField(max_length=12, choices=CONTACT_METHODS, default="phone")
+    demo_selection = models.ForeignKey(
+        "projects.DemoSelection", on_delete=models.SET_NULL, blank=True, null=True,
+        related_name="leads",
+    )
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     privacy_accepted_at = models.DateTimeField()

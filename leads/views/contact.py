@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
@@ -10,6 +12,22 @@ from core.views.lang import LanguageViewMixin
 from leads.forms import LeadForm
 from leads.models import Lead
 from services.models import Service
+from projects.models import DemoSelection
+
+
+def _session_demo_selection(request):
+    """Return a selected demo only when its public token is well formed and session-bound."""
+    token = request.GET.get("demo", "")
+    if not token:
+        return None
+    try:
+        UUID(token)
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return DemoSelection.objects.select_related("template").filter(
+        public_token=token,
+        session_key=request.session.session_key,
+    ).first()
 
 
 class LeadCreateView(LanguageViewMixin, FormView):
@@ -31,6 +49,20 @@ class LeadCreateView(LanguageViewMixin, FormView):
                 "corporate-website-design": "website", "custom-web-application": "webapp",
                 "ecommerce-platform": "ecommerce", "maintenance-and-growth": "support",
             }.get(service.slug, "consultation")
+        selection = _session_demo_selection(self.request)
+        if selection:
+            initial["request_type"] = {
+                "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
+                "corporate": "website", "clinic": "webapp", "education": "webapp",
+            }.get(selection.template.category, "consultation")
+            initial["message"] = (
+                f"نمونه انتخاب‌شده: {selection.template.title_fa}\n"
+                f"سبک: {selection.selections.get('personality', '—')} · رنگ: {selection.selections.get('theme', '—')}\n"
+                "هدف و جزئیات پروژه را اینجا کامل می‌کنم: "
+            ) if self.lang == "fa" else (
+                f"Selected demo: {selection.template.title_en}\n"
+                "Project goals and details: "
+            )
         return initial
 
     def form_valid(self, form):
@@ -40,6 +72,9 @@ class LeadCreateView(LanguageViewMixin, FormView):
             form.add_error(None, "لطفاً کمی صبر کنید و دوباره تلاش کنید." if self.lang == "fa" else "Please wait before submitting another enquiry.")
             return self.form_invalid(form)
         lead = form.save(commit=False)
+        selection = _session_demo_selection(self.request)
+        if selection:
+            lead.demo_selection = selection
         lead.privacy_accepted_at = timezone.now()
         lead.save()
         self.lead = lead

@@ -905,10 +905,18 @@ def request_detail(request, kind, object_id):
     if not model: raise Http404
     permission = {"lead": "leads.view_lead", "crm": "crm_orders.view_crmorder", "clinic": "clinic_orders.view_clinicorder"}[kind]
     if not request.user.is_superuser and not request.user.has_perm(permission): raise PermissionDenied
-    item = get_object_or_404(model, pk=object_id)
+    item = get_object_or_404(
+        model.objects.select_related("demo_selection__template") if kind == "lead" else model,
+        pk=object_id,
+    )
     if kind == "lead":
         title, contact, phone, email, code, summary = item.business_name or item.name, item.name, item.phone or "—", item.email_or_telegram, item.tracking_code, item.message
-        full_report = "\n".join(("گزارش کامل درخواست همکاری آرویون", "=" * 38, f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"شماره تماس: {item.phone or '—'}", f"ایمیل / تلگرام: {item.email_or_telegram}", f"نوع درخواست: {item.get_request_type_display()}", f"بودجه: {item.get_budget_range_display()}", f"زمان‌بندی: {item.get_timeline_display()}", f"روش تماس: {item.get_preferred_contact_display()}", "", "شرح درخواست", "-" * 20, item.message))
+        demo_lines = []
+        if item.demo_selection_id:
+            selection = item.demo_selection
+            values = selection.selections or {}
+            demo_lines = ["", "انتخاب دمو", "-" * 20, f"دمو: {selection.template.title_fa}", f"برند فرضی: {selection.template.fictional_brand_fa}", f"رنگ: {values.get('theme', '—')}", f"شخصیت طراحی: {values.get('personality', '—')}", f"امکانات: {'، '.join(values.get('features', [])) or '—'}"]
+        full_report = "\n".join(("گزارش کامل درخواست همکاری آرویون", "=" * 38, f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"شماره تماس: {item.phone or '—'}", f"ایمیل / تلگرام: {item.email_or_telegram}", f"نوع درخواست: {item.get_request_type_display()}", f"بودجه: {item.get_budget_range_display()}", f"زمان‌بندی: {item.get_timeline_display()}", f"روش تماس: {item.get_preferred_contact_display()}", *demo_lines, "", "شرح درخواست", "-" * 20, item.message))
     elif kind == "crm":
         title, contact, phone, email, code, summary = item.organization_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
         full_report = render_crm_order_text(item)
@@ -953,10 +961,19 @@ def request_export(request, kind, object_id):
     permission = {"lead": "leads.view_lead", "crm": "crm_orders.view_crmorder", "clinic": "clinic_orders.view_clinicorder"}[kind]
     if not request.user.is_superuser and not request.user.has_perm(permission):
         raise PermissionDenied
-    item = get_object_or_404(model, pk=object_id)
+    item = get_object_or_404(
+        model.objects.select_related("demo_selection__template") if kind == "lead" else model,
+        pk=object_id,
+    )
     if kind == "crm": report = render_crm_order_text(item)
     elif kind == "clinic": report = render_clinic_order_text(item)
-    else: report = "\n".join(("گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"تماس: {item.phone or item.email_or_telegram}", "", item.message)) + "\n"
+    else:
+        demo_lines = []
+        if item.demo_selection_id:
+            selection = item.demo_selection
+            values = selection.selections or {}
+            demo_lines = ["", "انتخاب دمو", "-" * 20, f"دمو: {selection.template.title_fa}", f"برند فرضی: {selection.template.fictional_brand_fa}", f"رنگ: {values.get('theme', '—')}", f"شخصیت طراحی: {values.get('personality', '—')}", f"امکانات: {'، '.join(values.get('features', [])) or '—'}"]
+        report = "\n".join(("گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"تماس: {item.phone or item.email_or_telegram}", *demo_lines, "", item.message)) + "\n"
     filename = f"rvion-{kind}-{item.pk}.txt"
     if request.GET.get("download") == "1":
         OperationalAudit.objects.create(actor=request.user, action="request_exported", target_type=kind, target_id=str(item.pk), summary=getattr(item, "tracking_code", str(item.pk)))

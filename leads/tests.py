@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import Lead
+from projects.models import DemoSelection, DemoTemplate
 
 
 class LeadTests(TestCase):
@@ -84,3 +85,37 @@ class LeadTests(TestCase):
         self.assertContains(confirmation, lead.tracking_code)
         self.assertContains(confirmation, service.title_fa)
         self.assertNotContains(confirmation, lead.email_or_telegram)
+
+    def test_session_bound_demo_selection_is_attached_to_lead(self):
+        demo = DemoTemplate.objects.create(
+            slug="lead-demo", category="corporate", title_fa="دموی شرکتی", title_en="Corporate demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند", fictional_brand_en="BRAND",
+            style_key="minimal",
+        )
+        session = self.client.session
+        session["demo-test"] = True
+        session.save()
+        selection = DemoSelection.objects.create(
+            template=demo, session_key=session.session_key,
+            selections={"theme": "warm", "personality": "minimal", "features": ["blog"]},
+        )
+        response = self.client.post(reverse("leads:contact") + f"?lang=fa&demo={selection.public_token}", self.payload)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Lead.objects.get().demo_selection, selection)
+
+    def test_demo_selection_from_another_session_is_not_attached_or_prefilled(self):
+        demo = DemoTemplate.objects.create(
+            slug="private-demo", category="clinic", title_fa="دموی خصوصی", title_en="Private demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند", fictional_brand_en="BRAND",
+            style_key="minimal",
+        )
+        selection = DemoSelection.objects.create(
+            template=demo, session_key="a-different-session",
+            selections={"theme": "warm", "personality": "minimal", "features": ["booking"]},
+        )
+        url = reverse("leads:contact") + f"?lang=fa&demo={selection.public_token}&request_type=webapp"
+        page = self.client.get(url)
+        self.assertNotContains(page, "نمونه انتخاب‌شده: دموی خصوصی")
+        response = self.client.post(url, self.payload)
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(Lead.objects.get().demo_selection)
