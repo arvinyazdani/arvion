@@ -7,6 +7,14 @@
   <div><a href="{% url 'management_portal:customer_detail' customer.pk %}">{% if lang == 'fa' %}پرونده {{ customer.name }} ←{% else %}← {{ customer.name }} record{% endif %}</a><span>{% if lang == 'fa' %}حساب آزمون{% else %}ASSESSMENT ACCOUNT{% endif %}</span><h1>{{ account.get_full_name|default:account.email }}</h1><p><bdi>{{ account.mobile|default:account.email }}</bdi></p></div>
   <div><b>{{ attempts|length }}</b><small>{% if lang == 'fa' %}تلاش ثبت‌شده{% else %}attempts{% endif %}</small></div>
 </section>
+<section class="co-panel co-access-control" aria-labelledby="access-control-title">
+  <header><div><span>{% if lang == 'fa' %}کنترل دسترسی{% else %}ACCESS CONTROL{% endif %}</span><h2 id="access-control-title">{% if lang == 'fa' %}وضعیت دسترسی آزمون{% else %}Assessment access status{% endif %}</h2></div></header>
+  {% for order in orders %}{% with entitlement=order.assessment_entitlement %}
+    <article class="co-access-row" id="order-{{ order.pk }}"><div><strong>{% if lang == 'fa' %}{{ order.exam.title_fa }}{% else %}{{ order.exam.title_en }}{% endif %}</strong><small>{% if entitlement and entitlement.is_revoked %}{% if lang == 'fa' %}دسترسی بسته‌شده{% else %}Access closed{% endif %} · {{ entitlement.revoked_at|date:"Y/m/d H:i" }}{% if entitlement.revocation_reason %} · {{ entitlement.revocation_reason }}{% endif %}{% elif entitlement %}{% if lang == 'fa' %}دسترسی فعال{% else %}Access active{% endif %}{% else %}{% if lang == 'fa' %}دسترسی آزمون صادر نشده است{% else %}No assessment access issued{% endif %}{% endif %}</small></div>
+      {% if entitlement and not entitlement.is_revoked and can_revoke_assessment_access %}<form method="post" action="{% url 'management_portal:customer_assessment_access_revoke' customer.pk account.pk order.pk %}" class="co-access-revoke" data-confirm-message="{% if lang == 'fa' %}دسترسی این آزمون بسته و آزمون فعال فوراً متوقف شود؟{% else %}Close this assessment access and stop any active attempt now?{% endif %}">{% csrf_token %}<label><span>{% if lang == 'fa' %}دلیل توقف{% else %}Reason for closing{% endif %}</span><input name="reason" minlength="3" maxlength="500" required placeholder="{% if lang == 'fa' %}مثلاً پرداخت تأیید نشده است{% else %}For example: payment not verified{% endif %}"></label><button type="submit">{% if lang == 'fa' %}بستن دسترسی و توقف آزمون{% else %}Close access and stop assessment{% endif %}</button></form>{% endif %}
+    </article>
+  {% endwith %}{% empty %}<p class="co-empty">{% if lang == 'fa' %}سفارش آزمونی برای این حساب وجود ندارد.{% else %}No assessment order exists for this account.{% endif %}</p>{% endfor %}
+</section>
 <section class="co-assessment-detail-list">
 {% for attempt in attempts %}
   <article class="co-panel co-attempt-card" id="attempt-{{ attempt.pk }}">

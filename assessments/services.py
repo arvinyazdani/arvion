@@ -28,6 +28,10 @@ class PaymentVerificationError(Exception):
     pass
 
 
+class AssessmentAccessRevokedError(Exception):
+    pass
+
+
 SENSITIVE_GATEWAY_FIELDS = {
     "authorization", "card_number", "card_pan", "cvv", "password", "secret", "token",
 }
@@ -162,6 +166,8 @@ def approve_manual_payment(submission_id, *, reviewer=None, review_note="", auto
 @transaction.atomic
 def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
     entitlement = ExamEntitlement.objects.select_for_update().select_related("exam").get(pk=entitlement_id, user=user)
+    if entitlement.is_revoked:
+        raise AssessmentAccessRevokedError("Assessment access has been revoked")
     if hasattr(entitlement, "attempt"):
         return entitlement.attempt, False
     now = timezone.now()
@@ -255,6 +261,32 @@ def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
     entitlement.attempts_remaining -= 1
     entitlement.save(update_fields=["attempts_remaining"])
     return attempt, True
+
+
+@transaction.atomic
+def revoke_assessment_access(order_id, *, actor, reason):
+    """Revoke exam access without rewriting payment evidence."""
+    reason = str(reason or "").strip()
+    if len(reason) < 3:
+        raise AssessmentAccessRevokedError("A revocation reason is required")
+    order = Order.objects.select_for_update().get(pk=order_id)
+    entitlement = ExamEntitlement.objects.select_for_update().select_related("attempt").filter(order=order).first()
+    if entitlement is None:
+        raise AssessmentAccessRevokedError("This order has no assessment access")
+    if entitlement.is_revoked:
+        return entitlement, getattr(entitlement, "attempt", None), False
+    now = timezone.now()
+    attempt = getattr(entitlement, "attempt", None)
+    if attempt and attempt.status == "in_progress":
+        attempt.status = "invalidated"
+        attempt.submitted_at = now
+        attempt.save(update_fields=["status", "submitted_at", "updated_at"])
+    entitlement.revoked_at = now
+    entitlement.revoked_by = actor
+    entitlement.revocation_reason = reason[:500]
+    entitlement.expires_at = now
+    entitlement.save(update_fields=["revoked_at", "revoked_by", "revocation_reason", "expires_at"])
+    return entitlement, attempt, True
 
 
 def expire_if_needed(attempt):

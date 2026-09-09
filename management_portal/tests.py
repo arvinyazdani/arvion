@@ -1540,3 +1540,61 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "مواردی که از SLA عبور کرده‌اند")
         self.assertContains(response, "تأیید خودکار معطل")
         self.assertContains(response, ">1<")
+
+
+class AssessmentAccessControlTests(TestCase):
+    def setUp(self):
+        self.manager = User.objects.create_superuser(
+            username="access-manager", email="access-manager@example.com", password="safe-password",
+        )
+        self.account = User.objects.create_user(
+            username="access-user", email="access-user@example.com", password="safe-password",
+        )
+        self.customer = Customer.objects.create(name="مشتری آزمون", email=self.account.email)
+        CustomerContact.objects.create(
+            customer=self.customer, user=self.account, name="کاربر آزمون", email=self.account.email,
+        )
+        self.exam = Exam.objects.create(
+            slug="access-control-exam", title_fa="آزمون دسترسی", title_en="Access test",
+            description_fa="", description_en="", language_mode="bilingual",
+        )
+        self.version = ExamVersion.objects.create(exam=self.exam, version=1, is_published=True)
+        self.order = Order.objects.create(
+            user=self.account, customer=self.customer, exam=self.exam, amount_irr=900000, status="paid",
+        )
+        self.entitlement = ExamEntitlement.objects.create(user=self.account, exam=self.exam, order=self.order)
+        self.attempt = Attempt.objects.create(
+            user=self.account, exam=self.exam, version=self.version, entitlement=self.entitlement,
+            status="in_progress", started_at=timezone.now(), expires_at=timezone.now() + timedelta(minutes=75),
+        )
+        self.client.force_login(self.manager)
+
+    def test_manager_can_revoke_from_customer_assessment_record(self):
+        detail_url = reverse("management_portal:customer_assessment_detail", args=[self.customer.pk, self.account.pk])
+        response = self.client.get(detail_url)
+        self.assertContains(response, "بستن دسترسی و توقف آزمون")
+
+        response = self.client.post(
+            reverse("management_portal:customer_assessment_access_revoke", args=[self.customer.pk, self.account.pk, self.order.pk]),
+            {"reason": "رسید کارت تأیید نشده است"},
+        )
+
+        self.assertRedirects(response, detail_url + f"#order-{self.order.pk}")
+        self.entitlement.refresh_from_db(); self.attempt.refresh_from_db()
+        self.assertTrue(self.entitlement.is_revoked)
+        self.assertEqual(self.attempt.status, "invalidated")
+        self.assertTrue(OperationalAudit.objects.filter(action="assessment_access_revoked", target_id=str(self.order.pk)).exists())
+        self.assertTrue(CustomerEvent.objects.filter(customer=self.customer, event_type="assessment_access_revoked").exists())
+
+    def test_auto_approval_notification_opens_the_customer_assessment_record(self):
+        payment = ManualPaymentSubmission.objects.create(
+            order=self.order, payer_name="مشتری", reference_number="ACCESS-OPEN", paid_at=timezone.now(), status="approved",
+        )
+        notification = ManagementNotification.objects.create(
+            category="payments", title="پرداخت توسط سیستم تأیید شد", target_url=reverse("management_portal:approvals"),
+            role="", source_key=f"payment-auto-approved:{payment.pk}", requires_action=False,
+        )
+
+        response = self.client.get(reverse("management_portal:notification_open", args=[notification.pk]))
+
+        self.assertRedirects(response, reverse("management_portal:customer_assessment_detail", args=[self.customer.pk, self.account.pk]))

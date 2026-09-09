@@ -158,12 +158,25 @@ class ExamEntitlement(models.Model):
     attempts_remaining = models.PositiveSmallIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(blank=True, null=True)
+    revoked_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="revoked_exam_entitlements",
+    )
+    revocation_reason = models.CharField(max_length=500, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
 
     def __str__(self):
         return f"{self.user_id} / {self.exam_id} / {self.attempts_remaining}"
+
+    @property
+    def is_revoked(self):
+        return self.revoked_at is not None
 
 
 class Skill(models.Model):

@@ -26,7 +26,7 @@ from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
 from .integrity import assess_event, question_pace_rows
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket
-from .services import AttemptLimitError, ExamContentError, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
+from .services import AssessmentAccessRevokedError, AttemptLimitError, ExamContentError, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
 
 
 logger = logging.getLogger(__name__)
@@ -417,6 +417,13 @@ class StartAttemptView(LoginRequiredMixin, View):
             return redirect(f"{reverse('accounts:profile_identity')}?lang={lang}")
         try:
             attempt, _ = start_attempt(entitlement.pk, request.user)
+        except AssessmentAccessRevokedError:
+            messages.error(
+                request,
+                "دسترسی این آزمون توسط مدیر بسته شده است."
+                if lang == "fa" else "Access to this assessment has been closed by an administrator.",
+            )
+            return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
         except AttemptLimitError:
             messages.error(
                 request,

@@ -44,7 +44,7 @@ from .backups import find_backup_inventory
 from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
 from .customer_events import record_customer_event
-from assessments.services import PaymentVerificationError, approve_manual_payment
+from assessments.services import AssessmentAccessRevokedError, PaymentVerificationError, approve_manual_payment, revoke_assessment_access
 from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
 from .customer_segments import CASE_STAGE_CHOICES, JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
@@ -336,6 +336,38 @@ def _customer_mobile_numbers(customer):
     return numbers
 
 
+def _can_revoke_assessment_access(user):
+    return user.is_superuser or (
+        user.has_perm("assessments.change_examentitlement")
+        and user.has_perm("assessments.change_attempt")
+    )
+
+
+def _record_assessment_access_revocation(*, order, actor, reason, attempt):
+    customer = order.customer or CustomerContact.objects.filter(user=order.user).values_list("customer_id", flat=True).first()
+    if customer:
+        record_customer_event(
+            customer=customer,
+            category="payment",
+            event_type="assessment_access_revoked",
+            title_fa="دسترسی آزمون توسط مدیر بسته شد",
+            title_en="Assessment access was closed by an administrator",
+            description=reason,
+            source=order,
+            actor=actor,
+            metadata={"attempt_id": str(attempt.pk) if attempt else ""},
+            dedupe_key=f"assessment-access-revoked:{order.pk}",
+        )
+    OperationalAudit.objects.create(
+        actor=actor,
+        action="assessment_access_revoked",
+        target_type="assessment_order",
+        target_id=str(order.pk),
+        summary=f"{order.user.email} / {order.exam.slug}",
+        metadata={"reason": reason, "attempt_id": str(attempt.pk) if attempt else ""},
+    )
+
+
 @staff_member_required(login_url="accounts:login")
 def customer_assessment_detail(request, customer_id, user_id):
     customer = get_object_or_404(Customer.objects.prefetch_related("contacts"), pk=customer_id)
@@ -483,8 +515,44 @@ def customer_assessment_detail(request, customer_id, user_id):
         attempt.has_open_absence = bool(
             attempt.management_integrity["open_absence_count"]
         )
-    orders = customer.assessment_orders.filter(user=account).select_related("exam", "manual_payment").order_by("-created_at")
-    return render(request, "management_portal/v2/customer_assessment_detail.html", {"customer": customer, "account": account, "attempts": attempts, "orders": orders, "lang": lang})
+    orders = list(customer.assessment_orders.filter(user=account).select_related(
+        "exam", "manual_payment", "entitlement__revoked_by",
+    ).order_by("-created_at"))
+    for order in orders:
+        try:
+            order.assessment_entitlement = order.entitlement
+        except Order.entitlement.RelatedObjectDoesNotExist:
+            order.assessment_entitlement = None
+    return render(request, "management_portal/v2/customer_assessment_detail.html", {
+        "customer": customer, "account": account, "attempts": attempts, "orders": orders,
+        "can_revoke_assessment_access": _can_revoke_assessment_access(request.user), "lang": lang,
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def customer_assessment_access_revoke(request, customer_id, user_id, order_id):
+    if not _can_revoke_assessment_access(request.user):
+        raise PermissionDenied
+    customer = get_object_or_404(Customer, pk=customer_id)
+    order = get_object_or_404(Order.objects.select_related("user", "exam"), pk=order_id, user_id=user_id)
+    linked_user_ids = set(customer.contacts.exclude(user__isnull=True).values_list("user_id", flat=True))
+    linked_user_ids.update(customer.assessment_orders.values_list("user_id", flat=True))
+    if user_id not in linked_user_ids or (order.customer_id and order.customer_id != customer.pk):
+        raise Http404
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    reason = request.POST.get("reason", "").strip()
+    try:
+        entitlement, attempt, changed = revoke_assessment_access(order.pk, actor=request.user, reason=reason)
+    except AssessmentAccessRevokedError as exc:
+        messages.error(request, "دلیل توقف را وارد کنید." if lang == "fa" and "reason" in str(exc).lower() else str(exc))
+    else:
+        if changed:
+            _record_assessment_access_revocation(order=order, actor=request.user, reason=reason, attempt=attempt)
+            messages.success(request, "دسترسی بسته شد و آزمون فعال متوقف گردید." if lang == "fa" else "Access was closed and the active assessment was stopped.")
+        else:
+            messages.info(request, "این دسترسی قبلاً بسته شده است." if lang == "fa" else "This access was already closed.")
+    return redirect(reverse("management_portal:customer_assessment_detail", args=[customer.pk, user_id]) + f"#order-{order.pk}")
 
 
 @staff_member_required(login_url="accounts:login")
@@ -1625,6 +1693,14 @@ def notification_open(request, notification_id):
     if not receipt.seen_at:
         receipt.seen_at = timezone.now()
         receipt.save(update_fields=["seen_at"])
+    if notification.source_key.startswith("payment-auto-approved:"):
+        submission_id = notification.source_key.rsplit(":", 1)[-1]
+        submission = ManualPaymentSubmission.objects.select_related("order__customer").filter(pk=submission_id).first()
+        if submission:
+            order = submission.order
+            customer_id = order.customer_id or CustomerContact.objects.filter(user=order.user).values_list("customer_id", flat=True).first()
+            if customer_id:
+                return redirect(reverse("management_portal:customer_assessment_detail", args=[customer_id, order.user_id]))
     target = notification.target_url or ""
     legacy_targets = {
         "/admin/assessments/manualpaymentsubmission/": reverse("management_portal:approvals"),

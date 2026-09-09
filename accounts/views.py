@@ -503,6 +503,8 @@ def dashboard(request):
     entitlements = request.user.exam_entitlements.select_related("exam", "order", "attempt", "attempt__result")
     grouped = OrderedDict()
     for entitlement in entitlements:
+        if entitlement.is_revoked:
+            continue
         group = grouped.setdefault(entitlement.exam_id, {
             "exam": entitlement.exam, "ready": 0, "ready_entitlement": None,
             "in_progress": None, "completed": [],

@@ -22,7 +22,7 @@ from .models import (
 from .admin_exports import export_orders, export_results, export_tickets, mark_tickets_in_review, mark_tickets_resolved
 from .integrity import assess_event, integrity_evidence_summary
 from .services import (
-    AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_attempt_submission, finalize_expired_attempt, score_attempt, start_attempt,
+    AssessmentAccessRevokedError, AttemptLimitError, ExamContentError, PaymentVerificationError, _choose_section_questions, finalize_attempt_submission, finalize_expired_attempt, revoke_assessment_access, score_attempt, start_attempt,
     verify_gateway_payment, verify_sandbox_payment,
 )
 
@@ -1014,6 +1014,26 @@ class AssessmentEngineTests(TestCase):
         self.assertFalse(Attempt.objects.filter(entitlement=self.entitlement).exists())
         self.entitlement.refresh_from_db()
         self.assertEqual(self.entitlement.attempts_remaining, 1)
+
+    def test_manager_revocation_stops_active_attempt_and_blocks_restart(self):
+        attempt = self.start()
+        manager = User.objects.create_superuser(
+            username="revocation-manager", email="revocation-manager@example.com", password="safe-password",
+        )
+
+        entitlement, stopped_attempt, changed = revoke_assessment_access(
+            self.order.pk, actor=manager, reason="پرداخت هنوز تأیید نشده است",
+        )
+
+        self.assertTrue(changed)
+        self.assertEqual(stopped_attempt.pk, attempt.pk)
+        attempt.refresh_from_db(); entitlement.refresh_from_db()
+        self.assertEqual(attempt.status, "invalidated")
+        self.assertIsNotNone(attempt.submitted_at)
+        self.assertTrue(entitlement.is_revoked)
+        self.assertEqual(entitlement.revoked_by, manager)
+        with self.assertRaises(AssessmentAccessRevokedError):
+            start_attempt(self.entitlement.pk, self.user)
 
     def test_start_view_requires_complete_certificate_identity(self):
         self.user.last_name = ""
