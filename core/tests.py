@@ -9,7 +9,7 @@ from django.utils import translation
 from .i18n_numbers import normalize_digits, persian_digits
 from .jalali import format_jalali, gregorian_to_jalali, jalali_to_gregorian
 from .models import CompanyProfile
-from projects.models import Project
+from projects.models import DemoTemplate, Project
 
 
 class CorePagesTests(TestCase):
@@ -44,7 +44,8 @@ class CorePagesTests(TestCase):
         mobile_nav = html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
         self.assertEqual(mobile_nav.count("<a "), 5)
         self.assertEqual(html.count('class="nav-cta"'), 1)
-        self.assertContains(response, 'href="/fa/start/"', count=4, html=False)
+        self.assertContains(response, 'href="/fa/start/"', count=3, html=False)
+        self.assertIn('href="/fa/projects/demos/"', mobile_nav)
 
         staff = get_user_model().objects.create_user(
             username="shell-admin@example.com",
@@ -125,7 +126,7 @@ class CorePagesTests(TestCase):
         response = self.client.get("/fa/")
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=4")
-        legacy = html.index("core/css/site.css?v=37")
+        legacy = html.index("core/css/site.css?v=38")
         components = html.index("core/css/components.css?v=5")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
@@ -219,11 +220,15 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "هویت حقوقی و اطلاعات قابل استعلام")
         self.assertNotContains(response, "۲۴ پروژه")
 
-    def test_home_only_displays_real_published_project_count(self):
+    def test_home_replaces_project_showcase_with_zero_data_demo_choices(self):
         Project.objects.create(title_fa="نمونه واقعی", title_en="Real case", slug="real-case", is_active=True)
         response = self.client.get(reverse("home"))
-        self.assertContains(response, "پروژه منتشرشده و قابل مشاهده")
-        self.assertEqual(response.context["published_project_count"], Project.objects.filter(is_active=True).count())
+        self.assertContains(response, "بدون نیاز به اطلاعات قبلی")
+        self.assertContains(response, "دموی قابل تست و شخصی‌سازی")
+        self.assertContains(response, 'href="/fa/projects/demos/"', html=False)
+        self.assertNotContains(response, "نمونه واقعی")
+        self.assertNotContains(response, "منتخب پروژه‌ها")
+        self.assertEqual(response.context["available_demo_count"], DemoTemplate.objects.filter(is_active=True).count())
 
     def test_crm_product_overview_is_read_only_bilingual_and_internally_linked(self):
         persian = self.client.get("/fa/crm/")

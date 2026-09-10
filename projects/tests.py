@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
@@ -15,10 +18,7 @@ class ProjectTests(TestCase):
 
     def test_project_labels_follow_page_language(self):
         fa_list = self.client.get(reverse("projects:list") + "?lang=fa")
-        self.assertContains(fa_list, "پروژه‌های منتخب")
-        self.assertContains(fa_list, "پروژه / ")
-        self.assertNotContains(fa_list, "Selected work")
-        self.assertNotContains(fa_list, "PROJECT / ")
+        self.assertRedirects(fa_list, reverse("projects:demo_gallery"), status_code=302, fetch_redirect_response=False)
 
         en_detail = self.client.get(reverse("projects:detail", args=["project"]) + "?lang=en")
         self.assertContains(en_detail, "Case study")
@@ -38,11 +38,48 @@ class ProjectTests(TestCase):
         )
         gallery = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
         self.assertContains(gallery, "دموی تست")
+        self.assertContains(gallery, "بدون ثبت‌نام")
+        self.assertContains(gallery, "بازکردن و شخصی‌سازی")
         preview = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
         self.assertContains(preview, "برند فرضی")
+        self.assertContains(preview, reverse("projects:demo_full", args=[demo.slug]))
         response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
-            "theme": "warm", "personality": "minimal", "features": ["payment", "catalog"],
+            "brand_preview": "فروشگاه من", "theme": "custom", "custom_color": "#123abc",
+            "personality": "minimal", "features": ["payment", "catalog"],
         })
         selection = DemoSelection.objects.get()
         self.assertRedirects(response, reverse("leads:contact") + f"?demo={selection.public_token}&request_type=ecommerce")
         self.assertEqual(selection.selections["features"], ["payment", "catalog"])
+        self.assertEqual(selection.selections["brand"], "فروشگاه من")
+        self.assertEqual(selection.selections["custom_color"], "#123abc")
+
+        full = self.client.get(reverse("projects:demo_full", args=[demo.slug]) + "?lang=fa")
+        self.assertContains(full, 'content="noindex,nofollow"', html=False)
+        self.assertContains(full, "بازگشت به انتخاب‌ها")
+        self.assertContains(full, 'data-demo-view="desktop"', html=False)
+        self.assertContains(full, 'data-demo-view="mobile"', html=False)
+
+    def test_invalid_custom_colour_is_rejected_without_creating_selection(self):
+        demo = DemoTemplate.objects.create(
+            slug="invalid-colour", category="portfolio", title_fa="تست", title_en="Test",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="editorial", default_features=[],
+        )
+        response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
+            "theme": "custom", "custom_color": "not-a-colour", "personality": "editorial",
+        })
+        self.assertRedirects(
+            response,
+            reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(DemoSelection.objects.exists())
+
+    def test_configurator_is_single_page_and_preserves_state_between_views(self):
+        script = (Path(settings.BASE_DIR) / "projects/static/projects/js/demo-configurator.js").read_text(encoding="utf-8")
+        self.assertIn("history.replaceState", script)
+        self.assertIn("sessionStorage.setItem", script)
+        self.assertIn('state.theme = "custom"', script)
+        self.assertIn('setAttribute("aria-pressed"', script)
+        self.assertIn("data-demo-back", script)
+        self.assertNotIn("location.reload", script)

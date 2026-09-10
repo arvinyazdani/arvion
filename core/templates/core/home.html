@@ -14,8 +14,8 @@
       </p>
       <div class="home-intro-actions">
         <div class="home-intro-action-stack">
-          <a class="button" href="{% url 'project_start' %}">
-            <span>{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}</span>
+          <a class="button" href="{% url 'projects:demo_gallery' %}">
+            <span>{% if lang == 'fa' %}انتخاب و شخصی‌سازی نمونه{% else %}Choose and customise a demo{% endif %}</span>
             <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
           </a>
           <a class="button" href="{% url 'assessments:briefing' 'english-placement-a1-c1' %}">
@@ -51,15 +51,15 @@
           <div><small>{% if lang == 'fa' %}مرحله ۳{% else %}Step 3{% endif %}</small><b>{% if lang == 'fa' %}ساخت، استقرار و همراهی{% else %}Build, launch and support{% endif %}</b></div>
         </li>
       </ol>
-      <a href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}دیدن دمو و انتخاب سبک{% else %}Explore demos and choose a style{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+      <a href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}نمونه دلخواه‌تان را همین حالا بسازید{% else %}Build your preferred demo now{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
     </aside>
   </div>
 </section>
 
 <section class="home-trust" aria-label="{% if lang == 'fa' %}دلایل اعتماد{% else %}Trust signals{% endif %}" data-ui-reveal>
   <div class="shell home-trust-grid">
-    {% if published_project_count %}
-      <a href="{% url 'projects:list' %}"><strong>{{ published_project_count }}</strong><span>{% if lang == 'fa' %}پروژه منتشرشده و قابل مشاهده{% else %}Published projects you can review{% endif %}</span></a>
+    {% if available_demo_count %}
+      <a href="{% url 'projects:demo_gallery' %}"><strong>{{ available_demo_count }}</strong><span>{% if lang == 'fa' %}دموی قابل تست و شخصی‌سازی{% else %}Demos ready to test and customise{% endif %}</span></a>
     {% endif %}
     <a href="{% url 'company_info' %}"><strong>{% if lang == 'fa' %}ثبت‌شده{% else %}Registered{% endif %}</strong><span>{% if lang == 'fa' %}هویت حقوقی و اطلاعات قابل استعلام{% else %}Verifiable legal identity{% endif %}</span></a>
     <a href="{% url 'service_terms' %}"><strong>{% if lang == 'fa' %}۳ ماه{% else %}3 months{% endif %}</strong><span>{% if lang == 'fa' %}پشتیبانی رایگان کد تحویلی{% else %}Included code support{% endif %}</span></a>
@@ -118,20 +118,24 @@
   </div>
 </section>
 
-<section class="section home-work" aria-labelledby="work-title">
+<section class="section home-demo-picker" id="choose-demo" aria-labelledby="demo-picker-title">
   <div class="shell">
-    <header class="home-section-head" data-ui-reveal><div><span class="eyebrow">{% if lang == 'fa' %}منتخب پروژه‌ها{% else %}Selected work{% endif %}</span><h2 id="work-title">{% if lang == 'fa' %}ساخته‌شده برای استفاده واقعی{% else %}Built for real use{% endif %}</h2></div><a class="home-inline-link" href="{% url 'projects:list' %}">{% if lang == 'fa' %}همه پروژه‌ها{% else %}All projects{% endif %}</a></header>
-    <div class="home-project-grid">
-      {% for project in latest_projects %}
-        <a class="home-project-card" href="{{ project.get_absolute_url }}" data-ui-reveal>
-          <span>{{ forloop.counter|stringformat:"02d" }}</span>
-          <div><small>{% if lang == 'fa' %}مطالعه موردی{% else %}CASE STUDY{% endif %}</small><h3>{% if lang == 'fa' %}{{ project.title_fa }}{% else %}{{ project.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ project.description_fa|truncatechars:110 }}{% else %}{{ project.description_en|truncatechars:110 }}{% endif %}</p></div>
-          <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#external"></use></svg>
+    <header class="home-section-head" data-ui-reveal>
+      <div><span class="eyebrow">{% if lang == 'fa' %}بدون نیاز به اطلاعات قبلی{% else %}NO BRIEF REQUIRED{% endif %}</span><h2 id="demo-picker-title">{% if lang == 'fa' %}انتخاب کنید، تغییر دهید و نتیجه را ببینید.{% else %}Choose, change and see the result.{% endif %}</h2></div>
+      <p>{% if lang == 'fa' %}از یکی از مسیرهای آماده شروع کنید؛ نام برند، رنگ، شخصیت طراحی و امکانات را همان‌جا عوض کنید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Start with a ready direction, then change the brand, colour, personality and features while previewing mobile and desktop.{% endif %}</p>
+    </header>
+    <div class="home-demo-grid">
+      {% for demo in featured_demos %}
+        <a class="home-demo-card style-{{ demo.style_key }}" href="{% url 'projects:demo_preview' demo.slug %}" data-ui-reveal>
+          <div class="home-demo-scene" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="home-demo-card-copy"><small>{% if lang == 'fa' %}{{ demo.get_category_display }}{% else %}Interactive demo{% endif %}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p></div>
+          <strong>{% if lang == 'fa' %}شخصی‌سازی این نمونه{% else %}Customise this demo{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></strong>
         </a>
       {% empty %}
-        <p class="empty">{% if lang == 'fa' %}پروژه‌ها به‌زودی اضافه می‌شوند.{% else %}Projects are coming soon.{% endif %}</p>
+        <p class="empty">{% if lang == 'fa' %}دموها در حال آماده‌سازی هستند.{% else %}Demos are being prepared.{% endif %}</p>
       {% endfor %}
     </div>
+    <div class="home-demo-cta" data-ui-reveal><div><strong>{% if lang == 'fa' %}هنوز مطمئن نیستید؟{% else %}Still deciding?{% endif %}</strong><span>{% if lang == 'fa' %}۱۰ مسیر آماده را بدون ثبت‌نام امتحان کنید؛ انتخاب‌ها تا زمان ارسال درخواست فقط در مرورگر شما می‌ماند.{% else %}Try 10 ready directions without signing in; choices stay in your browser until you submit an enquiry.{% endif %}</span></div><a class="button" href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}مشاهده همه و شروع شخصی‌سازی{% else %}See all and start customising{% endif %}</a></div>
   </div>
 </section>
 

@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from assessments.models import Exam
 from blog.models import Post
-from projects.models import Project
+from projects.models import DemoTemplate, Project
 from traffic.models import TrafficDay
 
 
@@ -73,12 +73,17 @@ class PWAEndpointTests(TestCase):
 
 
 class SearchDiscoveryTests(TestCase):
-    def test_sitemap_has_public_project_and_exam_details_in_both_languages(self):
+    def test_sitemap_has_public_demo_and_exam_details_in_both_languages(self):
         project = Project.objects.create(
             title_fa="پروژه نمایشی",
             title_en="Public project",
             slug="public-project",
             is_active=True,
+        )
+        demo = DemoTemplate.objects.create(
+            slug="public-demo", category="corporate", title_fa="دموی عمومی", title_en="Public demo",
+            tagline_fa="شرح دمو", tagline_en="Demo description", fictional_brand_fa="برند فرضی",
+            fictional_brand_en="FICTIONAL BRAND", style_key="minimal", default_features=["blog"],
         )
         exam = Exam.objects.create(
             slug="public-exam",
@@ -92,8 +97,9 @@ class SearchDiscoveryTests(TestCase):
 
         response = self.client.get(reverse("sitemap"))
 
-        self.assertContains(response, f"https://testserver/fa/projects/{project.slug}/")
-        self.assertContains(response, f"https://testserver/en/projects/{project.slug}/")
+        self.assertContains(response, f"https://testserver/fa/projects/demos/{demo.slug}/")
+        self.assertContains(response, f"https://testserver/en/projects/demos/{demo.slug}/")
+        self.assertNotContains(response, f"https://testserver/fa/projects/{project.slug}/")
         self.assertContains(response, f"https://testserver/fa/assessments/{exam.slug}/")
         self.assertContains(response, f"https://testserver/en/assessments/{exam.slug}/")
         self.assertNotContains(response, "https://testserver/en/crm-order/")

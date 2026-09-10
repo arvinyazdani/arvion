@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import translation
 
 from blog.models import Post
-from projects.models import Project
+from projects.models import DemoTemplate
 from services.models import Service
 from assessments.models import Exam
 
@@ -22,7 +22,7 @@ class StaticSitemap(LocalizedSitemap):
     def items(self):
         bilingual_names = (
             "home", "about", "company_info", "crm_product", "services:list",
-            "projects:list", "blog:list", "assessments:list", "leads:contact",
+            "projects:demo_gallery", "blog:list", "assessments:list", "leads:contact",
             "privacy", "service_terms", "refund_policy",
         )
         # These two discovery wizards intentionally redirect English requests to
@@ -75,18 +75,18 @@ class PostSitemap(LocalizedSitemap):
         return item[1].published_at
 
 
-class ProjectSitemap(LocalizedSitemap):
+class DemoSitemap(LocalizedSitemap):
     priority = 0.7
     changefreq = "monthly"
 
     def items(self):
-        projects = Project.objects.filter(is_active=True).only("slug", "updated_at")
-        return [(language, project) for language in self.languages() for project in projects]
+        demos = DemoTemplate.objects.filter(is_active=True).only("slug", "updated_at")
+        return [(language, demo) for language in self.languages() for demo in demos]
 
     def location(self, item):
-        language, project = item
+        language, demo = item
         with translation.override(language):
-            return reverse("projects:detail", args=[project.slug])
+            return reverse("projects:demo_preview", args=[demo.slug])
 
     def lastmod(self, item):
         return item[1].updated_at
@@ -113,6 +113,6 @@ sitemaps = {
     "static": StaticSitemap,
     "services": ServiceSitemap,
     "posts": PostSitemap,
-    "projects": ProjectSitemap,
+    "demos": DemoSitemap,
     "assessments": ExamSitemap,
 }

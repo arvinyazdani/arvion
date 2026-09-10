@@ -4,7 +4,7 @@
 # ==== ایمپورت‌ها ====
 from django.views.generic import TemplateView
 from blog.models import Post
-from projects.models import Project
+from projects.models import DemoTemplate
 from .lang import LanguageViewMixin  # میکسین مدیریت زبان
 
 # ==== ویو خانه ====
@@ -13,7 +13,7 @@ class HomeView(LanguageViewMixin, TemplateView):
     ویوی صفحه خانه:
       - ارث‌بری از LanguageViewMixin برای تشخیص زبان جاری
       - نمایش خلاصه‌ای از برند
-      - نمایش آخرین پست‌ها و پروژه‌ها (۳ مورد)
+      - نمایش آخرین پست‌ها و چند دموی قابل شخصی‌سازی
       - داده‌ها بر اساس زبان انتخابی از مدل‌ها خوانده می‌شوند
     """
     template_name = "core/home.html"
@@ -24,8 +24,13 @@ class HomeView(LanguageViewMixin, TemplateView):
 
         # آخرین ۳ پست منتشر شده
         posts = list(Post.objects.published()[:3])
-        # آخرین ۳ پروژه منتشر شده
-        projects = list(Project.objects.filter(is_active=True)[:3])
+        # چهار مسیر متفاوت برای تصمیم‌گیری سریع در صفحه اصلی
+        featured_slugs = ("nava-market", "linea-studio", "parsa-advisory", "roshna-clinic")
+        demo_by_slug = {
+            demo.slug: demo
+            for demo in DemoTemplate.objects.filter(is_active=True, slug__in=featured_slugs)
+        }
+        demos = [demo_by_slug[slug] for slug in featured_slugs if slug in demo_by_slug]
 
         # اگر مدل‌ها چندزبانه هستند (مثلاً با django-parler) این قسمت زبان را اعمال می‌کند
         for p in posts:
@@ -36,8 +41,8 @@ class HomeView(LanguageViewMixin, TemplateView):
 
         # افزودن به context
         ctx["latest_posts"] = posts
-        ctx["latest_projects"] = projects
-        ctx["published_project_count"] = Project.objects.filter(is_active=True).count()
+        ctx["featured_demos"] = demos
+        ctx["available_demo_count"] = DemoTemplate.objects.filter(is_active=True).count()
 
         return ctx
 

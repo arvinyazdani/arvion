@@ -1,4 +1,57 @@
-{% extends "core/base.html" %}{% load static %}
-{% block title %}{% if lang == 'fa' %}دموهای طراحی | آرویون{% else %}Design demos | Rvion{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=1">{% endblock %}
-{% block content %}<section class="demo-hero"><div class="shell"><span class="eyebrow">{% if lang == 'fa' %}دموهای قابل انتخاب{% else %}INTERACTIVE DEMOS{% endif %}</span><h1>{% if lang == 'fa' %}سبک پروژه بعدی‌تان را<br>قبل از سفارش ببینید.{% else %}See the direction of your next project before you enquire.{% endif %}</h1><p>{% if lang == 'fa' %}هر نمونه با برند و محتوای فرضی ساخته شده است. یک سبک را ببینید، انتخاب‌های خود را ثبت کنید و با همان انتخاب سفارش را شروع کنید.{% else %}Every demo uses fictional brands and content. Explore a direction, save your choices and start an enquiry with them attached.{% endif %}</p></div></section><section class="shell demo-categories">{% for category in categories %}<section class="demo-category" id="{{ category.key }}"><header><span>{{ forloop.counter|stringformat:'02d' }}</span><h2>{{ category.title }}</h2><small>{{ category.items|length }} {% if lang == 'fa' %}سبک قابل مشاهده{% else %}directions to explore{% endif %}</small></header><div class="demo-grid">{% for demo in category.items %}<a class="demo-card style-{{ demo.style_key }}" href="{% url 'projects:demo_preview' demo.slug %}"><div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b></div><div class="demo-card-scene"><span></span><span></span><span></span></div><div><small>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p></div><em>{% if lang == 'fa' %}دیدن دمو ←{% else %}View demo →{% endif %}</em></a>{% endfor %}</div></section>{% endfor %}</section>{% endblock %}
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}{% if lang == 'fa' %}انتخاب و شخصی‌سازی دمو | آرویون{% else %}Choose and customise a demo | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}دموی وب‌سایت دلخواه‌تان را بدون ثبت‌نام انتخاب کنید، رنگ و سبک آن را تغییر دهید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Choose a website demo without signing in, customise its colour and style, and test mobile and desktop views.{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=2">{% endblock %}
+{% block content %}
+<section class="demo-hero" aria-labelledby="demo-gallery-title">
+  <div class="shell demo-hero-grid">
+    <div>
+      <span class="eyebrow">{% if lang == 'fa' %}انتخاب و شخصی‌سازی{% else %}CHOOSE & CUSTOMISE{% endif %}</span>
+      <h1 id="demo-gallery-title">{% if lang == 'fa' %}قبل از سفارش، چیزی نزدیک به خواسته‌تان ببینید.{% else %}See something close to your idea before you enquire.{% endif %}</h1>
+      <p>{% if lang == 'fa' %}نیازی به آماده‌کردن محتوا یا ثبت‌نام ندارید. یک دمو را باز کنید، نام و رنگ دلخواه‌تان را روی آن بگذارید و تجربه موبایل و دسکتاپ را همان لحظه مقایسه کنید.{% else %}No brief, content or account is required. Open a demo, add your name and colour, then compare mobile and desktop instantly.{% endif %}</p>
+      <div class="demo-hero-actions"><a class="button" href="#demo-options">{% if lang == 'fa' %}انتخاب نمونه{% else %}Choose a demo{% endif %}</a><span>{% if lang == 'fa' %}۱۰ نمونه · ۶ کاربرد · بدون ثبت‌نام{% else %}10 demos · 6 use cases · no sign-in{% endif %}</span></div>
+    </div>
+    <aside class="demo-how-card" aria-label="{% if lang == 'fa' %}روش استفاده{% else %}How it works{% endif %}">
+      <strong>{% if lang == 'fa' %}سه قدم تا تصمیم روشن‌تر{% else %}Three steps to a clearer decision{% endif %}</strong>
+      <ol>
+        <li><span>۱</span><div><b>{% if lang == 'fa' %}یک کاربرد را انتخاب کنید{% else %}Choose a use case{% endif %}</b><small>{% if lang == 'fa' %}فروشگاه، شرکتی، کلینیک و بیشتر{% else %}Commerce, corporate, clinic and more{% endif %}</small></div></li>
+        <li><span>۲</span><div><b>{% if lang == 'fa' %}همان‌جا تغییر دهید{% else %}Customise it live{% endif %}</b><small>{% if lang == 'fa' %}نام، رنگ، شخصیت و امکانات{% else %}Name, colour, personality and features{% endif %}</small></div></li>
+        <li><span>۳</span><div><b>{% if lang == 'fa' %}دموی کامل را تست کنید{% else %}Test the full demo{% endif %}</b><small>{% if lang == 'fa' %}موبایل، دسکتاپ و مسیر بازگشت{% else %}Mobile, desktop and a safe return path{% endif %}</small></div></li>
+      </ol>
+    </aside>
+  </div>
+</section>
+
+<section class="shell demo-categories" id="demo-options" aria-label="{% if lang == 'fa' %}فهرست دموها{% else %}Demo list{% endif %}">
+  {% for category in categories %}
+    <section class="demo-category" id="{{ category.key }}">
+      <header><span>{{ forloop.counter|stringformat:'02d' }}</span><div><h2>{{ category.title }}</h2><small>{{ category.items|length }} {% if lang == 'fa' %}مسیر قابل تست{% else %}testable directions{% endif %}</small></div></header>
+      <div class="demo-grid">
+        {% for demo in category.items %}
+          <article class="demo-card style-{{ demo.style_key }}">
+            <a class="demo-card-main" href="{% url 'projects:demo_preview' demo.slug %}">
+              <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}</span></div>
+              <div class="demo-card-scene" aria-hidden="true"><span></span><span></span><span></span><b></b></div>
+              <div class="demo-card-copy"><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{{ demo.fit_label }}</strong></div>
+            </a>
+            <div class="demo-card-details">
+              <div><span>{% if lang == 'fa' %}صفحات نمونه{% else %}Included screens{% endif %}</span><ul>{% for page in demo.page_labels|slice:':3' %}<li>{{ page }}</li>{% endfor %}</ul></div>
+              <div><span>{% if lang == 'fa' %}امکانات پایه{% else %}Starting features{% endif %}</span><div class="demo-feature-tags">{% for feature in demo.feature_labels %}<small>{{ feature }}</small>{% endfor %}</div></div>
+            </div>
+            <a class="demo-card-action" href="{% url 'projects:demo_preview' demo.slug %}">{% if lang == 'fa' %}بازکردن و شخصی‌سازی{% else %}Open and customise{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+</section>
+
+<section class="demo-trust-strip">
+  <div class="shell">
+    <div><strong>{% if lang == 'fa' %}نمایش صادقانه{% else %}Honest previews{% endif %}</strong><span>{% if lang == 'fa' %}برند و محتوا فرضی‌اند و ادعای نمونه‌کار واقعی ندارند.{% else %}Brands and content are fictional, with no false portfolio claims.{% endif %}</span></div>
+    <div><strong>{% if lang == 'fa' %}انتخاب بدون تعهد{% else %}Explore without commitment{% endif %}</strong><span>{% if lang == 'fa' %}تا پیش از ارسال فرم، چیزی برای آرویون ثبت نمی‌شود.{% else %}Nothing is sent to Rvion until you submit the form.{% endif %}</span></div>
+    <div><strong>{% if lang == 'fa' %}شروع از یک نقطه روشن{% else %}Start from shared context{% endif %}</strong><span>{% if lang == 'fa' %}انتخاب شما ورودی گفت‌وگو است، نه وعدهٔ تحویل قطعی.{% else %}Your choices start the conversation; they are not a delivery promise.{% endif %}</span></div>
+  </div>
+</section>
+{% endblock %}
