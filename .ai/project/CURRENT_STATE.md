@@ -2,75 +2,80 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** Reliable hand-off from demo to enquiry.
-- **Last verified phase:** Reliable hand-off from demo to enquiry (this phase).
+- **Current phase:** Structured display of demo selection in the management dashboard.
+- **Last verified phase:** Structured display of demo selection in the management dashboard (this phase).
 - **Status:** `VERIFIED` (local)
-- **Git boundary:** `main` will be three commits ahead of `origin/main`
-  (`06812d2`, `dc68011`, and this phase's commit) once committed below.
-  `.ai/project/CURRENT_STATE.md` is tracked (first added in `dc68011`).
+- **Git boundary:** `main` will be four commits ahead of `origin/main`
+  (`06812d2`, `dc68011`, the "reliable hand-off" phase commit, and this
+  phase's commit) once committed below.
 - **Active delegated work:** none.
 - **Known blockers:** none for this bounded phase. Push, deploy, and
   production migration remain outside the current authorization.
-- **P1 corrections made this phase (both empirically verified, not just
-  reasoned about):**
-  1. *Back/edit/resubmit no longer forces an avoidable error.* A stale
-     `submission_token` resubmitted from the **same session** with
-     **changed** data is still rejected server-side (the original row is
-     left untouched, no second row is created — required so a token keeps
-     naming exactly one recorded choice), but the redirect now carries the
-     visitor's just-submitted values back as query parameters (the
-     configurator already restores state from these on load) and lands on a
-     freshly re-minted token, so nothing is silently lost and an immediate
-     retry succeeds. A dedicated `pageshow`/`persisted` listener reloads a
-     back-forward-cache-restored page before the visitor can act on it, so
-     in the normal, JavaScript-enabled path this fallback is not reached at
-     all — the second submission already carries a token the server has
-     never seen and succeeds immediately (verified by
-     `test_real_back_then_change_with_a_fresh_token_creates_a_second_valid_selection`).
-     A different session reusing the token is unaffected: still a flat
-     reject with nothing reflected back.
-  2. *IntegrityError recovery is now safe under `ATOMIC_REQUESTS = True`.*
-     Reproduced the exact failure first (a plain, unwrapped `.create()`
-     inside an outer `transaction.atomic()` — what `ATOMIC_REQUESTS = True`
-     imposes on every real request — leaves the connection in a state where
-     the very next ordinary query raises `TransactionManagementError`,
-     confirmed with a throwaway `manage.py shell` reproduction against this
-     project's own models before writing any fix). The insert is now wrapped
-     in its own `transaction.atomic()` savepoint; catching `IntegrityError`
-     outside that block lets the surrounding transaction stay query-able.
-     Verified twice: `test_integrity_error_inside_a_request_level_atomic_block_still_allows_recovery`
-     wraps the whole request in an explicit `transaction.atomic()` (the same
-     mechanism `ATOMIC_REQUESTS` uses) and asserts an ordinary query
-     succeeds right after the caught error; the shell reproduction above was
-     re-run against the fixed code and confirmed the same query then
-     returns normally instead of raising.
-- **Test level:** `projects.tests` + `leads.tests` = 26 tests, all passing
-  (2 new this phase: the real-back-with-fresh-token success path, and the
-  ATOMIC_REQUESTS-equivalent recovery test; 2 existing tests corrected to
-  match the now-intended stale-token redirect and the race simulation
-  rewritten to trigger a genuine unique-constraint violation instead of a
-  self-recursing mock). `manage.py check`, `makemigrations --check
-  --dry-run` (no model changes this phase — none expected), and
-  `git diff --check` (no whitespace/conflict markers) all passed.
-- **Last commit (before this phase):** `dc68011 fix: make demo-to-enquiry hand-off idempotent and session-safe`
-- **This phase's change:** `projects/views/projects.py` (`DemoConfigureView`):
-  same-session/mismatched-token redirect now preserves submitted values and
-  re-mints a token instead of a bare `?invalid=1`; the winning-row lookup
-  after `IntegrityError` now happens outside a nested `transaction.atomic()`
-  scoped to just the insert. `projects/templates/projects/demo_preview.html`
-  gains a neutral `?stale=1` notice distinct from the existing `?invalid=1`
-  error. `projects/static/projects/js/demo-configurator.js` reloads a
-  bfcache-restored page (`pageshow` + `event.persisted`) so the fallback
-  above is rarely reached with JavaScript enabled; this is convenience only
-  and the server enforces the real rule independently of it running.
-  `projects/static/projects/css/demo-gallery.css` gets a `.demo-notice`
-  style using the existing `--status-info-*` tokens. No model or migration
-  change in this phase.
+- **This phase's change (no model or migration change):**
+  `management_portal/views.py` gains three small helpers —
+  `_demo_category_label`, `_demo_selection_card` (bilingual, staff-facing;
+  deliberately excludes `DemoSelection.public_token` and `.session_key` —
+  verified by `test_detail_card_never_exposes_token_or_session_key`, which
+  asserts both raw values and the field names themselves are absent from
+  the rendered detail page and the plain-text export), and
+  `_demo_selection_report_lines` (Persian-only, reused by both
+  `request_detail`'s and `request_export`'s plain-text documents, which
+  were already Persian-only before this phase and are left that way
+  deliberately — mixing only their embedded demo section into English
+  would have produced a worse, inconsistent document than leaving the
+  whole thing Persian). `request_list` now runs
+  `Lead.objects.select_related("demo_selection__template")` and exposes a
+  three-state `?demo=` filter (empty / `only` / a specific
+  `DemoTemplate.CATEGORY_CHOICES` key); CRM/clinic rows are skipped
+  entirely (not queried) whenever any demo filter is active, since only a
+  Lead can carry a `demo_selection`. `request_detail` passes a new
+  `demo_card` context value (`None` when the lead has no demo selection).
+  Templates: `request_list.html` gained a demo filter `<select>` and a
+  small bilingual "Demo · <category>" badge per row; `request_detail.html`
+  gained a standalone "Demo selection" `<section class="m-panel">` (outside
+  the existing 2-column `.m-detail-grid`, matching the existing pattern for
+  other full-width panels) shown only when `demo_card` is truthy, linking
+  only to `projects:demo_preview` (the public, unconfigured template — never
+  a link carrying the customer's saved choices). CSS: one new class,
+  `.m-demo-flag`, added to `management_portal/v2/management.css` (bumped
+  `?v=17`) using the existing `--status-info-surface`/`--status-info-text`
+  tokens; no new CSS was needed for the card itself, which reuses the
+  existing `.m-panel`/`.m-details`/`.m-detail-actions` classes.
+- **Test level:** `management_portal` + `projects` + `leads` = 158 tests,
+  all passing (8 new this phase, in a new `DemoSelectionDashboardTests`
+  class: list indicator + `?demo=only` filter, `?demo=<category>` filter,
+  demo-less request excluded from the filter, detail card shows all six
+  structured fields, detail card leaks neither token nor session key in
+  either the HTML detail page or the plain-text export, English render of
+  the new card has no Persian labels (checked against the card's own HTML
+  slice, not the page as a whole — the pre-existing, deliberately
+  Persian-only "Full discovery details" panel sits on the same page and is
+  intentionally excluded from that assertion), unauthorized user still
+  gets `403` on both the list and the detail page, and a
+  `CaptureQueriesContext` regression test proving the list's query count
+  does not grow after five more demo-linked leads are added). `manage.py
+  check` (0 issues), `makemigrations --check --dry-run` ("No changes
+  detected" — confirmed no model change was needed), and `git diff --check`
+  (clean) all passed.
+- **Prior phase's P1 corrections (`dc68011` and the commit before this
+  one), kept for reference:** (1) a stale `submission_token` resubmitted
+  from the same session with changed data now redirects with the visitor's
+  values preserved and a freshly re-minted token instead of a bare
+  `?invalid=1`; a different session reusing the token still gets a flat
+  reject. (2) the post-`IntegrityError` winning-row lookup now happens
+  outside a nested `transaction.atomic()` scoped to just the insert, so
+  recovery stays reliable under `ATOMIC_REQUESTS = True`. Both were
+  reproduced and re-verified empirically at the time; see git history on
+  `projects/views/projects.py` (`DemoConfigureView`) for the full detail if
+  needed again.
+- **Last commit (before this phase):** the "reliable hand-off from demo to
+  enquiry" phase commit (see `git log`).
 - **Next action:** Await an explicit request to commit/push/deploy this
-  phase, or begin the next approved product phase (the structured
-  operator-visibility and stale-row-cleanup gaps recorded in the discovery
-  phase remain out of scope and unaddressed). Re-run the release gate on the
-  exact deployable revision before any production action.
+  phase, or begin the next approved product phase (stale-row cleanup for
+  abandoned/expired `DemoSelection` rows remains out of scope and
+  unaddressed — the structured operator-visibility half of that discovery
+  item is now done by this phase). Re-run the release gate on the exact
+  deployable revision before any production action.
 
 ## Phase ledger
 
@@ -79,5 +84,6 @@
 | Single-primary-agent alignment | `VERIFIED` | Framework workflow/recovery/test/stop guides read; local `AGENTS.md` replaced with the real single-agent instructions; no active delegated work existed. |
 | Interactive demo customizer (`06812d2`) | `VERIFIED` (local) | Targeted tests, route probes, diff/migration checks, and browser flow passed. |
 | Pre-design and ordering discovery | `VERIFIED` | Current demo-to-lead flow, session boundary, existing controls, data gaps, and operator visibility were mapped without changing production code. Customer matching uses normalized exact phone/email, not fuzzy matching. |
-| Reliable hand-off from demo to enquiry | `VERIFIED` (local) | Both P1s from the prior `PARTIAL` checkpoint are corrected and empirically verified (see above), not just reasoned about — the ATOMIC_REQUESTS failure was reproduced before the fix and re-checked after it. Full targeted suite (26 tests), `check`, migration dry-run and `git diff --check` all pass. Not pushed, deployed, or migrated on production. |
-| Push/deploy of `06812d2` and this phase | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
+| Reliable hand-off from demo to enquiry | `VERIFIED` (local) | Both P1s from the prior `PARTIAL` checkpoint were corrected and empirically verified — the ATOMIC_REQUESTS failure was reproduced before the fix and re-checked after it. Full targeted suite (26 tests), `check`, migration dry-run and `git diff --check` all passed. Not pushed, deployed, or migrated on production. |
+| Structured display of demo selection in the management dashboard | `VERIFIED` (local) | See "This phase's change" and "Test level" above — 158-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change. Not pushed, deployed, or migrated on production. |
+| Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

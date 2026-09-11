@@ -125,6 +125,7 @@ svg{display:block;width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;str
 .m-data-list strong,.m-data-list div span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .m-data-list div span,.m-data-list time,.m-data-list em{color:var(--m-muted);font-size:.75rem}
 .m-data-list em{font-style:normal;font-weight:800}
+.m-demo-flag{justify-self:start;width:max-content;padding:2px 8px;border-radius:7px;background:var(--status-info-surface);color:var(--status-info-text);font-size:.6875rem;font-weight:800}
 .m-detail-actions{display:flex;gap:8px;flex-wrap:wrap}
 .m-detail-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 14px;border:1px solid var(--m-line);border-radius:11px;background:var(--color-surface);font-size:.8125rem;font-weight:900}
 .m-detail-actions a.primary{border-color:var(--m-orange);background:var(--m-orange);color:var(--color-on-brand)}

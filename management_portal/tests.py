@@ -14,6 +14,7 @@ from crm_orders.models import CrmOrder, CrmSpecialistDiscovery
 from assessments.models import Attempt, AttemptQuestion, AttemptResult, Exam, ExamEntitlement, ExamSection, ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction, Question, Skill, SupportTicket
 from contracts.models import ContractProposal
 from leads.models import Lead
+from projects.models import DemoSelection, DemoTemplate
 from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from management_portal.notifications import _send_user_push, process_notifications
 from services.models import Service
@@ -1598,3 +1599,130 @@ class AssessmentAccessControlTests(TestCase):
         response = self.client.get(reverse("management_portal:notification_open", args=[notification.pk]))
 
         self.assertRedirects(response, reverse("management_portal:customer_assessment_detail", args=[self.customer.pk, self.account.pk]))
+
+
+class DemoSelectionDashboardTests(TestCase):
+    """Structured, bilingual demo-selection visibility in the management dashboard."""
+
+    def setUp(self):
+        translation.activate("fa")
+        self.staff = User.objects.create_user(username="demo-sales", email="demo-sales@example.com", password="safe-password", is_staff=True)
+        self.staff.user_permissions.add(Permission.objects.get(codename="view_lead"))
+        self.template = DemoTemplate.objects.create(
+            slug="dashboard-demo", category="ecommerce", title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        self.selection = DemoSelection.objects.create(
+            template=self.template, session_key="dashboard-session",
+            selections={"theme": "sage", "personality": "luxury", "brand": "کافه رویا", "features": ["booking", "catalog"]},
+        )
+        self.lead_with_demo = Lead.objects.create(
+            name="سارا احمدی", business_name="کافه رویا", email_or_telegram="sara@example.com", phone="09120000010",
+            message="می‌خواهیم دقیقاً همین دمو را بسازیم.", privacy_accepted_at=timezone.now(),
+            demo_selection=self.selection,
+        )
+        self.lead_without_demo = Lead.objects.create(
+            name="مریم کریمی", email_or_telegram="nodemo@example.com", phone="09120000011",
+            message="بدون هیچ دموی انتخاب‌شده.", privacy_accepted_at=timezone.now(),
+        )
+
+    def test_list_shows_demo_indicator_and_only_demo_filter_includes_it(self):
+        self.client.force_login(self.staff)
+        listing = self.client.get(reverse("management_portal:request_list"))
+        self.assertContains(listing, "کافه رویا")
+        self.assertContains(listing, "دمو")
+        filtered = self.client.get(reverse("management_portal:request_list") + "?demo=only")
+        self.assertContains(filtered, "کافه رویا")
+        self.assertNotContains(filtered, "مریم کریمی")
+
+    def test_only_demo_filter_excludes_request_without_demo_selection(self):
+        self.client.force_login(self.staff)
+        filtered = self.client.get(reverse("management_portal:request_list") + "?demo=only")
+        content = filtered.content.decode("utf-8")
+        self.assertIn("کافه رویا", content)
+        self.assertNotIn("مریم کریمی", content)
+        category_filtered = self.client.get(reverse("management_portal:request_list") + "?demo=ecommerce")
+        self.assertContains(category_filtered, "کافه رویا")
+        self.assertNotContains(category_filtered, "مریم کریمی")
+
+    def test_detail_card_shows_structured_demo_fields(self):
+        self.client.force_login(self.staff)
+        detail = self.client.get(reverse("management_portal:request_detail", args=["lead", self.lead_with_demo.pk]))
+        self.assertContains(detail, "دموی فروشگاهی")
+        self.assertContains(detail, "کافه رویا")
+        self.assertContains(detail, "سبز آرام")
+        self.assertContains(detail, "لوکس")
+        self.assertContains(detail, "رزرو / نوبت‌دهی")
+        self.assertContains(detail, "کاتالوگ و محصول")
+        self.assertContains(detail, reverse("projects:demo_preview", args=[self.template.slug]))
+
+    def test_detail_without_demo_selection_has_no_demo_card_placeholder(self):
+        self.client.force_login(self.staff)
+        detail = self.client.get(reverse("management_portal:request_detail", args=["lead", self.lead_without_demo.pk]))
+        self.assertNotContains(detail, "دموی فروشگاهی")
+        self.assertNotContains(detail, "مشاهده قالب دموی عمومی")
+
+    def test_detail_card_never_exposes_token_or_session_key(self):
+        self.client.force_login(self.staff)
+        detail = self.client.get(reverse("management_portal:request_detail", args=["lead", self.lead_with_demo.pk]))
+        content = detail.content.decode("utf-8")
+        self.assertNotIn(str(self.selection.public_token), content)
+        self.assertNotIn("dashboard-session", content)
+        self.assertNotIn("session_key", content)
+        self.assertNotIn("public_token", content)
+        export = self.client.get(reverse("management_portal:request_export", args=["lead", self.lead_with_demo.pk]) + "?download=1")
+        exported = export.content.decode("utf-8")
+        self.assertNotIn(str(self.selection.public_token), exported)
+        self.assertNotIn("dashboard-session", exported)
+
+    def test_english_render_has_no_persian_demo_labels(self):
+        # The new structured "Demo selection" card must be fully bilingual.
+        # The separate "Full discovery details" panel below it is a
+        # deliberately Persian-only plain-text export (pre-existing design,
+        # unrelated to this card) and is excluded from this assertion.
+        self.client.force_login(self.staff)
+        detail = self.client.get(f"/en/management/requests/lead/{self.lead_with_demo.pk}/")
+        content = detail.content.decode("utf-8")
+        card_start = content.index("Demo selection")
+        card_html = content[card_start:content.index("</section>", card_start)]
+        self.assertIn("Storefront demo", card_html)
+        self.assertIn("E-commerce", card_html)
+        self.assertIn("Calm sage", card_html)
+        self.assertIn("Luxury", card_html)
+        self.assertIn("Booking", card_html)
+        self.assertIn("Catalogue", card_html)
+        self.assertNotIn("دموی فروشگاهی", card_html)
+        self.assertNotIn("سبز آرام", card_html)
+        self.assertNotIn("لوکس", card_html)
+        listing = self.client.get("/en/management/requests/")
+        listing_content = listing.content.decode("utf-8")
+        self.assertIn("E-commerce", listing_content)
+        self.assertNotIn("فروشگاه اینترنتی", listing_content)
+
+    def test_unauthorized_user_still_denied_for_lead_with_demo_selection(self):
+        outsider = User.objects.create_user(username="no-access", email="no-access@example.com", password="safe-password", is_staff=True)
+        self.client.force_login(outsider)
+        listing = self.client.get(reverse("management_portal:request_list"))
+        self.assertEqual(listing.status_code, 403)
+        detail = self.client.get(reverse("management_portal:request_detail", args=["lead", self.lead_with_demo.pk]))
+        self.assertEqual(detail.status_code, 403)
+
+    def test_request_list_query_count_does_not_grow_with_more_demo_leads(self):
+        self.client.force_login(self.staff)
+        url = reverse("management_portal:request_list")
+        with CaptureQueriesContext(connection) as baseline:
+            self.client.get(url)
+        baseline_count = len(baseline.captured_queries)
+        for index in range(5):
+            selection = DemoSelection.objects.create(
+                template=self.template, session_key=f"extra-session-{index}",
+                selections={"theme": "warm", "personality": "minimal", "features": ["payment"]},
+            )
+            Lead.objects.create(
+                name=f"مشتری {index}", email_or_telegram=f"extra{index}@example.com", phone="09120000020",
+                message="پیام آزمایشی", privacy_accepted_at=timezone.now(), demo_selection=selection,
+            )
+        with CaptureQueriesContext(connection) as grown:
+            self.client.get(url)
+        self.assertEqual(len(grown.captured_queries), baseline_count)

@@ -34,7 +34,8 @@ from traffic.models import ActiveVisitor, TrafficDay
 from contracts.models import ContractProposal
 from blog.models import Post
 from core.models import Page
-from projects.models import Project
+from projects.models import DemoTemplate, Project
+from projects.views.projects import CATEGORY_LABELS_EN as DEMO_CATEGORY_LABELS_EN, _labels as _demo_config_labels
 from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms
@@ -870,31 +871,113 @@ def _require_case_change(user):
         raise PermissionDenied
 
 
+def _demo_category_label(category, lang):
+    return DEMO_CATEGORY_LABELS_EN.get(category, category) if lang == "en" else dict(DemoTemplate.CATEGORY_CHOICES).get(category, category)
+
+
+def _demo_selection_card(item, lang):
+    """Structured demo-selection facts for a Lead's detail page.
+
+    Deliberately excludes `public_token` and `session_key`: those identify
+    one specific anonymous browser session and must never reach a staff
+    view. `public_url` only ever points at the public, unconfigured demo
+    template — never at the customer's saved choices.
+    """
+    if not getattr(item, "demo_selection_id", None):
+        return None
+    selection = item.demo_selection
+    template = selection.template
+    values = selection.selections or {}
+    labels = _demo_config_labels(lang)
+    theme_label = dict(labels["themes"]).get(values.get("theme", ""))
+    personality_label = dict(labels["personalities"]).get(values.get("personality", ""))
+    feature_lookup = dict(labels["features"])
+    feature_labels = [feature_lookup.get(key, key) for key in (values.get("features") or [])]
+    dash = "—"
+    return {
+        "template_title": template.title_fa if lang == "fa" else template.title_en,
+        "category_label": _demo_category_label(template.category, lang),
+        "brand": values.get("brand") or (template.fictional_brand_fa if lang == "fa" else template.fictional_brand_en),
+        "theme_label": theme_label or dash,
+        "personality_label": personality_label or dash,
+        "features_display": ("، " if lang == "fa" else ", ").join(feature_labels) if feature_labels else dash,
+        "public_url": reverse("projects:demo_preview", args=[template.slug]),
+    }
+
+
+def _demo_selection_report_lines(item):
+    """Persian report lines describing a Lead's demo choice, for the plain-text
+    export — matches the rest of that document, which is Persian-only."""
+    if not getattr(item, "demo_selection_id", None):
+        return []
+    selection = item.demo_selection
+    template = selection.template
+    values = selection.selections or {}
+    labels = _demo_config_labels("fa")
+    theme_label = dict(labels["themes"]).get(values.get("theme", "")) or "—"
+    personality_label = dict(labels["personalities"]).get(values.get("personality", "")) or "—"
+    feature_lookup = dict(labels["features"])
+    feature_labels = [feature_lookup.get(key, key) for key in (values.get("features") or [])]
+    brand = values.get("brand") or template.fictional_brand_fa
+    return [
+        "", "انتخاب دمو", "-" * 20,
+        f"دمو: {template.title_fa}",
+        f"دسته: {_demo_category_label(template.category, 'fa')}",
+        f"برند انتخابی: {brand}",
+        f"رنگ: {theme_label}",
+        f"شخصیت طراحی: {personality_label}",
+        f"امکانات: {'، '.join(feature_labels) if feature_labels else '—'}",
+    ]
+
+
 @staff_member_required(login_url="accounts:login")
 def request_list(request):
     _require_sales_access(request.user)
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
     kind = request.GET.get("kind", "all")
     query = request.GET.get("q", "").strip()
+    # Only a Lead can carry a demo_selection, so any active demo filter
+    # (either "only requests with a demo" or a specific demo category)
+    # implicitly excludes CRM/clinic rows — they could never match it.
+    demo_filter = request.GET.get("demo", "").strip()
+    valid_demo_categories = dict(DemoTemplate.CATEGORY_CHOICES)
+    if demo_filter not in ("", "only") and demo_filter not in valid_demo_categories:
+        demo_filter = ""
     rows = []
-    if kind in {"all", "lead"} and (request.user.is_superuser or request.user.has_perm("leads.view_lead")):
-        qs = Lead.objects.all()
+    show_leads = kind in {"all", "lead"} and (request.user.is_superuser or request.user.has_perm("leads.view_lead"))
+    show_crm = kind in {"all", "crm"} and not demo_filter and (request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder"))
+    show_clinic = kind in {"all", "clinic"} and not demo_filter and (request.user.is_superuser or request.user.has_perm("clinic_orders.view_clinicorder"))
+    if show_leads:
+        qs = Lead.objects.select_related("demo_selection__template")
         if query: qs = qs.filter(name__icontains=query)
-        rows += [{"kind": "lead", "kind_label": "درخواست همکاری", "id": x.pk, "title": x.business_name or x.name, "contact": x.name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
-    if kind in {"all", "crm"} and (request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder")):
+        if demo_filter == "only":
+            qs = qs.filter(demo_selection__isnull=False)
+        elif demo_filter:
+            qs = qs.filter(demo_selection__template__category=demo_filter)
+        rows += [{
+            "kind": "lead", "kind_label": "درخواست همکاری", "id": x.pk,
+            "title": x.business_name or x.name, "contact": x.name, "code": x.tracking_code,
+            "status": x.get_status_display(), "created_at": x.created_at,
+            "demo_category_label": _demo_category_label(x.demo_selection.template.category, lang) if x.demo_selection_id else None,
+        } for x in qs[:100]]
+    if show_crm:
         qs = CrmOrder.objects.all()
         if query: qs = qs.filter(organization_name__icontains=query)
-        rows += [{"kind": "crm", "kind_label": "CRM", "id": x.pk, "title": x.organization_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
-    if kind in {"all", "clinic"} and (request.user.is_superuser or request.user.has_perm("clinic_orders.view_clinicorder")):
+        rows += [{"kind": "crm", "kind_label": "CRM", "id": x.pk, "title": x.organization_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at, "demo_category_label": None} for x in qs[:100]]
+    if show_clinic:
         qs = ClinicOrder.objects.all()
         if query: qs = qs.filter(clinic_name__icontains=query)
-        rows += [{"kind": "clinic", "kind_label": "کلینیک", "id": x.pk, "title": x.clinic_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at} for x in qs[:100]]
+        rows += [{"kind": "clinic", "kind_label": "کلینیک", "id": x.pk, "title": x.clinic_name, "contact": x.contact_name, "code": x.tracking_code, "status": x.get_status_display(), "created_at": x.created_at, "demo_category_label": None} for x in qs[:100]]
     rows.sort(key=lambda x: x["created_at"], reverse=True)
-    lang = getattr(request, "LANGUAGE_CODE", "fa")
     if lang == "en":
         status_labels = {"جدید": "New", "جلسه تحلیل": "Discovery", "واجد شرایط": "Qualified", "پیشنهاد ارسال شد": "Proposal sent", "قرارداد": "Won", "بسته‌شده": "Closed"}
         for row in rows:
             row["status"] = status_labels.get(str(row["status"]), row["status"])
-    return render(request, "management_portal/v2/request_list.html", {"rows": rows, "active_kind": kind, "query": query, "lang": lang})
+    demo_category_options = [(value, _demo_category_label(value, lang)) for value in valid_demo_categories]
+    return render(request, "management_portal/v2/request_list.html", {
+        "rows": rows, "active_kind": kind, "query": query, "lang": lang,
+        "active_demo_filter": demo_filter, "demo_category_options": demo_category_options,
+    })
 
 
 @staff_member_required(login_url="accounts:login")
@@ -909,13 +992,12 @@ def request_detail(request, kind, object_id):
         model.objects.select_related("demo_selection__template") if kind == "lead" else model,
         pk=object_id,
     )
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    demo_card = None
     if kind == "lead":
         title, contact, phone, email, code, summary = item.business_name or item.name, item.name, item.phone or "—", item.email_or_telegram, item.tracking_code, item.message
-        demo_lines = []
-        if item.demo_selection_id:
-            selection = item.demo_selection
-            values = selection.selections or {}
-            demo_lines = ["", "انتخاب دمو", "-" * 20, f"دمو: {selection.template.title_fa}", f"برند فرضی: {selection.template.fictional_brand_fa}", f"رنگ: {values.get('theme', '—')}", f"شخصیت طراحی: {values.get('personality', '—')}", f"امکانات: {'، '.join(values.get('features', [])) or '—'}"]
+        demo_card = _demo_selection_card(item, lang)
+        demo_lines = _demo_selection_report_lines(item)
         full_report = "\n".join(("گزارش کامل درخواست همکاری آرویون", "=" * 38, f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"شماره تماس: {item.phone or '—'}", f"ایمیل / تلگرام: {item.email_or_telegram}", f"نوع درخواست: {item.get_request_type_display()}", f"بودجه: {item.get_budget_range_display()}", f"زمان‌بندی: {item.get_timeline_display()}", f"روش تماس: {item.get_preferred_contact_display()}", *demo_lines, "", "شرح درخواست", "-" * 20, item.message))
     elif kind == "crm":
         title, contact, phone, email, code, summary = item.organization_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
@@ -923,7 +1005,6 @@ def request_detail(request, kind, object_id):
     else:
         title, contact, phone, email, code, summary = item.clinic_name, item.contact_name, item.phone, item.work_email, item.tracking_code, item.main_pain_points
         full_report = render_clinic_order_text(item)
-    lang = getattr(request, "LANGUAGE_CODE", "fa")
     status_choices = list(model.STATUSES)
     if lang == "en":
         status_en = {
@@ -947,7 +1028,7 @@ def request_detail(request, kind, object_id):
         "item": item, "kind": kind, "title": title, "contact": contact, "phone": phone,
         "email": email, "code": code, "summary": summary, "full_report": full_report, "lang": lang, "status_choices": status_choices, "status_display": status_display,
         "can_change": request.user.is_superuser or request.user.has_perm({"lead": "leads.change_lead", "crm": "crm_orders.change_crmorder", "clinic": "clinic_orders.change_clinicorder"}[kind]),
-        "customer_case": customer_case,
+        "customer_case": customer_case, "demo_card": demo_card,
     })
 
 
@@ -968,11 +1049,7 @@ def request_export(request, kind, object_id):
     if kind == "crm": report = render_crm_order_text(item)
     elif kind == "clinic": report = render_clinic_order_text(item)
     else:
-        demo_lines = []
-        if item.demo_selection_id:
-            selection = item.demo_selection
-            values = selection.selections or {}
-            demo_lines = ["", "انتخاب دمو", "-" * 20, f"دمو: {selection.template.title_fa}", f"برند فرضی: {selection.template.fictional_brand_fa}", f"رنگ: {values.get('theme', '—')}", f"شخصیت طراحی: {values.get('personality', '—')}", f"امکانات: {'، '.join(values.get('features', [])) or '—'}"]
+        demo_lines = _demo_selection_report_lines(item)
         report = "\n".join(("گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"تماس: {item.phone or item.email_or_telegram}", *demo_lines, "", item.message)) + "\n"
     filename = f"rvion-{kind}-{item.pk}.txt"
     if request.GET.get("download") == "1":
