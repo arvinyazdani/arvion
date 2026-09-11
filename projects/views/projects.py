@@ -2,8 +2,9 @@
 
 
 import secrets
+from urllib.parse import urlencode
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -212,33 +213,61 @@ class DemoConfigureView(LanguageViewMixin, View):
         def matches_this_submission(row):
             return row.session_key == session_key and row.template_id == demo.pk and row.selections == selections_payload
 
+        def create_selection(token):
+            # A short, dedicated transaction around just this insert: if the
+            # unique constraint on submission_token fires, only this
+            # savepoint rolls back, so the surrounding request transaction
+            # (including under DATABASES[...]['ATOMIC_REQUESTS'] = True) is
+            # still safe to query once the exception is caught below.
+            with transaction.atomic():
+                return DemoSelection.objects.create(
+                    template=demo, session_key=session_key,
+                    submission_token=token, selections=selections_payload,
+                )
+
         # `submission_token` is globally unique, so a resubmission of the exact
         # same token — same tab double-clicking submit, a retried request, a
         # browser "confirm resubmission" — reuses the row it already created
-        # instead of making a duplicate. A token replayed from a different
-        # session, for a different demo, or with edited field values is
-        # rejected outright: it must not create a second row and must not
-        # expose or attach the row that owns the token.
+        # instead of making a duplicate.
         existing = DemoSelection.objects.filter(submission_token=submission_token).first()
-        if existing is not None:
-            if matches_this_submission(existing):
-                selection = existing
-            else:
-                return redirect(invalid_url)
-        else:
+        if existing is None:
             try:
-                selection = DemoSelection.objects.create(
-                    template=demo, session_key=session_key,
-                    submission_token=submission_token, selections=selections_payload,
-                )
+                selection = create_selection(submission_token)
             except IntegrityError:
-                # Two near-simultaneous requests raced past the check above;
-                # the loser lands here once the winner's row is committed.
+                # A concurrent request committed this exact token first.
                 existing = DemoSelection.objects.filter(submission_token=submission_token).first()
                 if existing is not None and matches_this_submission(existing):
                     selection = existing
                 else:
                     return redirect(invalid_url)
+        elif existing.session_key != session_key:
+            # Replayed from a different session/device: never create a
+            # second row for it and never expose or attach the one it owns.
+            return redirect(invalid_url)
+        elif matches_this_submission(existing):
+            selection = existing
+        else:
+            # Same session, but the token is stale — the classic case is the
+            # visitor pressing Back (a bfcache restore keeps the old hidden
+            # field), changing a setting, and resubmitting. The stale token
+            # already names one specific, already-recorded choice, so it is
+            # rejected exactly like a cross-session replay: the original row
+            # is left untouched and no second row is created for it. What
+            # differs from a real replay is the redirect: the visitor's
+            # just-submitted values are carried back as query parameters (the
+            # configurator already restores state from these on load), so
+            # nothing is silently lost, and the reloaded page carries a
+            # brand-new server-minted token ready for an immediate retry.
+            # With JavaScript enabled this path is normally avoided entirely:
+            # a `pageshow` listener reloads a bfcache-restored page before the
+            # visitor can resubmit, so they already have a fresh token by the
+            # time they click again.
+            query = {"stale": "1", "brand": selections_payload["brand"], "theme": theme, "personality": personality}
+            if features:
+                query["features"] = ",".join(features)
+            if theme == "custom":
+                query["color"] = custom_color
+            return redirect(f"{reverse('projects:demo_preview', args=[demo.slug])}?{urlencode(query)}")
         request.session["demo_selection_token"] = str(selection.public_token)
         request.session.modified = True
         request_type = REQUEST_TYPES[demo.category]

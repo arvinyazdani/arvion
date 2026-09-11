@@ -24,6 +24,16 @@
   const contrastColour = (hex) => relativeLuminance(hex) > 0.42 ? "#171717" : "#ffffff";
   const readableAccent = (hex) => ((1.05 / (relativeLuminance(hex) + 0.05)) >= 4.5 ? hex : "#374151");
 
+  // A page restored from the back-forward cache keeps the exact DOM it left
+  // with, including a `submission_token` hidden field that the server has
+  // already consumed. Reloading forces a fresh GET, which mints a new token
+  // before the visitor can act on the restored page — the normal path never
+  // reaches the server's stale-token fallback at all. This is convenience
+  // only: the server enforces the real rule independently of it running.
+  if (document.querySelector("[data-demo-form]")) {
+    window.addEventListener("pageshow", (event) => { if (event.persisted) location.reload(); });
+  }
+
   document.querySelectorAll("[data-demo-configurator]").forEach((root) => {
     const slug = root.dataset.demoSlug;
     const storageKey = `rvion-demo-${slug}`;

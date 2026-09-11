@@ -28,6 +28,7 @@
     <aside class="demo-config" id="configurator">
       <header><span>{% if lang == 'fa' %}انتخاب شما{% else %}YOUR DIRECTION{% endif %}</span><h2>{% if lang == 'fa' %}با چند تغییر ساده، به سلیقه خودتان نزدیکش کنید.{% else %}Bring it closer to your taste in a few changes.{% endif %}</h2><p>{% if lang == 'fa' %}همه تغییرها فوری‌اند؛ هر زمان خواستید به حالت اول برگردید.{% else %}Every change is instant, and you can reset at any time.{% endif %}</p></header>
       {% if request.GET.invalid %}<p class="demo-error" role="alert">{% if lang == 'fa' %}یکی از انتخاب‌ها معتبر نبود؛ دوباره بررسی کنید.{% else %}One choice was invalid. Please review it.{% endif %}</p>{% endif %}
+      {% if request.GET.stale %}<p class="demo-notice" role="status">{% if lang == 'fa' %}صفحه به‌روزرسانی شد و انتخاب‌های شما حفظ شدند؛ می‌توانید دوباره ادامه دهید.{% else %}This page was refreshed and your choices were kept — you can continue again.{% endif %}</p>{% endif %}
       <form method="post" action="{% url 'projects:demo_configure' demo.slug %}" data-demo-form>
         {% csrf_token %}
         <input type="hidden" name="submission_token" value="{{ submission_token }}">
