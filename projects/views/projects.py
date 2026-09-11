@@ -10,6 +10,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views import View
 from django.views.generic import DetailView, ListView, RedirectView
+from projects.demo_labels import CATEGORY_LABELS_EN, demo_config_labels as _labels
 from projects.models import DemoSelection, DemoTemplate
 from projects.models.projects import Project
 from core.views.lang import LanguageViewMixin
@@ -21,11 +22,6 @@ FEATURES = ("payment", "booking", "catalog", "blog", "membership", "multilingual
 REQUEST_TYPES = {
     "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
     "corporate": "website", "clinic": "webapp", "education": "webapp",
-}
-CATEGORY_LABELS_EN = {
-    "ecommerce": "E-commerce", "restaurant": "Restaurant & cafe",
-    "portfolio": "Portfolio", "corporate": "Corporate website",
-    "clinic": "Clinic", "education": "Education & webinar",
 }
 
 CATEGORY_DETAILS = {
@@ -119,18 +115,6 @@ def _selection_session_key(request):
     if not request.session.session_key:
         request.session.create()
     return request.session.session_key
-
-
-def _labels(lang):
-    fa = lang == "fa"
-    return {
-        "themes": [("warm", "گرم و نارنجی"), ("midnight", "تیره و حرفه‌ای"), ("sage", "سبز آرام"), ("plum", "ارغوانی خلاق"), ("custom", "رنگ دلخواه")]
-        if fa else [("warm", "Warm orange"), ("midnight", "Professional dark"), ("sage", "Calm sage"), ("plum", "Creative plum"), ("custom", "Custom colour")],
-        "personalities": [("minimal", "مینیمال"), ("editorial", "محتوامحور"), ("luxury", "لوکس"), ("bold", "پر انرژی")]
-        if fa else [("minimal", "Minimal"), ("editorial", "Editorial"), ("luxury", "Luxury"), ("bold", "Bold")],
-        "features": [("payment", "پرداخت آنلاین"), ("booking", "رزرو / نوبت‌دهی"), ("catalog", "کاتالوگ و محصول"), ("blog", "مقاله و محتوا"), ("membership", "عضویت و پنل مشتری"), ("multilingual", "چندزبانه")]
-        if fa else [("payment", "Online payments"), ("booking", "Booking"), ("catalog", "Catalogue"), ("blog", "Content"), ("membership", "Member area"), ("multilingual", "Multilingual")],
-    }
 
 
 class DemoGalleryView(LanguageViewMixin, ListView):

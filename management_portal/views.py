@@ -34,8 +34,8 @@ from traffic.models import ActiveVisitor, TrafficDay
 from contracts.models import ContractProposal
 from blog.models import Post
 from core.models import Page
+from projects.demo_labels import CATEGORY_LABELS_EN as DEMO_CATEGORY_LABELS_EN, demo_config_labels as _demo_config_labels
 from projects.models import DemoTemplate, Project
-from projects.views.projects import CATEGORY_LABELS_EN as DEMO_CATEGORY_LABELS_EN, _labels as _demo_config_labels
 from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
 from core.sms import send_sms

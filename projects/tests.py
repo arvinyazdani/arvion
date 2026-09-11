@@ -1,11 +1,17 @@
+from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
+from leads.models import Lead
 from .models import DemoSelection, DemoTemplate, Project
 
 
@@ -358,3 +364,75 @@ class ProjectTests(TestCase):
             response, reverse("leads:contact") + f"?demo={winner.public_token}&request_type=ecommerce",
             fetch_redirect_response=False,
         )
+
+
+class DemoSelectionCleanupCommandTests(TestCase):
+    """`cleanup_demo_selections`: safe, batch-safe lifecycle cleanup for
+    abandoned DemoSelection rows."""
+
+    def _make_selection(self, *, slug, session_key="cleanup-session"):
+        template = DemoTemplate.objects.create(
+            slug=slug, category="ecommerce", title_fa="دموی تست", title_en="Test demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند فرضی مخفی",
+            fictional_brand_en="Secret fictional brand", style_key="minimal",
+        )
+        return DemoSelection.objects.create(
+            template=template, session_key=session_key, selections={"theme": "warm"},
+        )
+
+    def _backdate(self, selection, days):
+        DemoSelection.objects.filter(pk=selection.pk).update(updated_at=timezone.now() - timedelta(days=days))
+
+    def test_dry_run_reports_stale_unattached_selection_without_deleting_it(self):
+        stale = self._make_selection(slug="cleanup-stale-1")
+        self._backdate(stale, 31)
+        out = StringIO()
+        call_command("cleanup_demo_selections", stdout=out)
+        self.assertIn("1", out.getvalue())
+        self.assertTrue(DemoSelection.objects.filter(pk=stale.pk).exists())
+
+    def test_apply_deletes_the_same_record_in_the_test_database(self):
+        stale = self._make_selection(slug="cleanup-stale-2")
+        self._backdate(stale, 31)
+        call_command("cleanup_demo_selections", "--apply", stdout=StringIO())
+        self.assertFalse(DemoSelection.objects.filter(pk=stale.pk).exists())
+
+    def test_selection_attached_to_lead_is_never_reported_or_deleted_even_if_very_old(self):
+        stale = self._make_selection(slug="cleanup-stale-3")
+        self._backdate(stale, 365)
+        Lead.objects.create(
+            name="مشتری پیوسته", email_or_telegram="attached@example.com", message="پیام آزمایشی",
+            privacy_accepted_at=timezone.now(), demo_selection=stale,
+        )
+        out = StringIO()
+        call_command("cleanup_demo_selections", stdout=out)
+        self.assertIn("0", out.getvalue())
+        call_command("cleanup_demo_selections", "--apply", stdout=StringIO())
+        self.assertTrue(DemoSelection.objects.filter(pk=stale.pk).exists())
+
+    def test_fresh_unattached_selection_is_not_deleted(self):
+        fresh = self._make_selection(slug="cleanup-fresh-1")
+        call_command("cleanup_demo_selections", "--apply", stdout=StringIO())
+        self.assertTrue(DemoSelection.objects.filter(pk=fresh.pk).exists())
+
+    def test_invalid_older_than_days_raises_readable_error_and_changes_nothing(self):
+        stale = self._make_selection(slug="cleanup-stale-4")
+        self._backdate(stale, 31)
+        with self.assertRaises(CommandError):
+            call_command("cleanup_demo_selections", "--older-than-days", "0", "--apply", stdout=StringIO())
+        with self.assertRaises(CommandError):
+            call_command("cleanup_demo_selections", "--older-than-days", "-5", "--apply", stdout=StringIO())
+        self.assertTrue(DemoSelection.objects.filter(pk=stale.pk).exists())
+
+    def test_output_never_contains_token_session_key_or_brand(self):
+        stale = self._make_selection(slug="cleanup-stale-5", session_key="super-secret-session-key")
+        self._backdate(stale, 31)
+        out = StringIO()
+        call_command("cleanup_demo_selections", stdout=out)
+        content = out.getvalue()
+        self.assertNotIn(str(stale.public_token), content)
+        self.assertNotIn("super-secret-session-key", content)
+        self.assertNotIn("برند فرضی مخفی", content)
+        self.assertNotIn("Secret fictional brand", content)
+        self.assertNotIn("public_token", content)
+        self.assertNotIn("session_key", content)
