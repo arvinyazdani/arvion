@@ -1,7 +1,9 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from django.conf import settings
-from django.test import TestCase
+from django.db import IntegrityError
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from .models import DemoSelection, DemoTemplate, Project
@@ -44,6 +46,7 @@ class ProjectTests(TestCase):
         self.assertContains(preview, "برند فرضی")
         self.assertContains(preview, reverse("projects:demo_full", args=[demo.slug]))
         response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
+            "submission_token": "gallery-flow-token",
             "brand_preview": "فروشگاه من", "theme": "custom", "custom_color": "#123abc",
             "personality": "minimal", "features": ["payment", "catalog"],
         })
@@ -66,11 +69,27 @@ class ProjectTests(TestCase):
             fictional_brand_en="FICTIONAL", style_key="editorial", default_features=[],
         )
         response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
+            "submission_token": "invalid-colour-token",
             "theme": "custom", "custom_color": "not-a-colour", "personality": "editorial",
         })
         self.assertRedirects(
             response,
             reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(DemoSelection.objects.exists())
+
+    def test_missing_submission_token_is_rejected_without_creating_selection(self):
+        demo = DemoTemplate.objects.create(
+            slug="no-token", category="portfolio", title_fa="تست", title_en="Test",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="editorial", default_features=[],
+        )
+        response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
+            "theme": "warm", "personality": "editorial",
+        })
+        self.assertRedirects(
+            response, reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1",
             fetch_redirect_response=False,
         )
         self.assertFalse(DemoSelection.objects.exists())
@@ -83,3 +102,156 @@ class ProjectTests(TestCase):
         self.assertIn('setAttribute("aria-pressed"', script)
         self.assertIn("data-demo-back", script)
         self.assertNotIn("location.reload", script)
+
+    def test_preview_page_embeds_a_fresh_submission_token_on_every_render(self):
+        demo = DemoTemplate.objects.create(
+            slug="fresh-token", category="portfolio", title_fa="تست", title_en="Test",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="editorial", default_features=[],
+        )
+        url = reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa"
+        first = self.client.get(url)
+        second = self.client.get(url)
+
+        def extract_token(response):
+            marker = 'name="submission_token" value="'
+            body = response.content.decode()
+            start = body.index(marker) + len(marker)
+            return body[start:body.index('"', start)]
+
+        first_token, second_token = extract_token(first), extract_token(second)
+        self.assertTrue(first_token)
+        self.assertNotEqual(first_token, second_token)
+
+    def test_submitting_the_same_submission_token_twice_creates_only_one_selection(self):
+        demo = DemoTemplate.objects.create(
+            slug="idempotent-demo", category="ecommerce", title_fa="دموی ثابت", title_en="Stable demo",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="minimal", default_features=[],
+        )
+        payload = {
+            "submission_token": "same-token-abc", "brand_preview": "برند من",
+            "theme": "warm", "personality": "minimal", "features": ["payment"],
+        }
+        first = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), payload)
+        second = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), payload)
+
+        self.assertEqual(DemoSelection.objects.count(), 1)
+        selection = DemoSelection.objects.get()
+        expected_redirect = reverse("leads:contact") + f"?demo={selection.public_token}&request_type=ecommerce"
+        self.assertRedirects(first, expected_redirect, fetch_redirect_response=False)
+        self.assertRedirects(second, expected_redirect, fetch_redirect_response=False)
+
+    def test_a_new_submission_token_creates_a_new_selection(self):
+        demo = DemoTemplate.objects.create(
+            slug="two-real-choices", category="ecommerce", title_fa="دموی دوگانه", title_en="Two-choice demo",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="minimal", default_features=[],
+        )
+        configure_url = reverse("projects:demo_configure", args=[demo.slug])
+        self.client.post(configure_url, {
+            "submission_token": "token-one", "theme": "warm", "personality": "minimal", "features": [],
+        })
+        self.client.post(configure_url, {
+            "submission_token": "token-two", "theme": "sage", "personality": "editorial", "features": [],
+        })
+
+        self.assertEqual(DemoSelection.objects.count(), 2)
+        self.assertEqual(
+            sorted(DemoSelection.objects.values_list("submission_token", flat=True)),
+            ["token-one", "token-two"],
+        )
+
+    def test_reused_submission_token_from_a_different_session_is_rejected(self):
+        demo = DemoTemplate.objects.create(
+            slug="cross-session-demo", category="ecommerce", title_fa="دموی مشترک", title_en="Shared demo",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="minimal", default_features=[],
+        )
+        configure_url = reverse("projects:demo_configure", args=[demo.slug])
+        payload = {"submission_token": "shared-token", "theme": "warm", "personality": "minimal", "features": []}
+
+        owner = Client()
+        owner_response = owner.post(configure_url, payload)
+        self.assertEqual(DemoSelection.objects.count(), 1)
+        original = DemoSelection.objects.get()
+        self.assertEqual(original.session_key, owner.session.session_key)
+
+        intruder = Client()
+        intruder_response = intruder.post(configure_url, payload)
+
+        # No second row, no exposure of the first session's row, no attachment.
+        self.assertRedirects(
+            intruder_response, reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(DemoSelection.objects.count(), 1)
+        original.refresh_from_db()
+        self.assertEqual(original.session_key, owner.session.session_key)
+        self.assertNotEqual(original.session_key, intruder.session.session_key)
+        self.assertNotIn("demo_selection_token", intruder.session)
+        # The legitimate owner's redirect is unaffected by the replay attempt.
+        self.assertRedirects(
+            owner_response, reverse("leads:contact") + f"?demo={original.public_token}&request_type=ecommerce",
+            fetch_redirect_response=False,
+        )
+
+    def test_reused_submission_token_with_edited_data_is_rejected_and_original_kept(self):
+        demo = DemoTemplate.objects.create(
+            slug="edited-resubmit", category="ecommerce", title_fa="دموی ویرایش‌شده", title_en="Edited demo",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="minimal", default_features=[],
+        )
+        configure_url = reverse("projects:demo_configure", args=[demo.slug])
+        self.client.post(configure_url, {
+            "submission_token": "edited-token", "theme": "warm", "personality": "minimal", "features": [],
+        })
+        response = self.client.post(configure_url, {
+            "submission_token": "edited-token", "theme": "sage", "personality": "editorial", "features": [],
+        })
+
+        self.assertRedirects(
+            response, reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(DemoSelection.objects.count(), 1)
+        self.assertEqual(DemoSelection.objects.get().selections["theme"], "warm")
+
+    def test_concurrent_race_on_the_same_token_falls_back_to_the_winning_row(self):
+        """A near-simultaneous duplicate request hits the unique constraint
+        after the initial "does it exist" check passes for both; the loser
+        must recover by reusing the winner's row instead of erroring out."""
+        demo = DemoTemplate.objects.create(
+            slug="race-demo", category="ecommerce", title_fa="دموی رقابتی", title_en="Race demo",
+            tagline_fa="شرح", tagline_en="Description", fictional_brand_fa="فرضی",
+            fictional_brand_en="FICTIONAL", style_key="minimal", default_features=[],
+        )
+        payload = {"submission_token": "race-token", "theme": "warm", "personality": "minimal", "features": []}
+        configure_url = reverse("projects:demo_configure", args=[demo.slug])
+
+        # Prime the session so `_selection_session_key` is stable, then make
+        # the create() call simulate losing a race against a concurrent
+        # request that already committed the same token. `original_create` is
+        # captured before patching so the simulated "winner" can still write
+        # a real row without recursing into the patched method.
+        self.client.get(reverse("projects:demo_preview", args=[demo.slug]))
+        session_key = self.client.session.session_key
+        original_create = DemoSelection.objects.create
+
+        def create_then_raise(*args, **kwargs):
+            original_create(
+                template=demo, session_key=session_key,
+                submission_token=payload["submission_token"],
+                selections={"theme": "warm", "personality": "minimal", "features": [], "custom_color": "", "brand": demo.fictional_brand_fa},
+            )
+            raise IntegrityError("unique constraint")
+
+        with patch("projects.views.projects.DemoSelection.objects.create", side_effect=create_then_raise):
+            response = self.client.post(configure_url, payload)
+
+        self.assertEqual(DemoSelection.objects.count(), 1)
+        selection = DemoSelection.objects.get()
+        self.assertRedirects(
+            response, reverse("leads:contact") + f"?demo={selection.public_token}&request_type=ecommerce",
+            fetch_redirect_response=False,
+        )

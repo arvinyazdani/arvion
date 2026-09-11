@@ -149,6 +149,21 @@
       Object.assign(state, defaults); try { sessionStorage.removeItem(storageKey); } catch (error) {} render();
     }));
 
+    // Reduce accidental double submits by disabling the button once the
+    // browser has already begun submitting the form. The server-side
+    // submission_token is what actually prevents a duplicate DemoSelection,
+    // so this is UX polish only and never blocks the real POST.
+    const form = root.querySelector("[data-demo-form]");
+    const submitButton = root.querySelector("[data-demo-submit]");
+    if (form && submitButton) {
+      form.addEventListener("submit", () => {
+        if (submitButton.disabled) return;
+        submitButton.disabled = true;
+        const sendingLabel = submitButton.dataset.sendingLabel;
+        if (sendingLabel) submitButton.textContent = sendingLabel;
+      });
+    }
+
     render();
   });
 })();

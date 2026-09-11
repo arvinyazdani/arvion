@@ -37,6 +37,11 @@ class DemoSelection(models.Model):
     public_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
     template = models.ForeignKey(DemoTemplate, on_delete=models.PROTECT, related_name="selections")
     session_key = models.CharField(max_length=64, db_index=True)
+    # One-shot idempotency key minted server-side per form render (see
+    # DemoPreviewView). Nullable so older rows created before this field
+    # existed remain valid; SQLite/Postgres both allow multiple NULLs under
+    # a unique constraint, so this never collides with historical data.
+    submission_token = models.CharField(max_length=64, unique=True, db_index=True, blank=True, null=True)
     selections = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

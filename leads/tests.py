@@ -116,6 +116,33 @@ class LeadTests(TestCase):
         url = reverse("leads:contact") + f"?lang=fa&demo={selection.public_token}&request_type=webapp"
         page = self.client.get(url)
         self.assertNotContains(page, "نمونه انتخاب‌شده: دموی خصوصی")
+        self.assertContains(page, "انتخاب دموی شما ذخیره نشد")
+        # Nothing about the other session — not its key, not its selections —
+        # may leak into this page.
+        self.assertNotContains(page, "a-different-session")
+        self.assertNotContains(page, "دموی خصوصی")
         response = self.client.post(url, self.payload)
         self.assertEqual(response.status_code, 302)
         self.assertIsNone(Lead.objects.get().demo_selection)
+
+    def test_garbage_or_foreign_demo_token_shows_bilingual_non_blocking_notice(self):
+        demo = DemoTemplate.objects.create(
+            slug="notice-demo", category="clinic", title_fa="دموی هشدار", title_en="Notice demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند", fictional_brand_en="BRAND",
+            style_key="minimal",
+        )
+        foreign_selection = DemoSelection.objects.create(
+            template=demo, session_key="someone-elses-session", selections={"theme": "warm"},
+        )
+
+        fa_response = self.client.get(reverse("leads:contact") + f"?lang=fa&demo={foreign_selection.public_token}")
+        self.assertContains(fa_response, "انتخاب دموی شما ذخیره نشد")
+        self.assertContains(fa_response, reverse("projects:demo_gallery"))
+        # The form must stay fully usable — the notice never blocks submission.
+        self.assertContains(fa_response, 'name="message"')
+
+        en_response = self.client.get(reverse("leads:contact") + "?lang=en&demo=not-a-real-token")
+        self.assertContains(en_response, "Your demo selection could not be attached")
+
+        no_token_response = self.client.get(reverse("leads:contact") + "?lang=fa")
+        self.assertNotContains(no_token_response, "انتخاب دموی شما ذخیره نشد")

@@ -65,6 +65,16 @@ class LeadCreateView(LanguageViewMixin, FormView):
             )
         return initial
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # A `demo` token in the URL that cannot be resolved for this session —
+        # wrong session, wrong device, expired, or simply invalid — must not
+        # block or explain itself (that would leak whether the token exists
+        # at all); it just surfaces a neutral, non-blocking notice.
+        if self.request.GET.get("demo", "") and not _session_demo_selection(self.request):
+            context["demo_link_invalid"] = True
+        return context
+
     def form_valid(self, form):
         client_ip = self.request.META.get("REMOTE_ADDR", "unknown")
         limit_key = f"lead-submit:{client_ip}"

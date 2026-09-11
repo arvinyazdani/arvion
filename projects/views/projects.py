@@ -1,6 +1,9 @@
 
 
 
+import secrets
+
+from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -162,7 +165,12 @@ class DemoPreviewView(LanguageViewMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(demo=_decorate_demo(context["demo"], self.lang), lang=self.lang, labels=_labels(self.lang))
+        context.update(
+            demo=_decorate_demo(context["demo"], self.lang), lang=self.lang, labels=_labels(self.lang),
+            # Minted server-side on every render so the one-shot idempotency
+            # check in DemoConfigureView never depends on client JavaScript.
+            submission_token=secrets.token_urlsafe(24),
+        )
         return context
 
 
@@ -175,26 +183,62 @@ class DemoConfigureView(LanguageViewMixin, View):
         demo = DemoTemplate.objects.filter(slug=slug, is_active=True).first()
         if demo is None:
             raise Http404
+        invalid_url = reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1"
+        submission_token = request.POST.get("submission_token", "").strip()[:64]
         theme = request.POST.get("theme", "")
         personality = request.POST.get("personality", "")
         features = [item for item in request.POST.getlist("features") if item in FEATURES]
         brand_preview = request.POST.get("brand_preview", "").strip()[:48]
         custom_color = request.POST.get("custom_color", "").strip().lower()
+        # The token is minted server-side by DemoPreviewView on every GET, so a
+        # missing one means the form was not rendered by that view — reject it
+        # the same way as any other malformed submission.
+        if not submission_token:
+            return redirect(invalid_url)
         if theme not in THEMES or personality not in PERSONALITIES or len(features) > 6:
-            return redirect(reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1")
+            return redirect(invalid_url)
         if theme == "custom" and (len(custom_color) != 7 or not custom_color.startswith("#") or any(character not in "0123456789abcdef" for character in custom_color[1:])):
-            return redirect(reverse("projects:demo_preview", args=[demo.slug]) + "?invalid=1")
-        selection = DemoSelection.objects.create(
-            template=demo,
-            session_key=_selection_session_key(request),
-            selections={
-                "theme": theme,
-                "personality": personality,
-                "features": features,
-                "custom_color": custom_color if theme == "custom" else "",
-                "brand": brand_preview or (demo.fictional_brand_fa if self.lang == "fa" else demo.fictional_brand_en),
-            },
-        )
+            return redirect(invalid_url)
+
+        session_key = _selection_session_key(request)
+        selections_payload = {
+            "theme": theme,
+            "personality": personality,
+            "features": features,
+            "custom_color": custom_color if theme == "custom" else "",
+            "brand": brand_preview or (demo.fictional_brand_fa if self.lang == "fa" else demo.fictional_brand_en),
+        }
+
+        def matches_this_submission(row):
+            return row.session_key == session_key and row.template_id == demo.pk and row.selections == selections_payload
+
+        # `submission_token` is globally unique, so a resubmission of the exact
+        # same token — same tab double-clicking submit, a retried request, a
+        # browser "confirm resubmission" — reuses the row it already created
+        # instead of making a duplicate. A token replayed from a different
+        # session, for a different demo, or with edited field values is
+        # rejected outright: it must not create a second row and must not
+        # expose or attach the row that owns the token.
+        existing = DemoSelection.objects.filter(submission_token=submission_token).first()
+        if existing is not None:
+            if matches_this_submission(existing):
+                selection = existing
+            else:
+                return redirect(invalid_url)
+        else:
+            try:
+                selection = DemoSelection.objects.create(
+                    template=demo, session_key=session_key,
+                    submission_token=submission_token, selections=selections_payload,
+                )
+            except IntegrityError:
+                # Two near-simultaneous requests raced past the check above;
+                # the loser lands here once the winner's row is committed.
+                existing = DemoSelection.objects.filter(submission_token=submission_token).first()
+                if existing is not None and matches_this_submission(existing):
+                    selection = existing
+                else:
+                    return redirect(invalid_url)
         request.session["demo_selection_token"] = str(selection.public_token)
         request.session.modified = True
         request_type = REQUEST_TYPES[demo.category]
