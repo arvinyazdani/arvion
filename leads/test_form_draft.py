@@ -424,6 +424,144 @@ class DemoSnapshotAttachClearTests(TestCase):
         other_draft.refresh_from_db()
         self.assertEqual(other_draft.demo_snapshot, build_demo_selection_snapshot(self.selection))
 
+    def test_attach_demo_snapshot_extends_expires_at_by_seven_days(self):
+        draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=1)
+        FormDraft.objects.filter(pk=draft.pk).update(expires_at=timezone.now() + timedelta(days=1))
+
+        updated = attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+
+        self.assertAlmostEqual(
+            (updated.expires_at - timezone.now()).total_seconds(), timedelta(days=7).total_seconds(), delta=5,
+        )
+        self.assertEqual(updated.fields, {"request_type": "webapp"})
+        self.assertEqual(updated.current_step, 1)
+
+    def test_clear_demo_snapshot_extends_expires_at_by_seven_days(self):
+        draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=2)
+        attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        FormDraft.objects.filter(pk=draft.pk).update(expires_at=timezone.now() + timedelta(hours=2))
+
+        updated = clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+
+        self.assertAlmostEqual(
+            (updated.expires_at - timezone.now()).total_seconds(), timedelta(days=7).total_seconds(), delta=5,
+        )
+        self.assertEqual(updated.fields, {"request_type": "webapp"})
+        self.assertEqual(updated.current_step, 2)
+
+    def test_attach_on_an_expired_draft_rejects_but_still_commits_the_expiry(self):
+        """Regression proof for the rollback bug this corrective phase
+        fixes: raising DraftValidationError from inside the same
+        transaction.atomic() block that just expired a stale draft would
+        roll that expiry back out too. It must not."""
+        stale = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        with self.assertRaises(DraftValidationError) as ctx:
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        self.assertEqual(ctx.exception.code, "no_active_draft")
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+
+    def test_clear_on_an_expired_draft_rejects_but_still_commits_the_expiry(self):
+        stale = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        with self.assertRaises(DraftValidationError) as ctx:
+            clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+        self.assertEqual(ctx.exception.code, "no_active_draft")
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+
+    def test_expired_draft_is_never_revived_by_attach_or_clear(self):
+        stale = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        with self.assertRaises(DraftValidationError):
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        with self.assertRaises(DraftValidationError):
+            clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+
+        self.assertEqual(
+            FormDraft.objects.filter(owner=self.owner, status__in=FormDraft.ACTIVE_STATUSES).count(), 0,
+        )
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+
+    def test_upsert_still_creates_a_fresh_draft_after_expiry(self):
+        stale = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        fresh = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "website"})
+
+        self.assertNotEqual(stale.pk, fresh.pk)
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+        self.assertEqual(fresh.status, "open")
+
+    def test_attach_ignores_an_in_memory_mutation_of_the_demo_selection(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        original_snapshot = build_demo_selection_snapshot(self.selection)
+
+        # Mutate the in-memory instance's selections without saving —
+        # simulating a caller that hands in a locally-tampered object.
+        self.selection.selections = {
+            "theme": "warm", "personality": "minimal", "brand": "injected-brand", "features": ["support"],
+        }
+
+        draft = attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+
+        self.assertEqual(draft.demo_snapshot, original_snapshot)
+        self.assertNotEqual(draft.demo_snapshot["brand"], "injected-brand")
+
+    def test_attach_rejects_a_demo_selection_whose_row_no_longer_exists(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        stale_pk = self.selection.pk
+        # Delete via a fresh queryset so the in-memory `self.selection`
+        # object keeps its pk attribute set (Django only nulls the pk on
+        # the exact instance .delete() is called on), matching a caller
+        # that holds a reference to a row deleted by someone else.
+        DemoSelection.objects.filter(pk=stale_pk).delete()
+
+        with self.assertRaises(DraftValidationError) as ctx:
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        self.assertEqual(ctx.exception.code, "invalid_demo_selection")
+
+        draft = get_active_draft(self.owner, "leads_contact")
+        self.assertEqual(draft.demo_snapshot, {})
+
+    def test_invalid_snapshot_values_are_rejected_and_leave_the_draft_untouched(self):
+        draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=1)
+        original_expires_at = draft.expires_at
+
+        base = build_demo_selection_snapshot(self.selection)
+        malformed_variants = [
+            {**base, "brand": 12345},  # wrong type
+            {**base, "brand": "x" * 10_000},  # far past the length cap
+            {**base, "features_fa": "not-a-list"},  # wrong type
+            {**base, "features_fa": [1, 2]},  # non-string members
+            {**base, "features_fa": ["a"], "features_en": ["a", "b"]},  # mismatched counts
+            {**base, "theme_fa": ["nested", "list"]},  # nested structure
+            {**base, "personality_fa": True},  # bool, not str
+        ]
+        for bad_snapshot in malformed_variants:
+            with mock.patch(
+                "leads.form_draft_service.build_demo_selection_snapshot", return_value=bad_snapshot,
+            ):
+                with self.assertRaises(DraftValidationError) as ctx:
+                    attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+                self.assertEqual(ctx.exception.code, "invalid_snapshot_shape")
+                self.assertNotIn("12345", str(ctx.exception))
+                self.assertNotIn("injected", str(ctx.exception))
+
+        draft.refresh_from_db()
+        self.assertEqual(draft.fields, {"request_type": "webapp"})
+        self.assertEqual(draft.current_step, 1)
+        self.assertEqual(draft.demo_snapshot, {})
+        self.assertEqual(draft.expires_at, original_expires_at)
+
 
 class DemoSnapshotExtractionTests(TestCase):
     """The neutral projects.demo_snapshots.build_demo_selection_snapshot
@@ -616,3 +754,137 @@ class FormDraftPostgresRaceTests(TransactionTestCase):
         self.assertGreater(survivor.expires_at, timezone.now())
         stale.refresh_from_db()
         self.assertEqual(stale.status, "expired")
+
+    def test_concurrent_attach_and_upsert_on_an_active_draft_both_apply(self):
+        """The owner-row lock shared by upsert_active_draft and
+        attach_demo_snapshot must serialize them against each other too,
+        not just against other upserts: both writers touch disjoint
+        columns (fields/current_step vs. demo_snapshot), so both must
+        survive regardless of which one the lock lets through first."""
+        owner = User.objects.create_user(
+            username="attach-upsert-race@example.com", email="attach-upsert-race@example.com",
+            password="x", is_active=True,
+        )
+        template = DemoTemplate.objects.create(
+            slug="race-attach-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        selection = DemoSelection.objects.create(
+            template=template, session_key="race-attach-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+        upsert_active_draft(owner=owner, form_type="leads_contact", fields={"request_type": "webapp"})
+
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def upserter():
+            try:
+                barrier.wait(timeout=5)
+                upsert_active_draft(owner=owner, form_type="leads_contact", fields={"request_type": "website"}, current_step=1)
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        def attacher():
+            try:
+                barrier.wait(timeout=5)
+                attach_demo_snapshot(owner=owner, form_type="leads_contact", demo_selection=selection)
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=upserter), threading.Thread(target=attacher)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        for thread in threads:
+            self.assertFalse(thread.is_alive(), "a thread is still running — possible deadlock or hang")
+        self.assertEqual(errors, [])
+
+        self.assertEqual(FormDraft.objects.filter(owner=owner).count(), 1)
+        survivor = FormDraft.objects.get(owner=owner)
+        self.assertEqual(survivor.fields, {"request_type": "website"})
+        self.assertEqual(survivor.current_step, 1)
+        self.assertEqual(survivor.demo_snapshot, build_demo_selection_snapshot(selection))
+
+    def test_concurrent_upsert_and_attach_around_expiry_never_double_expires_or_revives(self):
+        """A stale draft racing between a renewing upsert and an attach
+        attempt must converge cleanly regardless of which one the owner-row
+        lock admits first: exactly one row ever transitions to "expired",
+        exactly one active draft survives, and attach never revives an
+        expired row. The attach thread may legitimately fail with
+        DraftValidationError(code="no_active_draft") if it loses the race —
+        that is not a bug, just the other valid outcome."""
+        owner = User.objects.create_user(
+            username="expire-attach-race@example.com", email="expire-attach-race@example.com",
+            password="x", is_active=True,
+        )
+        template = DemoTemplate.objects.create(
+            slug="race-expire-attach-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        selection = DemoSelection.objects.create(
+            template=template, session_key="race-expire-attach-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+        stale = upsert_active_draft(owner=owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        barrier = threading.Barrier(2)
+        outcomes = []
+
+        def renewer():
+            try:
+                barrier.wait(timeout=5)
+                upsert_active_draft(owner=owner, form_type="leads_contact", fields={"request_type": "website"})
+                outcomes.append("upsert_ok")
+            except Exception as exc:  # pragma: no cover
+                outcomes.append(exc)
+            finally:
+                connection.close()
+
+        def attacher():
+            try:
+                barrier.wait(timeout=5)
+                attach_demo_snapshot(owner=owner, form_type="leads_contact", demo_selection=selection)
+                outcomes.append("attach_ok")
+            except DraftValidationError as exc:
+                outcomes.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=renewer), threading.Thread(target=attacher)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        for thread in threads:
+            self.assertFalse(thread.is_alive(), "a thread is still running — possible deadlock or hang")
+
+        # The upsert side must always succeed; the attach side either
+        # succeeds (if it ran after the renewal) or fails with exactly
+        # "no_active_draft" (if it ran against the still-stale row) — no
+        # other exception is acceptable.
+        self.assertIn("upsert_ok", outcomes)
+        for outcome in outcomes:
+            if outcome != "upsert_ok" and outcome != "attach_ok":
+                self.assertIsInstance(outcome, DraftValidationError)
+                self.assertEqual(outcome.code, "no_active_draft")
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+        active = FormDraft.objects.filter(owner=owner, status__in=FormDraft.ACTIVE_STATUSES)
+        self.assertEqual(active.count(), 1)
+        self.assertEqual(FormDraft.objects.filter(owner=owner, status="expired").count(), 1)

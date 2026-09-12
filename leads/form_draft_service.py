@@ -56,12 +56,18 @@ FORM_TYPE_STEP_COUNTS = {"leads_contact": 3}
 # The exact, fixed shape build_demo_selection_snapshot must produce. Checked
 # again here (defense in depth) before any snapshot is ever written to a
 # draft, so a future change to that helper can never smuggle a forbidden
-# key into FormDraft.demo_snapshot without this service also being updated.
-_DEMO_SNAPSHOT_ALLOWED_KEYS = frozenset((
+# key, an oversized value, or a wrong-typed value into FormDraft.demo_snapshot
+# without this service also being updated.
+_DEMO_SNAPSHOT_TEXT_KEYS = (
     "template_title_fa", "template_title_en", "category_fa", "category_en",
     "brand", "theme_fa", "theme_en", "personality_fa", "personality_en",
-    "features_fa", "features_en", "demo_template_slug",
-))
+    "demo_template_slug",
+)
+_DEMO_SNAPSHOT_FEATURE_KEYS = ("features_fa", "features_en")
+_DEMO_SNAPSHOT_ALLOWED_KEYS = frozenset(_DEMO_SNAPSHOT_TEXT_KEYS + _DEMO_SNAPSHOT_FEATURE_KEYS)
+_MAX_SNAPSHOT_TEXT_LENGTH = 300
+_MAX_SNAPSHOT_FEATURE_LENGTH = 200
+_MAX_SNAPSHOT_FEATURE_COUNT = 20
 
 
 class DraftValidationError(ValidationError):
@@ -133,8 +139,36 @@ def _validate_current_step(form_type, current_step):
         _reject("invalid_current_step", "current_step is out of range for this form_type.")
 
 
+def _is_safe_snapshot_string(value):
+    # bool/int/bytes/list/dict all fail isinstance(value, str) outright; a
+    # generous, fixed length cap is defense in depth against a future
+    # change to the snapshot builder producing unbounded text.
+    return isinstance(value, str) and len(value) <= _MAX_SNAPSHOT_TEXT_LENGTH
+
+
+def _is_safe_feature_list(value):
+    return (
+        isinstance(value, list)
+        and len(value) <= _MAX_SNAPSHOT_FEATURE_COUNT
+        and all(isinstance(item, str) and len(item) <= _MAX_SNAPSHOT_FEATURE_LENGTH for item in value)
+    )
+
+
 def _validate_snapshot_shape(snapshot):
+    """Full-value validation, not just key-set validation: every text field
+    must be a plain, length-bounded string (never a nested mapping/list,
+    bytes, number, or bool), both feature lists must be length-bounded
+    lists of length-bounded strings, and the two feature lists must be the
+    same length. Never reveals the offending value in its error message."""
     if not isinstance(snapshot, dict) or set(snapshot) != _DEMO_SNAPSHOT_ALLOWED_KEYS:
+        _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+    for key in _DEMO_SNAPSHOT_TEXT_KEYS:
+        if not _is_safe_snapshot_string(snapshot[key]):
+            _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+    for key in _DEMO_SNAPSHOT_FEATURE_KEYS:
+        if not _is_safe_feature_list(snapshot[key]):
+            _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+    if len(snapshot["features_fa"]) != len(snapshot["features_en"]):
         _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
 
 
@@ -217,59 +251,108 @@ def upsert_active_draft(*, owner, form_type, fields, current_step=0):
         )
 
 
+def _reload_demo_selection(demo_selection):
+    """Never trust the caller's in-memory `DemoSelection` instance — its
+    `selections` (or any other field) may have been mutated locally
+    without being saved. Re-reading by primary key guarantees
+    `build_demo_selection_snapshot` only ever sees what is actually
+    persisted, and also catches a since-deleted row. Returns None (never
+    raises) so the caller can reject with the one fixed, generic
+    `invalid_demo_selection` message regardless of which check failed."""
+    if not isinstance(demo_selection, DemoSelection) or demo_selection.pk is None:
+        return None
+    return DemoSelection.objects.select_related("template").filter(pk=demo_selection.pk).first()
+
+
 def attach_demo_snapshot(*, owner, form_type, demo_selection):
     """Attach a frozen, bilingual snapshot of `demo_selection` to the
-    owner's current active draft. `demo_selection` must be a real, already
-    saved `DemoSelection` instance — never a dict, never raw JSON, never
-    anything a caller could shape freely. The snapshot itself is always
-    produced by `build_demo_selection_snapshot` (never caller-supplied) and
-    is checked against the exact expected key set before being written, so
-    a draft can never end up holding a session_key/public_token/
-    submission_token or any other unexpected structure.
+    owner's current active draft, and extend `expires_at` to exactly
+    `DRAFT_RETENTION_DAYS` from now — attaching a snapshot is itself a
+    valid draft-touching operation, exactly like `upsert_active_draft`.
+    `fields`/`current_step` are left untouched.
+
+    `demo_selection` must be a real, already saved `DemoSelection` row —
+    never a dict, never raw JSON, never anything a caller could shape
+    freely, and never trusted as the in-memory object handed in: it is
+    re-read fresh from the database by primary key first, so a locally
+    mutated instance (or one whose row has since been deleted) can never
+    reach the snapshot builder. The snapshot itself is always produced by
+    `build_demo_selection_snapshot` from that fresh copy (never
+    caller-supplied) and is checked, value by value, against the exact
+    expected shape before being written, so a draft can never end up
+    holding a session_key/public_token/submission_token or any other
+    unexpected or oversized structure.
 
     Session/ownership authorization of `demo_selection` (confirming it
     actually belongs to the request making this call) is the caller's
     responsibility in the phase that wires this up to a view — this
     service only guarantees the *shape* and *target* (the calling owner's
     own active draft) are safe.
+
+    On any failure (invalid/deleted demo_selection, invalid snapshot
+    shape, or no active draft to attach to), the previous draft — if any
+    — is left completely untouched: nothing is written until the snapshot
+    has been built and fully validated, and the "no active draft" case is
+    only ever raised after the write transaction has already committed
+    (see `_get_active_draft_locked`'s docstring for why that ordering
+    matters for a concurrently-expiring draft).
     """
     _require_real_owner(owner)
     _require_supported_form_type(form_type)
-    if not isinstance(demo_selection, DemoSelection) or demo_selection.pk is None:
+    fresh_selection = _reload_demo_selection(demo_selection)
+    if fresh_selection is None:
         _reject("invalid_demo_selection", "demo_selection must be a saved DemoSelection instance.")
-    snapshot = build_demo_selection_snapshot(demo_selection)
+    snapshot = build_demo_selection_snapshot(fresh_selection)
     _validate_snapshot_shape(snapshot)
 
+    draft = None
     with transaction.atomic():
         locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
         now = timezone.now()
         draft = _get_active_draft_locked(locked_owner, form_type, now)
-        if draft is None:
-            _reject("no_active_draft", "No active draft exists to attach a snapshot to.")
-        draft.demo_snapshot = snapshot
-        draft.save(update_fields=["demo_snapshot", "updated_at"])
-        return draft
+        if draft is not None:
+            draft.demo_snapshot = snapshot
+            draft.expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
+            draft.save(update_fields=["demo_snapshot", "expires_at", "updated_at"])
+
+    # Raised only after the transaction above has committed: if
+    # _get_active_draft_locked just transitioned a stale draft to
+    # "expired", that write must survive even though this function then
+    # reports "no active draft" — raising it *inside* the atomic block
+    # would roll that expiry back out along with everything else.
+    if draft is None:
+        _reject("no_active_draft", "No active draft exists to attach a snapshot to.")
+    return draft
 
 
 def clear_demo_snapshot(*, owner, form_type):
     """Explicitly clear the demo snapshot on the owner's current active
-    draft, leaving `fields`/`current_step`/`expires_at` untouched. This is
-    the only other sanctioned way `demo_snapshot` may change after
-    creation — ordinary field saves via `upsert_active_draft` never touch
-    it, by design.
+    draft and extend `expires_at` to exactly `DRAFT_RETENTION_DAYS` from
+    now — clearing is itself a valid draft-touching operation, exactly
+    like `upsert_active_draft`. `fields`/`current_step` are left
+    untouched. This is the only other sanctioned way `demo_snapshot` may
+    change after creation — ordinary field saves via `upsert_active_draft`
+    never touch it, by design.
     """
     _require_real_owner(owner)
     _require_supported_form_type(form_type)
 
+    draft = None
     with transaction.atomic():
         locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
         now = timezone.now()
         draft = _get_active_draft_locked(locked_owner, form_type, now)
-        if draft is None:
-            _reject("no_active_draft", "No active draft exists to clear a snapshot from.")
-        draft.demo_snapshot = {}
-        draft.save(update_fields=["demo_snapshot", "updated_at"])
-        return draft
+        if draft is not None:
+            draft.demo_snapshot = {}
+            draft.expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
+            draft.save(update_fields=["demo_snapshot", "expires_at", "updated_at"])
+
+    # See attach_demo_snapshot: raised only after the transaction above
+    # has committed, so a concurrently-discovered expiry is never rolled
+    # back by this function's own "nothing to clear" outcome.
+    if draft is None:
+        _reject("no_active_draft", "No active draft exists to clear a snapshot from.")
+    return draft
 
 
 def delete_draft(owner, draft_id):
