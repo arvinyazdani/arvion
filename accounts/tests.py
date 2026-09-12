@@ -1,15 +1,23 @@
 import re
+import threading
+import unittest
+from importlib import import_module
 from io import StringIO
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model, login as auth_login
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.sessions.models import Session
 from django.core import mail
 from django.core.cache import cache
 from django.core.management import call_command
 from django.contrib.auth.models import Group
-from django.test import Client, TestCase, override_settings
+from django.db import connection
+from django.http import HttpRequest
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.contrib.auth.tokens import default_token_generator
@@ -17,8 +25,10 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from assessments.models import Attempt, AttemptResult, Exam, ExamEntitlement, ExamVersion, Order, PaymentTransaction
+from accounts.models import ActiveSession
 from accounts.security import client_address
 from accounts.services import issue_phone_verification
+from accounts.signals import session_invalidation_marker_key
 from core.sms.backends import SMSDeliveryError
 
 
@@ -814,3 +824,310 @@ class AccountFlowTests(TestCase):
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertEqual(response.content.decode().count("آزمون گروه‌بندی"), 1)
         self.assertEqual(response.context["assessment_groups"][0]["ready"], 2)
+
+
+class SingleSessionTests(TestCase):
+    """accounts.ActiveSession: one active session per ordinary customer
+    account; staff/superusers exempt; race-safe login, logout, and the
+    legacy-rollout claim path; the courtesy message never carries the raw
+    session key and is never the security boundary itself."""
+
+    def setUp(self):
+        cache.clear()
+        # Guards against a prior test's /en/ request leaving "en" as the
+        # active thread-local translation, which would otherwise make
+        # reverse("accounts:dashboard") below resolve to an /en/ URL.
+        translation.activate("fa")
+        self.customer = User.objects.create_user(
+            username="single-session@example.com", email="single-session@example.com",
+            password="a-strong-test-password-1", is_active=True, email_verified=True,
+        )
+
+    @staticmethod
+    def _legacy_session_key(user):
+        """A session authenticated the way a real login leaves one, but
+        created without going through django.contrib.auth.login() at all —
+        so it never touched accounts.signals, exactly like a session that
+        was already valid before this feature existed."""
+        session = SessionStore()
+        session[SESSION_KEY] = str(user.pk)
+        session[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+        session[HASH_SESSION_KEY] = user.get_session_auth_hash()
+        session.create()
+        return session.session_key
+
+    @staticmethod
+    def _client_with_session(session_key):
+        client = Client()
+        client.cookies[settings.SESSION_COOKIE_NAME] = session_key
+        return client
+
+    def test_second_login_invalidates_first_session(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        key_a = client_a.session.session_key
+        self.assertTrue(Session.objects.filter(session_key=key_a).exists())
+
+        client_b = Client()
+        client_b.force_login(self.customer)
+        key_b = client_b.session.session_key
+
+        self.assertFalse(Session.objects.filter(session_key=key_a).exists())
+        self.assertTrue(Session.objects.filter(session_key=key_b).exists())
+
+    def test_first_session_becomes_anonymous_on_next_request(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        response = client_a.get(reverse("accounts:dashboard"))
+        self.assertRedirects(response, f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}")
+
+    def test_active_session_points_only_at_second_session(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        active = ActiveSession.objects.get(user=self.customer)
+        self.assertEqual(active.session_key, client_b.session.session_key)
+        self.assertEqual(ActiveSession.objects.filter(user=self.customer).count(), 1)
+
+    def test_old_session_logout_does_not_remove_new_pointer(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        key_a = client_a.session.session_key
+        client_b = Client()
+        client_b.force_login(self.customer)
+        key_b = client_b.session.session_key
+
+        # client_a's own session row was already invalidated by client_b's
+        # login; simulate its stale cookie still trying to log out anyway.
+        client_a.cookies[settings.SESSION_COOKIE_NAME] = key_a
+        client_a.post(reverse("accounts:logout"))
+
+        self.assertTrue(ActiveSession.objects.filter(user=self.customer, session_key=key_b).exists())
+
+    def test_active_session_logout_clears_its_own_pointer(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        self.assertTrue(ActiveSession.objects.filter(user=self.customer).exists())
+
+        client_a.post(reverse("accounts:logout"))
+
+        self.assertFalse(ActiveSession.objects.filter(user=self.customer).exists())
+
+    def test_staff_and_superuser_may_hold_multiple_sessions(self):
+        staff = User.objects.create_user(
+            username="staff-multi@example.com", email="staff-multi@example.com",
+            password="x", is_staff=True, is_active=True,
+        )
+        client_a = Client(); client_a.force_login(staff)
+        client_b = Client(); client_b.force_login(staff)
+
+        self.assertTrue(Session.objects.filter(session_key=client_a.session.session_key).exists())
+        self.assertTrue(Session.objects.filter(session_key=client_b.session.session_key).exists())
+        self.assertFalse(ActiveSession.objects.filter(user=staff).exists())
+        self.assertEqual(client_a.get(reverse("accounts:dashboard")).status_code, 200)
+        self.assertEqual(client_b.get(reverse("accounts:dashboard")).status_code, 200)
+
+        superuser = User.objects.create_superuser(
+            username="root-multi@example.com", email="root-multi@example.com", password="x",
+        )
+        client_c = Client(); client_c.force_login(superuser)
+        client_d = Client(); client_d.force_login(superuser)
+        self.assertTrue(Session.objects.filter(session_key=client_c.session.session_key).exists())
+        self.assertTrue(Session.objects.filter(session_key=client_d.session.session_key).exists())
+        self.assertFalse(ActiveSession.objects.filter(user=superuser).exists())
+
+    def test_legacy_session_without_active_session_claims_on_first_request(self):
+        key = self._legacy_session_key(self.customer)
+        client = self._client_with_session(key)
+        self.assertFalse(ActiveSession.objects.filter(user=self.customer).exists())
+
+        response = client.get(reverse("accounts:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        active = ActiveSession.objects.get(user=self.customer)
+        self.assertEqual(active.session_key, key)
+
+    def test_two_legacy_sessions_converge_to_one_winner(self):
+        key_a = self._legacy_session_key(self.customer)
+        key_b = self._legacy_session_key(self.customer)
+        client_a = self._client_with_session(key_a)
+        client_b = self._client_with_session(key_b)
+
+        first = client_a.get(reverse("accounts:dashboard"))
+        self.assertEqual(first.status_code, 200)
+
+        second = client_b.get(reverse("accounts:dashboard"))
+        self.assertRedirects(second, f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}")
+
+        self.assertEqual(ActiveSession.objects.filter(user=self.customer).count(), 1)
+        active = ActiveSession.objects.get(user=self.customer)
+        self.assertEqual(active.session_key, key_a)
+        self.assertFalse(Session.objects.filter(session_key=key_b).exists())
+
+    def test_invalidated_message_shown_once_in_correct_language(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        key_a = client_a.session.session_key
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        response_fa = client_a.get(reverse("accounts:dashboard") + "?lang=fa", follow=True)
+        self.assertContains(response_fa, "این دستگاه از حساب شما خارج شد چون در جای دیگری وارد شدید.")
+        self.assertFalse(cache.get(session_invalidation_marker_key(key_a)))
+
+        # The marker was already consumed above; a second request from the
+        # same stale browser must not show the message again.
+        response_again = client_a.get(reverse("accounts:dashboard") + "?lang=fa", follow=True)
+        self.assertNotContains(response_again, "این دستگاه از حساب شما خارج شد چون در جای دیگری وارد شدید.")
+
+    def test_invalidated_message_in_english(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        # request.LANGUAGE_CODE is set by LocaleMiddleware from the URL's
+        # /en/ path prefix (i18n_patterns) — a ?lang=en query string on a
+        # /fa/ URL only affects view-level fallbacks that run too late for
+        # this middleware, which sits before the view.
+        response_en = client_a.get("/en/account/dashboard/", follow=True)
+        self.assertContains(response_en, "You were signed out here because you signed in elsewhere.")
+
+    def test_raw_session_key_never_leaks_into_message_cache_marker_or_repr(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        key_a = client_a.session.session_key
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        response = client_a.get(reverse("accounts:dashboard") + "?lang=fa", follow=True)
+        self.assertNotIn(key_a, response.content.decode("utf-8"))
+
+        marker_key = session_invalidation_marker_key(key_a)
+        self.assertNotIn(key_a, marker_key)
+
+        active = ActiveSession.objects.get(user=self.customer)
+        self.assertNotIn(key_a, str(active))
+        self.assertNotIn(key_a, repr(active))
+        self.assertNotIn(active.session_key, str(active))
+        self.assertNotIn(active.session_key, repr(active))
+
+    def test_repeated_ready_does_not_duplicate_signal_receivers(self):
+        from django.apps import apps
+
+        apps.get_app_config("accounts").ready()
+        apps.get_app_config("accounts").ready()
+
+        client_a = Client()
+        client_a.force_login(self.customer)
+        key_a = client_a.session.session_key
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        # If enforce_single_session_on_login had been connected twice, the
+        # marker/deletion side effects would still be idempotent, but a
+        # duplicated receiver elsewhere would raise on the double `ready()`
+        # call above already; this also checks the steady-state outcome.
+        self.assertFalse(Session.objects.filter(session_key=key_a).exists())
+        self.assertEqual(ActiveSession.objects.filter(user=self.customer).count(), 1)
+
+    def test_single_session_can_be_disabled_via_setting(self):
+        with override_settings(SINGLE_SESSION_ENFORCED=False):
+            client_a = Client()
+            client_a.force_login(self.customer)
+            key_a = client_a.session.session_key
+            client_b = Client()
+            client_b.force_login(self.customer)
+
+            self.assertTrue(Session.objects.filter(session_key=key_a).exists())
+            self.assertFalse(ActiveSession.objects.filter(user=self.customer).exists())
+
+    def test_unauthorized_stranger_cannot_see_or_forge_another_users_active_session(self):
+        other = User.objects.create_user(
+            username="other-account@example.com", email="other-account@example.com",
+            password="x", is_active=True, email_verified=True,
+        )
+        client_a = Client(); client_a.force_login(self.customer)
+        client_o = Client(); client_o.force_login(other)
+
+        # Two different accounts each get their own independent pointer;
+        # logging in as one must never touch the other's ActiveSession.
+        self.assertTrue(Session.objects.filter(session_key=client_a.session.session_key).exists())
+        self.assertTrue(Session.objects.filter(session_key=client_o.session.session_key).exists())
+        self.assertEqual(ActiveSession.objects.get(user=self.customer).session_key, client_a.session.session_key)
+        self.assertEqual(ActiveSession.objects.get(user=other).session_key, client_o.session.session_key)
+
+    def test_registration_login_and_verification_flows_still_work(self):
+        payload = {
+            "first_name": "Sara", "last_name": "Ahmadi", "email": "sara-single-session@example.com",
+            "mobile": "09120373299", "password1": "A-secure-test-password-42", "password2": "A-secure-test-password-42",
+        }
+        response = self.client.post(reverse("accounts:register"), payload)
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(email="sara-single-session@example.com")
+        self.assertTrue(user.is_active)
+        active = ActiveSession.objects.filter(user=user).first()
+        self.assertIsNotNone(active)
+        self.assertTrue(Session.objects.filter(session_key=active.session_key).exists())
+
+    def test_normal_login_flow_still_works_and_claims_active_session(self):
+        response = self.client.post(reverse("accounts:login"), {
+            "username": self.customer.email, "password": "a-strong-test-password-1",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ActiveSession.objects.filter(user=self.customer).exists())
+        dashboard = self.client.get(reverse("accounts:dashboard"))
+        self.assertEqual(dashboard.status_code, 200)
+
+
+@unittest.skipUnless(
+    connection.vendor == "postgresql",
+    "Genuine row-lock concurrency can only be demonstrated on a real database engine with row-level locking; skipped on SQLite.",
+)
+class SingleSessionPostgresRaceTests(TransactionTestCase):
+    """Two real, concurrently-running threads — each with its own DB
+    connection — race to log the same user in at (as close as Python
+    threading allows to) the same instant. Only meaningful on PostgreSQL:
+    SQLite has no real row-level locking, so `select_for_update()` is a
+    silent no-op there and this would only prove sequential correctness,
+    not the actual race guarantee."""
+
+    def test_two_simultaneous_logins_converge_to_exactly_one_active_session(self):
+        user = User.objects.create_user(
+            username="race-customer@example.com", email="race-customer@example.com",
+            password="x", is_active=True, email_verified=True,
+        )
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def attempt():
+            try:
+                barrier.wait(timeout=5)
+                request = HttpRequest()
+                engine = import_module(settings.SESSION_ENGINE)
+                request.session = engine.SessionStore()
+                auth_login(request, user)
+                request.session.save()
+            except Exception as exc:  # pragma: no cover - surfaced via errors list
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=attempt) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(ActiveSession.objects.filter(user=user).count(), 1)
+        active = ActiveSession.objects.get(user=user)
+        # Exactly one Session row should remain: whichever thread's login
+        # lost the race had its row deleted by the winner's transaction.
+        self.assertEqual(Session.objects.count(), 1)
+        self.assertEqual(Session.objects.get().session_key, active.session_key)

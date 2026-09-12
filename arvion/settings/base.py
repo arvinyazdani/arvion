@@ -48,6 +48,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "traffic.middleware.TrafficAnalyticsMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "accounts.middleware.SingleSessionMiddleware",
     "core.middleware.FriendlyMethodNotAllowedMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -100,6 +101,10 @@ LOGOUT_REDIRECT_URL = "home"
 EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24
 EMAIL_VERIFICATION_RESEND_SECONDS = int(os.getenv("EMAIL_VERIFICATION_RESEND_SECONDS", "120"))
 MANUAL_ACCOUNT_APPROVAL = os.getenv("MANUAL_ACCOUNT_APPROVAL", "0") == "1"
+# Secure by default: a non-staff account may hold only one active session.
+# Kept as an escape hatch (not a redeploy-required code change) in case a
+# rollout issue needs the rule disabled temporarily.
+SINGLE_SESSION_ENFORCED = os.getenv("SINGLE_SESSION_ENFORCED", "1") == "1"
 AUTH_LOGIN_ATTEMPTS = int(os.getenv("AUTH_LOGIN_ATTEMPTS", "5"))
 AUTH_LOGIN_WINDOW_SECONDS = int(os.getenv("AUTH_LOGIN_WINDOW_SECONDS", "900"))
 AUTH_EMAIL_REQUESTS = int(os.getenv("AUTH_EMAIL_REQUESTS", "4"))
