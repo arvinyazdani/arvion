@@ -6,8 +6,7 @@ from django.forms.models import model_to_dict
 
 from accounts.models import User
 from core.sms.backends import normalize_iran_mobile
-from projects.demo_labels import CATEGORY_LABELS_EN, demo_config_labels
-from projects.models import DemoTemplate
+from projects.demo_snapshots import build_demo_selection_snapshot
 
 from .models import (
     CaseActivity,
@@ -18,7 +17,6 @@ from .models import (
     CustomerContact,
 )
 
-DASH = "—"
 DEMO_SELECTION_DOCUMENT_TITLE = "انتخاب دمو"
 
 
@@ -242,40 +240,6 @@ def link_document(case, instance, *, kind, title, actor=None):
     return document
 
 
-def _demo_selection_snapshot(selection):
-    """A frozen, human-readable copy of a Lead's demo choice.
-
-    Stores resolved bilingual labels rather than raw keys or a live
-    reference, so the case's own record stays fully readable even after
-    the underlying (anonymous) DemoSelection row is eventually removed by
-    `cleanup_demo_selections`, and even if the label wording changes later.
-    Deliberately excludes `public_token` and `session_key` — those identify
-    one anonymous browser session and must never reach a staff-facing case
-    record.
-    """
-    template = selection.template
-    values = selection.selections or {}
-    labels_fa = demo_config_labels("fa")
-    labels_en = demo_config_labels("en")
-    theme_key = values.get("theme", "")
-    personality_key = values.get("personality", "")
-    feature_keys = values.get("features") or []
-    return {
-        "template_title_fa": template.title_fa,
-        "template_title_en": template.title_en,
-        "category_fa": dict(DemoTemplate.CATEGORY_CHOICES).get(template.category, template.category),
-        "category_en": CATEGORY_LABELS_EN.get(template.category, template.category),
-        "brand": values.get("brand") or template.fictional_brand_fa,
-        "theme_fa": dict(labels_fa["themes"]).get(theme_key) or DASH,
-        "theme_en": dict(labels_en["themes"]).get(theme_key) or DASH,
-        "personality_fa": dict(labels_fa["personalities"]).get(personality_key) or DASH,
-        "personality_en": dict(labels_en["personalities"]).get(personality_key) or DASH,
-        "features_fa": [dict(labels_fa["features"]).get(key, key) for key in feature_keys],
-        "features_en": [dict(labels_en["features"]).get(key, key) for key in feature_keys],
-        "demo_template_slug": template.slug,
-    }
-
-
 def sync_demo_selection_document(case, lead, *, actor=None):
     """Idempotently record or refresh a Lead's demo choice as a structured
     CaseDocument on its CustomerCase.
@@ -293,7 +257,7 @@ def sync_demo_selection_document(case, lead, *, actor=None):
         return None
     document, created = _upsert_document(
         case=case, instance=lead, kind="attachment", title=DEMO_SELECTION_DOCUMENT_TITLE,
-        actor=actor, data=_demo_selection_snapshot(lead.demo_selection),
+        actor=actor, data=build_demo_selection_snapshot(lead.demo_selection),
     )
     if created:
         CaseActivity.objects.create(

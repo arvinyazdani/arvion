@@ -2,12 +2,13 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-A corrective — remove the write lock from the
-  normal per-request path and make the courtesy-message marker
-  consumption atomic (fixing two defects found in the just-committed
-  `08bd910`).
-- **Last verified phase (code):** this corrective phase, on top of the
-  V2.1-A single-session foundation (`08bd910`).
+- **Current phase:** V2.1-B1 — build the `FormDraft` data foundation
+  (model + migration + service layer only; no UI, no auto-save endpoint,
+  no login-path or contact-page wiring, no Lead submission in this phase)
+  and relocate the demo-selection snapshot builder to a neutral shared
+  module.
+- **Last verified phase (code):** V2.1-B1, on top of the V2.1-A
+  corrective phase and `08bd910`.
 - **Status:** `VERIFIED` (local). `08bd910` was initially `VERIFIED` for
   correctness but is now known to have shipped `PARTIAL`, in the same
   class of "correct in outcome, wrong in cost or atomicity" already seen
@@ -373,6 +374,148 @@
   session rollout (no forced global logout) is acceptable; (5) whether/
   when to schedule `cleanup_form_drafts` and the still-unresolved
   `cleanup_demo_selections` scheduling from an earlier phase.
+- **V2.1-B1 — what was built:** `leads.FormDraft`
+  (`leads/models/form_draft.py`, new file inside the existing
+  `leads/models/` package — the package wins over the orphaned 3-line
+  `leads/models.py` stub, so the new model follows the same
+  package-module pattern as `leads/models/lead.py`): `owner` (FK to
+  `settings.AUTH_USER_MODEL`, `related_name="form_drafts"`, `CASCADE`),
+  `form_type` (choices, only `"leads_contact"` today), `current_step`
+  (`PositiveSmallIntegerField`, default 0, `MinValueValidator(0)`/
+  `MaxValueValidator(2)` — hardcoded to `leads_contact`'s 3-step wizard),
+  `fields` (`JSONField`, `default=dict`), `demo_snapshot` (`JSONField`,
+  `default=dict`, `blank=True`), `status` (`open`/`submitting`/
+  `submitted`/`expired`), `submitted_lead` (a real
+  `ForeignKey("leads.Lead", on_delete=models.SET_NULL, blank=True,
+  null=True, related_name="source_form_drafts")` — referential integrity
+  instead of a bare object-id, and it changes no column or behaviour on
+  `Lead` itself), `created_at`/`updated_at`/`expires_at` (default 7 days
+  out via `default_draft_expiry()`), two named indexes
+  (`formdraft_owner_status_idx`, `formdraft_status_expiry_idx`), and a
+  conditional `UniqueConstraint`
+  (`unique_active_form_draft_per_owner_and_form_type` on
+  `(owner, form_type)`, `condition=Q(status__in=("open", "submitting"))`)
+  — mirrors `management_portal.CustomerCase`'s
+  `unique_customer_case_source` technique, supported on both SQLite and
+  PostgreSQL. `__str__` prints only `owner_id`/`form_type`/`status`, never
+  field contents. Deliberately **no admin registration** for `FormDraft`.
+  `leads/migrations/0006_formdraft_and_more.py`: one additive
+  `CreateModel` + `AddConstraint`, no data migration, depends on
+  `leads.0005_lead_demo_selection`; confirmed **not applied** to the local
+  dev SQLite database (`showmigrations leads` shows only 0001–0005 as
+  `[X]`) and confirmed fully captured (`makemigrations --check --dry-run`
+  → "No changes detected").
+  `leads/form_draft_service.py` (new file, the sole sanctioned write/read
+  path — nothing else may construct or save a `FormDraft` directly):
+  `normalize_fields(form_type, raw_fields)` allowlists exactly
+  `request_type`/`service_id`/`budget_range`/`timeline`/
+  `preferred_contact`, validated against `Lead.REQUEST_TYPES`/`Lead.BUDGETS`/
+  `Lead.TIMELINES`/`Lead.CONTACT_METHODS` and (for `service_id`) an active
+  `Service` row — any unknown key or invalid value raises
+  `DraftValidationError` (never silently dropped or coerced), with
+  forbidden keys (`name`, `phone`, `email_or_telegram`, `business_name`,
+  `website_url`, `message`, `privacy_accept`, `public_token`,
+  `session_key`, `submission_token`) named explicitly in the rejection.
+  `get_active_draft(owner, form_type)` lazily expires a stale-but-not-yet-
+  swept draft on read (mirrors Django's own session-expiry semantics — no
+  sweep job has to have run first). `upsert_active_draft(...)` is the
+  race-safe, idempotent create-or-update: `transaction.atomic()` +
+  `select_for_update()` on the **owner** row (not `FormDraft` itself, the
+  same pattern already proven in `accounts/services.py` and
+  `accounts/signals.py`/`middleware.py` for V2.1-A) serializes every
+  writer for that owner; an existing-but-expired draft is transitioned to
+  `expired` and replaced rather than reused; `expires_at` is always
+  recomputed to exactly `DRAFT_RETENTION_DAYS = 7` days from the current
+  save; rejects any owner that is `None`/anonymous/unauthenticated before
+  any query runs. `delete_draft(owner, draft_id)` is a hard delete
+  strictly scoped to `pk=draft_id, owner=owner` — a foreign or
+  nonexistent id deletes nothing and raises nothing.
+  `projects/demo_snapshots.py` (new file): `build_demo_selection_snapshot`
+  relocated from the private `management_portal.cases._demo_selection_snapshot`
+  to a neutral, reusable module (same relocation pattern already used for
+  `projects/demo_labels.py`), so both `management_portal.cases`
+  (`sync_demo_selection_document`) and the future `leads.form_draft_service`
+  wiring can share one source of truth instead of a private cross-app
+  import. Output shape is byte-identical to the original for all existing
+  valid data (`template_title_fa/en`, `category_fa/en`, `brand`,
+  `theme_fa/en`, `personality_fa/en`, `features_fa/en`,
+  `demo_template_slug`; never `public_token`/`session_key`/
+  `submission_token`) — trusted, staff-managed template fields
+  (title/category/slug) are left untouched, while visitor-controlled
+  `selections` values (`brand`, theme/personality lookup keys, the
+  `features` list) gained defensive type/length guards (`_safe_key`
+  against unhashable lookup keys, a 200-char brand cap far more generous
+  than the client's own 48-char limit, a 20-item feature cap) that only
+  change behaviour for malformed/adversarial input, never for real data.
+  `management_portal/cases.py` now imports and calls
+  `build_demo_selection_snapshot` instead of defining its own copy; the
+  removed local `DASH` constant had zero other usages in that file
+  (confirmed via grep; `workspace_views.py` defines its own separate local
+  `DASH`). **Not done in this phase, by explicit scope**: no view, signal,
+  login path, or `LeadCreateView` change; no auto-save endpoint; no draft
+  restore/delete UI; no wiring of `demo_snapshot` from an actual
+  `DemoSelection` anywhere yet — only the model and internal service exist
+  and are fully tested in isolation.
+- **V2.1-B1 — test level:** `leads/test_form_draft.py` (new file, ~30
+  tests across 5 classes): valid draft creation for a logged-in user;
+  anonymous/no-owner rejection at the service layer; rejection of every
+  forbidden key and of unknown keys; rejection of invalid choices and of
+  an inactive or nonexistent `service_id`; `expires_at` extended to
+  exactly 7 days on every valid save; an expired draft transitions to
+  `expired` and a fresh active draft is created in its place; the
+  conditional `UniqueConstraint` allows at most one open/submitting draft
+  per owner+form_type; a repeated upsert updates the same row rather than
+  creating a second one; `delete_draft` only ever removes a draft
+  belonging to the specified owner; the relocated snapshot helper produces
+  an output exactly equal, field-for-field, to a hand-written expected
+  dict matching the original helper's shape; the snapshot and its
+  serialization contain no `public_token`/`session_key`/`submission_token`
+  anywhere. Plus `FormDraftPostgresRaceTests`
+  (`@unittest.skipUnless(connection.vendor == "postgresql", ...)`,
+  auto-skipped on SQLite): a `threading.Barrier`-synchronized, 4-thread
+  concurrent-upsert test converges to exactly one active draft row with no
+  duplicate-key exceptions escaping (a self-caught test bug — one thread
+  originally used the out-of-range `current_step=3` for the 3-step
+  `leads_contact` wizard, correctly triggering `DraftValidationError`; not
+  a concurrency bug — fixed by reusing step 0 for that thread, re-run once
+  plus 5 additional repeats, all clean); and a raw model-level
+  `IntegrityError` race test proving the database-level constraint itself
+  (not just the service's lock) rejects a second concurrent active row.
+  `leads.test_form_draft` alone: 29 passed, 2 correctly skipped on SQLite.
+  Re-ran the pre-existing `management_portal.tests.DemoSelectionCaseHandoffTests`
+  (8 tests) unchanged immediately after the `cases.py` extraction to
+  confirm zero regression before proceeding further.
+  `leads`+`projects`+`management_portal` targeted suite: 204 tests, all
+  passing (2 skips). Full project suite: 591 tests, all passing (5 skips —
+  all correctly the PostgreSQL-only tests). `manage.py check` (0 issues),
+  `makemigrations --check --dry-run` ("No changes detected"), and
+  `git diff --check` (clean) all passed.
+- **V2.1-B1 — PostgreSQL constraint/race evidence:** same isolated local
+  PostgreSQL 16 server and disposable `test_arvion_ci_local` database used
+  for V2.1-A's own race tests (never the permanent `arvion_ci_local`
+  database). Ran
+  `DJANGO_SETTINGS_MODULE=arvion.settings.ci DATABASE_URL=postgresql://rwin@localhost:5432/arvion_ci_local
+  python manage.py test leads.test_form_draft.FormDraftPostgresRaceTests`
+  — both the service-level concurrent-upsert race and the raw
+  `IntegrityError` constraint race passed, run once plus 5 additional
+  repeats of the concurrent-upsert test to rule out a lucky pass (all 5
+  clean). This is real row-locking/constraint evidence, not a SQLite-only
+  claim dressed up as PostgreSQL-verified.
+- **V2.1-B1 — security review:** `owner`/`form_type`/`current_step`/
+  `fields`/`demo_snapshot`/`status`/`submitted_lead` never appear in any
+  log statement, exception message, or `__str__`/`__repr__` — only
+  `owner_id`, `form_type`, and `status` (all non-sensitive metadata) are
+  ever printed. No admin registration or export exists for `FormDraft`. No
+  public/anonymous path can create a draft — `_require_real_owner` checks
+  `is_authenticated` and a real `pk` before any query. Raw request JSON is
+  never stored directly; only `normalize_fields`'s validated output is
+  ever written to the `fields` column. UI, login, signals, and
+  `LeadCreateView` are untouched in this phase (confirmed via
+  `git status --short`/`git diff --stat`: only `leads/models/__init__.py`
+  and `management_portal/cases.py` modified, everything else new files).
+- **Git boundary (updated):** `main` will be eleven commits ahead of
+  `origin/main` once this phase's commit is made (the ten already listed
+  above, plus this V2.1-B1 commit). No prior commit is amended.
 - **Prior phase's change (kept for reference; unaffected by this
   design-only phase; one function in one file):** `writeDemoContext` in
   `core/static/core/js/wizard-engine.js` now clears the one-shot
@@ -442,25 +585,26 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this corrective phase's own commit (see `git log`) — a
-  separate commit on top of `08bd910 feat: enforce one active session per
-  customer account`, which is not amended.
-- **Next action:** Phase A (single-session foundation) of the V2.1 plan is
-  now done, corrected, and fully verified (including the previously-
-  missing legacy-session PostgreSQL race proof). Await explicit human
-  decisions on the
-  still-open items from the design record below (free-text/contact-info
-  consent layer, `FormDraft` retention period, whether to nudge guests to
-  sign in, and `cleanup_demo_selections`/`cleanup_form_drafts`
-  scheduling) before starting Phase B (`FormDraft` model + demo-selection
-  snapshot integration). No `FormDraft` model, form-save wiring, or draft
-  UI exists yet — do not assume otherwise from the "V2.1-A" name. The
-  earlier, separate V2 idea (a time-boxed, signed continuation link)
-  remains superseded by the login-based approach unless explicitly
-  reopened. Resumable order drafts beyond leads-contact (CRM/Clinic)
-  remain `NOT_STARTED`. Re-run the release gate on the exact deployable
-  revision before any production action, including applying
-  `0004_activesession` to any real database.
+- **Last commit:** this V2.1-B1 phase's own commit (see `git log`) — a
+  separate commit on top of the V2.1-A corrective phase's commit, which is
+  not amended.
+- **Next action:** V2.1-B1 (`FormDraft` model + service + demo-snapshot
+  relocation) is done and fully verified. Nothing yet calls
+  `leads.form_draft_service` from any view, signal, or login path — that
+  wiring (pre-login demo capture before `login()` rotates the session key,
+  post-login demo capture on the contact page, an auto-save endpoint, and
+  server-side restore/delete UI) is Phase B2/C and still requires the same
+  explicit human decisions flagged under "V2.1 — decisions requiring
+  explicit human approval" above (free-text/contact-info consent layer,
+  final `FormDraft` retention confirmation — 7 days is now implemented,
+  not just proposed — whether to nudge guests to sign in, and
+  `cleanup_demo_selections`/`cleanup_form_drafts` scheduling) before
+  proceeding. The earlier, separate V2 idea (a time-boxed, signed
+  continuation link) remains superseded by the login-based approach unless
+  explicitly reopened. Resumable order drafts beyond leads-contact
+  (CRM/Clinic) remain `NOT_STARTED`. Re-run the release gate on the exact
+  deployable revision before any production action, including applying
+  `0004_activesession` and `0006_formdraft_and_more` to any real database.
 
 ## Phase ledger
 
@@ -480,5 +624,6 @@
 | Resumable order drafts — V2.1 design (login-based cross-device drafts + single session) | `VERIFIED` (design-only) | Read `accounts.User`/login-logout/password-reset/middleware/session backend and the `DemoSelection` session-bound flow in full. Decided delete-on-login single-session enforcement (fail-closed, reuses the existing `select_for_update()` race-safety pattern from `PhoneVerificationView`) over a version/registry counter (fail-open). Designed the `FormDraft` data contract, the privacy boundary (no free text/contact info by default; separate consent required), bilingual UX flows for all 6 named scenarios, a 5-phase implementation plan (foundation → draft model → UI → atomic submission → tests/release) each with its own migration/tests/rollback/risk, and 5 explicit human-approval decisions. No code, migration, or commit made. |
 | Resumable order drafts — V2.1-A (single-session foundation) (`08bd910`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL` (unconditional write lock on every request; non-atomic courtesy marker) — see the corrective-phase row below, which fixes and re-verifies it. |
 | Resumable order drafts — V2.1-A corrective (fast path + atomic marker + legacy-race PostgreSQL proof) | `VERIFIED` (local) | See "V2.1-A corrective phase" entries above. Fast lock-free path for the matching-session case; only a mismatch pays for `select_for_update(User)`, with a re-check under the lock. Courtesy marker consumed atomically via `cache.delete()`'s return value. Closed the previously-missing legacy-session PostgreSQL race test (6 runs, all clean). 6 new `SingleSessionTests` + 1 new PostgreSQL test (23 + 3 total in those classes), `accounts`+`core` (147 tests), and the full 560-test project suite all pass. `check`, migration dry-run (no migration needed or made), and `git diff --check` all passed. `08bd910` not amended. |
-| Resumable order drafts — V2.1 Phases B–E (`FormDraft`, demo hand-off, draft UI, atomic submission) | `NOT_STARTED` | Requires explicit human approval on the open decisions above before Phase B begins; depends on the now-`VERIFIED` (and corrected) Phase A foundation. |
+| Resumable order drafts — V2.1-B1 (`FormDraft` model + service + demo-snapshot relocation) | `VERIFIED` (local) | See "V2.1-B1" entries above. New `FormDraft` model (additive migration, not applied to any permanent database), `leads/form_draft_service.py` (allowlist/race-safe upsert/expiry/hard-delete), `projects/demo_snapshots.py` (relocated, hardened, byte-identical snapshot builder). 204-test targeted suite + 591-test full suite all pass (5 skips, all PostgreSQL-only). Real PostgreSQL evidence for both the concurrent-upsert race and the raw constraint race (1 run + 5 repeats, all clean). No view/signal/login/`LeadCreateView` change. No admin registration for `FormDraft`. Not pushed, deployed, or migrated on production. |
+| Resumable order drafts — V2.1 Phases B2–E (pre/post-login demo capture, auto-save endpoint, draft restore/delete UI, atomic submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase B2 begins; depends on the now-`VERIFIED` Phase B1 data foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
