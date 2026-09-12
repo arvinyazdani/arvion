@@ -2,28 +2,37 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-B1 second corrective — lifecycle and snapshot
+- **Current phase:** V2.1-B2 — the first real wiring of `FormDraft` into
+  a live path: a visitor's demo selection now survives the login/register
+  session-key rotation and lands as a safe snapshot on the newly
+  authenticated (non-staff) customer's `FormDraft`, and an
+  already-authenticated non-staff customer visiting the contact page with
+  a valid demo link gets the same sync immediately. No auto-save
+  endpoint, no restore/delete UI, no dashboard, and no `Lead`-submission
+  change in this phase — see "V2.1-B2" entries below. Status: `VERIFIED`
+  (local).
+- **Last verified phase (code):** V2.1-B2, on top of the V2.1-B1 second
+  corrective phase, the V2.1-B1 first corrective phase (`0e1a208`),
+  V2.1-B1 (`537c9a2`), the V2.1-A corrective phase, and `08bd910`.
+- **V2.1-B1 second corrective — historical recap (superseded as the
+  "current phase"; kept for reference):** lifecycle and snapshot
   hardening on `FormDraft`'s service layer, one step further than the
-  first corrective phase (`0e1a208`), still before any endpoint is wired
-  to it. Four more real defects were found and are now fixed: (1)
-  `attach_demo_snapshot`/`clear_demo_snapshot` did not extend `expires_at`,
-  unlike every other draft-touching operation; (2) a `DraftValidationError`
-  raised for "no active draft" could roll back an expired-draft status
-  transition that had just happened inside the same `transaction.atomic()`
-  block, since an exception propagating out of `atomic()` undoes
-  everything written inside it — including a write that should have
-  survived; (3) `attach_demo_snapshot` trusted the caller's in-memory
-  `DemoSelection` instance rather than re-reading it from the database,
-  so a locally mutated (never saved) instance, or one whose row had since
-  been deleted, could still reach the snapshot builder; (4) snapshot
-  validation only checked the key *set*, not each value's type/length, so
-  a malformed `template_title_fa`/`brand`/`features_fa` etc. of the wrong
-  type, unbounded length, or mismatched feature-list counts could still
-  be written. All four are now fixed and verified — see "V2.1-B1 second
-  corrective" entries below. Status: `VERIFIED` (local).
-- **Last verified phase (code):** V2.1-B1 second corrective, on top of
-  the V2.1-B1 first corrective phase (`0e1a208`), V2.1-B1 (`537c9a2`),
-  the V2.1-A corrective phase, and `08bd910`.
+  first corrective phase (`0e1a208`). Four real defects were found and
+  fixed: (1) `attach_demo_snapshot`/`clear_demo_snapshot` did not extend
+  `expires_at`, unlike every other draft-touching operation; (2) a
+  `DraftValidationError` raised for "no active draft" could roll back an
+  expired-draft status transition that had just happened inside the same
+  `transaction.atomic()` block, since an exception propagating out of
+  `atomic()` undoes everything written inside it — including a write that
+  should have survived; (3) `attach_demo_snapshot` trusted the caller's
+  in-memory `DemoSelection` instance rather than re-reading it from the
+  database, so a locally mutated (never saved) instance, or one whose row
+  had since been deleted, could still reach the snapshot builder; (4)
+  snapshot validation only checked the key *set*, not each value's
+  type/length, so a malformed `template_title_fa`/`brand`/`features_fa`
+  etc. of the wrong type, unbounded length, or mismatched feature-list
+  counts could still be written. All four were fixed and verified — see
+  "V2.1-B1 second corrective" entries below.
 - **V2.1-A corrective phase — historical status recap (superseded by
   later phases; kept for reference only, not the current phase's
   status):** `08bd910` was initially `VERIFIED` for
@@ -791,10 +800,181 @@
   `leads/form_draft_service.py` and `leads/test_form_draft.py` changed
   (plus this documentation file) — no view, template, signal, URL, or
   `LeadCreateView` touched.
+- **Git boundary (as of `a5d2371`, historical — see the accurate,
+  up-to-date count directly below):** `main` was thirteen commits ahead
+  of `origin/main` at that point — the twelve from the prior entry, plus
+  the V2.1-B1 second corrective commit `a5d2371`. Neither `537c9a2` nor
+  `0e1a208` was amended.
+- **V2.1-B2 — what was built:** the first two hand-off paths connecting
+  `projects.DemoSelection` (anonymous, session-bound) to
+  `leads.FormDraft` (account-bound), with no UI, auto-save endpoint,
+  restore/delete surface, or `Lead`-submission change.
+  `leads/form_draft_service.py` gained two new functions:
+  `ensure_active_draft(*, owner, form_type)` (race-safe "make sure one
+  active draft exists," creating an empty one only if needed — never
+  touches `fields`/`current_step`/`demo_snapshot` on an existing draft)
+  and `ensure_active_draft_with_demo_snapshot(*, owner, form_type,
+  demo_selection)` (the same "ensure," plus attaching a validated
+  snapshot, both under one owner-locked transaction — unlike
+  `attach_demo_snapshot`, this never raises `no_active_draft`, since it
+  creates the draft itself when none exists). `leads/demo_handoff.py`
+  (new module): `store_pending_demo_selection(request, selection)` writes
+  only `{"demo_selection_id": <int>, "form_type": "leads_contact"}` into
+  `request.session["leads:pending_demo_selection"]` — never
+  `public_token`/`session_key`/`submission_token`, never the snapshot
+  itself — and skips the write when the marker already matches, so a
+  replayed `?demo=` link does not keep dirtying the session.
+  `pop_pending_demo_selection_id(request)` always pops the marker and
+  returns the id only if the marker is a well-formed dict scoped to
+  `form_type == "leads_contact"`; anything else (wrong shape, wrong
+  form_type, absent) returns `None`. `handle_resolved_demo_selection(request,
+  selection)` is the single dispatch point called by the view with an
+  already-`_session_demo_selection`-validated selection: an anonymous
+  visitor gets a marker stored; an authenticated non-staff customer gets
+  `ensure_active_draft_with_demo_snapshot` called immediately (rejections
+  are logged and swallowed — this hand-off is a convenience, never a hard
+  requirement for the contact page to render); a staff/superuser account
+  gets neither. `leads/signals.py` (new module):
+  `attach_pending_demo_selection_on_login`, a `user_logged_in` receiver
+  (`dispatch_uid="leads.attach_pending_demo_selection_on_login"`,
+  registered from `leads/apps.py`'s new `LeadsConfig.ready()` — mirrors
+  the existing `accounts.apps.AccountsConfig.ready()` pattern exactly, and
+  keeps `accounts` fully unaware that `leads` is listening) that: pops the
+  pending marker *before* checking staff/superuser status (so a stray
+  marker can never survive a staff login and later leak into a different
+  customer's subsequent login on the same physical session); returns
+  silently if there is no marker, the popped id doesn't resolve to a real
+  `DemoSelection` row, or the user is staff/superuser; otherwise calls
+  `ensure_active_draft_with_demo_snapshot`, logging and swallowing a
+  `DraftValidationError` (a final, non-retryable rejection) or restoring
+  the marker on any other exception (a presumed-transient failure, so the
+  customer's next authenticated request can retry) — either way, login
+  itself is never blocked or failed. `leads/views/contact.py`:
+  `LeadCreateView` gained a `_resolved_demo_selection()` helper that
+  memoizes the existing `_session_demo_selection(self.request)` lookup
+  per view instance (so `get_initial`/`get_context_data` share one query
+  instead of two) and, on the first successful resolution only, calls
+  `handle_resolved_demo_selection`. `get_initial`/`get_context_data` now
+  call this helper instead of the module-level function directly.
+  `form_valid` is byte-for-byte unchanged (still calls
+  `_session_demo_selection(self.request)` directly) — deliberately left
+  untouched per this phase's explicit review constraint, so `Lead`
+  submission itself has zero behavioural change.
+- **V2.1-B2 — why session rotation doesn't break the link:**
+  `django.contrib.auth.login()` takes one of two paths depending on prior
+  session state: a previously-anonymous session gets `cycle_key()`, which
+  **preserves session data** while minting a new key — so a marker
+  written before `login()` survives into the `user_logged_in` receiver
+  untouched; a session that already belonged to a *different*
+  authenticated user gets `flush()` instead, which **wipes all session
+  data** before the new login proceeds — so a marker can never survive
+  into a different account's login. This is exactly Django's own,
+  already-trusted session-fixation defence; no new code was needed to
+  get the account-switch protection required by this phase; it was
+  proven, not assumed, by the account-switch test below.
+- **V2.1-B2 — security review:** the marker never holds
+  `public_token`/`session_key`/`submission_token` or the snapshot itself
+  (only an internal integer id + a fixed form_type string) — verified by
+  tests inspecting the raw session payload after every marker-writing
+  path. `demo_selection` is re-validated and re-read fresh from the
+  database by every function that touches it (unchanged from the prior
+  corrective phase), so a caller-controlled object is never trusted.
+  Staff/superuser accounts never receive a `FormDraft` from either hand-off
+  path (verified for both login and the already-authenticated view path).
+  No log statement in `leads/signals.py` or `leads/demo_handoff.py`
+  interpolates any value, id, token, or payload — both are fixed strings.
+  `accounts` was not modified at all: it fires the same `user_logged_in`
+  signal it always has, unaware that `leads` is now listening. No new
+  admin registration, no new public/auto-save endpoint, no new URL. `git
+  status --short`/`git diff --stat` confirm only `leads/apps.py`,
+  `leads/form_draft_service.py`, `leads/test_form_draft.py`, and
+  `leads/views/contact.py` were modified (plus this documentation file),
+  and `leads/demo_handoff.py`/`leads/signals.py`/`leads/test_demo_handoff.py`
+  are new files — no `accounts/*`, `management_portal/*`, template,
+  JavaScript, or migration touched, and `LeadCreateView.form_valid` is
+  byte-for-byte identical to before.
+- **V2.1-B2 — test level:** `leads/test_form_draft.py` gained 12 new
+  tests: `EnsureActiveDraftTests` (5 — creates an empty draft when none
+  exists; returns an existing draft completely unmodified; repeated calls
+  never create a second draft; a stale draft is expired and replaced;
+  anonymous owner rejected) and `EnsureActiveDraftWithDemoSnapshotTests`
+  (6 — creates a draft with the snapshot when none existed; never raises
+  `no_active_draft` unlike `attach_demo_snapshot`; preserves
+  `fields`/`current_step` on an existing draft; repeated calls are
+  idempotent; a deleted `DemoSelection` is rejected without writing;
+  never touches another owner's draft), plus 1 new PostgreSQL-only race
+  test (see below). New file `leads/test_demo_handoff.py` (25 tests):
+  `PendingDemoMarkerHelperTests` (6, direct unit tests of the marker
+  helpers — correct shape, skip-when-unchanged, malformed/wrong-form-type/
+  absent all return `None`); `ContactViewDemoHandoffTests` (6 — anonymous
+  visit stores a marker with no token/session_key in it; an invalid or
+  foreign-session token never creates or overwrites an existing marker;
+  exactly one `DemoSelection` query per request via
+  `CaptureQueriesContext`; an authenticated non-staff customer gets the
+  snapshot synced immediately and idempotently; staff get neither draft
+  nor marker; an authenticated customer cannot attach another session's
+  `DemoSelection`); `LoginSignalHandoffTests` (12 — normal login attaches
+  the snapshot and clears the marker; session-key rotation doesn't break
+  the link; existing `fields`/`current_step` survive the attach; the
+  receiver called twice directly never duplicates the draft; a malformed
+  marker or a since-deleted `DemoSelection` is cleared with login still
+  succeeding; a mocked transient exception leaves login unharmed and
+  restores the marker for retry; a mocked `DraftValidationError` leaves
+  login unharmed and does *not* restore the marker; staff and superuser
+  logins never receive a customer's pending selection; the flush-path
+  account-switch scenario — a session already carrying a different
+  user's `SESSION_KEY` before a new login — never transfers the marker;
+  no forbidden token appears in the resulting draft or session);
+  `RegistrationHandoffTests` (1 — registration's automatic post-signup
+  login attaches the snapshot exactly like a normal login). On SQLite:
+  `leads` app alone: 107 tests, 101 passed, 6 correctly skipped.
+  `accounts`+`projects`+`management_portal`: 234 tests, all passing (2
+  skips) — confirming no regression in registration, login, phone
+  verification, or email verification, and no change to
+  `management_portal`'s own behaviour. Full project suite: 655 tests
+  total, 646 passed, 9 correctly skipped
+  (all PostgreSQL-only; up from 618 total/8 skips at `a5d2371` by exactly
+  the 37 new tests this phase added: 25 in `test_demo_handoff.py` + 12 in
+  `test_form_draft.py`). `manage.py check` (0 issues), `makemigrations
+  --check --dry-run` ("No changes detected" — no model or migration
+  change in this phase), and `git diff --check` (clean) all passed.
+- **V2.1-B2 — PostgreSQL evidence, and one unrelated pre-existing issue
+  found along the way:** `leads.test_form_draft.FormDraftPostgresRaceTests`
+  gained
+  `test_concurrent_ensure_and_attach_converge_to_one_draft_with_the_snapshot`
+  — two threads call `ensure_active_draft_with_demo_snapshot` for the same
+  owner at (as close as Python threading allows) the same instant,
+  synchronized via `threading.Barrier(2)` with independent database
+  connections, simulating a double-tab login race; result every run:
+  exactly one `FormDraft` row, holding the snapshot, status `"open"`. Ran
+  the full `FormDraftPostgresRaceTests` class (now 6 tests) once plus 5
+  additional repeats against the same isolated local PostgreSQL 16
+  `test_arvion_ci_local` database used throughout this project (never the
+  permanent `arvion_ci_local`) — all clean. Also ran `accounts`+`leads`+
+  `projects` against that same real PostgreSQL database (201 tests, all
+  passing — confirming the new signal/handoff wiring has no
+  PostgreSQL-specific regression). A separate run adding
+  `management_portal` to that same command (341 tests total) surfaced one
+  **pre-existing, unrelated** failure —
+  `assessments/services.py`'s `revoke_assessment_access` does
+  `ExamEntitlement.objects.select_for_update().select_related("attempt")`,
+  and PostgreSQL rejects `SELECT ... FOR UPDATE` on the nullable side of
+  an outer join produced by that `select_related`. This is not caused by,
+  and not fixed as part of, this phase — it lives entirely in
+  `assessments/services.py` (never touched here), was not introduced by
+  any commit in this session, and was only ever discovered because this
+  is the first time this project's `management_portal` suite happened to
+  be run against a real PostgreSQL engine rather than SQLite. Left
+  unfixed and flagged below as a risk for a human to prioritize; the
+  `management_portal` suite passes cleanly on SQLite (its normal test
+  backend) and was not otherwise touched by this phase.
+- **V2.1-B2 — migration status:** none created or needed;
+  `makemigrations --check --dry-run` reported "No changes detected." No
+  model field changed; `leads.FormDraft`'s schema (from `537c9a2`) is
+  unmodified.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is thirteen commits ahead of `origin/main` — the twelve listed
-  above, plus this V2.1-B1 second corrective commit. Neither `537c9a2` nor
-  `0e1a208` is amended; this is a separate commit on top of `0e1a208`.
+  `main` is fourteen commits ahead of `origin/main` — the thirteen listed
+  above, plus this V2.1-B2 commit. No prior commit is amended.
 - **Prior phase's change (kept for reference; unaffected by this
   design-only phase; one function in one file):** `writeDemoContext` in
   `core/static/core/js/wizard-engine.js` now clears the one-shot
@@ -864,30 +1044,36 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this V2.1-B1 second corrective phase's own commit (see
-  `git log`) — a separate commit on top of `0e1a208`, which is not
-  amended.
-- **Next action:** V2.1-B1 and both of its corrective phases (`0e1a208`,
-  and this one) are done and fully verified — `FormDraft`'s service layer
-  (allowlist, race-safe upsert, read-only expiry check, safe demo-snapshot
-  attach/clear with retention extension and full value validation, a
-  distrustful re-read of `DemoSelection` before ever building a snapshot
-  from it, opaque validation errors, single retention constant) is now
-  hardened enough to wire an endpoint to. Nothing yet calls
-  `leads.form_draft_service` from any view, signal, or login path — that
-  wiring (pre-login demo capture before `login()` rotates the session
-  key, post-login demo capture on the contact page via
-  `attach_demo_snapshot`, an auto-save endpoint, and server-side
-  restore/delete UI) is Phase B2/C and still requires the same explicit
-  human decisions flagged under "V2.1 — decisions requiring explicit
-  human approval" above (free-text/contact-info consent layer, final
-  `FormDraft` retention confirmation — 7 days is now implemented, not
+- **Last commit:** this V2.1-B2 phase's own commit (see `git log`) — a
+  separate commit on top of `a5d2371`, which is not amended.
+- **Next action:** V2.1-B1 (both corrective phases included) and V2.1-B2
+  are done and fully verified — a visitor's demo selection now reliably
+  survives login/registration and lands on their account's `FormDraft` as
+  a safe snapshot, and an already-authenticated customer gets the same
+  sync immediately on the contact page. Still missing before this feature
+  is customer-visible: an auto-save endpoint for `fields`/`current_step`
+  as the visitor progresses through the wizard, a restore/delete UI on
+  the contact page and account dashboard, and the atomic final-submission
+  step (`FormDraft` → `Lead`, `open`/`submitting` → `submitted`,
+  `submitted_lead` set) — all still Phase B3/C/D, per the original V2.1
+  plan, and still gated on the explicit human decisions flagged under
+  "V2.1 — decisions requiring explicit human approval" above (free-text/
+  contact-info consent layer, final `FormDraft` retention confirmation —
+  7 days is now implemented and now actually reachable via login, not
   just proposed — whether to nudge guests to sign in, and
-  `cleanup_demo_selections`/`cleanup_form_drafts` scheduling) before
-  proceeding, plus the still-deferred session/ownership authorization
-  check on which `DemoSelection` a caller may attach (explicitly out of
-  scope for both corrective phases, reserved for B2). The earlier,
-  separate V2 idea (a time-boxed, signed
+  `cleanup_demo_selections`/`cleanup_form_drafts` scheduling), plus the
+  still-deferred session/ownership authorization check on which
+  `DemoSelection` a caller may attach via `attach_demo_snapshot`/
+  `ensure_active_draft_with_demo_snapshot` directly (not a concern for the
+  two hand-off paths built in this phase, both of which only ever pass in
+  a selection already validated by `_session_demo_selection`'s own
+  session-key match). One **unrelated, pre-existing** issue was found
+  incidentally while regression-testing this phase's changes on
+  PostgreSQL — `assessments/services.py`'s `revoke_assessment_access`
+  cannot run its `select_for_update()` query on PostgreSQL due to an
+  outer join from `select_related("attempt")` — flagged for a human to
+  prioritize separately; it does not block this phase and was not touched
+  here. The earlier, separate V2 idea (a time-boxed, signed
   continuation link) remains superseded by the login-based approach unless
   explicitly reopened. Resumable order drafts beyond leads-contact
   (CRM/Clinic) remain `NOT_STARTED`. Re-run the release gate on the exact
@@ -915,5 +1101,6 @@
 | Resumable order drafts — V2.1-B1 (`FormDraft` model + service + demo-snapshot relocation) (`537c9a2`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL`: arbitrary caller-supplied `demo_snapshot` accepted verbatim; ordinary field saves silently wiped an existing snapshot; `get_active_draft` wrote on read, racing `upsert_active_draft`; validation errors leaked raw attacker-controlled values/keys. See the corrective-phase row below, which fixes and re-verifies it. |
 | Resumable order drafts — V2.1-B1 first corrective (safe snapshot attach/clear, read-only expiry check, opaque validation errors, single retention constant) (`0e1a208`) | `VERIFIED` (local), corrected again | Initially verified, then found `PARTIAL` a second time (see the second-corrective row below): attach/clear did not extend `expires_at`; an expired-draft status transition could be rolled back by a same-transaction `DraftValidationError`; `attach_demo_snapshot` trusted the caller's in-memory `DemoSelection` instead of re-reading it; snapshot validation checked only the key set, not each value's type/length. Also contained a documentation bug (own note, not a code defect): its "test level" entry misstated `leads.test_form_draft`'s result as "47 passed, 3 skips" when the correct breakdown is 47 total = 44 passed + 3 skips — corrected in place above and in this ledger row's own text. `attach_demo_snapshot`/`clear_demo_snapshot` replace raw `demo_snapshot=` passthrough (with a fixed 12-key snapshot-shape allowlist check before every write); `upsert_active_draft` preserves an existing snapshot by default; `get_active_draft` is fully read-only (no UPDATE, no `select_for_update` — proven directly via `CaptureQueriesContext` + a patched `select_for_update` that raises if called); `DraftValidationError` messages are fixed, opaque, code-tagged strings with no raw value/key interpolation; `DRAFT_RETENTION_DAYS` now lives in one place (`leads/models/form_draft.py`), imported by the service. 16 new tests + 1 updated test in `leads.test_form_draft` (47 tests total: 44 passed, 3 skips), `leads`+`projects`+`management_portal` (220 tests, 3 skips), full project suite (607 tests total: 601 passed, 6 skips — all PostgreSQL-only). New PostgreSQL regression test `test_concurrent_expired_read_cannot_clobber_a_racing_renewal` (1 run + 5 repeats, all clean) alongside the 2 pre-existing race tests. `check` (0 issues), migration dry-run ("No changes detected" — no new migration), and `git diff --check` (clean) all passed. `537c9a2` not amended. |
 | Resumable order drafts — V2.1-B1 second corrective (retention on attach/clear, expired-transition commit ordering, distrustful DemoSelection reload, full snapshot value validation) | `VERIFIED` (local) | See "V2.1-B1 second corrective" entries above. `attach_demo_snapshot`/`clear_demo_snapshot` now extend `expires_at` by exactly 7 days on success; the `no_active_draft` rejection is raised only after the write transaction has committed, so a concurrently-discovered expiry transition always survives; `DemoSelection` is always re-read fresh from the database by pk (with `select_related("template")`) before a snapshot is ever built from it, so a locally mutated or since-deleted instance can never leak into a stored snapshot; snapshot validation now checks every value's type and length and requires the two feature lists to match in length, not just the key set. 11 new tests (9 in `DemoSnapshotAttachClearTests`, 2 new PostgreSQL-only race tests), `leads.test_form_draft` (58 tests total: 53 passed, 5 skips), `leads`+`projects`+`management_portal` (231 tests, 5 skips), `management_portal.tests.DemoSelectionCaseHandoffTests` re-run explicitly (8 tests, unchanged), full project suite (618 tests total: 610 passed, 8 skips — all PostgreSQL-only). 2 new PostgreSQL race tests plus the 3 pre-existing ones (5 total), run once plus 5 additional repeats, all clean. `check` (0 issues), migration dry-run ("No changes detected" — no new migration), and `git diff --check` (clean) all passed. Neither `537c9a2` nor `0e1a208` amended. |
-| Resumable order drafts — V2.1 Phases B2–E (pre/post-login demo capture, auto-save endpoint, draft restore/delete UI, atomic submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase B2 begins; depends on the now-`VERIFIED` Phase B1 data foundation. |
+| Resumable order drafts — V2.1-B2 (pre-login session marker + login-signal hand-off + already-authenticated sync, both into `FormDraft`) | `VERIFIED` (local) | See "V2.1-B2" entries above. New `leads/demo_handoff.py` (session marker holding only an internal id + form_type, never a token) and `leads/signals.py` (`user_logged_in` receiver registered via `leads/apps.py`'s new `ready()`, fully decoupling `accounts` from `leads`). New `ensure_active_draft`/`ensure_active_draft_with_demo_snapshot` in `leads/form_draft_service.py`. `LeadCreateView.form_valid` byte-for-byte unchanged; only `get_initial`/`get_context_data` route through a new memoized per-request resolver. Staff/superuser excluded from both hand-off paths; account-switch (`login()`'s `flush()` path) proven, not assumed, to never transfer the marker. 37 new tests (12 in `leads/test_form_draft.py`, 25 in new `leads/test_demo_handoff.py`); `leads` app (107 tests, 6 skips); `accounts`+`projects`+`management_portal` (234 tests, 2 skips, confirming no regression in registration/login/phone-verification/email-verification); full project suite (655 tests total, 646 passed, 9 skips — all PostgreSQL-only). PostgreSQL: `FormDraftPostgresRaceTests` (6 tests, 1 run + 5 repeats, all clean) plus `accounts`+`leads`+`projects` (201 tests, all passing). One unrelated, pre-existing PostgreSQL incompatibility found in `assessments/services.py` (untouched, flagged for separate human prioritization). `check` (0 issues), migration dry-run ("No changes detected" — no model/migration change), and `git diff --check` (clean) all passed. No prior commit amended. |
+| Resumable order drafts — V2.1 Phases B3–E (auto-save endpoint, draft restore/delete UI, atomic final submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase B3 begins; depends on the now-`VERIFIED` Phase B1+B2 foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

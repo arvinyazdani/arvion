@@ -5,3 +5,6 @@ class LeadsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'leads'
     verbose_name = "درخواست‌های مشتریان"
+
+    def ready(self):
+        from . import signals  # noqa: F401

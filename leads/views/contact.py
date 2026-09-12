@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.generic import DetailView, FormView
 
 from core.views.lang import LanguageViewMixin
+from leads.demo_handoff import handle_resolved_demo_selection
 from leads.forms import LeadForm
 from leads.models import Lead
 from services.models import Service
@@ -34,6 +35,23 @@ class LeadCreateView(LanguageViewMixin, FormView):
     template_name = "leads/contact.html"
     form_class = LeadForm
 
+    def _resolved_demo_selection(self):
+        """Resolve `?demo=` for this request at most once — `get_initial`,
+        `get_context_data`, and `form_valid` can all run within the same
+        request/response cycle (e.g. `get_initial` is always called while
+        building the form, even on POST) and would otherwise each issue
+        their own `DemoSelection` query. The pre-login-marker/already-
+        authenticated hand-off (`handle_resolved_demo_selection`) also
+        runs exactly once here, as a side effect of the first resolution,
+        rather than once per call site.
+        """
+        if not hasattr(self, "_demo_selection_cache"):
+            selection = _session_demo_selection(self.request)
+            self._demo_selection_cache = selection
+            if selection:
+                handle_resolved_demo_selection(self.request, selection)
+        return self._demo_selection_cache
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["lang"] = self.lang
@@ -49,7 +67,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
                 "corporate-website-design": "website", "custom-web-application": "webapp",
                 "ecommerce-platform": "ecommerce", "maintenance-and-growth": "support",
             }.get(service.slug, "consultation")
-        selection = _session_demo_selection(self.request)
+        selection = self._resolved_demo_selection()
         if selection:
             initial["request_type"] = {
                 "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
@@ -71,7 +89,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
         # wrong session, wrong device, expired, or simply invalid — must not
         # block or explain itself (that would leak whether the token exists
         # at all); it just surfaces a neutral, non-blocking notice.
-        selection = _session_demo_selection(self.request)
+        selection = self._resolved_demo_selection()
         if self.request.GET.get("demo", "") and not selection:
             context["demo_link_invalid"] = True
         elif selection:

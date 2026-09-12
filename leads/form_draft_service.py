@@ -4,8 +4,10 @@ directly — this is where the field allowlist, the race-safe single-active-
 draft rule, the expiry lifecycle, and the demo-snapshot attach/clear rules
 are enforced.
 
-Scope for this phase: leads_contact only. No view, signal, or login path
-calls into this module yet — that wiring is explicitly out of scope here.
+Scope: leads_contact only. `leads.signals` (pre-login hand-off) and
+`leads.views.contact.LeadCreateView` (already-authenticated hand-off) are
+the only callers outside this module and its own tests — no auto-save
+endpoint, restore/delete UI, or Lead-submission wiring exists yet.
 
 Every `DraftValidationError` message below is a fixed, generic string with
 no interpolated value or caller-supplied key name: both a submitted field
@@ -249,6 +251,65 @@ def upsert_active_draft(*, owner, form_type, fields, current_step=0):
             owner=locked_owner, form_type=form_type, current_step=current_step,
             fields=cleaned_fields, expires_at=expires_at,
         )
+
+
+def ensure_active_draft(*, owner, form_type):
+    """Return the owner's current active draft for `form_type`, creating an
+    empty one (default `fields={}`, `current_step=0`, `demo_snapshot={}`)
+    if none exists yet. Never modifies `fields`/`current_step`/
+    `demo_snapshot` on an already-existing draft — this only guarantees
+    one exists, it never upserts content the way `upsert_active_draft`
+    does. An existing-but-expired draft is transitioned to `"expired"`
+    and replaced with a fresh one, exactly like every other write path
+    here. Race-safe via the same owner-row lock; repeated calls converge
+    on the same single row rather than ever creating a second one."""
+    _require_real_owner(owner)
+    _require_supported_form_type(form_type)
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        now = timezone.now()
+        existing = _get_active_draft_locked(locked_owner, form_type, now)
+        if existing is not None:
+            return existing
+        return FormDraft.objects.create(
+            owner=locked_owner, form_type=form_type, expires_at=now + timedelta(days=DRAFT_RETENTION_DAYS),
+        )
+
+
+def ensure_active_draft_with_demo_snapshot(*, owner, form_type, demo_selection):
+    """Atomically ensure an active draft exists for (owner, form_type) and
+    attach `demo_selection`'s snapshot to it — both steps under the same
+    owner-row lock and the same transaction, so a concurrent delete/expire
+    of the just-ensured draft between "ensure" and "attach" is impossible.
+    Unlike `attach_demo_snapshot`, this never raises `no_active_draft`: if
+    no active draft exists yet, one is created with the snapshot already
+    attached in a single write. An existing draft's `fields`/`current_step`
+    are left untouched, exactly like `attach_demo_snapshot`.
+
+    `demo_selection` is validated and re-read fresh from the database the
+    same way `attach_demo_snapshot` does — see `_reload_demo_selection`.
+    """
+    _require_real_owner(owner)
+    _require_supported_form_type(form_type)
+    fresh_selection = _reload_demo_selection(demo_selection)
+    if fresh_selection is None:
+        _reject("invalid_demo_selection", "demo_selection must be a saved DemoSelection instance.")
+    snapshot = build_demo_selection_snapshot(fresh_selection)
+    _validate_snapshot_shape(snapshot)
+
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        now = timezone.now()
+        existing = _get_active_draft_locked(locked_owner, form_type, now)
+        expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
+        if existing is None:
+            return FormDraft.objects.create(
+                owner=locked_owner, form_type=form_type, demo_snapshot=snapshot, expires_at=expires_at,
+            )
+        existing.demo_snapshot = snapshot
+        existing.expires_at = expires_at
+        existing.save(update_fields=["demo_snapshot", "expires_at", "updated_at"])
+        return existing
 
 
 def _reload_demo_selection(demo_selection):

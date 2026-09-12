@@ -14,6 +14,8 @@ from leads.form_draft_service import (
     attach_demo_snapshot,
     clear_demo_snapshot,
     delete_draft,
+    ensure_active_draft,
+    ensure_active_draft_with_demo_snapshot,
     get_active_draft,
     normalize_fields,
     upsert_active_draft,
@@ -284,6 +286,141 @@ class UpsertActiveDraftTests(TestCase):
         from leads.models import form_draft as form_draft_model
 
         self.assertIs(form_draft_service.DRAFT_RETENTION_DAYS, form_draft_model.DRAFT_RETENTION_DAYS)
+
+
+class EnsureActiveDraftTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="ensure-owner@example.com", email="ensure-owner@example.com", password="x", is_active=True,
+        )
+        self.template = DemoTemplate.objects.create(
+            slug="ensure-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        self.selection = DemoSelection.objects.create(
+            template=self.template, session_key="ensure-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+
+    def test_ensure_creates_an_empty_draft_when_none_exists(self):
+        draft = ensure_active_draft(owner=self.owner, form_type="leads_contact")
+        self.assertEqual(draft.fields, {})
+        self.assertEqual(draft.current_step, 0)
+        self.assertEqual(draft.demo_snapshot, {})
+        self.assertEqual(draft.status, "open")
+
+    def test_ensure_returns_the_existing_draft_unmodified(self):
+        original = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=1)
+        attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        before = FormDraft.objects.get(pk=original.pk)
+
+        returned = ensure_active_draft(owner=self.owner, form_type="leads_contact")
+
+        self.assertEqual(returned.pk, original.pk)
+        self.assertEqual(returned.fields, before.fields)
+        self.assertEqual(returned.current_step, before.current_step)
+        self.assertEqual(returned.demo_snapshot, before.demo_snapshot)
+
+    def test_repeated_ensure_never_creates_a_second_draft(self):
+        for _ in range(3):
+            ensure_active_draft(owner=self.owner, form_type="leads_contact")
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 1)
+
+    def test_ensure_expires_a_stale_draft_and_creates_a_fresh_one(self):
+        stale = ensure_active_draft(owner=self.owner, form_type="leads_contact")
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        fresh = ensure_active_draft(owner=self.owner, form_type="leads_contact")
+
+        self.assertNotEqual(stale.pk, fresh.pk)
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+        self.assertEqual(fresh.status, "open")
+
+    def test_ensure_rejects_anonymous_owner(self):
+        anonymous = type("Anon", (), {"is_authenticated": False, "pk": None})()
+        with self.assertRaises(DraftValidationError):
+            ensure_active_draft(owner=anonymous, form_type="leads_contact")
+        self.assertEqual(FormDraft.objects.count(), 0)
+
+
+class EnsureActiveDraftWithDemoSnapshotTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="ensure-attach-owner@example.com", email="ensure-attach-owner@example.com",
+            password="x", is_active=True,
+        )
+        self.other = User.objects.create_user(
+            username="ensure-attach-other@example.com", email="ensure-attach-other@example.com",
+            password="x", is_active=True,
+        )
+        self.template = DemoTemplate.objects.create(
+            slug="ensure-attach-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        self.selection = DemoSelection.objects.create(
+            template=self.template, session_key="ensure-attach-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+
+    def test_creates_a_draft_with_the_snapshot_when_none_existed(self):
+        draft = ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+        self.assertEqual(draft.demo_snapshot, build_demo_selection_snapshot(self.selection))
+        self.assertEqual(draft.fields, {})
+        self.assertEqual(draft.current_step, 0)
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 1)
+
+    def test_never_raises_no_active_draft_unlike_attach_demo_snapshot(self):
+        # attach_demo_snapshot would reject with no_active_draft here since
+        # no draft exists yet; the combined ensure+attach must not.
+        draft = ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+        self.assertIsNotNone(draft)
+
+    def test_preserves_fields_and_current_step_on_an_existing_draft(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=2)
+
+        draft = ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+
+        self.assertEqual(draft.fields, {"request_type": "webapp"})
+        self.assertEqual(draft.current_step, 2)
+        self.assertEqual(draft.demo_snapshot, build_demo_selection_snapshot(self.selection))
+
+    def test_repeated_calls_are_idempotent_and_never_create_a_second_draft(self):
+        for _ in range(3):
+            ensure_active_draft_with_demo_snapshot(
+                owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+            )
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 1)
+
+    def test_rejects_an_unsaved_or_deleted_demo_selection_without_writing(self):
+        stale_pk = self.selection.pk
+        DemoSelection.objects.filter(pk=stale_pk).delete()
+        with self.assertRaises(DraftValidationError) as ctx:
+            ensure_active_draft_with_demo_snapshot(
+                owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+            )
+        self.assertEqual(ctx.exception.code, "invalid_demo_selection")
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 0)
+
+    def test_never_touches_another_owners_draft(self):
+        other_draft = ensure_active_draft(owner=self.other, form_type="leads_contact")
+        ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+        other_draft.refresh_from_db()
+        self.assertEqual(other_draft.demo_snapshot, {})
 
 
 class OpaqueValidationErrorTests(TestCase):
@@ -888,3 +1025,54 @@ class FormDraftPostgresRaceTests(TransactionTestCase):
         active = FormDraft.objects.filter(owner=owner, status__in=FormDraft.ACTIVE_STATUSES)
         self.assertEqual(active.count(), 1)
         self.assertEqual(FormDraft.objects.filter(owner=owner, status="expired").count(), 1)
+
+    def test_concurrent_ensure_and_attach_converge_to_one_draft_with_the_snapshot(self):
+        """Simulates two near-simultaneous logins for the same account both
+        carrying the same pending demo selection (e.g. a double-tab submit)
+        — the atomic ensure+attach combo must converge to exactly one
+        active draft holding the snapshot, never two competing rows and
+        never a lost snapshot."""
+        owner = User.objects.create_user(
+            username="ensure-attach-race@example.com", email="ensure-attach-race@example.com",
+            password="x", is_active=True,
+        )
+        template = DemoTemplate.objects.create(
+            slug="race-ensure-attach-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        selection = DemoSelection.objects.create(
+            template=template, session_key="race-ensure-attach-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def attempt():
+            try:
+                barrier.wait(timeout=5)
+                ensure_active_draft_with_demo_snapshot(
+                    owner=owner, form_type="leads_contact", demo_selection=selection,
+                )
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=attempt) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        for thread in threads:
+            self.assertFalse(thread.is_alive(), "a thread is still running — possible deadlock or hang")
+        self.assertEqual(errors, [])
+
+        self.assertEqual(FormDraft.objects.filter(owner=owner).count(), 1)
+        survivor = FormDraft.objects.get(owner=owner)
+        self.assertEqual(survivor.demo_snapshot, build_demo_selection_snapshot(selection))
+        self.assertEqual(survivor.status, "open")
