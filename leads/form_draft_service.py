@@ -1,10 +1,19 @@
 """The only sanctioned way to create, read, update, expire, or delete a
 `FormDraft`. Nothing outside this module should construct or save one
 directly — this is where the field allowlist, the race-safe single-active-
-draft rule, and the expiry lifecycle are enforced.
+draft rule, the expiry lifecycle, and the demo-snapshot attach/clear rules
+are enforced.
 
 Scope for this phase: leads_contact only. No view, signal, or login path
 calls into this module yet — that wiring is explicitly out of scope here.
+
+Every `DraftValidationError` message below is a fixed, generic string with
+no interpolated value or caller-supplied key name: both a submitted field
+value and an unrecognized field's own name may be attacker-controlled, and
+this module's exceptions are allowed to reach logs, admin error pages, or
+(eventually) API responses. Categorization is via the `.code` attribute,
+drawn only from this module's own fixed vocabulary — never from payload
+content.
 """
 
 from datetime import timedelta
@@ -13,11 +22,12 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from projects.demo_snapshots import build_demo_selection_snapshot
+from projects.models import DemoSelection
 from services.models import Service
 
 from .models import FormDraft, Lead
-
-DRAFT_RETENTION_DAYS = 7
+from .models.form_draft import DRAFT_RETENTION_DAYS  # single source of truth
 
 # Every field a draft is ever allowed to hold, and how each value is
 # checked. Anything not listed here is rejected outright — never silently
@@ -32,9 +42,10 @@ _FIELD_VALIDATORS = {
     },
 }
 
-# Named explicitly (rather than only relying on "not in the allowlist")
-# so a rejection can say plainly *why*: these are exactly the categories
-# of data a FormDraft must never hold, regardless of form_type.
+# Named explicitly (rather than only relying on "not in the allowlist") so
+# normalize_fields can tell the two rejection categories apart internally;
+# neither category ever echoes the actual key name back in the raised
+# message — see the module docstring.
 FORBIDDEN_FIELD_KEYS = frozenset((
     "name", "phone", "email_or_telegram", "business_name", "website_url",
     "message", "privacy_accept", "public_token", "session_key", "submission_token",
@@ -42,9 +53,25 @@ FORBIDDEN_FIELD_KEYS = frozenset((
 
 FORM_TYPE_STEP_COUNTS = {"leads_contact": 3}
 
+# The exact, fixed shape build_demo_selection_snapshot must produce. Checked
+# again here (defense in depth) before any snapshot is ever written to a
+# draft, so a future change to that helper can never smuggle a forbidden
+# key into FormDraft.demo_snapshot without this service also being updated.
+_DEMO_SNAPSHOT_ALLOWED_KEYS = frozenset((
+    "template_title_fa", "template_title_en", "category_fa", "category_en",
+    "brand", "theme_fa", "theme_en", "personality_fa", "personality_en",
+    "features_fa", "features_en", "demo_template_slug",
+))
+
 
 class DraftValidationError(ValidationError):
-    """Raised for an invalid owner, form_type, current_step, or field."""
+    """Raised for an invalid owner, form_type, current_step, field, or
+    demo_selection. See the module docstring: messages never repeat
+    caller-supplied content."""
+
+
+def _reject(code, message):
+    raise DraftValidationError(message, code=code)
 
 
 def _in_choices(value, choices):
@@ -64,25 +91,30 @@ def _is_valid_service_id(value):
 
 def _require_real_owner(owner):
     if owner is None or not getattr(owner, "is_authenticated", False) or not getattr(owner, "pk", None):
-        raise DraftValidationError("A draft must belong to a real, authenticated account.")
+        _reject("unauthenticated_owner", "A draft must belong to a real, authenticated account.")
+
+
+def _require_supported_form_type(form_type):
+    if form_type not in FORM_TYPE_STEP_COUNTS:
+        _reject("unsupported_form_type", "Unsupported form_type.")
 
 
 def normalize_fields(form_type, raw_fields):
     """Return a clean dict containing only the allowed, validated keys for
     this form_type. Raises DraftValidationError on any unknown key or
-    invalid value — never silently drops or coerces bad input."""
+    invalid value — never silently drops or coerces bad input, and never
+    echoes the offending key or value back in the exception."""
     validators = _FIELD_VALIDATORS.get(form_type)
     if validators is None:
-        raise DraftValidationError(f"Unsupported form_type: {form_type!r}")
+        _reject("unsupported_form_type", "Unsupported form_type.")
     if not isinstance(raw_fields, dict):
-        raise DraftValidationError("fields must be a dict")
+        _reject("invalid_fields_type", "fields must be a dict.")
 
     unknown = set(raw_fields) - set(validators)
     if unknown:
-        forbidden = unknown & FORBIDDEN_FIELD_KEYS
-        if forbidden:
-            raise DraftValidationError(f"Field(s) never allowed in a draft: {sorted(forbidden)}")
-        raise DraftValidationError(f"Unknown field(s): {sorted(unknown)}")
+        if unknown & FORBIDDEN_FIELD_KEYS:
+            _reject("forbidden_field", "One or more fields are never allowed in a draft.")
+        _reject("unknown_field", "One or more fields are not recognized.")
 
     cleaned = {}
     for key, validator in validators.items():
@@ -90,47 +122,56 @@ def normalize_fields(form_type, raw_fields):
             continue
         value = raw_fields[key]
         if not validator(value):
-            raise DraftValidationError(f"Invalid value for {key!r}: {value!r}")
+            _reject("invalid_field_value", "One or more field values are invalid.")
         cleaned[key] = value
     return cleaned
 
 
 def _validate_current_step(form_type, current_step):
-    step_count = FORM_TYPE_STEP_COUNTS.get(form_type)
-    if step_count is None:
-        raise DraftValidationError(f"Unsupported form_type: {form_type!r}")
+    step_count = FORM_TYPE_STEP_COUNTS[form_type]
     if not isinstance(current_step, int) or isinstance(current_step, bool) or not (0 <= current_step < step_count):
-        raise DraftValidationError(f"current_step out of range for {form_type!r}: {current_step!r}")
+        _reject("invalid_current_step", "current_step is out of range for this form_type.")
 
 
-def _expire_if_stale(draft, *, now=None):
-    now = now or timezone.now()
-    if draft.status in FormDraft.ACTIVE_STATUSES and draft.expires_at <= now:
-        draft.status = "expired"
-        draft.save(update_fields=["status", "updated_at"])
-        return True
-    return False
+def _validate_snapshot_shape(snapshot):
+    if not isinstance(snapshot, dict) or set(snapshot) != _DEMO_SNAPSHOT_ALLOWED_KEYS:
+        _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+
+
+def _get_active_draft_locked(locked_owner, form_type, now):
+    """Must only be called with `locked_owner` already `select_for_update()`-
+    locked inside an open transaction. The only place an active draft's
+    status is ever transitioned to "expired" as a write: everywhere else
+    (get_active_draft) is read-only."""
+    existing = FormDraft.objects.filter(
+        owner=locked_owner, form_type=form_type, status__in=FormDraft.ACTIVE_STATUSES,
+    ).first()
+    if existing and existing.expires_at <= now:
+        existing.status = "expired"
+        existing.save(update_fields=["status", "updated_at"])
+        existing = None
+    return existing
 
 
 def get_active_draft(owner, form_type):
-    """The owner's current open/submitting draft for this form_type, or
-    None — never another account's draft, and never one whose expiry has
-    already passed even if nothing has swept its status field yet."""
+    """The owner's current open/submitting, not-yet-expired draft for this
+    form_type, or None — never another account's draft. Strictly
+    read-only: never writes, never opens a transaction, never takes a
+    row lock. A draft whose expiry has already passed is simply not
+    returned here; transitioning it to "expired" happens only inside a
+    locked write path (upsert_active_draft or a future cleanup job), never
+    as a side effect of a read, so this can never race a concurrent
+    renewal of the same row.
+    """
     if owner is None or not getattr(owner, "is_authenticated", False):
         return None
-    draft = FormDraft.objects.filter(
+    return FormDraft.objects.filter(
         owner=owner, form_type=form_type, status__in=FormDraft.ACTIVE_STATUSES,
+        expires_at__gt=timezone.now(),
     ).first()
-    if draft is None:
-        return None
-    now = timezone.now()
-    if draft.expires_at <= now:
-        _expire_if_stale(draft, now=now)
-        return None
-    return draft
 
 
-def upsert_active_draft(*, owner, form_type, fields, current_step=0, demo_snapshot=None):
+def upsert_active_draft(*, owner, form_type, fields, current_step=0):
     """Race-safe, idempotent create-or-update of the one active draft for
     (owner, form_type). A stale (already-expired) existing draft is
     transitioned to "expired" first — never silently reused past its own
@@ -140,13 +181,17 @@ def upsert_active_draft(*, owner, form_type, fields, current_step=0, demo_snapsh
 
     Never creates a draft for an anonymous/unauthenticated owner: that
     check happens before any query, let alone any write.
+
+    This never touches `demo_snapshot`: a newly created draft gets the
+    model's own default (`{}`), and an existing draft keeps whatever
+    snapshot it already had. Attaching or clearing a snapshot is done only
+    through `attach_demo_snapshot`/`clear_demo_snapshot` below — there is
+    no way to pass an arbitrary snapshot dict through this function.
     """
     _require_real_owner(owner)
-    if form_type not in FORM_TYPE_STEP_COUNTS:
-        raise DraftValidationError(f"Unsupported form_type: {form_type!r}")
+    _require_supported_form_type(form_type)
     _validate_current_step(form_type, current_step)
     cleaned_fields = normalize_fields(form_type, fields)
-    cleaned_snapshot = dict(demo_snapshot) if demo_snapshot else {}
 
     with transaction.atomic():
         # Locking the owner row (not FormDraft itself) is enough: every
@@ -157,26 +202,74 @@ def upsert_active_draft(*, owner, form_type, fields, current_step=0, demo_snapsh
         # project.
         locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
         now = timezone.now()
-        existing = FormDraft.objects.filter(
-            owner=locked_owner, form_type=form_type, status__in=FormDraft.ACTIVE_STATUSES,
-        ).first()
-        if existing and existing.expires_at <= now:
-            existing.status = "expired"
-            existing.save(update_fields=["status", "updated_at"])
-            existing = None
+        existing = _get_active_draft_locked(locked_owner, form_type, now)
 
         expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
         if existing:
             existing.current_step = current_step
             existing.fields = cleaned_fields
-            existing.demo_snapshot = cleaned_snapshot
             existing.expires_at = expires_at
-            existing.save(update_fields=["current_step", "fields", "demo_snapshot", "expires_at", "updated_at"])
+            existing.save(update_fields=["current_step", "fields", "expires_at", "updated_at"])
             return existing
         return FormDraft.objects.create(
             owner=locked_owner, form_type=form_type, current_step=current_step,
-            fields=cleaned_fields, demo_snapshot=cleaned_snapshot, expires_at=expires_at,
+            fields=cleaned_fields, expires_at=expires_at,
         )
+
+
+def attach_demo_snapshot(*, owner, form_type, demo_selection):
+    """Attach a frozen, bilingual snapshot of `demo_selection` to the
+    owner's current active draft. `demo_selection` must be a real, already
+    saved `DemoSelection` instance — never a dict, never raw JSON, never
+    anything a caller could shape freely. The snapshot itself is always
+    produced by `build_demo_selection_snapshot` (never caller-supplied) and
+    is checked against the exact expected key set before being written, so
+    a draft can never end up holding a session_key/public_token/
+    submission_token or any other unexpected structure.
+
+    Session/ownership authorization of `demo_selection` (confirming it
+    actually belongs to the request making this call) is the caller's
+    responsibility in the phase that wires this up to a view — this
+    service only guarantees the *shape* and *target* (the calling owner's
+    own active draft) are safe.
+    """
+    _require_real_owner(owner)
+    _require_supported_form_type(form_type)
+    if not isinstance(demo_selection, DemoSelection) or demo_selection.pk is None:
+        _reject("invalid_demo_selection", "demo_selection must be a saved DemoSelection instance.")
+    snapshot = build_demo_selection_snapshot(demo_selection)
+    _validate_snapshot_shape(snapshot)
+
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        now = timezone.now()
+        draft = _get_active_draft_locked(locked_owner, form_type, now)
+        if draft is None:
+            _reject("no_active_draft", "No active draft exists to attach a snapshot to.")
+        draft.demo_snapshot = snapshot
+        draft.save(update_fields=["demo_snapshot", "updated_at"])
+        return draft
+
+
+def clear_demo_snapshot(*, owner, form_type):
+    """Explicitly clear the demo snapshot on the owner's current active
+    draft, leaving `fields`/`current_step`/`expires_at` untouched. This is
+    the only other sanctioned way `demo_snapshot` may change after
+    creation — ordinary field saves via `upsert_active_draft` never touch
+    it, by design.
+    """
+    _require_real_owner(owner)
+    _require_supported_form_type(form_type)
+
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        now = timezone.now()
+        draft = _get_active_draft_locked(locked_owner, form_type, now)
+        if draft is None:
+            _reject("no_active_draft", "No active draft exists to clear a snapshot from.")
+        draft.demo_snapshot = {}
+        draft.save(update_fields=["demo_snapshot", "updated_at"])
+        return draft
 
 
 def delete_draft(owner, draft_id):

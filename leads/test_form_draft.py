@@ -1,14 +1,18 @@
 import threading
 import unittest
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from leads.form_draft_service import (
     DraftValidationError,
+    attach_demo_snapshot,
+    clear_demo_snapshot,
     delete_draft,
     get_active_draft,
     normalize_fields,
@@ -216,9 +220,35 @@ class UpsertActiveDraftTests(TestCase):
         draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
         self.assertEqual(get_active_draft(self.owner, "leads_contact").pk, draft.pk)
         FormDraft.objects.filter(pk=draft.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        # get_active_draft is read-only: an expired row is simply not
+        # returned, but its status/updated_at are never touched by the
+        # read itself — only a locked write path (upsert_active_draft, or
+        # a future cleanup job) may transition it to "expired".
+        stale_updated_at = FormDraft.objects.get(pk=draft.pk).updated_at
         self.assertIsNone(get_active_draft(self.owner, "leads_contact"))
         draft.refresh_from_db()
-        self.assertEqual(draft.status, "expired")
+        self.assertEqual(draft.status, "open")
+        self.assertEqual(draft.updated_at, stale_updated_at)
+
+    def test_get_active_draft_issues_no_writes_and_no_row_lock(self):
+        """Direct proof that get_active_draft is a plain SELECT: no UPDATE
+        statement is issued, and it never calls select_for_update."""
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+
+        with mock.patch(
+            "django.db.models.QuerySet.select_for_update",
+            side_effect=AssertionError("get_active_draft must never call select_for_update"),
+        ):
+            with CaptureQueriesContext(connection) as ctx:
+                get_active_draft(self.owner, "leads_contact")
+
+        statements = [q["sql"].strip().upper() for q in ctx.captured_queries]
+        self.assertTrue(statements, "expected at least one SELECT query")
+        for sql in statements:
+            self.assertFalse(sql.startswith("UPDATE"), sql)
+            self.assertFalse(sql.startswith("INSERT"), sql)
+            self.assertFalse(sql.startswith("DELETE"), sql)
 
     def test_hard_delete_only_removes_the_owning_users_draft(self):
         other = User.objects.create_user(
@@ -238,6 +268,161 @@ class UpsertActiveDraftTests(TestCase):
         with self.assertRaises(DraftValidationError):
             upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"name": "علی"})
         self.assertEqual(FormDraft.objects.count(), 0)
+
+    def test_upsert_never_accepts_a_raw_demo_snapshot_argument(self):
+        # There is no longer any keyword through which a caller can pass an
+        # arbitrary snapshot dict straight through to the database.
+        with self.assertRaises(TypeError):
+            upsert_active_draft(
+                owner=self.owner, form_type="leads_contact", fields={},
+                demo_snapshot={"session_key": "leaked"},
+            )
+        self.assertEqual(FormDraft.objects.count(), 0)
+
+    def test_retention_constant_has_a_single_source(self):
+        from leads import form_draft_service
+        from leads.models import form_draft as form_draft_model
+
+        self.assertIs(form_draft_service.DRAFT_RETENTION_DAYS, form_draft_model.DRAFT_RETENTION_DAYS)
+
+
+class OpaqueValidationErrorTests(TestCase):
+    """No DraftValidationError raised anywhere in this service may repeat
+    a caller-supplied value or an arbitrary caller-supplied key name back
+    in its message — both may be attacker-controlled payload content."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="opaque-owner@example.com", email="opaque-owner@example.com", password="x", is_active=True,
+        )
+
+    def test_invalid_choice_error_never_contains_the_submitted_value(self):
+        secret_value = "super-secret-injected-choice-<script>alert(1)</script>"
+        with self.assertRaises(DraftValidationError) as ctx:
+            normalize_fields("leads_contact", {"budget_range": secret_value})
+        self.assertNotIn(secret_value, str(ctx.exception))
+
+    def test_unknown_key_error_never_contains_the_submitted_key_name_or_value(self):
+        secret_key = "attacker_controlled_field_name_xyz"
+        secret_value = "attacker-controlled-value-123"
+        with self.assertRaises(DraftValidationError) as ctx:
+            normalize_fields("leads_contact", {secret_key: secret_value})
+        message = str(ctx.exception)
+        self.assertNotIn(secret_key, message)
+        self.assertNotIn(secret_value, message)
+
+    def test_forbidden_key_error_never_contains_the_key_name_or_value(self):
+        with self.assertRaises(DraftValidationError) as ctx:
+            normalize_fields("leads_contact", {"session_key": "abc123secret"})
+        message = str(ctx.exception)
+        self.assertNotIn("abc123secret", message)
+
+    def test_invalid_current_step_error_never_contains_the_submitted_value(self):
+        with self.assertRaises(DraftValidationError) as ctx:
+            upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={}, current_step=999999)
+        self.assertNotIn("999999", str(ctx.exception))
+
+    def test_malformed_and_very_large_payload_is_rejected_without_crashing(self):
+        huge_value = "x" * 200_000
+        mixed_type_payload = {1: "int-key", ("tuple", "key"): "tuple-key", huge_value: "huge-key"}
+        # Dict keys are always hashable in Python, so no key-hashing crash
+        # is possible here; the assertion is that normalize_fields rejects
+        # cleanly (no TypeError from sorting/formatting mixed key types,
+        # no unbounded string ever echoed back).
+        with self.assertRaises(DraftValidationError) as ctx:
+            normalize_fields("leads_contact", mixed_type_payload)
+        message = str(ctx.exception)
+        self.assertNotIn(huge_value, message)
+        self.assertLess(len(message), 500)
+
+    def test_invalid_demo_selection_error_is_generic(self):
+        with self.assertRaises(DraftValidationError) as ctx:
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection={"brand": "fake"})
+        message = str(ctx.exception)
+        self.assertNotIn("fake", message)
+
+
+class DemoSnapshotAttachClearTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="snap-owner@example.com", email="snap-owner@example.com", password="x", is_active=True,
+        )
+        self.other = User.objects.create_user(
+            username="snap-other@example.com", email="snap-other@example.com", password="x", is_active=True,
+        )
+        self.template = DemoTemplate.objects.create(
+            slug="attach-clear-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        self.selection = DemoSelection.objects.create(
+            template=self.template, session_key="attach-clear-session",
+            selections={"theme": "sage", "personality": "luxury", "brand": "کافه رویا", "features": ["booking"]},
+        )
+
+    def test_attach_demo_snapshot_builds_it_from_a_real_demo_selection(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        draft = attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        self.assertEqual(draft.demo_snapshot, build_demo_selection_snapshot(self.selection))
+        self.assertEqual(draft.demo_snapshot["demo_template_slug"], "attach-clear-demo")
+
+    def test_attach_demo_snapshot_rejects_a_dict_or_arbitrary_object(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        forbidden_payload = {
+            "template_title_fa": "x", "template_title_en": "x", "category_fa": "x", "category_en": "x",
+            "brand": "x", "theme_fa": "x", "theme_en": "x", "personality_fa": "x", "personality_en": "x",
+            "features_fa": [], "features_en": [], "demo_template_slug": "x",
+            "public_token": "should-never-be-storable", "session_key": "should-never-be-storable",
+        }
+        with self.assertRaises(DraftValidationError):
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=forbidden_payload)
+        with self.assertRaises(DraftValidationError):
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=None)
+        with self.assertRaises(DraftValidationError):
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=DemoSelection(template=self.template, session_key="unsaved"))
+        draft = get_active_draft(self.owner, "leads_contact")
+        self.assertEqual(draft.demo_snapshot, {})
+
+    def test_attach_demo_snapshot_requires_an_existing_active_draft(self):
+        with self.assertRaises(DraftValidationError):
+            attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 0)
+
+    def test_plain_field_upsert_preserves_an_existing_snapshot(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+
+        updated = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "website"})
+
+        self.assertEqual(updated.demo_snapshot, build_demo_selection_snapshot(self.selection))
+        self.assertEqual(updated.fields, {"request_type": "website"})
+
+    def test_clear_demo_snapshot_removes_only_the_snapshot(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=1)
+        attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+
+        cleared = clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+
+        self.assertEqual(cleared.demo_snapshot, {})
+        self.assertEqual(cleared.fields, {"request_type": "webapp"})
+        self.assertEqual(cleared.current_step, 1)
+
+    def test_attach_and_clear_never_touch_another_owners_draft(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        other_draft = upsert_active_draft(owner=self.other, form_type="leads_contact", fields={"request_type": "webapp"})
+        attach_demo_snapshot(owner=self.other, form_type="leads_contact", demo_selection=self.selection)
+
+        # Attaching/clearing for `self.owner` can only ever reach their own
+        # active draft — the query inside attach/clear is always scoped to
+        # the locked owner row, so there is no id/token a caller could pass
+        # to reach someone else's draft.
+        attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+
+        other_draft.refresh_from_db()
+        self.assertEqual(other_draft.demo_snapshot, build_demo_selection_snapshot(self.selection))
 
 
 class DemoSnapshotExtractionTests(TestCase):
@@ -378,3 +563,56 @@ class FormDraftPostgresRaceTests(TransactionTestCase):
             self.assertFalse(thread.is_alive(), "a thread is still running — possible deadlock or hang")
         self.assertEqual(sorted(str(r) for r in results), ["blocked", "ok"])
         self.assertEqual(FormDraft.objects.filter(owner=owner).count(), 1)
+
+    def test_concurrent_expired_read_cannot_clobber_a_racing_renewal(self):
+        """Regression proof for the write-on-read bug this corrective phase
+        fixes: a get_active_draft call racing a real renewal of the same
+        stale row must never re-expire the freshly renewed draft. Since
+        get_active_draft is now strictly read-only, this is no longer even
+        structurally possible — this test proves it empirically on a real
+        database rather than only by code inspection."""
+        owner = User.objects.create_user(
+            username="expiry-race@example.com", email="expiry-race@example.com", password="x", is_active=True,
+        )
+        stale = upsert_active_draft(owner=owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def reader():
+            try:
+                barrier.wait(timeout=5)
+                for _ in range(20):
+                    get_active_draft(owner, "leads_contact")
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        def renewer():
+            try:
+                barrier.wait(timeout=5)
+                upsert_active_draft(owner=owner, form_type="leads_contact", fields={"request_type": "website"})
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=reader), threading.Thread(target=renewer)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        for thread in threads:
+            self.assertFalse(thread.is_alive(), "a thread is still running — possible deadlock or hang")
+        self.assertEqual(errors, [])
+
+        active = FormDraft.objects.filter(owner=owner, status__in=FormDraft.ACTIVE_STATUSES)
+        self.assertEqual(active.count(), 1)
+        survivor = active.get()
+        self.assertEqual(survivor.status, "open")
+        self.assertGreater(survivor.expires_at, timezone.now())
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")

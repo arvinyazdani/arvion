@@ -2,13 +2,22 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-B1 — build the `FormDraft` data foundation
-  (model + migration + service layer only; no UI, no auto-save endpoint,
-  no login-path or contact-page wiring, no Lead submission in this phase)
-  and relocate the demo-selection snapshot builder to a neutral shared
-  module.
-- **Last verified phase (code):** V2.1-B1, on top of the V2.1-A
-  corrective phase and `08bd910`.
+- **Current phase:** V2.1-B1 corrective — harden `FormDraft`'s service
+  layer before any endpoint is wired to it. `537c9a2` is now known to have
+  shipped `PARTIAL`: (1) `upsert_active_draft` accepted an arbitrary
+  caller-supplied `demo_snapshot` dict verbatim, so any caller could store
+  `public_token`/`session_key`/`submission_token` or any other structure;
+  (2) saving ordinary `fields` with no `demo_selection` silently wiped a
+  previously-attached snapshot back to `{}`; (3) `get_active_draft` wrote
+  `status="expired"` as a side effect of a plain read, racing a concurrent
+  `upsert_active_draft` and able to re-expire a draft that upsert had just
+  renewed; (4) `DraftValidationError` messages embedded the raw invalid
+  value and/or the raw unknown key name, leaking attacker-controlled
+  payload content into exception text. All four are now fixed and
+  verified — see "V2.1-B1 corrective" entries below. Status: `VERIFIED`
+  (local).
+- **Last verified phase (code):** V2.1-B1 corrective, on top of V2.1-B1
+  (`537c9a2`), the V2.1-A corrective phase, and `08bd910`.
 - **Status:** `VERIFIED` (local). `08bd910` was initially `VERIFIED` for
   correctness but is now known to have shipped `PARTIAL`, in the same
   class of "correct in outcome, wrong in cost or atomicity" already seen
@@ -513,9 +522,142 @@
   `LeadCreateView` are untouched in this phase (confirmed via
   `git status --short`/`git diff --stat`: only `leads/models/__init__.py`
   and `management_portal/cases.py` modified, everything else new files).
-- **Git boundary (updated):** `main` will be eleven commits ahead of
-  `origin/main` once this phase's commit is made (the ten already listed
-  above, plus this V2.1-B1 commit). No prior commit is amended.
+- **V2.1-B1 corrective — what changed:** `leads/form_draft_service.py`
+  only (no model or migration change; no view/signal/login-path change).
+  Four real defects found in `537c9a2` and fixed:
+  1. **P1 — arbitrary caller-supplied `demo_snapshot`.**
+     `upsert_active_draft` no longer accepts a `demo_snapshot` keyword at
+     all — `TypeError` if a caller tries. `demo_snapshot` can now only be
+     changed through two new, explicitly named functions:
+     `attach_demo_snapshot(*, owner, form_type, demo_selection)`, which
+     requires a real, already-saved `projects.DemoSelection` instance
+     (rejects a dict, `None`, or an unsaved instance with
+     `DraftValidationError`), always derives the snapshot itself via
+     `build_demo_selection_snapshot` (never trusts a caller-supplied
+     dict), and re-validates the result's key set against a fixed
+     12-key allowlist (`_validate_snapshot_shape`) before writing —
+     defense in depth against a future change to the snapshot builder
+     smuggling in a forbidden key; and `clear_demo_snapshot(*, owner,
+     form_type)`, which sets it to `{}` and touches nothing else. Both
+     operate only on the calling owner's own active draft (found via the
+     same owner-row-locked path as `upsert_active_draft`), so neither can
+     reach or modify another account's draft — actual session/ownership
+     authorization of the `DemoSelection` itself is deferred to the
+     caller in the still-`NOT_STARTED` B2 wiring phase, as originally
+     scoped.
+  2. **P1 — ordinary field saves silently wiped an existing snapshot.**
+     `upsert_active_draft` no longer touches `demo_snapshot` in any way: a
+     newly created draft gets the model's own `{}` default, and an
+     existing draft's `demo_snapshot` is left out of both the in-memory
+     assignment and `update_fields`, so a plain `fields`/`current_step`
+     save can never revert a previously attached snapshot.
+  3. **P1 — `get_active_draft` wrote on read, racing a renewal.**
+     `get_active_draft` is now a single, plain `SELECT` — it filters
+     directly on `expires_at__gt=now()` and returns `None` for a stale row
+     without ever calling `.save()`, opening a transaction, or taking a
+     row lock. The only place `status` is ever transitioned to
+     `"expired"` as a write is the new shared helper
+     `_get_active_draft_locked`, called only from inside the
+     `transaction.atomic()` + `select_for_update(owner)` block already
+     used by `upsert_active_draft`, and now also by
+     `attach_demo_snapshot`/`clear_demo_snapshot`. This closes the race
+     where a concurrent renewal's freshly-extended `expires_at` could be
+     clobbered back to `"expired"` by a straggling read that captured the
+     old (stale) row state before the renewal committed.
+  4. **P1 — validation errors leaked payload content.** Every
+     `DraftValidationError` raised anywhere in this module is now one of
+     a small, fixed set of generic, non-interpolated messages (e.g. "One
+     or more fields are not recognized.", "One or more field values are
+     invalid.", "current_step is out of range for this form_type."),
+     each tagged with a `code` attribute drawn only from this module's own
+     fixed vocabulary (`unauthenticated_owner`, `unsupported_form_type`,
+     `forbidden_field`, `unknown_field`, `invalid_field_value`,
+     `invalid_current_step`, `invalid_demo_selection`, `no_active_draft`,
+     `invalid_snapshot_shape`, ...) — never the caller-supplied value,
+     never an arbitrary caller-supplied key name (even for the *forbidden*
+     key case, where the key itself is one of 10 fixed known strings, the
+     public message still never repeats it, keeping the exact same
+     wording whether the field was merely unrecognized or explicitly
+     forbidden).
+  Plus a P2 fix: `DRAFT_RETENTION_DAYS` is no longer defined twice — the
+  service now imports it from `leads/models/form_draft.py`
+  (`from .models.form_draft import DRAFT_RETENTION_DAYS`), the single
+  source also used by the model's own `default_draft_expiry()`. No schema
+  or migration change, confirmed by `makemigrations --check --dry-run`
+  ("No changes detected").
+- **V2.1-B1 corrective — test level:** `leads/test_form_draft.py` gained
+  16 new tests across 3 new/expanded areas, and 1 existing test was
+  updated to match the now-read-only `get_active_draft` contract (it
+  previously asserted the buggy write-on-read behaviour). New:
+  `DemoSnapshotAttachClearTests` (7 tests) — attach builds the exact
+  snapshot `build_demo_selection_snapshot` would produce; a dict, `None`,
+  or an unsaved `DemoSelection` is rejected with no draft mutated; attach
+  requires an existing active draft; a plain field-only upsert preserves
+  a previously attached snapshot byte-for-byte; clear removes only the
+  snapshot, leaving `fields`/`current_step` untouched; attach/clear for
+  one owner can never reach or modify another owner's draft (verified by
+  asserting the other owner's snapshot is unchanged after both
+  operations). `OpaqueValidationErrorTests` (6 tests) — an invalid choice
+  value, an unrecognized field's own key name, a forbidden field's value,
+  an out-of-range `current_step`, and an invalid `demo_selection` payload
+  are each confirmed absent, verbatim, from the raised exception's
+  `str()`; a mixed-hashable-type, ~200KB payload is rejected cleanly (no
+  `TypeError` from sorting/formatting, no unbounded content echoed back,
+  message kept under 500 characters). Plus 2 more in
+  `UpsertActiveDraftTests` — `demo_snapshot=` now raises `TypeError`
+  (keyword no longer exists) and leaves zero rows persisted; the service's
+  `DRAFT_RETENTION_DAYS` is confirmed (via `assertIs`) to be the exact
+  same object as the model's, not a second copy. And 1 new direct
+  query-evidence test, `test_get_active_draft_issues_no_writes_and_no_row_lock`,
+  which wraps a `get_active_draft` call in `CaptureQueriesContext` (asserts
+  none of the captured statements start with `UPDATE`/`INSERT`/`DELETE`)
+  while `django.db.models.QuerySet.select_for_update` is patched to raise
+  if ever called — proving both "no write" and "no lock" directly rather
+  than only by code inspection. `leads.test_form_draft` alone: 47 passed,
+  3 correctly skipped on SQLite (up from 29 passed/2 skipped in `537c9a2`
+  — the net +18/+1 reflects the 16 new tests, the 1 existing test that now
+  asserts different behaviour, and 1 new PostgreSQL-only race test, all
+  additive to the suite's total count). `leads`+`projects`+
+  `management_portal` targeted suite: 220 tests, all passing (3 skips).
+  Full project suite: 607 tests, all passing (6 skips — all correctly
+  PostgreSQL-only, up from 5 in `537c9a2` by exactly the one new race
+  test). `manage.py check` (0 issues), `makemigrations --check --dry-run`
+  ("No changes detected"), and `git diff --check` (clean) all passed.
+- **V2.1-B1 corrective — PostgreSQL race evidence:** added
+  `test_concurrent_expired_read_cannot_clobber_a_racing_renewal` to
+  `FormDraftPostgresRaceTests` — a real regression proof, not just a code-
+  inspection claim: one thread calls `get_active_draft` in a tight loop
+  against a row already past its `expires_at` while a second thread
+  concurrently calls `upsert_active_draft` to renew that same row (expire
+  the stale one, create a fresh active one), synchronized via
+  `threading.Barrier(2)` with independent database connections. After
+  every run: exactly one active (`"open"`) draft survives with a future
+  `expires_at`, and the original stale row is `"expired"` — the reader
+  thread never re-expires the freshly renewed row, because it never
+  writes anything at all. Run against the same isolated local PostgreSQL
+  16 `test_arvion_ci_local` database used throughout this project (never
+  the permanent `arvion_ci_local`), alongside the two pre-existing race
+  tests from `537c9a2` (all 3 tests, once plus 5 additional repeats of the
+  full `FormDraftPostgresRaceTests` class — all clean, no failures, no
+  hangs).
+- **V2.1-B1 corrective — security review:** confirmed opaque, fixed error
+  messages contain no interpolated value or key name anywhere in
+  `form_draft_service.py` (grepped for every remaining f-string/`.format`/
+  `%`-style interpolation into a `DraftValidationError` message — none
+  found). `attach_demo_snapshot`/`clear_demo_snapshot` reuse
+  `_require_real_owner` and the owner-row lock, so the "no anonymous/
+  public draft creation" and "never another account's draft" guarantees
+  established in `537c9a2` extend unchanged to the new snapshot
+  operations. No admin registration, no new log statement, no new
+  `__str__`/`__repr__` surface. Confirmed via `git status --short`/
+  `git diff --stat` that only `leads/form_draft_service.py` and
+  `leads/test_form_draft.py` changed (plus this documentation file) —
+  no view, template, signal, URL, or `LeadCreateView` touched.
+- **Git boundary (updated):** `main` will be twelve commits ahead of
+  `origin/main` once this corrective phase's commit is made (the ten
+  listed in the V2.1-A corrective entry, plus the V2.1-B1 commit
+  `537c9a2`, plus this V2.1-B1 corrective commit). `537c9a2` is not
+  amended — this is a separate commit on top of it.
 - **Prior phase's change (kept for reference; unaffected by this
   design-only phase; one function in one file):** `writeDemoContext` in
   `core/static/core/js/wizard-engine.js` now clears the one-shot
@@ -585,21 +727,25 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this V2.1-B1 phase's own commit (see `git log`) — a
-  separate commit on top of the V2.1-A corrective phase's commit, which is
-  not amended.
-- **Next action:** V2.1-B1 (`FormDraft` model + service + demo-snapshot
-  relocation) is done and fully verified. Nothing yet calls
-  `leads.form_draft_service` from any view, signal, or login path — that
-  wiring (pre-login demo capture before `login()` rotates the session key,
-  post-login demo capture on the contact page, an auto-save endpoint, and
-  server-side restore/delete UI) is Phase B2/C and still requires the same
-  explicit human decisions flagged under "V2.1 — decisions requiring
-  explicit human approval" above (free-text/contact-info consent layer,
-  final `FormDraft` retention confirmation — 7 days is now implemented,
-  not just proposed — whether to nudge guests to sign in, and
-  `cleanup_demo_selections`/`cleanup_form_drafts` scheduling) before
-  proceeding. The earlier, separate V2 idea (a time-boxed, signed
+- **Last commit:** this V2.1-B1 corrective phase's own commit (see
+  `git log`) — a separate commit on top of `537c9a2`, which is not
+  amended.
+- **Next action:** V2.1-B1 and its corrective phase are both done and
+  fully verified — `FormDraft`'s service layer (allowlist, race-safe
+  upsert, read-only expiry check, safe demo-snapshot attach/clear, opaque
+  validation errors, single retention constant) is now hardened enough to
+  wire an endpoint to. Nothing yet calls `leads.form_draft_service` from
+  any view, signal, or login path — that wiring (pre-login demo capture
+  before `login()` rotates the session key, post-login demo capture on
+  the contact page via the new `attach_demo_snapshot`, an auto-save
+  endpoint, and server-side restore/delete UI) is Phase B2/C and still
+  requires the same explicit human decisions flagged under "V2.1 —
+  decisions requiring explicit human approval" above (free-text/
+  contact-info consent layer, final `FormDraft` retention confirmation —
+  7 days is now implemented, not just proposed — whether to nudge guests
+  to sign in, and `cleanup_demo_selections`/`cleanup_form_drafts`
+  scheduling) before proceeding. The earlier, separate V2 idea (a
+  time-boxed, signed
   continuation link) remains superseded by the login-based approach unless
   explicitly reopened. Resumable order drafts beyond leads-contact
   (CRM/Clinic) remain `NOT_STARTED`. Re-run the release gate on the exact
@@ -624,6 +770,7 @@
 | Resumable order drafts — V2.1 design (login-based cross-device drafts + single session) | `VERIFIED` (design-only) | Read `accounts.User`/login-logout/password-reset/middleware/session backend and the `DemoSelection` session-bound flow in full. Decided delete-on-login single-session enforcement (fail-closed, reuses the existing `select_for_update()` race-safety pattern from `PhoneVerificationView`) over a version/registry counter (fail-open). Designed the `FormDraft` data contract, the privacy boundary (no free text/contact info by default; separate consent required), bilingual UX flows for all 6 named scenarios, a 5-phase implementation plan (foundation → draft model → UI → atomic submission → tests/release) each with its own migration/tests/rollback/risk, and 5 explicit human-approval decisions. No code, migration, or commit made. |
 | Resumable order drafts — V2.1-A (single-session foundation) (`08bd910`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL` (unconditional write lock on every request; non-atomic courtesy marker) — see the corrective-phase row below, which fixes and re-verifies it. |
 | Resumable order drafts — V2.1-A corrective (fast path + atomic marker + legacy-race PostgreSQL proof) | `VERIFIED` (local) | See "V2.1-A corrective phase" entries above. Fast lock-free path for the matching-session case; only a mismatch pays for `select_for_update(User)`, with a re-check under the lock. Courtesy marker consumed atomically via `cache.delete()`'s return value. Closed the previously-missing legacy-session PostgreSQL race test (6 runs, all clean). 6 new `SingleSessionTests` + 1 new PostgreSQL test (23 + 3 total in those classes), `accounts`+`core` (147 tests), and the full 560-test project suite all pass. `check`, migration dry-run (no migration needed or made), and `git diff --check` all passed. `08bd910` not amended. |
-| Resumable order drafts — V2.1-B1 (`FormDraft` model + service + demo-snapshot relocation) | `VERIFIED` (local) | See "V2.1-B1" entries above. New `FormDraft` model (additive migration, not applied to any permanent database), `leads/form_draft_service.py` (allowlist/race-safe upsert/expiry/hard-delete), `projects/demo_snapshots.py` (relocated, hardened, byte-identical snapshot builder). 204-test targeted suite + 591-test full suite all pass (5 skips, all PostgreSQL-only). Real PostgreSQL evidence for both the concurrent-upsert race and the raw constraint race (1 run + 5 repeats, all clean). No view/signal/login/`LeadCreateView` change. No admin registration for `FormDraft`. Not pushed, deployed, or migrated on production. |
+| Resumable order drafts — V2.1-B1 (`FormDraft` model + service + demo-snapshot relocation) (`537c9a2`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL`: arbitrary caller-supplied `demo_snapshot` accepted verbatim; ordinary field saves silently wiped an existing snapshot; `get_active_draft` wrote on read, racing `upsert_active_draft`; validation errors leaked raw attacker-controlled values/keys. See the corrective-phase row below, which fixes and re-verifies it. |
+| Resumable order drafts — V2.1-B1 corrective (safe snapshot attach/clear, read-only expiry check, opaque validation errors, single retention constant) | `VERIFIED` (local) | See "V2.1-B1 corrective" entries above. `attach_demo_snapshot`/`clear_demo_snapshot` replace raw `demo_snapshot=` passthrough (with a fixed 12-key snapshot-shape allowlist check before every write); `upsert_active_draft` preserves an existing snapshot by default; `get_active_draft` is fully read-only (no UPDATE, no `select_for_update` — proven directly via `CaptureQueriesContext` + a patched `select_for_update` that raises if called); `DraftValidationError` messages are fixed, opaque, code-tagged strings with no raw value/key interpolation; `DRAFT_RETENTION_DAYS` now lives in one place (`leads/models/form_draft.py`), imported by the service. 16 new tests + 1 updated test in `leads.test_form_draft` (47 passed, 3 skips), `leads`+`projects`+`management_portal` (220 tests, 3 skips), full project suite (607 tests, 6 skips — all PostgreSQL-only). New PostgreSQL regression test `test_concurrent_expired_read_cannot_clobber_a_racing_renewal` (1 run + 5 repeats, all clean) alongside the 2 pre-existing race tests. `check` (0 issues), migration dry-run ("No changes detected" — no new migration), and `git diff --check` (clean) all passed. `537c9a2` not amended. |
 | Resumable order drafts — V2.1 Phases B2–E (pre/post-login demo capture, auto-save endpoint, draft restore/delete UI, atomic submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase B2 begins; depends on the now-`VERIFIED` Phase B1 data foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
