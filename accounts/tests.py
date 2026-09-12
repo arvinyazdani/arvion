@@ -18,6 +18,7 @@ from django.contrib.auth.models import Group
 from django.db import connection
 from django.http import HttpRequest
 from django.test import Client, TestCase, TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.contrib.auth.tokens import default_token_generator
@@ -826,6 +827,25 @@ class AccountFlowTests(TestCase):
         self.assertEqual(response.context["assessment_groups"][0]["ready"], 2)
 
 
+def make_legacy_session_key(user):
+    """A session authenticated the way a real login leaves one, but created
+    without going through django.contrib.auth.login() at all — so it never
+    touched accounts.signals, exactly like a session that was already valid
+    before this feature existed."""
+    session = SessionStore()
+    session[SESSION_KEY] = str(user.pk)
+    session[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+    session[HASH_SESSION_KEY] = user.get_session_auth_hash()
+    session.create()
+    return session.session_key
+
+
+def client_with_session(session_key):
+    client = Client()
+    client.cookies[settings.SESSION_COOKIE_NAME] = session_key
+    return client
+
+
 class SingleSessionTests(TestCase):
     """accounts.ActiveSession: one active session per ordinary customer
     account; staff/superusers exempt; race-safe login, logout, and the
@@ -845,22 +865,11 @@ class SingleSessionTests(TestCase):
 
     @staticmethod
     def _legacy_session_key(user):
-        """A session authenticated the way a real login leaves one, but
-        created without going through django.contrib.auth.login() at all —
-        so it never touched accounts.signals, exactly like a session that
-        was already valid before this feature existed."""
-        session = SessionStore()
-        session[SESSION_KEY] = str(user.pk)
-        session[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
-        session[HASH_SESSION_KEY] = user.get_session_auth_hash()
-        session.create()
-        return session.session_key
+        return make_legacy_session_key(user)
 
     @staticmethod
     def _client_with_session(session_key):
-        client = Client()
-        client.cookies[settings.SESSION_COOKIE_NAME] = session_key
-        return client
+        return client_with_session(session_key)
 
     def test_second_login_invalidates_first_session(self):
         client_a = Client()
@@ -968,6 +977,89 @@ class SingleSessionTests(TestCase):
         active = ActiveSession.objects.get(user=self.customer)
         self.assertEqual(active.session_key, key_a)
         self.assertFalse(Session.objects.filter(session_key=key_b).exists())
+
+    def test_matching_session_takes_the_fast_path_with_one_read_and_no_lock(self):
+        client = Client()
+        client.force_login(self.customer)
+
+        with patch("django.db.models.query.QuerySet.select_for_update") as mocked_lock:
+            with CaptureQueriesContext(connection) as ctx:
+                response = client.get(reverse("accounts:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        mocked_lock.assert_not_called()
+        active_session_queries = [q for q in ctx.captured_queries if "accounts_activesession" in q["sql"].lower()]
+        self.assertEqual(len(active_session_queries), 1, active_session_queries)
+
+    def test_mismatch_after_fast_path_enters_the_locked_slow_path(self):
+        client = Client()
+        client.force_login(self.customer)
+        # Force the fast-path read to look like a mismatch so the slow path
+        # (transaction + select_for_update on User) is actually reached and
+        # can be observed directly, independent of the outcome it produces.
+        with patch("accounts.middleware.ActiveSession.objects.filter") as mocked_filter:
+            mocked_filter.return_value.values_list.return_value.first.return_value = "definitely-not-the-real-key"
+            with patch("django.db.models.query.QuerySet.select_for_update", autospec=True) as mocked_lock:
+                mocked_lock.side_effect = lambda self, *a, **kw: self
+                client.get(reverse("accounts:dashboard"))
+
+        mocked_lock.assert_called()
+
+    def test_pointer_change_between_fast_path_and_lock_never_logs_out_the_true_winner(self):
+        client = Client()
+        client.force_login(self.customer)
+        real_key = client.session.session_key
+
+        # Simulate the fast-path read racing a moment in the past: it saw a
+        # stale/different value, but reality (what the lock's own
+        # get_or_create sees) already matches this session — the real
+        # ActiveSession row was never actually changed, only this one read
+        # was forced wrong.
+        with patch("accounts.middleware.ActiveSession.objects.filter") as mocked_filter:
+            mocked_filter.return_value.values_list.return_value.first.return_value = "stale-value-from-before-a-race"
+            response = client.get(reverse("accounts:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Session.objects.filter(session_key=real_key).exists())
+        self.assertEqual(ActiveSession.objects.get(user=self.customer).session_key, real_key)
+
+    def test_concurrent_requests_for_the_same_courtesy_marker_show_it_at_most_once(self):
+        client_a = Client()
+        client_a.force_login(self.customer)
+        key_a = client_a.session.session_key
+        client_b = Client()
+        client_b.force_login(self.customer)
+
+        client_a.cookies[settings.SESSION_COOKIE_NAME] = key_a
+        first = client_a.get(reverse("accounts:dashboard"), follow=True)
+        self.assertContains(first, "این دستگاه از حساب شما خارج شد چون در جای دیگری وارد شدید.")
+
+        client_a2 = client_with_session(key_a)
+        second = client_a2.get(reverse("accounts:dashboard"), follow=True)
+        self.assertNotContains(second, "این دستگاه از حساب شما خارج شد چون در جای دیگری وارد شدید.")
+
+    def test_cache_delete_is_the_atomic_single_consumer_primitive(self):
+        """Not an HTTP-level race (a single test process can't force two real
+        concurrent requests), but a direct proof of the primitive the fix
+        relies on: of many callers racing to delete the same cache key, at
+        most one delete() call can return True, for every cache backend this
+        project configures (see accounts/middleware.py's comment for the
+        per-backend reasoning)."""
+        cache.set("race-marker", True, 10)
+        results = []
+        barrier = threading.Barrier(4)
+
+        def attempt():
+            barrier.wait(timeout=5)
+            results.append(cache.delete("race-marker"))
+
+        threads = [threading.Thread(target=attempt) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=5)
+        self.assertEqual(results.count(True), 1)
+        self.assertEqual(results.count(False), 3)
 
     def test_invalidated_message_shown_once_in_correct_language(self):
         client_a = Client()
@@ -1131,3 +1223,57 @@ class SingleSessionPostgresRaceTests(TransactionTestCase):
         # lost the race had its row deleted by the winner's transaction.
         self.assertEqual(Session.objects.count(), 1)
         self.assertEqual(Session.objects.get().session_key, active.session_key)
+
+    def test_two_legacy_sessions_race_to_claim_the_active_session(self):
+        """The gap the plain login-race test above does not cover: two
+        sessions that already existed *before* this feature (no
+        ActiveSession row, never went through the login signal) sending
+        their first post-deployment authenticated request at the same
+        instant. This exercises SingleSessionMiddleware's own
+        transaction.atomic()/select_for_update() path — not the login
+        signal's — on a real row-locking engine, with two independent
+        connections and no shared Python-level state to coordinate them."""
+        user = User.objects.create_user(
+            username="legacy-race@example.com", email="legacy-race@example.com",
+            password="x", is_active=True, email_verified=True,
+        )
+        key_a = make_legacy_session_key(user)
+        key_b = make_legacy_session_key(user)
+        barrier = threading.Barrier(2)
+        results = {}
+        errors = []
+
+        def attempt(label, key):
+            try:
+                barrier.wait(timeout=5)
+                client = client_with_session(key)
+                response = client.get(reverse("accounts:dashboard"))
+                results[label] = response.status_code
+            except Exception as exc:  # pragma: no cover - surfaced via errors list
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [
+            threading.Thread(target=attempt, args=("a", key_a)),
+            threading.Thread(target=attempt, args=("b", key_b)),
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        for thread in threads:
+            self.assertFalse(thread.is_alive(), "a thread is still running — possible deadlock or hang")
+        self.assertEqual(errors, [])
+        self.assertEqual(sorted(results.values()), [200, 302], results)
+
+        self.assertEqual(ActiveSession.objects.filter(user=user).count(), 1)
+        active = ActiveSession.objects.get(user=user)
+        self.assertIn(active.session_key, (key_a, key_b))
+        loser_key = key_b if active.session_key == key_a else key_a
+        winner_label = "a" if active.session_key == key_a else "b"
+        self.assertEqual(results[winner_label], 200)
+        # The loser was signed out: its Session row is gone (logout() flushes
+        # it), and its own request landed anonymous, not authenticated.
+        self.assertFalse(Session.objects.filter(session_key=loser_key).exists())

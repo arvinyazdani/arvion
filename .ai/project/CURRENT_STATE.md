@@ -2,32 +2,68 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-A — implementation of the single-active-session
-  foundation (`accounts.ActiveSession`, login/logout signals, enforcement +
-  courtesy middleware). FormDraft, form-save wiring, DemoSelection
-  hand-off, and any draft UI remain explicitly out of scope for this phase
-  and are still `NOT_STARTED` (see the V2.1 design record kept below).
-- **Last verified phase (code):** V2.1-A (this phase), on top of the P1
-  fix for the redirect guard (`a4cb60b`).
-- **Status:** `VERIFIED` (local) for the code in this phase, with one
-  explicit exception: real two-connection race safety is `VERIFIED` on
-  PostgreSQL (empirically, against an isolated local database — see
-  below) but only reasoned-about, not independently proven, on SQLite
-  (Django's ORM makes `select_for_update()` a silent no-op there; SQLite's
-  own file-level write serialization still produced a correct sequential
-  result in the standard test run, which is real evidence of correctness
-  under sequential execution but not of genuine concurrent-lock behavior).
-  Everything else in this phase is fully `VERIFIED`.
-- **Git boundary:** `main` remains eight commits ahead of `origin/main`
+- **Current phase:** V2.1-A corrective — remove the write lock from the
+  normal per-request path and make the courtesy-message marker
+  consumption atomic (fixing two defects found in the just-committed
+  `08bd910`).
+- **Last verified phase (code):** this corrective phase, on top of the
+  V2.1-A single-session foundation (`08bd910`).
+- **Status:** `VERIFIED` (local). `08bd910` was initially `VERIFIED` for
+  correctness but is now known to have shipped `PARTIAL`, in the same
+  class of "correct in outcome, wrong in cost or atomicity" already seen
+  once before in that same phase (the `login()` `flush()`-path bug). Two
+  real defects were found and are now fixed:
+  1. **P1 — every authenticated customer request paid for a write lock.**
+     `SingleSessionMiddleware._enforce_current_session` unconditionally
+     entered `transaction.atomic()` and ran `select_for_update()` on both
+     `User` and (via `get_or_create`) `ActiveSession` on *every* request,
+     not just a mismatch. That serialized all of one customer's parallel
+     requests against each other — exam autosave, dashboard polling,
+     concurrent tabs — for no reason, since the overwhelmingly common case
+     is simply confirming a session already owns its own pointer. **Fixed**
+     by splitting into a lock-free fast path (one read-only
+     `ActiveSession.objects.filter(user_id=...).values_list("session_key",
+     flat=True).first()`, no transaction) that returns immediately on a
+     match, and a slow path (only entered on "no ActiveSession yet" or a
+     mismatch) that locks *only* `User` via `select_for_update()` and
+     re-checks the real, current `ActiveSession.session_key` before acting
+     — a pointer that changed between the fast-path read and acquiring the
+     lock is picked up correctly and never causes a wrongful logout of the
+     session that actually owns it.
+  2. **P2 — non-atomic courtesy-marker consumption.**
+     `_maybe_show_invalidated_message` did `cache.get()` then a separate
+     `cache.delete()`; two concurrent requests from the same now-stale
+     browser could both observe the marker before either deleted it,
+     showing the one-time message twice. **Fixed** by consuming the marker
+     with a single `cache.delete(marker_key)` call and using its boolean
+     return value directly as the "did this request win the race to show
+     the message" signal — confirmed (by reading the installed Django
+     version's source, not just its docs) that all three cache backends
+     this project configures (`LocMemCache` for dev/CI, `FileBasedCache`
+     and `RedisCache` for production) return `True` only for the one
+     caller that actually removed the key, making this safe without any
+     extra locking of our own.
+  Neither defect was a security hole — the *outcome* (correct session
+  invalidation) was always right — but the performance cost of (1) and the
+  duplicate-message possibility of (2) both needed a real fix, not just a
+  note. A documented, accepted limitation remains and is unrelated to
+  either fix: a request from the soon-to-be-superseded session that was
+  already in flight at the exact instant a new login elsewhere changes the
+  pointer cannot be retroactively cancelled — only that session's *next*
+  request is guaranteed to see the mismatch.
+- **Git boundary:** `main` will be ten commits ahead of `origin/main`
   (`06812d2`, `dc68011`, the "reliable hand-off" phase commit, `af6e0ac`,
-  `fbe3320`, `777acf9`, `b3952a4`, `a4cb60b`) until this phase's commit is
-  made below.
+  `fbe3320`, `777acf9`, `b3952a4`, `a4cb60b`, `08bd910`, and this
+  corrective phase's own commit) once committed below. `08bd910` is not
+  amended — this is a separate commit on top of it.
 - **Active delegated work:** none.
-- **Known blockers:** none. Push, deploy, and any migration against a
+- **Known blockers:** none. No model or migration change was needed for
+  either fix (both are logic-only, inside `accounts/middleware.py`); the
+  existing `accounts/migrations/0004_activesession.py` from `08bd910` is
+  untouched. Push, deploy, and any migration against a
   permanent database (local dev `db.sqlite3` or production) remain outside
-  this phase's authorization — the new migration
-  (`accounts/migrations/0004_activesession.py`) was created but was never
-  applied to the local dev database; it was only ever applied
+  this phase's authorization — that migration was never applied to the
+  local dev database in this phase either; it was only ever applied
   automatically to Django's own disposable `test_...`-prefixed databases
   during test runs (SQLite in-memory for the default suite, a temporary
   `test_arvion_ci_local` PostgreSQL database for the race test — both
@@ -127,8 +163,55 @@
   written to directly. Result: exactly one `ActiveSession` row, exactly
   one surviving `Session` row, matching keys, zero exceptions from either
   thread — genuine proof that `select_for_update()` correctly serializes
-  the two concurrent claims on a real row-locking engine, re-confirmed
-  after the `flush()` bug fix above.
+  the two concurrent *new-login* claims on a real row-locking engine,
+  re-confirmed after the `flush()` bug fix above. This test alone did
+  **not** prove anything about two pre-existing (*legacy*) sessions racing
+  through the middleware's own claim path — that gap is closed in the
+  corrective phase below.
+- **V2.1-A corrective phase — what changed:** `accounts/middleware.py`
+  only (no model, migration, or `accounts/signals.py` change was needed).
+  `_enforce_current_session` now does a lock-free fast-path SELECT first
+  and only takes the `transaction.atomic()`/`select_for_update(User)` slow
+  path on a miss, re-checking the real pointer before acting (see
+  "Status" above for the exact mechanism). `_maybe_show_invalidated_message`
+  now consumes the courtesy marker with one atomic `cache.delete()` call
+  instead of a `get()`-then-`delete()` pair.
+- **V2.1-A corrective phase — test level:** 6 new tests in
+  `accounts.tests.SingleSessionTests` (23 total in that class, all
+  passing): the matching-session fast path is exactly one read-only query
+  against `accounts_activesession` and never calls `select_for_update`
+  (verified by mocking `QuerySet.select_for_update` and asserting
+  `assert_not_called()`, plus `CaptureQueriesContext` filtered to that
+  table); a forced fast-path mismatch does enter the locked slow path
+  (verified by mocking the fast-path read wrong and asserting
+  `select_for_update` **was** called); a pointer that already matches by
+  the time the lock is acquired — simulating a stale fast-path read racing
+  a real, current, correct `ActiveSession` row — is never wrongly logged
+  out; two requests racing to consume the same courtesy marker produce the
+  message at most once, both through a real (sequential, single-process)
+  HTTP-level check and a direct 4-thread proof that `cache.delete()` on
+  the same key returns `True` for exactly one caller. Plus 1 new test in
+  `accounts.tests.SingleSessionPostgresRaceTests`:
+  `test_two_legacy_sessions_race_to_claim_the_active_session` — two
+  sessions built to bypass `login()` entirely (mimicking sessions that
+  pre-date this feature, exactly like `SingleSessionTests`'
+  `_legacy_session_key` helper, now shared as a module-level
+  `make_legacy_session_key`), racing via `threading.Barrier` with two
+  independent DB connections against real PostgreSQL. Result across 6 runs
+  (1 during the main suite + 5 repeats to rule out a lucky pass): exactly
+  one `ActiveSession` row every time, exactly one `200` and one `302`
+  response, the loser's `Session` row deleted, both threads observed
+  finished (not hung) via `Thread.is_alive()`, zero exceptions in any run
+  — this is the specific evidence that was missing before this phase, and
+  is why the "legacy sessions race-safely converge" claim (made in
+  `08bd910` and in the V2.1 design) is now backed by a real PostgreSQL
+  test rather than only the SQLite-sequential test that existed before.
+  `accounts` + `core` targeted suite: 147 tests, all passing (2 skips —
+  both PostgreSQL-only tests, correctly auto-skipped on SQLite). Full
+  project suite: 560 tests, all passing (3 skips). `manage.py check`
+  (0 issues), `makemigrations --check --dry-run` ("No changes detected" —
+  confirmed no schema change was needed for either fix), and
+  `git diff --check` (clean) all passed.
 - **V2.1 findings — current system (read-only investigation):**
   `accounts.User` (`accounts/models.py`) has no session-tracking field at
   all. `login()` is called directly from four separate places
@@ -359,12 +442,13 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this phase's own commit (see `git log`) — the V2.1-A
-  single-session foundation, made in one small commit that also carries
-  the previously-uncommitted V2.1 design update to this file. Before that,
-  `a4cb60b fix: clear the demo redirect guard on successful re-resolution`.
+- **Last commit:** this corrective phase's own commit (see `git log`) — a
+  separate commit on top of `08bd910 feat: enforce one active session per
+  customer account`, which is not amended.
 - **Next action:** Phase A (single-session foundation) of the V2.1 plan is
-  now done and verified. Await explicit human decisions on the
+  now done, corrected, and fully verified (including the previously-
+  missing legacy-session PostgreSQL race proof). Await explicit human
+  decisions on the
   still-open items from the design record below (free-text/contact-info
   consent layer, `FormDraft` retention period, whether to nudge guests to
   sign in, and `cleanup_demo_selections`/`cleanup_form_drafts`
@@ -394,6 +478,7 @@
 | Resumable order drafts — V1 P1 fix (permanent redirect guard) | `VERIFIED` (local) | See "This phase's change" and "Test level" above. One-line root cause, one-function fix (`writeDemoContext` now clears the one-shot guard on success). `leads`+`projects` (33 tests) still pass; `check`, migration dry-run (no migration run), and `git diff --check` all passed. Browser-verified: two consecutive same-tab reconstructions both succeed (the exact case that was broken); invalid/foreign token still clears only the demo pointer with no loop; no-consent and expired-storage cases still never reconstruct. `b3952a4` was not amended; this is a separate corrective commit. |
 | Resumable order drafts — V2 (signed continuation link) | `NOT_STARTED` | Superseded by the definitive product decision behind V2.1 (login-based cross-device drafts + single active session per account); not going to be built unless explicitly reopened. |
 | Resumable order drafts — V2.1 design (login-based cross-device drafts + single session) | `VERIFIED` (design-only) | Read `accounts.User`/login-logout/password-reset/middleware/session backend and the `DemoSelection` session-bound flow in full. Decided delete-on-login single-session enforcement (fail-closed, reuses the existing `select_for_update()` race-safety pattern from `PhoneVerificationView`) over a version/registry counter (fail-open). Designed the `FormDraft` data contract, the privacy boundary (no free text/contact info by default; separate consent required), bilingual UX flows for all 6 named scenarios, a 5-phase implementation plan (foundation → draft model → UI → atomic submission → tests/release) each with its own migration/tests/rollback/risk, and 5 explicit human-approval decisions. No code, migration, or commit made. |
-| Resumable order drafts — V2.1-A (single-session foundation) | `VERIFIED` (local) | See "V2.1-A" entries above. `ActiveSession` model + migration (not applied to any permanent database), login/logout signals, enforcement + courtesy middleware, staff/superuser exemption, `SINGLE_SESSION_ENFORCED` escape hatch. One real bug (the `login()` `flush()`-path empty-session-key case) found and fixed. 16 targeted tests + 1 PostgreSQL-only race test, 141-test `accounts`+`core` suite, and the full 554-test project suite all pass. `check`, migration dry-run, and `git diff --check` all passed. Race safety empirically proven on real PostgreSQL; SQLite only shows correct sequential behaviour, not genuine lock concurrency (see "Status" above). |
-| Resumable order drafts — V2.1 Phases B–E (`FormDraft`, demo hand-off, draft UI, atomic submission) | `NOT_STARTED` | Requires explicit human approval on the open decisions above before Phase B begins; depends on the now-`VERIFIED` Phase A foundation. |
+| Resumable order drafts — V2.1-A (single-session foundation) (`08bd910`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL` (unconditional write lock on every request; non-atomic courtesy marker) — see the corrective-phase row below, which fixes and re-verifies it. |
+| Resumable order drafts — V2.1-A corrective (fast path + atomic marker + legacy-race PostgreSQL proof) | `VERIFIED` (local) | See "V2.1-A corrective phase" entries above. Fast lock-free path for the matching-session case; only a mismatch pays for `select_for_update(User)`, with a re-check under the lock. Courtesy marker consumed atomically via `cache.delete()`'s return value. Closed the previously-missing legacy-session PostgreSQL race test (6 runs, all clean). 6 new `SingleSessionTests` + 1 new PostgreSQL test (23 + 3 total in those classes), `accounts`+`core` (147 tests), and the full 560-test project suite all pass. `check`, migration dry-run (no migration needed or made), and `git diff --check` all passed. `08bd910` not amended. |
+| Resumable order drafts — V2.1 Phases B–E (`FormDraft`, demo hand-off, draft UI, atomic submission) | `NOT_STARTED` | Requires explicit human approval on the open decisions above before Phase B begins; depends on the now-`VERIFIED` (and corrected) Phase A foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
