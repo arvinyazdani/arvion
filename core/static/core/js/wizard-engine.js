@@ -201,7 +201,15 @@
     };
     const writeDemoContext = (token, label) => {
       if (!isDemoContinuationWizard || readConsent() !== "granted" || !UUID_PATTERN.test(token || "")) return;
-      try { localStorage.setItem(demoContextKey, JSON.stringify({ token, label: String(label || "").slice(0, 120), savedAt: Date.now() })); } catch (e) {}
+      try {
+        localStorage.setItem(demoContextKey, JSON.stringify({ token, label: String(label || "").slice(0, 120), savedAt: Date.now() }));
+        // این توکن برای همین صفحه معتبر تشخیص داده شده — یعنی اگر یک
+        // بازسازی خودکار همین حالا به این‌جا رسانده باشد، وظیفه‌اش تمام
+        // شده. guard را همین‌جا مصرف می‌کنیم تا مراجعهٔ بعدی به URL بدون
+        // ?demo= در همین تب دوباره بتواند یک‌بار بازسازی انجام دهد؛ در غیر
+        // این صورت این پرچم یک‌بارمصرف برای همیشه ماندگار می‌شد.
+        sessionStorage.removeItem(demoRedirectGuardKey);
+      } catch (e) {}
     };
     if (isDemoContinuationWizard) {
       const params = new URLSearchParams(location.search);

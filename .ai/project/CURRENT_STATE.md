@@ -2,88 +2,88 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V1 — same-device draft continuation for the leads-contact form.
-- **Last verified phase:** V1 draft continuation (this phase).
-- **Status:** `VERIFIED` (local)
-- **Git boundary:** `main` will be seven commits ahead of `origin/main`
+- **Current phase:** P1 fix — permanent redirect guard in the leads-contact demo continuation (V1).
+- **Last verified phase:** P1 fix for the redirect guard (this phase); supersedes the `PARTIAL` status `b3952a4` was left in.
+- **Status:** `VERIFIED` (local) — the P1 found in `b3952a4` is fixed and
+  empirically re-verified in a real browser (see below). History: the
+  one-shot `sessionStorage` redirect guard
+  (`rvion-draft:leads-contact:demo-redirect-guard`) was set to `"1"` on the
+  first reconstruction and never cleared on a successful re-resolution, so
+  a second visit to the bare URL in the same tab never redirected again —
+  defeating the same-device continuation goal that phase exists for.
+- **Git boundary:** `main` will be eight commits ahead of `origin/main`
   (`06812d2`, `dc68011`, the "reliable hand-off" phase commit, `af6e0ac`,
-  `fbe3320`, `777acf9`, and this phase's commit) once committed below.
+  `fbe3320`, `777acf9`, `b3952a4`, and this phase's commit) once committed
+  below.
 - **Active delegated work:** none.
 - **Known blockers:** none for this bounded phase. Push, deploy, production
   migration, and CRM/Clinic wizard changes remain outside the current
   authorization/scope. No customer data was touched; a throwaway
-  DemoTemplate/DemoSelection/Lead used to empirically verify the browser
+  DemoTemplate/DemoSelection used to empirically verify the browser
   behaviour was created and deleted from the local dev sqlite database
-  during this phase (never committed — `db.sqlite3` is gitignored). The
-  local dev database also had one pre-existing, already-committed migration
-  (`projects.0006_demoselection_submission_token`, from an earlier phase)
-  applied to it, since it was missing and blocked creating a `DemoSelection`
-  for the browser check; this created no new migration file.
-- **This phase's change (no model, migration, or CRM/Clinic change):** the
-  leads-contact form's existing localStorage draft mechanism
-  (`core/static/core/js/wizard-engine.js`) can now reconstruct a lost
-  `?demo=` link on the same device/session, entirely opt-in and scoped by
-  `wizardName === "leads-contact"` so CRM/Clinic wizards execute byte-for-
-  byte as before (confirmed by re-running `leads`+`projects`, both green,
-  and by code trace: every new branch is gated behind that one check).
-  `leads/views/contact.py`'s `get_context_data` now also sets
-  `demo_context = {"label": ...}` (the demo template's bilingual title
-  only) when `_session_demo_selection` resolves — `_session_demo_selection`
-  itself, the actual token/session validation, is untouched.
-  `leads/templates/leads/contact.html` renders that label as a
-  `data-demo-label` attribute on the form — **never** the token or
-  session_key. The token itself is never server-rendered into the DOM at
-  all: the client reads it exclusively from `location.search` (the URL the
-  browser is already showing, the same pre-existing `?demo=` channel — not
-  a new exposure). New dedicated localStorage key
-  `rvion-draft:leads-contact:demo` (`{token, label, savedAt}`), separate
-  from the general draft's field allowlist, gated by the same per-form
-  consent key and a UUID-shape check on write and read. On a page load with
-  no `?demo=` param, a valid, non-expired, consented local pointer triggers
-  exactly one `location.replace` to re-append `?demo=<token>` (guarded by a
-  one-shot sessionStorage flag against loops), which re-runs the existing,
-  unmodified server-side session-bound resolution. When that resolution
-  fails (invalid/foreign/expired), only the dedicated demo key is cleared —
-  the general draft fields are untouched. A silent-expiry gap was closed:
-  a genuinely-expired (>7 days) draft now shows a dismissible message
-  instead of vanishing without explanation, gated the same way. Every
-  clear/disable control, the restore banner's discard button, and the
-  successful-submit path now also clear the dedicated demo key. A real bug
-  was caught during self-review before testing: the initial expiry check
-  read the draft's age *after* `readDraft()` had already deleted the aged
-  entry, so it always saw nothing — fixed by peeking the raw age before
-  calling `readDraft()`.
-- **Test level:** `leads` + `projects` = 33 tests, all passing (2 new this
-  phase in `leads/tests.py`: a resolved, session-bound demo renders
-  `data-demo-label` with the correct bilingual title and the response body
-  contains neither the raw token, the raw session key, nor the strings
-  `public_token`/`session_key`; an unresolved/foreign demo renders no
-  `data-demo-label` at all). The client-side half (redirect reconstruction,
-  consent-gated writes, expiry banner, clear/disable propagation) has no
-  JS test framework in this project, so it was verified empirically with
-  the browser-automation skill against a throwaway local dev server (a
-  disposable DemoTemplate/DemoSelection/session created via `manage.py
-  shell`, deleted afterward): (1) first visit with a valid link — banner
-  shown, after accepting, localStorage held exactly the general draft, the
-  demo pointer `{token, label, savedAt}`, and consent — no name/phone/
-  email/session_key anywhere; (2) revisiting the bare URL with no `?demo=`
-  — the page auto-redirected to the URL with `?demo=<token>` reappended,
-  and the server re-resolved it; (3) a fresh browser context (no cookies,
-  foreign session) with the same token — neutral notice shown, no
-  `data-demo-label`, no local pointer; (4) the same primed session visited
-  with a bogus token — the demo pointer was cleared while the general
-  draft's fields survived unchanged; (5) backdating both keys by 8 days —
-  the expiry message appeared and both keys cleared, consent itself
-  untouched; (6) the "clear draft" and "disable local storage" buttons each
-  cleared both keys; (7) a real, full multi-step submission redirected to
-  the thanks page and cleared both keys. `manage.py check` (0 issues),
+  during this phase (never committed — `db.sqlite3` is gitignored). No
+  migration was run this phase — the local dev database was already fully
+  migrated from the prior phase's one-time sync
+  (`projects.0006_demoselection_submission_token`, applied in the V1
+  phase); that earlier local migration is kept only as historical record
+  in this file and was neither repeated nor rolled back.
+- **This phase's change (no model, migration, or CRM/Clinic change; one
+  function in one file):** `writeDemoContext` in
+  `core/static/core/js/wizard-engine.js` now clears the one-shot
+  `sessionStorage` redirect guard (`demoRedirectGuardKey`) immediately
+  after it successfully persists a validated demo pointer. Root cause: the
+  guard was only ever cleared by `clearDemoContext()` (the failure/decline/
+  clear paths), never by the success path — so after the *first* automatic
+  reconstruction succeeded, the guard stayed at `"1"` in that tab's
+  `sessionStorage` forever, silently disabling every later reconstruction
+  attempt in the same tab. The fix is scoped to exactly the success case:
+  `writeDemoContext` is the single function that represents "a valid,
+  consented demo pointer now exists for this page," called both from the
+  top-of-wizard sync block (after a direct or reconstructed `?demo=` visit
+  resolves) and from the consent-accept handler — clearing the guard there
+  covers both call sites without duplicating the fix. The guard is
+  untouched (stays set, correctly preventing a second attempt) for as long
+  as the outcome of a redirect is still undetermined, and was already
+  correctly cleared by `clearDemoContext()` on every failure/decline/clear
+  path — so this fix only affects the previously-broken success path.
+- **Test level:** `leads` + `projects` = 33 tests, all still passing
+  (unchanged from the prior phase — no new Python-testable surface; this
+  fix is entirely inside a client-side JS function). Verified empirically
+  with the browser-automation skill against a throwaway local dev server
+  (disposable DemoTemplate/DemoSelection/session created via `manage.py
+  shell`, deleted afterward; no migration run — the dev DB was already
+  fully migrated): (الف) valid link + consent → bare URL → first
+  reconstruction succeeds, guard reads back as absent (`null`) immediately
+  after; (ب) same tab, bare URL visited a **second** time → reconstruction
+  succeeds again (this is the exact case that was broken before the fix);
+  a **third** visit also succeeded, confirming stability rather than a
+  one-off; (ج) a bogus/foreign token → neutral message shown, demo pointer
+  cleared, general draft (`rvion-draft:leads-contact`) confirmed still
+  present and unchanged, and a bare-URL revisit afterward stayed bare (no
+  stale-pointer resurrection, no loop); (د) no consent ever granted → demo
+  pointer never written, bare-URL visit stays bare; consent granted then
+  the pointer backdated 8 days (expired) → bare-URL visit stays bare and
+  the expired pointer is cleared. `manage.py check` (0 issues),
   `makemigrations --check --dry-run` ("No changes detected"), and
   `git diff --check` (clean) all passed.
-- **Prior phases, kept for reference:** `777acf9` mirrored a Lead's demo
-  choice onto its `CustomerCase` as a structured, bilingual, frozen
-  `CaseDocument` snapshot, reusing the existing case/document/revision/
-  activity machinery with no new model — see git history for detail if
-  needed again. `fbe3320` added a dry-run-by-default
+- **Prior phases, kept for reference:** `b3952a4` added the same-device
+  `?demo=` reconstruction feature this phase fixes a defect in — the
+  leads-contact form's existing localStorage draft mechanism can
+  reconstruct a lost `?demo=` link on the same device/session, entirely
+  opt-in and scoped by `wizardName === "leads-contact"` so CRM/Clinic
+  wizards are untouched; the token is never server-rendered into the DOM,
+  only a safe bilingual label (`data-demo-label`); server-side session
+  validation (`_session_demo_selection`) is unmodified; an invalid/foreign
+  token clears only the dedicated demo pointer, never the general draft;
+  a genuinely-expired (>7 days) draft shows a dismissible message instead
+  of vanishing silently. See git history on
+  `core/static/core/js/wizard-engine.js`, `leads/views/contact.py`, and
+  `leads/templates/leads/contact.html` for full detail if needed again.
+  `777acf9` mirrored a Lead's demo choice onto its `CustomerCase` as a
+  structured, bilingual, frozen `CaseDocument` snapshot, reusing the
+  existing case/document/revision/activity machinery with no new model —
+  see git history for detail if needed again. `fbe3320` added a
+  dry-run-by-default
   `cleanup_demo_selections` management command (deletes only
   `DemoSelection` rows both unattached to any Lead and stale past a
   configurable retention window, `--apply` required for a real delete) and,
@@ -95,8 +95,8 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit (before this phase):** `777acf9 feat: hand off a Lead's
-  demo selection into its customer case`.
+- **Last commit (before this phase):** `b3952a4 feat: reconstruct a lost
+  demo link on the same device for the contact form`.
 - **Next action:** Await an explicit request to commit/push/deploy, or
   begin the next planned increment: V2 (a time-boxed, signed continuation
   link for cross-device recovery, from the earlier design report) — this
@@ -121,6 +121,7 @@
 | Lifecycle and safe cleanup of abandoned demo selections (`fbe3320`) | `VERIFIED` (local) | 164-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change. `--apply` never run outside the test database. Not pushed, deployed, or migrated on production. |
 | Structured customer-case hand-off (`777acf9`) | `VERIFIED` (local) | 172-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change; reused the existing CaseDocument/CaseDocumentRevision/CaseActivity machinery end to end. Not pushed, deployed, or migrated on production. |
 | Resumable order drafts — design report | `VERIFIED` | Compared 4 options (local-only, server draft for logged-in users, signed continuation link, staged combination) across security/privacy/complexity/recovery; recommended a staged V1→V2 path; flagged server-side contact storage and sending a link to the customer as decisions needing explicit human approval. Design only, no code changed. |
-| Resumable order drafts — V1 (same-device continuation) | `VERIFIED` (local) | See "This phase's change" and "Test level" above. `leads`+`projects` (33 tests) all passed; CRM/Clinic wizards untouched (gated by wizard name, re-verified green); `check`, migration dry-run, and `git diff --check` all passed. Client-side redirect/consent/expiry/clear behaviour empirically verified via the browser-automation skill against a throwaway local dev server and disposable fixtures (deleted afterward, never committed). No model/migration/CRM/Clinic change. Not pushed or deployed. |
+| Resumable order drafts — V1 (same-device continuation) (`b3952a4`) | `VERIFIED` (local), P1-corrected | Initially verified, then found `PARTIAL` when a P1 surfaced (permanent redirect guard, see next row); superseded by the P1 fix phase below, now `VERIFIED` again. |
+| Resumable order drafts — V1 P1 fix (permanent redirect guard) | `VERIFIED` (local) | See "This phase's change" and "Test level" above. One-line root cause, one-function fix (`writeDemoContext` now clears the one-shot guard on success). `leads`+`projects` (33 tests) still pass; `check`, migration dry-run (no migration run), and `git diff --check` all passed. Browser-verified: two consecutive same-tab reconstructions both succeed (the exact case that was broken); invalid/foreign token still clears only the demo pointer with no loop; no-consent and expired-storage cases still never reconstruct. `b3952a4` was not amended; this is a separate corrective commit. |
 | Resumable order drafts — V2 (signed continuation link) | `NOT_STARTED` | Requires explicit human approval first: it involves either server-side storage of contact info or sending a link to the customer (SMS/email), both flagged as out-of-agent-authority decisions in the design report. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
