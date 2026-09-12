@@ -41,7 +41,11 @@ from contracts.workspace_services import (
     workspace_progress,
 )
 
+from .cases import DEMO_SELECTION_DOCUMENT_TITLE
 from .models import CustomerCase, OperationalAudit
+
+
+DASH = "—"
 
 
 def _lang(request):
@@ -93,6 +97,29 @@ DOCUMENT_KIND_EN = {
     "contract": "Agreement", "payment": "Payment", "export": "Export",
     "attachment": "Attachment",
 }
+
+def _demo_selection_card(document, case, lang):
+    """Bilingual, structured facts for the case page's "Demo selection"
+    section, read from a frozen CaseDocument snapshot (see
+    `cases.sync_demo_selection_document`) — never from a live
+    DemoSelection, so this never touches `public_token`/`session_key` and
+    keeps working even after the underlying selection is cleaned up."""
+    if not document:
+        return None
+    data = document.snapshot or {}
+    features = data.get(f"features_{lang}") or []
+    slug = data.get("demo_template_slug")
+    return {
+        "template_title": data.get(f"template_title_{lang}", DASH),
+        "category_label": data.get(f"category_{lang}", DASH),
+        "brand": data.get("brand") or DASH,
+        "theme_label": data.get(f"theme_{lang}", DASH),
+        "personality_label": data.get(f"personality_{lang}", DASH),
+        "features_display": ("، " if lang == "fa" else ", ").join(features) if features else DASH,
+        "public_url": reverse("projects:demo_preview", args=[slug]) if slug else "",
+        "request_url": reverse("management_portal:request_detail", args=["lead", case.source_object_id]) if case.kind == "lead" and case.source_object_id else "",
+    }
+
 
 EVENT_LABEL_EN = {
     "workspace_created": "Workspace created", "access_created": "Access created",
@@ -187,6 +214,8 @@ def workspace_detail(request, case_id):
         assignment = getattr(proposal, "specialist_assignment", None)
         progress = workspace_progress(proposal)
     credentials = request.session.pop(f"workspace_credentials_{case.pk}", None)
+    case_documents = list(case.documents.all())
+    demo_document = next((document for document in case_documents if document.title == DEMO_SELECTION_DOCUMENT_TITLE), None)
     documents = [
         {
             "document": document,
@@ -194,8 +223,10 @@ def workspace_detail(request, case_id):
             "revisions": document.revisions.all(),
             "kind_label": document.get_kind_display() if lang == "fa" else DOCUMENT_KIND_EN.get(document.kind, document.kind),
         }
-        for document in case.documents.all()
+        for document in case_documents
+        if document is not demo_document
     ]
+    demo_card = _demo_selection_card(demo_document, case, lang)
     room_events = [
         {
             "event": event,
@@ -210,6 +241,7 @@ def workspace_detail(request, case_id):
         "assignment": assignment,
         "progress": progress,
         "documents": documents,
+        "demo_card": demo_card,
         "room_events": room_events,
         "credentials": credentials,
         "contract_form": WorkspaceContractForm(instance=proposal, lang=lang) if proposal else None,

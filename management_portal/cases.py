@@ -6,6 +6,8 @@ from django.forms.models import model_to_dict
 
 from accounts.models import User
 from core.sms.backends import normalize_iran_mobile
+from projects.demo_labels import CATEGORY_LABELS_EN, demo_config_labels
+from projects.models import DemoTemplate
 
 from .models import (
     CaseActivity,
@@ -15,6 +17,9 @@ from .models import (
     CustomerCase,
     CustomerContact,
 )
+
+DASH = "—"
+DEMO_SELECTION_DOCUMENT_TITLE = "انتخاب دمو"
 
 
 STAGE_MAP = {"contacted": "discovery", "review": "proposal", "accepted": "won", "expired": "lost", "revoked": "lost"}
@@ -70,9 +75,10 @@ def _record_document_revision(document, *, title, data, checksum):
     )
 
 
-def _upsert_document(*, case, instance, kind, title, actor=None):
+def _upsert_document(*, case, instance, kind, title, actor=None, data=None):
     content_type = ContentType.objects.get_for_model(instance)
-    data = snapshot(instance)
+    if data is None:
+        data = snapshot(instance)
     checksum = _snapshot_checksum(data)
     document = CaseDocument.objects.filter(
         case=case,
@@ -233,6 +239,68 @@ def link_document(case, instance, *, kind, title, actor=None):
         actor=actor,
     )
     if created: CaseActivity.objects.create(case=case, kind="document", title="سند جدید", body=title, actor=actor)
+    return document
+
+
+def _demo_selection_snapshot(selection):
+    """A frozen, human-readable copy of a Lead's demo choice.
+
+    Stores resolved bilingual labels rather than raw keys or a live
+    reference, so the case's own record stays fully readable even after
+    the underlying (anonymous) DemoSelection row is eventually removed by
+    `cleanup_demo_selections`, and even if the label wording changes later.
+    Deliberately excludes `public_token` and `session_key` — those identify
+    one anonymous browser session and must never reach a staff-facing case
+    record.
+    """
+    template = selection.template
+    values = selection.selections or {}
+    labels_fa = demo_config_labels("fa")
+    labels_en = demo_config_labels("en")
+    theme_key = values.get("theme", "")
+    personality_key = values.get("personality", "")
+    feature_keys = values.get("features") or []
+    return {
+        "template_title_fa": template.title_fa,
+        "template_title_en": template.title_en,
+        "category_fa": dict(DemoTemplate.CATEGORY_CHOICES).get(template.category, template.category),
+        "category_en": CATEGORY_LABELS_EN.get(template.category, template.category),
+        "brand": values.get("brand") or template.fictional_brand_fa,
+        "theme_fa": dict(labels_fa["themes"]).get(theme_key) or DASH,
+        "theme_en": dict(labels_en["themes"]).get(theme_key) or DASH,
+        "personality_fa": dict(labels_fa["personalities"]).get(personality_key) or DASH,
+        "personality_en": dict(labels_en["personalities"]).get(personality_key) or DASH,
+        "features_fa": [dict(labels_fa["features"]).get(key, key) for key in feature_keys],
+        "features_en": [dict(labels_en["features"]).get(key, key) for key in feature_keys],
+        "demo_template_slug": template.slug,
+    }
+
+
+def sync_demo_selection_document(case, lead, *, actor=None):
+    """Idempotently record or refresh a Lead's demo choice as a structured
+    CaseDocument on its CustomerCase.
+
+    Anchored to the Lead itself (content_type=Lead, object_id=lead.pk,
+    kind="attachment" — distinct from the "initial" document already used
+    for the Lead's raw snapshot) rather than to the anonymous DemoSelection
+    row, so that if `lead.demo_selection` is later legitimately repointed
+    at a different selection, this updates the SAME document in place
+    (tracked through CaseDocumentRevision) instead of leaving a stale
+    duplicate behind. A no-op (returns None) when the lead has no
+    DemoSelection, so a plain Lead never gains an empty section or noise.
+    """
+    if not case or not lead.demo_selection_id:
+        return None
+    document, created = _upsert_document(
+        case=case, instance=lead, kind="attachment", title=DEMO_SELECTION_DOCUMENT_TITLE,
+        actor=actor, data=_demo_selection_snapshot(lead.demo_selection),
+    )
+    if created:
+        CaseActivity.objects.create(
+            case=case, kind="document", title="انتخاب دمو ثبت شد",
+            body="جزئیات ساختاریافتهٔ دموی انتخاب‌شده به پرونده افزوده شد.",
+            actor=actor,
+        )
     return document
 
 

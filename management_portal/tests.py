@@ -15,7 +15,7 @@ from assessments.models import Attempt, AttemptQuestion, AttemptResult, Exam, Ex
 from contracts.models import ContractProposal
 from leads.models import Lead
 from projects.models import DemoSelection, DemoTemplate
-from management_portal.models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
+from management_portal.models import CaseActivity, CaseDocument, CaseDocumentRevision, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from management_portal.notifications import _send_user_push, process_notifications
 from services.models import Service
 from core.sms.backends import SMSResult
@@ -1722,6 +1722,139 @@ class DemoSelectionDashboardTests(TestCase):
             Lead.objects.create(
                 name=f"مشتری {index}", email_or_telegram=f"extra{index}@example.com", phone="09120000020",
                 message="پیام آزمایشی", privacy_accepted_at=timezone.now(), demo_selection=selection,
+            )
+        with CaptureQueriesContext(connection) as grown:
+            self.client.get(url)
+        self.assertEqual(len(grown.captured_queries), baseline_count)
+
+
+class DemoSelectionCaseHandoffTests(TestCase):
+    """Structured, idempotent hand-off of a Lead's demo choice into its
+    CustomerCase (management_portal.cases.sync_demo_selection_document)."""
+
+    def setUp(self):
+        translation.activate("fa")
+        self.staff = User.objects.create_user(username="case-sales", email="case-sales@example.com", password="safe-password", is_staff=True)
+        self.staff.user_permissions.add(Permission.objects.get(codename="view_lead"))
+        self.template = DemoTemplate.objects.create(
+            slug="case-demo", category="ecommerce", title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        self.selection = DemoSelection.objects.create(
+            template=self.template, session_key="case-session-key",
+            selections={"theme": "sage", "personality": "luxury", "brand": "کافه رویا", "features": ["booking", "catalog"]},
+        )
+
+    def _create_lead(self, *, demo_selection=None, name="سارا احمدی", email="sara-case@example.com"):
+        return Lead.objects.create(
+            name=name, business_name="کافه رویا", email_or_telegram=email, phone="09120000030",
+            message="لطفاً همین دمو را برایمان بسازید.", privacy_accepted_at=timezone.now(),
+            demo_selection=demo_selection,
+        )
+
+    def test_lead_with_demo_selection_creates_structured_snapshot_on_case(self):
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        document = CaseDocument.objects.get(case=case, title="انتخاب دمو")
+        self.assertEqual(document.snapshot["template_title_fa"], "دموی فروشگاهی")
+        self.assertEqual(document.snapshot["template_title_en"], "Storefront demo")
+        self.assertEqual(document.snapshot["category_en"], "E-commerce")
+        self.assertEqual(document.snapshot["brand"], "کافه رویا")
+        self.assertEqual(document.snapshot["theme_fa"], "سبز آرام")
+        self.assertEqual(document.snapshot["personality_en"], "Luxury")
+        self.assertIn("Booking", document.snapshot["features_en"])
+        self.assertTrue(CaseActivity.objects.filter(case=case, title="انتخاب دمو ثبت شد").exists())
+
+    def test_resaving_lead_or_rerunning_sync_does_not_duplicate_document_or_activity(self):
+        from management_portal.cases import sync_demo_selection_document
+
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        lead.save()
+        lead.save()
+        sync_demo_selection_document(case, lead)
+        self.assertEqual(CaseDocument.objects.filter(case=case, title="انتخاب دمو").count(), 1)
+        self.assertEqual(CaseActivity.objects.filter(case=case, title="انتخاب دمو ثبت شد").count(), 1)
+        document = CaseDocument.objects.get(case=case, title="انتخاب دمو")
+        self.assertEqual(CaseDocumentRevision.objects.filter(document=document).count(), 1)
+
+    def test_changing_demo_selection_updates_snapshot_and_adds_a_trackable_revision(self):
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        document = CaseDocument.objects.get(case=case, title="انتخاب دمو")
+        original_checksum = document.checksum
+
+        other_template = DemoTemplate.objects.create(
+            slug="case-demo-2", category="clinic", title_fa="دموی کلینیک", title_en="Clinic demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند دوم", fictional_brand_en="Second brand",
+            style_key="minimal",
+        )
+        new_selection = DemoSelection.objects.create(
+            template=other_template, session_key="case-session-key-2",
+            selections={"theme": "plum", "personality": "bold", "brand": "برند دوم", "features": ["multilingual"]},
+        )
+        lead.demo_selection = new_selection
+        lead.save()
+
+        self.assertEqual(CaseDocument.objects.filter(case=case, title="انتخاب دمو").count(), 1)
+        document.refresh_from_db()
+        self.assertNotEqual(document.checksum, original_checksum)
+        self.assertEqual(document.snapshot["template_title_fa"], "دموی کلینیک")
+        self.assertEqual(CaseDocumentRevision.objects.filter(document=document).count(), 2)
+        self.assertTrue(CaseDocumentRevision.objects.filter(document=document, checksum=original_checksum).exists())
+
+    def test_lead_without_demo_selection_creates_no_demo_document_or_activity(self):
+        lead = self._create_lead(demo_selection=None, name="لید بدون دمو", email="no-demo-case@example.com")
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        self.assertFalse(CaseDocument.objects.filter(case=case, title="انتخاب دمو").exists())
+        self.assertFalse(CaseActivity.objects.filter(case=case, title="انتخاب دمو ثبت شد").exists())
+
+    def test_case_page_and_snapshot_never_expose_token_session_key_or_field_names(self):
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        document = CaseDocument.objects.get(case=case, title="انتخاب دمو")
+        raw = json.dumps(document.snapshot, ensure_ascii=False)
+        self.assertNotIn(str(self.selection.public_token), raw)
+        self.assertNotIn("case-session-key", raw)
+        self.assertNotIn("public_token", raw)
+        self.assertNotIn("session_key", raw)
+
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("management_portal:workspace_detail", args=[case.pk]))
+        content = response.content.decode("utf-8")
+        self.assertNotIn(str(self.selection.public_token), content)
+        self.assertNotIn("case-session-key", content)
+        self.assertNotIn("public_token", content)
+        self.assertNotIn("session_key", content)
+        self.assertContains(response, "دموی فروشگاهی")
+
+    def test_case_page_links_to_original_request_and_public_demo_template(self):
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("management_portal:workspace_detail", args=[case.pk]))
+        self.assertContains(response, reverse("management_portal:request_detail", args=["lead", lead.pk]))
+        self.assertContains(response, reverse("projects:demo_preview", args=[self.template.slug]))
+
+    def test_unauthorized_user_still_denied_from_case_page(self):
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        response = self.client.get(reverse("management_portal:workspace_detail", args=[case.pk]))
+        self.assertEqual(response.status_code, 302)
+
+    def test_case_page_query_count_does_not_grow_with_more_case_documents(self):
+        lead = self._create_lead(demo_selection=self.selection)
+        case = CustomerCase.objects.get(source_object_id=lead.pk, kind="lead")
+        self.client.force_login(self.staff)
+        url = reverse("management_portal:workspace_detail", args=[case.pk])
+        with CaptureQueriesContext(connection) as baseline:
+            self.client.get(url)
+        baseline_count = len(baseline.captured_queries)
+        for index in range(5):
+            CaseDocument.objects.create(
+                case=case, kind="attachment", title=f"سند اضافی {index}",
+                snapshot={"note": "test"}, checksum=f"extra-checksum-{index}",
             )
         with CaptureQueriesContext(connection) as grown:
             self.client.get(url)

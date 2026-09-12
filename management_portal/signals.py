@@ -17,7 +17,7 @@ from leads.models import Lead
 from .models import CaseActivity, CustomerContact, ManagementNotification
 from .customer_events import record_customer_event
 from .notifications import create_receipts
-from .cases import link_customer_event, link_document, resolve_customer, sync_source_case
+from .cases import link_customer_event, link_document, resolve_customer, sync_demo_selection_document, sync_source_case
 
 
 def notify(*, category, title, description, target_url, role, source_key, due_at=None, priority=None, requires_action=True):
@@ -59,7 +59,8 @@ def new_user(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Lead)
 def new_lead(sender, instance, created, **kwargs):
-    sync_source_case(instance, kind="lead", customer_name=instance.business_name or instance.name, contact_name=instance.name, phone=instance.phone or "", email=instance.email_or_telegram if "@" in instance.email_or_telegram else "", summary=instance.message, document_title="درخواست همکاری اولیه")
+    case = sync_source_case(instance, kind="lead", customer_name=instance.business_name or instance.name, contact_name=instance.name, phone=instance.phone or "", email=instance.email_or_telegram if "@" in instance.email_or_telegram else "", summary=instance.message, document_title="درخواست همکاری اولیه")
+    sync_demo_selection_document(case, instance)
     if created:
         notify(category="sales", title="درخواست همکاری جدید", description=instance.name, target_url=reverse("management_portal:request_detail", args=["lead", instance.pk]), role="sales", source_key=f"lead:{instance.pk}")
 
