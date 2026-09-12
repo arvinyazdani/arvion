@@ -20,6 +20,8 @@
       restored: "گزینه‌های غیرحساس پیش‌نویس قبلی شما آماده بازیابی است.",
       restore: "بازیابی",
       restart: "شروع دوباره",
+      expired: "پیش‌نویس قبلی شما پس از هفت روز منقضی شده و حذف شد.",
+      dismiss: "متوجه شدم",
       sending: "در حال ارسال...",
       serverError: "خطایی در سرور رخ داد. پاسخ‌های شما حفظ شده؛ چند لحظه دیگر دوباره تلاش کنید.",
       networkError: "ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید؛ پاسخ‌های شما حفظ شده است.",
@@ -34,6 +36,8 @@
       restored: "Your previous non-sensitive selections are ready to restore.",
       restore: "Restore",
       restart: "Start again",
+      expired: "Your previous draft expired after seven days and was cleared.",
+      dismiss: "Got it",
       sending: "Submitting...",
       serverError: "The server could not process the request. Your answers are preserved; please try again shortly.",
       networkError: "The server could not be reached. Check your connection and try again; your answers are preserved.",
@@ -173,6 +177,59 @@
       } catch (e) {}
     };
     const clearDraft = () => { try { localStorage.removeItem(wizardKey); } catch (e) {} };
+
+    // --- زمینهٔ دمو: مسیر کوچک و جدا از allowlist عمومی پیش‌نویس، فقط برای
+    // فرم leads-contact. توکن هرگز از سمت سرور در DOM چاپ نمی‌شود؛ فقط از
+    // خودِ URL خوانده می‌شود — همان مکانیزم موجود ?demo= که از قبل آن را حمل
+    // می‌کند، نه یک data-attribute جدید. سرور فقط یک برچسب انسانیِ غیرحساس
+    // (عنوان عمومی قالب دمو) را در data-demo-label برمی‌گرداند.
+    const isDemoContinuationWizard = wizardName === "leads-contact";
+    const demoContextKey = wizardKey + ":demo";
+    const demoRedirectGuardKey = wizardKey + ":demo-redirect-guard";
+    const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const clearDemoContext = () => {
+      try { localStorage.removeItem(demoContextKey); sessionStorage.removeItem(demoRedirectGuardKey); } catch (e) {}
+    };
+    const readDemoContext = () => {
+      if (!isDemoContinuationWizard || readConsent() !== "granted") return null;
+      try {
+        const raw = JSON.parse(localStorage.getItem(demoContextKey) || "null");
+        if (!raw || typeof raw.token !== "string" || !UUID_PATTERN.test(raw.token) || typeof raw.savedAt !== "number") { clearDemoContext(); return null; }
+        if (Date.now() - raw.savedAt > DRAFT_MAX_AGE_MS) { clearDemoContext(); return null; }
+        return raw;
+      } catch (e) { clearDemoContext(); return null; }
+    };
+    const writeDemoContext = (token, label) => {
+      if (!isDemoContinuationWizard || readConsent() !== "granted" || !UUID_PATTERN.test(token || "")) return;
+      try { localStorage.setItem(demoContextKey, JSON.stringify({ token, label: String(label || "").slice(0, 120), savedAt: Date.now() })); } catch (e) {}
+    };
+    if (isDemoContinuationWizard) {
+      const params = new URLSearchParams(location.search);
+      const urlDemoToken = params.get("demo") || "";
+      const serverResolvedLabel = form.dataset.demoLabel || "";
+      if (urlDemoToken && serverResolvedLabel) {
+        // این درخواست دقیقاً همان چیزی است که سرور برایش دمو را معتبر
+        // تشخیص داده — زمینهٔ محلی را با همین وضعیت هم‌سو نگه می‌داریم.
+        writeDemoContext(urlDemoToken, serverResolvedLabel);
+      } else if (urlDemoToken && !serverResolvedLabel) {
+        // سرور این توکن را برای نشست جاری معتبر تشخیص نداده (نامعتبر، متعلق
+        // به نشست دیگر، یا منقضی) — پیام خنثای موجود همان‌طور نمایش داده
+        // می‌شود؛ فقط اشاره‌گر محلی پاک می‌شود تا حلقهٔ بازیابی/خطا ایجاد
+        // نشود. سایر انتخاب‌های غیرحساس پیش‌نویس دست‌نخورده می‌مانند.
+        clearDemoContext();
+      } else if (!urlDemoToken) {
+        const stored = readDemoContext();
+        let alreadyRedirected = false;
+        try { alreadyRedirected = sessionStorage.getItem(demoRedirectGuardKey) === "1"; } catch (e) {}
+        if (stored && !alreadyRedirected) {
+          try { sessionStorage.setItem(demoRedirectGuardKey, "1"); } catch (e) {}
+          params.set("demo", stored.token);
+          location.replace(location.pathname + "?" + params.toString() + location.hash);
+          return;
+        }
+      }
+    }
+
     const readDraft = () => {
       try {
         const raw = JSON.parse(localStorage.getItem(wizardKey) || "null");
@@ -225,7 +282,7 @@
     const renderDraftControls = () => {
       if (!draftControls) return;
       const consent = readConsent();
-      const hasDraft = !!readDraft();
+      const hasDraft = !!readDraft() || !!(isDemoContinuationWizard && readDemoContext());
       draftControls.innerHTML = "";
       if (consent === "granted") {
         const clearBtn = document.createElement("button");
@@ -233,7 +290,7 @@
         clearBtn.className = "wizard-draft-clear";
         clearBtn.textContent = hasDraft ? copy.clearDraft : copy.draftEnabled;
         clearBtn.disabled = !hasDraft;
-        clearBtn.addEventListener("click", () => { clearDraft(); renderDraftControls(); });
+        clearBtn.addEventListener("click", () => { clearDraft(); if (isDemoContinuationWizard) clearDemoContext(); renderDraftControls(); });
         draftControls.appendChild(clearBtn);
 
         const disableBtn = document.createElement("button");
@@ -242,6 +299,7 @@
         disableBtn.textContent = copy.disableDraft;
         disableBtn.addEventListener("click", () => {
           clearDraft();
+          if (isDemoContinuationWizard) clearDemoContext();
           writeConsent("declined");
           renderDraftControls();
         });
@@ -261,16 +319,30 @@
     };
 
     consentBox?.querySelector("[data-consent-accept]")?.addEventListener("click", () => {
-      writeConsent("granted"); consentBox.hidden = true; writeDraft(); renderDraftControls();
+      writeConsent("granted"); consentBox.hidden = true; writeDraft();
+      if (isDemoContinuationWizard && form.dataset.demoLabel) {
+        writeDemoContext(new URLSearchParams(location.search).get("demo") || "", form.dataset.demoLabel);
+      }
+      renderDraftControls();
     });
     consentBox?.querySelector("[data-consent-decline]")?.addEventListener("click", () => {
-      clearDraft(); writeConsent("declined"); consentBox.hidden = true; renderDraftControls();
+      clearDraft(); if (isDemoContinuationWizard) clearDemoContext(); writeConsent("declined"); consentBox.hidden = true; renderDraftControls();
     });
 
     // یک بار توسط جنگو با خطای اعتبارسنجی رندر شده — پاسخ‌های واقعی کاربر در فرم است، نه یک بازدید تازه
     const isErrorRerender = !!form.dataset.errorStep;
     const consent = readConsent();
+    const peekDraftAge = () => {
+      try {
+        const raw = JSON.parse(localStorage.getItem(wizardKey) || "null");
+        return raw && typeof raw.savedAt === "number" ? Date.now() - raw.savedAt : null;
+      } catch (e) { return null; }
+    };
+    // باید پیش از readDraft() سنجیده شود: خودِ readDraft() به‌محض تشخیص
+    // انقضا، رکورد را از localStorage حذف می‌کند و دیگر چیزی برای سنجش نمی‌ماند.
+    const draftAgeBeforeRead = isDemoContinuationWizard && consent === "granted" ? peekDraftAge() : null;
     const draft = consent === "granted" ? readDraft() : null;
+    const isDraftExpired = isDemoContinuationWizard && consent === "granted" && !draft && draftAgeBeforeRead !== null && draftAgeBeforeRead > DRAFT_MAX_AGE_MS;
 
     if (!isErrorRerender && draft) {
       const banner = document.createElement("div");
@@ -281,7 +353,18 @@
         <button type="button" data-draft-discard>${copy.restart}</button>`;
       form.prepend(banner);
       banner.querySelector("[data-draft-restore]").addEventListener("click", () => { applyDraft(draft); banner.remove(); });
-      banner.querySelector("[data-draft-discard]").addEventListener("click", () => { clearDraft(); banner.remove(); renderDraftControls(); });
+      banner.querySelector("[data-draft-discard]").addEventListener("click", () => { clearDraft(); if (isDemoContinuationWizard) clearDemoContext(); banner.remove(); renderDraftControls(); });
+    } else if (!isErrorRerender && isDraftExpired) {
+      // پاک‌سازی بی‌صدا جای خود را به یک پیام قابل‌فهم می‌دهد — کاربر باید
+      // بداند پیش‌نویسش گم نشده، بلکه طبق همان بازهٔ اعلام‌شده منقضی شده است.
+      clearDraft();
+      clearDemoContext();
+      const expiredBanner = document.createElement("div");
+      expiredBanner.className = "wizard-draft-banner";
+      expiredBanner.setAttribute("role", "status");
+      expiredBanner.innerHTML = `<span>${copy.expired}</span><button type="button" data-draft-expired-dismiss>${copy.dismiss}</button>`;
+      form.prepend(expiredBanner);
+      expiredBanner.querySelector("[data-draft-expired-dismiss]").addEventListener("click", () => { expiredBanner.remove(); });
     } else if (!isErrorRerender && consent === null) showConsent();
     renderDraftControls();
 
@@ -326,6 +409,7 @@
           if (response.redirected) {
             clearTimeout(saveTimer);
             clearDraft();
+            if (isDemoContinuationWizard) clearDemoContext();
             location.href = response.url;
             return;
           }

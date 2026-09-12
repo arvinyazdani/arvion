@@ -140,6 +140,36 @@ class LeadTests(TestCase):
         self.assertContains(fa_response, reverse("projects:demo_gallery"))
         # The form must stay fully usable — the notice never blocks submission.
         self.assertContains(fa_response, 'name="message"')
+        # The client-side draft-continuation marker must never render for a
+        # demo the server could not resolve for this session.
+        self.assertNotContains(fa_response, "data-demo-label")
+
+    def test_valid_session_bound_demo_exposes_only_a_safe_label_never_token_or_session_key(self):
+        demo = DemoTemplate.objects.create(
+            slug="continuation-demo", category="ecommerce", title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional", fictional_brand_fa="برند", fictional_brand_en="BRAND",
+            style_key="minimal",
+        )
+        session = self.client.session
+        session["prime-session"] = True
+        session.save()
+        selection = DemoSelection.objects.create(
+            template=demo, session_key=session.session_key,
+            selections={"theme": "warm", "personality": "minimal", "features": ["blog"]},
+        )
+        fa_response = self.client.get(reverse("leads:contact") + f"?lang=fa&demo={selection.public_token}")
+        self.assertContains(fa_response, 'data-demo-label="دموی فروشگاهی"')
+        content = fa_response.content.decode("utf-8")
+        self.assertNotIn(str(selection.public_token), content)
+        self.assertNotIn(session.session_key, content)
+        self.assertNotIn("public_token", content)
+        self.assertNotIn("session_key", content)
+
+        en_response = self.client.get(reverse("leads:contact") + f"?lang=en&demo={selection.public_token}")
+        self.assertContains(en_response, 'data-demo-label="Storefront demo"')
+        en_content = en_response.content.decode("utf-8")
+        self.assertNotIn(str(selection.public_token), en_content)
+        self.assertNotIn(session.session_key, en_content)
 
         en_response = self.client.get(reverse("leads:contact") + "?lang=en&demo=not-a-real-token")
         self.assertContains(en_response, "Your demo selection could not be attached")

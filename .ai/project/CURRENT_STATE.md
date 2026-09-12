@@ -2,118 +2,112 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** Structured hand-off of a Lead's demo selection into its customer case.
-- **Last verified phase:** Structured customer-case hand-off (this phase).
+- **Current phase:** V1 — same-device draft continuation for the leads-contact form.
+- **Last verified phase:** V1 draft continuation (this phase).
 - **Status:** `VERIFIED` (local)
-- **Git boundary:** `main` will be six commits ahead of `origin/main`
+- **Git boundary:** `main` will be seven commits ahead of `origin/main`
   (`06812d2`, `dc68011`, the "reliable hand-off" phase commit, `af6e0ac`,
-  `fbe3320`, and this phase's commit) once committed below.
+  `fbe3320`, `777acf9`, and this phase's commit) once committed below.
 - **Active delegated work:** none.
-- **Known blockers:** none for this bounded phase. Push, deploy, and
-  production migration remain outside the current authorization; no
-  customer data was changed — only local test-database fixtures.
-- **This phase's change (no model or migration change):** a Lead's demo
-  choice is now mirrored onto its `CustomerCase` as a structured,
-  bilingual, frozen `CaseDocument` snapshot, reusing the existing
-  case/document/revision/activity machinery end to end — no new model.
-  `management_portal/cases.py`: `_upsert_document` gained an optional
-  `data=` param (falls back to its previous `snapshot(instance)` behaviour
-  when omitted, so every existing caller is unchanged) so a caller can
-  supply already-resolved structured data instead of a raw
-  `model_to_dict`. New `_demo_selection_snapshot(selection)` resolves the
-  template title, category, chosen brand, colour, personality, and
-  features into a flat dict with explicit `_fa`/`_en` suffixes (e.g.
-  `theme_fa`/`theme_en`) plus the demo template's `slug` — never
-  `public_token` or `session_key`, and never a live reference, so the
-  record stays fully readable even after `cleanup_demo_selections`
-  eventually removes the underlying anonymous selection. New
-  `sync_demo_selection_document(case, lead)` upserts this as a
-  `CaseDocument` anchored to **the Lead itself**
-  (`content_type=Lead, object_id=lead.pk, kind="attachment"` — distinct
-  from the `kind="initial"` document already used for the Lead's own raw
-  snapshot, so no collision with the existing unique constraint), not to
-  the anonymous `DemoSelection` row; this is what makes a later,
-  legitimate change to `lead.demo_selection` update the *same* document in
-  place (new `CaseDocumentRevision`) rather than leaving a stale duplicate
-  behind. It's a no-op when the lead has no `demo_selection`, so a plain
-  Lead gains no empty section or noise. `management_portal/signals.py`:
-  `new_lead` now captures the `CustomerCase` that `sync_source_case`
-  already returns and passes it straight to `sync_demo_selection_document`
-  — no extra case lookup query. `management_portal/workspace_views.py`:
-  `workspace_detail` picks the demo document out of the case's
-  already-`prefetch_related`d `documents` (matched by its fixed title
-  string, zero extra queries), excludes it from the generic
-  flattened-snapshot document list (which would otherwise interleave the
-  `_fa`/`_en` keys in one table), and builds a `demo_card` dict from the
-  frozen snapshot alone — reading `lang`-appropriate keys only, so the
-  live `DemoSelection`/`DemoTemplate` rows are never touched at render
-  time, and the "view public demo template" link is built from the
-  snapshot's stored `slug`. `workspace_detail.html`: a new
-  `{% if demo_card %}` "Demo selection" `<section class="m-panel">`
-  (reusing the existing `.m-panel`/`.m-details`/`.m-detail-actions`
-  classes — no new CSS) placed right after the hero and **before** the
-  `{% if not proposal %}` gate, so it is visible even when no
-  `ContractProposal`/workspace has been created yet for the case (the rest
-  of that page's document list is gated behind an active proposal; demo
-  visibility deliberately is not, since a manager needs to see it on a
-  fresh Lead-only case too) — links to the original request
-  (`request_detail`, shown only when `case.kind == "lead"` and a source
-  object id exists) and to the public demo template, never to a private
-  selection link or token. `request_detail.html`'s existing
-  "Prepare & send to customer" link to `workspace_detail` (added in an
-  earlier phase, conditioned on `customer_case` existing) already
-  satisfies the "clear bilingual path back to the case" requirement and
-  was left untouched — confirmed still present and passing.
-- **Test level:** `management_portal` + `projects` + `leads` = 172 tests,
-  all passing (8 new this phase, in a new `DemoSelectionCaseHandoffTests`
-  class in `management_portal/tests.py`: a Lead with a demo selection
-  creates a structured snapshot with all six fields correctly resolved in
-  both languages; re-saving the Lead twice and re-invoking the sync
-  function directly both leave exactly one `CaseDocument` and one
-  `CaseActivity` and one `CaseDocumentRevision` (checksum-based
-  idempotency, not just a `created` flag); re-pointing `lead.demo_selection`
-  at a different `DemoSelection` updates the *same* document in place and
-  leaves exactly two revisions, the old checksum still retrievable; a Lead
-  with no demo selection creates neither a demo document nor a demo
-  activity; the document's raw JSON snapshot and the rendered case page
-  both contain neither the raw `public_token`/session-key values nor the
-  field names `public_token`/`session_key` themselves; the case page
-  contains both the original request's URL and the public demo template's
-  URL; an anonymous (non-staff) request to the case page still gets a
-  `302` redirect to login, unchanged from before this phase; and a
-  `CaptureQueriesContext` regression test proving the case page's query
-  count does not grow after five more unrelated `CaseDocument` rows are
-  added to the same case). `manage.py check` (0 issues),
-  `makemigrations --check --dry-run` ("No changes detected" — confirmed no
-  model change was needed), and `git diff --check` (clean) all passed.
-- **Prior phases, kept for reference:** `fbe3320` added a dry-run-by-default
+- **Known blockers:** none for this bounded phase. Push, deploy, production
+  migration, and CRM/Clinic wizard changes remain outside the current
+  authorization/scope. No customer data was touched; a throwaway
+  DemoTemplate/DemoSelection/Lead used to empirically verify the browser
+  behaviour was created and deleted from the local dev sqlite database
+  during this phase (never committed — `db.sqlite3` is gitignored). The
+  local dev database also had one pre-existing, already-committed migration
+  (`projects.0006_demoselection_submission_token`, from an earlier phase)
+  applied to it, since it was missing and blocked creating a `DemoSelection`
+  for the browser check; this created no new migration file.
+- **This phase's change (no model, migration, or CRM/Clinic change):** the
+  leads-contact form's existing localStorage draft mechanism
+  (`core/static/core/js/wizard-engine.js`) can now reconstruct a lost
+  `?demo=` link on the same device/session, entirely opt-in and scoped by
+  `wizardName === "leads-contact"` so CRM/Clinic wizards execute byte-for-
+  byte as before (confirmed by re-running `leads`+`projects`, both green,
+  and by code trace: every new branch is gated behind that one check).
+  `leads/views/contact.py`'s `get_context_data` now also sets
+  `demo_context = {"label": ...}` (the demo template's bilingual title
+  only) when `_session_demo_selection` resolves — `_session_demo_selection`
+  itself, the actual token/session validation, is untouched.
+  `leads/templates/leads/contact.html` renders that label as a
+  `data-demo-label` attribute on the form — **never** the token or
+  session_key. The token itself is never server-rendered into the DOM at
+  all: the client reads it exclusively from `location.search` (the URL the
+  browser is already showing, the same pre-existing `?demo=` channel — not
+  a new exposure). New dedicated localStorage key
+  `rvion-draft:leads-contact:demo` (`{token, label, savedAt}`), separate
+  from the general draft's field allowlist, gated by the same per-form
+  consent key and a UUID-shape check on write and read. On a page load with
+  no `?demo=` param, a valid, non-expired, consented local pointer triggers
+  exactly one `location.replace` to re-append `?demo=<token>` (guarded by a
+  one-shot sessionStorage flag against loops), which re-runs the existing,
+  unmodified server-side session-bound resolution. When that resolution
+  fails (invalid/foreign/expired), only the dedicated demo key is cleared —
+  the general draft fields are untouched. A silent-expiry gap was closed:
+  a genuinely-expired (>7 days) draft now shows a dismissible message
+  instead of vanishing without explanation, gated the same way. Every
+  clear/disable control, the restore banner's discard button, and the
+  successful-submit path now also clear the dedicated demo key. A real bug
+  was caught during self-review before testing: the initial expiry check
+  read the draft's age *after* `readDraft()` had already deleted the aged
+  entry, so it always saw nothing — fixed by peeking the raw age before
+  calling `readDraft()`.
+- **Test level:** `leads` + `projects` = 33 tests, all passing (2 new this
+  phase in `leads/tests.py`: a resolved, session-bound demo renders
+  `data-demo-label` with the correct bilingual title and the response body
+  contains neither the raw token, the raw session key, nor the strings
+  `public_token`/`session_key`; an unresolved/foreign demo renders no
+  `data-demo-label` at all). The client-side half (redirect reconstruction,
+  consent-gated writes, expiry banner, clear/disable propagation) has no
+  JS test framework in this project, so it was verified empirically with
+  the browser-automation skill against a throwaway local dev server (a
+  disposable DemoTemplate/DemoSelection/session created via `manage.py
+  shell`, deleted afterward): (1) first visit with a valid link — banner
+  shown, after accepting, localStorage held exactly the general draft, the
+  demo pointer `{token, label, savedAt}`, and consent — no name/phone/
+  email/session_key anywhere; (2) revisiting the bare URL with no `?demo=`
+  — the page auto-redirected to the URL with `?demo=<token>` reappended,
+  and the server re-resolved it; (3) a fresh browser context (no cookies,
+  foreign session) with the same token — neutral notice shown, no
+  `data-demo-label`, no local pointer; (4) the same primed session visited
+  with a bogus token — the demo pointer was cleared while the general
+  draft's fields survived unchanged; (5) backdating both keys by 8 days —
+  the expiry message appeared and both keys cleared, consent itself
+  untouched; (6) the "clear draft" and "disable local storage" buttons each
+  cleared both keys; (7) a real, full multi-step submission redirected to
+  the thanks page and cleared both keys. `manage.py check` (0 issues),
+  `makemigrations --check --dry-run` ("No changes detected"), and
+  `git diff --check` (clean) all passed.
+- **Prior phases, kept for reference:** `777acf9` mirrored a Lead's demo
+  choice onto its `CustomerCase` as a structured, bilingual, frozen
+  `CaseDocument` snapshot, reusing the existing case/document/revision/
+  activity machinery with no new model — see git history for detail if
+  needed again. `fbe3320` added a dry-run-by-default
   `cleanup_demo_selections` management command (deletes only
-  `DemoSelection` rows that are both unattached to any Lead and stale past
-  a configurable retention window, `--apply` required for a real delete,
-  batch-safe re-checked eligibility at delete time) and, as a P2 fix,
-  moved `CATEGORY_LABELS_EN`/`demo_config_labels` out of
-  `projects.views.projects` into a neutral `projects/demo_labels.py` so
-  `management_portal` no longer reaches into another app's view layer —
-  this phase's new `_demo_selection_snapshot` helper reuses that same
-  neutral module. `af6e0ac` added a bilingual "Demo selection" card and
-  list filter/indicator to the request-list/detail dashboard pages, never
-  exposing `public_token`/`session_key` there either. Before that, two P1s
-  in the demo-to-enquiry hand-off were corrected and empirically verified:
-  (1) a stale `submission_token` resubmitted from the same session with
-  changed data now redirects with the visitor's values preserved and a
-  freshly re-minted token; (2) the post-`IntegrityError` winning-row lookup
-  happens outside a nested `transaction.atomic()` scoped to just the
-  insert, so recovery stays reliable under `ATOMIC_REQUESTS = True`. See
-  git history on `projects/views/projects.py` (`DemoConfigureView`) for
-  full detail if needed again.
-- **Last commit (before this phase):** `fbe3320 feat: add safe lifecycle
-  cleanup for abandoned demo selections`.
+  `DemoSelection` rows both unattached to any Lead and stale past a
+  configurable retention window, `--apply` required for a real delete) and,
+  as a P2 fix, moved `CATEGORY_LABELS_EN`/`demo_config_labels` into a
+  neutral `projects/demo_labels.py`. `af6e0ac` added a bilingual "Demo
+  selection" card and list filter/indicator to the request-list/detail
+  dashboard pages. Before that, two P1s in the demo-to-enquiry hand-off
+  were corrected and empirically verified (stale-token resubmit recovery;
+  `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
+  history on `projects/views/projects.py` (`DemoConfigureView`) and
+  `management_portal/cases.py` for full detail if needed again.
+- **Last commit (before this phase):** `777acf9 feat: hand off a Lead's
+  demo selection into its customer case`.
 - **Next action:** Await an explicit request to commit/push/deploy, or
-  begin the next planned phase: resumable order drafts (needs its own
-  privacy and recovery design — not started). Consider scheduling
-  `cleanup_demo_selections` (cron/Celery beat) only after explicit
-  operational approval; no scheduling exists yet. Re-run the release gate
-  on the exact deployable revision before any production action.
+  begin the next planned increment: V2 (a time-boxed, signed continuation
+  link for cross-device recovery, from the earlier design report) — this
+  requires explicit human approval before any work, since it involves
+  either server-side storage of contact info or sending a link to the
+  customer, both flagged in that report as decisions outside this agent's
+  authority. Resumable order drafts beyond leads-contact (CRM/Clinic) also
+  remain `NOT_STARTED`. Consider scheduling `cleanup_demo_selections`
+  (cron/Celery beat) only after explicit operational approval. Re-run the
+  release gate on the exact deployable revision before any production
+  action.
 
 ## Phase ledger
 
@@ -125,6 +119,8 @@
 | Reliable hand-off from demo to enquiry | `VERIFIED` (local) | Both P1s from the prior `PARTIAL` checkpoint were corrected and empirically verified — the ATOMIC_REQUESTS failure was reproduced before the fix and re-checked after it. Full targeted suite (26 tests), `check`, migration dry-run and `git diff --check` all passed. Not pushed, deployed, or migrated on production. |
 | Structured display of demo selection in the management dashboard (`af6e0ac`) | `VERIFIED` (local) | 158-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change. Not pushed, deployed, or migrated on production. |
 | Lifecycle and safe cleanup of abandoned demo selections (`fbe3320`) | `VERIFIED` (local) | 164-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change. `--apply` never run outside the test database. Not pushed, deployed, or migrated on production. |
-| Structured customer-case hand-off | `VERIFIED` (local) | See "This phase's change" and "Test level" above — 172-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change; reused the existing CaseDocument/CaseDocumentRevision/CaseActivity machinery end to end. Not pushed, deployed, or migrated on production. |
-| Resumable order drafts | `NOT_STARTED` | Requires a separate privacy and recovery design after the customer-case hand-off is verified. |
+| Structured customer-case hand-off (`777acf9`) | `VERIFIED` (local) | 172-test full suite, `check`, migration dry-run and `git diff --check` all passed. No model/migration change; reused the existing CaseDocument/CaseDocumentRevision/CaseActivity machinery end to end. Not pushed, deployed, or migrated on production. |
+| Resumable order drafts — design report | `VERIFIED` | Compared 4 options (local-only, server draft for logged-in users, signed continuation link, staged combination) across security/privacy/complexity/recovery; recommended a staged V1→V2 path; flagged server-side contact storage and sending a link to the customer as decisions needing explicit human approval. Design only, no code changed. |
+| Resumable order drafts — V1 (same-device continuation) | `VERIFIED` (local) | See "This phase's change" and "Test level" above. `leads`+`projects` (33 tests) all passed; CRM/Clinic wizards untouched (gated by wizard name, re-verified green); `check`, migration dry-run, and `git diff --check` all passed. Client-side redirect/consent/expiry/clear behaviour empirically verified via the browser-automation skill against a throwaway local dev server and disposable fixtures (deleted afterward, never committed). No model/migration/CRM/Clinic change. Not pushed or deployed. |
+| Resumable order drafts — V2 (signed continuation link) | `NOT_STARTED` | Requires explicit human approval first: it involves either server-side storage of contact info or sending a link to the customer (SMS/email), both flagged as out-of-agent-authority decisions in the design report. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

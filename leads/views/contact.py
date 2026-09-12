@@ -71,8 +71,17 @@ class LeadCreateView(LanguageViewMixin, FormView):
         # wrong session, wrong device, expired, or simply invalid — must not
         # block or explain itself (that would leak whether the token exists
         # at all); it just surfaces a neutral, non-blocking notice.
-        if self.request.GET.get("demo", "") and not _session_demo_selection(self.request):
+        selection = _session_demo_selection(self.request)
+        if self.request.GET.get("demo", "") and not selection:
             context["demo_link_invalid"] = True
+        elif selection:
+            # Non-secret display data only — never public_token or
+            # session_key — so the client-side draft can keep a same-device
+            # pointer to this exact demo without needing to hold onto the
+            # URL itself (see wizard-engine.js's dedicated demo context).
+            context["demo_context"] = {
+                "label": selection.template.title_fa if self.lang == "fa" else selection.template.title_en,
+            }
         return context
 
     def form_valid(self, form):
