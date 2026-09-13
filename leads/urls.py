@@ -10,7 +10,7 @@
 
 # ==== ایمپورت‌ها ====
 from django.urls import path
-from .views import LeadCreateView, LeadThanksView
+from .views import FormDraftDeleteView, FormDraftView, LeadCreateView, LeadThanksView
 
 # ==== فضای نام (namespace) ====
 app_name = "leads"
@@ -21,5 +21,8 @@ urlpatterns = [
     path("", LeadCreateView.as_view(), name="contact"),
     path("thanks/<str:code>/", LeadThanksView.as_view(), name="thanks"),
 
-   
+    # API حساب‌محور پیش‌نویس فرم تماس: GET/POST خواندن و ذخیره،
+    # POST جدا برای حذف — هر دو فقط برای مشتری واردشده و غیر staff.
+    path("draft/", FormDraftView.as_view(), name="draft"),
+    path("draft/delete/", FormDraftDeleteView.as_view(), name="draft_delete"),
 ]

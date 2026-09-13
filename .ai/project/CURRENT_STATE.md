@@ -2,34 +2,43 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-B2 third corrective — `1baf584` (the second
-  corrective phase) correctly wrapped the *first* `DemoSelection` lookup
-  (inside `leads.demo_handoff.consume_pending_demo_selection` itself) in
-  its own `transaction.atomic()`, and that fix remains fully correct and
-  `VERIFIED` — it is **not** touched or re-litigated here. But the
-  overall V2.1-B2 feature is now known to have shipped `PARTIAL` even
-  after `1baf584`, because there is a **second**, separate
-  `DemoSelection` lookup in the same call chain that had the identical
-  unwrapped-query problem: after the first lookup succeeds,
-  `consume_pending_demo_selection` calls
-  `ensure_active_draft_with_demo_snapshot`, which calls
-  `leads.form_draft_service._reload_demo_selection` — its own
-  `DemoSelection.objects.select_related("template").filter(pk=...)
-  .first()` query, run with no `transaction.atomic()` of its own. A
-  genuine PostgreSQL error there aborted the underlying transaction the
-  exact same way, and under `ATOMIC_REQUESTS=True` left the *outer*
-  request transaction needing a rollback — reproduced empirically
-  (temporarily reverting the fix made the new tests below fail with
-  exactly `django.db.utils.InternalError: current transaction is
-  aborted`) and now fixed and verified — see "V2.1-B2 third corrective"
-  entries below. Status: `VERIFIED` (local); the overall V2.1-B2 feature
-  (all three corrective phases plus the original) is now `VERIFIED` as a
-  whole for the first time.
-- **Last verified phase (code):** V2.1-B2 third corrective, on top of
-  the V2.1-B2 second corrective phase (`1baf584`), the V2.1-B2 first
-  corrective phase (`2cd1032`), V2.1-B2 (`757f7a4`), the V2.1-B1 second
-  corrective phase, the V2.1-B1 first corrective phase (`0e1a208`),
-  V2.1-B1 (`537c9a2`), the V2.1-A corrective phase, and `08bd910`.
+- **Current phase:** V2.1-B3 — the first account-bound, versioned HTTP
+  API for `FormDraft`: `GET`/`POST` on `leads:draft` (read the customer's
+  current `leads_contact` draft; race-safe, optimistic-concurrency
+  create-or-update of its `fields`/`current_step`) and `POST` on
+  `leads:draft_delete` (race-safe, revision-checked hard delete). No UI,
+  JavaScript, template change, auto-save wiring, or `FormDraft`→`Lead`
+  conversion in this phase — this is server-side infrastructure only, for
+  the future Phase C UI to call. A new `FormDraft.revision`
+  (`PositiveBigIntegerField`, additive migration
+  `0007_formdraft_revision`) is the optimistic-concurrency counter every
+  write path in `leads/form_draft_service.py` now maintains consistently
+  (not just the new API), and a new `DraftConflictError` carries the
+  current, canonical, owner-scoped draft for building a 409 response.
+  Status: `VERIFIED` (local).
+- **Last verified phase (code):** V2.1-B3, on top of the V2.1-B2 third
+  corrective phase, the V2.1-B2 second corrective phase (`1baf584`), the
+  V2.1-B2 first corrective phase (`2cd1032`), V2.1-B2 (`757f7a4`), the
+  V2.1-B1 second corrective phase, the V2.1-B1 first corrective phase
+  (`0e1a208`), V2.1-B1 (`537c9a2`), the V2.1-A corrective phase, and
+  `08bd910`.
+- **V2.1-B2 third corrective — historical recap (superseded as the
+  "current phase"; kept `VERIFIED` and untouched by this phase):**
+  `1baf584` (the second corrective phase) correctly wrapped the *first*
+  `DemoSelection` lookup (inside
+  `leads.demo_handoff.consume_pending_demo_selection` itself) in its own
+  `transaction.atomic()`. The overall V2.1-B2 feature had then shipped
+  `PARTIAL` even after `1baf584`, because a **second**, separate
+  `DemoSelection` lookup in the same call chain
+  (`leads.form_draft_service._reload_demo_selection`, reached via
+  `ensure_active_draft_with_demo_snapshot`) had the identical
+  unwrapped-query problem — a genuine PostgreSQL error there aborted the
+  underlying transaction and, under `ATOMIC_REQUESTS=True`, left the
+  *outer* request transaction needing a rollback. Reproduced empirically,
+  then fixed in `afde089` by wrapping that second lookup's query in its
+  own `transaction.atomic()` too. The overall V2.1-B2 feature (original
+  plus all three corrective phases) has been `VERIFIED` as a whole since
+  `afde089`, and none of that work is touched or re-litigated here.
 - **V2.1-B2 second corrective — historical recap, kept `VERIFIED` and
   untouched by this phase:** `2cd1032` (the first corrective phase) added
   a `try`/`except` around the first `DemoSelection` lookup, but never
@@ -1412,10 +1421,245 @@
   detected." No model or schema change — this phase touched only
   `leads/form_draft_service.py`, `leads/test_demo_handoff.py`, and
   `leads/test_form_draft.py`.
+- **Git boundary (as of `afde089`, historical — see the accurate,
+  up-to-date count directly below):** `main` was seventeen commits ahead
+  of `origin/main` at that point — the sixteen from the prior entry, plus
+  `afde089`. No prior commit was amended.
+- **V2.1-B3 — model change:** `leads.FormDraft` gained one new field,
+  `revision = models.PositiveBigIntegerField(default=1)` — the
+  optimistic-concurrency counter for the new API. Migration
+  `leads/migrations/0007_formdraft_revision.py`: a single additive
+  `AddField` with a static default, so every pre-existing row gets
+  `revision=1` automatically and backward-safely; confirmed via
+  `showmigrations leads` that it is **not applied** to the local dev
+  SQLite database (only 0001–0006 show `[X]`), and via
+  `makemigrations --check --dry-run` → "No changes detected" that it
+  fully captures the model change. No other model field changed.
+- **V2.1-B3 — revision semantics, centralized in
+  `leads/form_draft_service.py`:** every write path in the module now
+  maintains `revision` consistently, not just the two new API-facing
+  functions:
+  - `_get_active_draft_locked` (the shared "find the active draft, expire
+    it if stale" helper used by every writer) now bumps `revision` by 1
+    when it transitions a draft to `"expired"` — a status change is
+    itself real content change.
+  - `upsert_active_draft`, `attach_demo_snapshot`, `clear_demo_snapshot`,
+    and `ensure_active_draft_with_demo_snapshot` each now compare the
+    new value against the existing one (`fields`/`current_step` for the
+    first, `demo_snapshot` for the other three) before writing:
+    `revision` increments by exactly 1 only on a real change; an
+    idempotent no-op call still extends `expires_at` but never bumps it.
+    `ensure_active_draft` needed no change — it already never writes to
+    an existing draft at all.
+  - New `save_draft_fields(*, owner, form_type, fields, current_step,
+    expected_revision)`: the race-safe, optimistic-concurrency
+    create-or-update behind the new API. `expected_revision=0` means "I
+    believe no active draft exists yet" — creating one in that case
+    starts it at `revision=1`; if a draft *does* exist, or if
+    `expected_revision` doesn't match an existing draft's actual current
+    `revision`, it raises the new `DraftConflictError` and writes
+    nothing. The revision-match check runs *inside* the same
+    `transaction.atomic()` + owner-row `select_for_update()` block
+    already used by every other writer, immediately after
+    `_get_active_draft_locked` (so an expiry transition discovered in the
+    same call is never rolled back by a subsequent conflict — same
+    ordering principle as `attach_demo_snapshot`'s existing
+    `no_active_draft` case). Content-change detection and the
+    "idempotent save never bumps revision" rule are identical to
+    `upsert_active_draft`'s.
+  - New `delete_draft_with_revision(*, owner, form_type,
+    expected_revision)`: hard-deletes the owner's active draft for
+    `form_type` under the same lock/conflict contract. No active draft
+    exists → returns `False` (idempotent, regardless of
+    `expected_revision` — nothing to conflict with). A revision mismatch
+    → `DraftConflictError`, nothing deleted. Never accepts a draft id;
+    the row is found only via the owner's own lock and `form_type`, so
+    there is no id a client could ever pass to reach another account's
+    draft.
+  - New `DraftConflictError(Exception)`: carries `.draft` — the current,
+    canonical, already-owner-scoped draft (or `None` when none exists) —
+    so the view can build a 409 response without a second query and
+    without ever being able to expose a different account's data. Its
+    message is fixed and never repeats a caller-supplied value.
+  - New `serialize_draft_canonical(draft)`: the one function that decides
+    what a client is ever allowed to see — `form_type`, `current_step`,
+    `fields`, `demo_snapshot`, `status`, `revision`, `updated_at`,
+    `expires_at`. Never the database primary key, `owner_id`,
+    `submitted_lead_id`, or any token/session key.
+- **V2.1-B3 — API contract:** two new URLs in the existing `leads`
+  namespace, under the project's existing `i18n_patterns` prefix
+  (`/<lang>/contact/...`, matching `leads:contact`/`leads:thanks`):
+  `leads:draft` → `draft/` (`FormDraftView`, `GET`+`POST`) and
+  `leads:draft_delete` → `draft/delete/` (`FormDraftDeleteView`, `POST`
+  only) — both in new `leads/views/draft_api.py`. `form_type` is always
+  the server-side constant `"leads_contact"`; no request ever supplies
+  it. Every response carries `Cache-Control: no-store`. Both views rely
+  on the project's already-active, global `CsrfViewMiddleware` for CSRF
+  protection on the unsafe (`POST`) methods — neither is `csrf_exempt` —
+  confirmed genuinely enforced with `Client(enforce_csrf_checks=True)`.
+  `GET leads:draft`: `{"draft": null}` (200) when no active draft exists,
+  or `{"draft": <canonical>}` (200) — strictly read-only, calls only the
+  existing `get_active_draft` (no write, no transaction, no row lock,
+  confirmed directly via `CaptureQueriesContext` + a patched
+  `select_for_update` that raises if called). `POST leads:draft`: JSON
+  body must be exactly `{"fields": <dict>, "current_step": <int>,
+  "expected_revision": <int>}` — any missing/extra/unknown top-level key
+  (including `demo_snapshot`, `status`, `owner`, `submitted_lead`,
+  `expires_at`) is rejected with `400 invalid_payload_keys` before any
+  query. Non-`application/json` content type, a body over 16 KB, invalid
+  JSON, or a non-object JSON root are each rejected with their own fixed
+  `400` code, also before any query. On success: `201` + the canonical
+  draft for a first-ever creation, `200` + the canonical draft for an
+  update. On a revision conflict: `409` with `{"code": "conflict",
+  "message": ..., "draft": <canonical-or-null>}`. `POST
+  leads:draft_delete`: body must be exactly `{"expected_revision":
+  <int>}`; success is `{"deleted": true|false}` (200); conflict is the
+  same `409` shape as save. Anonymous requests get a JSON `401` (never an
+  HTML redirect) on every endpoint/method; staff/superuser accounts get a
+  JSON `403` before any write. An unsupported HTTP method (`PUT`,
+  `PATCH`, `DELETE` on `leads:draft`; any non-`POST` on
+  `leads:draft_delete`) gets Django's own `405` with a correctly computed
+  `Allow` header, via the base `View` class's default dispatch — no
+  custom method-routing code was written.
+- **V2.1-B3 — privacy boundary:** the allowed `fields` keys
+  (`request_type`, `service_id`, `budget_range`, `timeline`,
+  `preferred_contact`) and the forbidden ones (`name`, `phone`,
+  `email_or_telegram`, `business_name`, `website_url`, `message`,
+  `privacy_accept`, `public_token`, `session_key`, `submission_token`)
+  are unchanged from Phase B1's `normalize_fields` — the new API reuses
+  it verbatim via `save_draft_fields`, so a forbidden or unrecognized
+  field is rejected as `400 forbidden_field`/`400 unknown_field` exactly
+  as before, never silently dropped. `demo_snapshot` can never be
+  supplied by a client at all — the strict top-level key-set check on
+  both `POST` endpoints rejects any request that even includes that key,
+  and `save_draft_fields` itself has no parameter through which a
+  snapshot could be passed. `DRAFT_RETENTION_DAYS = 7` is unchanged and
+  still the single source of truth (`leads/models/form_draft.py`).
+  Guests (anonymous requests) never reach the service layer at all — the
+  view's `_authorize_customer` check runs first, before any query.
+  Staff/superuser accounts are rejected both at the view (403, before any
+  query) and, in defense of depth, inside `save_draft_fields`/
+  `delete_draft_with_revision` themselves (`DraftValidationError`,
+  code `staff_or_superuser_not_allowed`) — so even a hypothetical future
+  caller that skips the view's check still cannot create or modify a
+  staff-owned customer draft.
+- **V2.1-B3 — authorization:** every service function in the module
+  already only ever reads/writes the exact owner passed to it — `GET`
+  calls `get_active_draft(request.user, "leads_contact")`, `POST` calls
+  `save_draft_fields(owner=request.user, ...)`, delete calls
+  `delete_draft_with_revision(owner=request.user, ...)`. No draft id,
+  owner id, or user id is ever accepted from any payload on any endpoint,
+  so there is no parameter a client could manipulate to reach another
+  account's draft — confirmed directly by tests asserting user A's
+  requests never see, modify, or receive a conflict response containing
+  user B's data (a conflict's `draft` is always re-fetched from the
+  *same* locked owner row the request is already scoped to).
+- **V2.1-B3 — test level:** new `leads/test_draft_api.py` (37 tests):
+  `FormDraftGetViewTests` (10 — no draft → null; owner sees only safe
+  own data; anonymous → 401 JSON; staff/superuser → 403 JSON; user A
+  cannot read user B's draft; an expired draft is not returned; no write
+  or row lock on GET, proven via `CaptureQueriesContext` + a patched
+  `select_for_update`; invalid HTTP methods → 405 with `Allow`; no
+  forbidden token in the response even when a real snapshot is attached);
+  `FormDraftPostViewTests` (18 — 201+revision 1 on first creation; 200 +
+  revision+1 on a real update; an identical resave is idempotent and
+  keeps the same revision; a stale `expected_revision` → 409 without
+  overwriting; a conflict response only ever contains the requester's own
+  draft; unknown/forbidden fields rejected; `demo_snapshot`/`status`/
+  `owner`/`submitted_lead`/`expires_at` in the payload all rejected as
+  invalid top-level keys; malformed JSON, a non-object root, and an
+  oversized (>16 KB) body all rejected; wrong `Content-Type` rejected;
+  out-of-range `current_step` and an invalid `service_id` rejected;
+  anonymous/staff rejected with no write; invalid HTTP method → 405;
+  saving against an expired draft with `expected_revision=0` creates a
+  fresh one; a previously-attached demo snapshot survives an ordinary
+  field save; CSRF genuinely enforced via
+  `Client(enforce_csrf_checks=True)`); `FormDraftDeleteViewTests` (9 —
+  correct-revision delete; idempotent repeat delete; idempotent delete
+  when none exists; stale revision → 409 without deleting; no id/owner
+  parameter exists through which another account's draft could even be
+  named; anonymous/staff rejected; invalid method → 405; CSRF genuinely
+  enforced). Plus one new PostgreSQL-only
+  `FormDraftApiPostgresConcurrencyTests` (see below).
+  `leads/test_form_draft.py` gained 25 new tests: `RevisionBumpConsistencyTests`
+  (8 — new draft starts at revision 1; `upsert_active_draft` bumps only
+  on real change; `attach_demo_snapshot`/`clear_demo_snapshot` bump only
+  when the snapshot content actually changes; `ensure_active_draft` never
+  bumps an existing draft; `ensure_active_draft_with_demo_snapshot` bumps
+  only on real change and starts a new draft at 1; an expiry transition
+  bumps revision), `SaveDraftFieldsTests` (12), `DeleteDraftWithRevisionTests`
+  (5), `SerializeDraftCanonicalTests` (1, confirming no `id`/`pk`/`owner`/
+  `owner_id`/`submitted_lead`/`submitted_lead_id` key exists in the
+  canonical shape — checked by key name, not by searching for a specific
+  id value, to avoid a false pass/failure from an unrelated field
+  coincidentally sharing a small integer's string form). `leads` app
+  total: 182 tests, all passing (11 skips). `accounts`+`projects`+
+  `management_portal`: 234 tests, all passing (2 skips) — confirming no
+  regression from the model/migration change. Full project suite: 730
+  tests total, 716 passed, 14 correctly skipped (all PostgreSQL-only; up
+  from 668 total/13 skips at `afde089` by exactly the 62 new tests this
+  phase added). `manage.py check` (0 issues), `makemigrations --check
+  --dry-run` ("No changes detected"), and `git diff --check` (clean) all
+  passed.
+- **V2.1-B3 — PostgreSQL concurrency evidence:** new
+  `FormDraftApiPostgresConcurrencyTests.test_concurrent_saves_with_the_same_expected_revision_converge_to_one_winner`:
+  creates one draft, then two threads (independent DB connections, each
+  wrapped in `transaction.atomic()` to mirror `ATOMIC_REQUESTS`) call
+  `save_draft_fields` at (as close as Python threading allows) the same
+  instant with the *same* `expected_revision`, synchronized via
+  `threading.Barrier(2)`. Result, every run: exactly one thread succeeds
+  (revision advances by exactly 1) and exactly one gets a real
+  `DraftConflictError` — never both succeeding (which would be a lost
+  update) and never both failing; exactly one `FormDraft` row survives
+  for that owner; no deadlock (both threads observed finished via
+  `Thread.is_alive()`) and no unhandled exception of any other type. Ran
+  against the same isolated local PostgreSQL 16 `test_arvion_ci_local`
+  database used throughout this project (never the permanent
+  `arvion_ci_local`), once plus 5 additional repeats — all clean. Also
+  re-ran `accounts`+`leads`+`projects` against that same real PostgreSQL
+  database: 276 tests, all passing. SQLite's own skip of this test (it
+  cannot demonstrate genuine row-level locking) is not presented as
+  evidence of anything — the claim rests entirely on the real-PostgreSQL
+  runs above. The unrelated, pre-existing `assessments/services.py`
+  PostgreSQL incompatibility (`revoke_assessment_access`'s
+  `select_for_update()` on an outer join) remains **present, unrelated,
+  and untouched by any commit in this session** — recorded again here so
+  it is never lost or quietly dropped from the project record; it still
+  needs separate human prioritization.
+- **V2.1-B3 — rollback:** the migration is purely additive
+  (`AddField` with a static default) — reversible with a plain
+  `migrate leads 0006_formdraft_and_more`, which drops the `revision`
+  column and loses nothing else (no data migration, no other schema
+  change). The two new views/URLs can be removed by reverting
+  `leads/urls.py`, `leads/views/__init__.py`, and deleting
+  `leads/views/draft_api.py` with no effect on any other page — nothing
+  else in the project calls them yet. `save_draft_fields`/
+  `delete_draft_with_revision`/`DraftConflictError`/
+  `serialize_draft_canonical` are purely additive to
+  `leads/form_draft_service.py`; the only *behavioural* change to
+  pre-existing functions is the revision-bump-on-change logic added to
+  `_get_active_draft_locked`/`upsert_active_draft`/`attach_demo_snapshot`/
+  `clear_demo_snapshot`/`ensure_active_draft_with_demo_snapshot`, which
+  is additive in effect (a new field changing value) and does not alter
+  any of those functions' pre-existing return values, signatures, or
+  side effects on `fields`/`current_step`/`demo_snapshot`/`status`/
+  `expires_at`.
+- **V2.1-B3 — risks/limitations:** the API is infrastructure only — no
+  UI or JavaScript calls it yet, so it carries no user-facing behaviour
+  change by itself. A client that never learns to retry on `409` will
+  simply see its save rejected; the response's `draft` field is
+  deliberately provided so a future UI can implement "reload and retry"
+  without a second request. `save_draft_fields` intentionally treats
+  `expected_revision != 0` against a nonexistent draft as a conflict
+  (never a silent create) — a client that never previously read a draft
+  and guesses a nonzero revision will always get a 409 with `draft:
+  null`, which is the correct, safe behaviour but is worth a future UI
+  author knowing about. The unrelated, pre-existing PostgreSQL
+  incompatibility in `assessments/services.py` remains unfixed and
+  outside this phase's scope, as instructed.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is seventeen commits ahead of `origin/main` — the sixteen listed
-  above, plus this V2.1-B2 third corrective commit. No prior commit is
-  amended.
+  `main` is eighteen commits ahead of `origin/main` — the seventeen
+  listed above, plus this V2.1-B3 commit. No prior commit is amended.
 - **Prior phase's change (kept for reference; unaffected by this
   design-only phase; one function in one file):** `writeDemoContext` in
   `core/static/core/js/wizard-engine.js` now clears the one-shot
@@ -1485,43 +1729,44 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this V2.1-B2 third corrective phase's own commit
-  (see `git log`) — a separate commit on top of `1baf584`, which is not
-  amended.
-- **Next action:** V2.1-B1 (both corrective phases included) and V2.1-B2
-  (all three corrective phases included) are all done and fully
-  verified — a visitor's demo selection now reliably
-  survives login/registration and lands on their account's `FormDraft` as
-  a safe snapshot, and an already-authenticated customer gets the same
-  sync immediately on the contact page. Still missing before this feature
-  is customer-visible: an auto-save endpoint for `fields`/`current_step`
-  as the visitor progresses through the wizard, a restore/delete UI on
-  the contact page and account dashboard, and the atomic final-submission
-  step (`FormDraft` → `Lead`, `open`/`submitting` → `submitted`,
-  `submitted_lead` set) — all still Phase B3/C/D, per the original V2.1
-  plan, and still gated on the explicit human decisions flagged under
-  "V2.1 — decisions requiring explicit human approval" above (free-text/
-  contact-info consent layer, final `FormDraft` retention confirmation —
-  7 days is now implemented and now actually reachable via login, not
-  just proposed — whether to nudge guests to sign in, and
-  `cleanup_demo_selections`/`cleanup_form_drafts` scheduling), plus the
-  still-deferred session/ownership authorization check on which
-  `DemoSelection` a caller may attach via `attach_demo_snapshot`/
-  `ensure_active_draft_with_demo_snapshot` directly (not a concern for the
-  two hand-off paths built in this phase, both of which only ever pass in
-  a selection already validated by `_session_demo_selection`'s own
-  session-key match). One **unrelated, pre-existing** issue was found
-  incidentally while regression-testing this phase's changes on
-  PostgreSQL — `assessments/services.py`'s `revoke_assessment_access`
-  cannot run its `select_for_update()` query on PostgreSQL due to an
-  outer join from `select_related("attempt")` — flagged for a human to
-  prioritize separately; it does not block this phase and was not touched
-  here. The earlier, separate V2 idea (a time-boxed, signed
-  continuation link) remains superseded by the login-based approach unless
-  explicitly reopened. Resumable order drafts beyond leads-contact
-  (CRM/Clinic) remain `NOT_STARTED`. Re-run the release gate on the exact
-  deployable revision before any production action, including applying
-  `0004_activesession` and `0006_formdraft_and_more` to any real database.
+- **Last commit:** this V2.1-B3 phase's own commit (see `git log`) — a
+  separate commit on top of `afde089`, which is not amended.
+- **Next action:** V2.1-B1 (both corrective phases included), V2.1-B2
+  (all three corrective phases included), and V2.1-B3 (the account-bound
+  `FormDraft` API) are all done and fully verified — a visitor's demo
+  selection reliably survives login/registration and lands on their
+  account's `FormDraft` as a safe snapshot, an already-authenticated
+  customer gets the same sync immediately on the contact page, and the
+  customer can now read/save/delete that draft through a real,
+  revision-checked, account-bound HTTP API. Still missing before any of
+  this is customer-visible: the contact-page wizard actually calling this
+  API (auto-save as the visitor progresses, restore-on-return), a
+  restore/delete UI on the contact page and account dashboard, and the
+  atomic final-submission step (`FormDraft` → `Lead`, `open`/`submitting`
+  → `submitted`, `submitted_lead` set) — all still Phase C/D, per the
+  original V2.1 plan, and still gated on the explicit human decisions
+  flagged under "V2.1 — decisions requiring explicit human approval"
+  above (free-text/contact-info consent layer, final `FormDraft`
+  retention confirmation — 7 days is now implemented and reachable via
+  both login and the new API, not just proposed — whether to nudge
+  guests to sign in, and `cleanup_demo_selections`/`cleanup_form_drafts`
+  scheduling), plus the still-deferred session/ownership authorization
+  check on which `DemoSelection` a caller may attach via
+  `attach_demo_snapshot`/`ensure_active_draft_with_demo_snapshot`
+  directly (unrelated to the new API, which never touches
+  `demo_snapshot` at all). One **unrelated, pre-existing** issue remains
+  flagged from V2.1-B2's own regression testing on PostgreSQL —
+  `assessments/services.py`'s `revoke_assessment_access` cannot run its
+  `select_for_update()` query on PostgreSQL due to an outer join from
+  `select_related("attempt")` — still needs a human to prioritize it
+  separately; it does not block this phase and was not touched here
+  either. The earlier, separate V2 idea (a time-boxed, signed
+  continuation link) remains superseded by the login-based approach
+  unless explicitly reopened. Resumable order drafts beyond
+  leads-contact (CRM/Clinic) remain `NOT_STARTED`. Re-run the release
+  gate on the exact deployable revision before any production action,
+  including applying `0004_activesession`, `0006_formdraft_and_more`,
+  and `0007_formdraft_revision` to any real database.
 
 ## Phase ledger
 
@@ -1549,5 +1794,6 @@
 | Resumable order drafts — V2.1-B2 second corrective (wrap the DemoSelection lookup in its own transaction.atomic() so a real PostgreSQL error there can never poison the outer ATOMIC_REQUESTS transaction) | `VERIFIED` (local) | See "V2.1-B2 second corrective" entries above. The lookup query in `consume_pending_demo_selection` now runs inside its own `with transaction.atomic():`, with the `try`/`except` kept outside that block, so a real database error there triggers Django's own savepoint rollback before the exception is caught — leaving the surrounding request transaction (login/registration under `ATOMIC_REQUESTS`) fully usable afterward. The bug was reproduced first (temporarily reverting the fix made the new test fail with exactly `InternalError: current transaction is aborted`), then the fix was restored and the same test re-verified passing. New PostgreSQL-only `RealTransactionErrorDuringLookupRecoveryTests`, kept alongside (not replacing) `2cd1032`'s existing attach-step `RealTransactionErrorRecoveryTests`: forces a real `SELECT 1/0` at the exact lookup call site inside an outer `transaction.atomic()` standing in for `ATOMIC_REQUESTS`, proves a real query immediately afterward inside the same outer transaction still succeeds, proves the user is authenticated, the marker survives intact, no `FormDraft` is created, and a subsequent real retry on the same connection attaches the snapshot successfully. Run once plus 5 repeats on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 106 tests, all passing. `leads` app on SQLite: 118 tests (7 skips); `accounts`: 73 tests (2 skips) — no regression in registration/login/phone-verification/email-verification. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. `2cd1032` not amended. |
 | Resumable order drafts — V2.1-B2 (all corrective phases) — overall feature status before the third lookup fix (`757f7a4`→`2cd1032`→`1baf584`) | `PARTIAL` → corrected below | Each individual commit up to and including `1baf584` was independently `VERIFIED` for the specific defect it fixed, but the *feature as a whole* remained `PARTIAL` until the third corrective phase below closed the second, previously-unaddressed `DemoSelection` lookup inside `_reload_demo_selection`. `1baf584` itself, and its first-lookup fix and test, are unchanged and remain correct. |
 | Resumable order drafts — V2.1-B2 third corrective (wrap `_reload_demo_selection`'s query in its own `transaction.atomic()`, safe for both `ensure_active_draft_with_demo_snapshot` and `attach_demo_snapshot`) | `VERIFIED` (local) — V2.1-B2 as a whole now `VERIFIED` | See "V2.1-B2 third corrective" entries above. `leads.form_draft_service._reload_demo_selection` now runs its query inside its own `transaction.atomic()`, letting a real database error propagate out (never swallowed inside) so Django rolls back to that savepoint before either caller's own exception handling ever sees it — closing the exact same class of bug `1baf584` fixed for the *first* lookup, one call deeper. Reproduced first (reverting the fix made both new tests fail with `InternalError: current transaction is aborted`), then fixed and re-verified. Two new PostgreSQL-only tests, kept alongside `1baf584`'s and `2cd1032`'s existing ones (all three real-transaction test classes now coexist): `RealTransactionErrorDuringSecondLookupRecoveryTests` (login-signal path, call-counter-proven second-lookup failure, healthy query inside the same outer transaction, marker restored, snapshot attaches on retry) and `test_attach_demo_snapshot_survives_a_real_postgresql_error_in_the_reload_lookup` (direct `attach_demo_snapshot` call, caller catches the propagated error, outer transaction still usable). `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 108 tests, all passing, 0 skips. `leads` app on SQLite: 120 tests (110 passed, 10 skips); `accounts`: 73 tests (71 passed, 2 skips) — no regression in registration/login/phone-verification/email-verification. Run once plus 5 repeats each on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. No prior commit amended; only `leads/form_draft_service.py`, `leads/test_demo_handoff.py`, and `leads/test_form_draft.py` touched. |
-| Resumable order drafts — V2.1 Phases B3–E (auto-save endpoint, draft restore/delete UI, atomic final submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase B3 begins; depends on the now-`VERIFIED` Phase B1+B2 foundation. |
+| Resumable order drafts — V2.1-B3 (account-bound, revision-checked FormDraft API: GET/POST `leads:draft`, POST `leads:draft_delete`) | `VERIFIED` (local) | See "V2.1-B3" entries above. New `FormDraft.revision` field (additive migration `0007_formdraft_revision`, not applied to any permanent database) is now maintained consistently across every write path in `leads/form_draft_service.py` (`_get_active_draft_locked`, `upsert_active_draft`, `attach_demo_snapshot`, `clear_demo_snapshot`, `ensure_active_draft_with_demo_snapshot`), not just the two new API functions `save_draft_fields`/`delete_draft_with_revision`. New `DraftConflictError` carries the current, owner-scoped canonical draft for 409 responses; new `serialize_draft_canonical` is the one function deciding what a client may ever see (never the pk, `owner_id`, `submitted_lead_id`, or any token). Both new views (`leads/views/draft_api.py`) require an authenticated non-staff/non-superuser customer (JSON 401/403, never an HTML redirect), accept no draft/owner/user id from any payload, reject any unknown top-level key (including `demo_snapshot`) before any query, and rely on the project's existing global CSRF middleware (genuinely verified via `Client(enforce_csrf_checks=True)`). 62 new tests (37 in new `leads/test_draft_api.py`, 25 in `leads/test_form_draft.py`); `leads` app (182 tests, 11 skips); `accounts`+`projects`+`management_portal` (234 tests, 2 skips); full project suite (730 tests total, 716 passed, 14 skips — all PostgreSQL-only). New PostgreSQL concurrency test proves two simultaneous saves with the same `expected_revision` converge to exactly one winner and one real conflict, never a lost update, run once plus 5 repeats — all clean; `accounts`+`leads`+`projects` also re-run against real PostgreSQL (276 tests, all passing). The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected" once the new migration is included), and `git diff --check` (clean) all passed. No prior commit amended. No UI, JavaScript, template, auto-save wiring, or Lead-submission change — server-side infrastructure only. |
+| Resumable order drafts — V2.1 Phases C–D (contact-page wizard actually calling the new API, restore/delete UI, atomic FormDraft→Lead final submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase C begins; depends on the now-`VERIFIED` Phase B1+B2+B3 foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

@@ -10,14 +10,18 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from leads.form_draft_service import (
+    DraftConflictError,
     DraftValidationError,
     attach_demo_snapshot,
     clear_demo_snapshot,
     delete_draft,
+    delete_draft_with_revision,
     ensure_active_draft,
     ensure_active_draft_with_demo_snapshot,
     get_active_draft,
     normalize_fields,
+    save_draft_fields,
+    serialize_draft_canonical,
     upsert_active_draft,
 )
 from leads.models import FormDraft, Lead
@@ -421,6 +425,296 @@ class EnsureActiveDraftWithDemoSnapshotTests(TestCase):
         )
         other_draft.refresh_from_db()
         self.assertEqual(other_draft.demo_snapshot, {})
+
+
+class RevisionBumpConsistencyTests(TestCase):
+    """`revision` is the optimistic-concurrency counter every write path in
+    this module maintains, not just `save_draft_fields`: it must increment
+    by exactly 1 on a real content change and never otherwise, everywhere
+    a draft can be written."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="revision-owner@example.com", email="revision-owner@example.com", password="x", is_active=True,
+        )
+        self.template = DemoTemplate.objects.create(
+            slug="revision-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        self.selection = DemoSelection.objects.create(
+            template=self.template, session_key="revision-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+
+    def test_new_draft_starts_at_revision_one(self):
+        draft = ensure_active_draft(owner=self.owner, form_type="leads_contact")
+        self.assertEqual(draft.revision, 1)
+
+    def test_upsert_bumps_revision_only_on_real_change(self):
+        draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=0)
+        self.assertEqual(draft.revision, 1)
+
+        same = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=0)
+        self.assertEqual(same.revision, 1)
+
+        changed = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "website"}, current_step=0)
+        self.assertEqual(changed.revision, 2)
+
+        step_changed = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "website"}, current_step=1)
+        self.assertEqual(step_changed.revision, 3)
+
+    def test_attach_demo_snapshot_bumps_revision_only_on_real_change(self):
+        draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        self.assertEqual(draft.revision, 1)
+
+        attached = attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        self.assertEqual(attached.revision, 2)
+
+        reattached = attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        self.assertEqual(reattached.revision, 2)
+
+    def test_clear_demo_snapshot_bumps_revision_only_when_something_was_cleared(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        attach_demo_snapshot(owner=self.owner, form_type="leads_contact", demo_selection=self.selection)
+        draft = FormDraft.objects.get(owner=self.owner)
+        self.assertEqual(draft.revision, 2)
+
+        cleared = clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+        self.assertEqual(cleared.revision, 3)
+
+        cleared_again = clear_demo_snapshot(owner=self.owner, form_type="leads_contact")
+        self.assertEqual(cleared_again.revision, 3)
+
+    def test_ensure_active_draft_never_bumps_revision_on_an_existing_draft(self):
+        draft = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        self.assertEqual(draft.revision, 1)
+
+        ensure_active_draft(owner=self.owner, form_type="leads_contact")
+        ensure_active_draft(owner=self.owner, form_type="leads_contact")
+
+        draft.refresh_from_db()
+        self.assertEqual(draft.revision, 1)
+
+    def test_ensure_active_draft_with_demo_snapshot_bumps_revision_only_on_real_change(self):
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={})
+        draft = ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+        self.assertEqual(draft.revision, 2)
+
+        same = ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+        self.assertEqual(same.revision, 2)
+
+    def test_ensure_active_draft_with_demo_snapshot_starts_a_new_draft_at_revision_one(self):
+        draft = ensure_active_draft_with_demo_snapshot(
+            owner=self.owner, form_type="leads_contact", demo_selection=self.selection,
+        )
+        self.assertEqual(draft.revision, 1)
+
+    def test_expiry_transition_bumps_revision(self):
+        stale = upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"})
+        self.assertEqual(stale.revision, 1)
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        upsert_active_draft(owner=self.owner, form_type="leads_contact", fields={"request_type": "website"})
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+        self.assertEqual(stale.revision, 2)
+
+
+class SaveDraftFieldsTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="save-owner@example.com", email="save-owner@example.com", password="x", is_active=True,
+        )
+        self.other = User.objects.create_user(
+            username="save-other@example.com", email="save-other@example.com", password="x", is_active=True,
+        )
+        self.staff = User.objects.create_user(
+            username="save-staff@example.com", email="save-staff@example.com", password="x", is_active=True, is_staff=True,
+        )
+
+    def test_creates_a_new_draft_with_expected_revision_zero(self):
+        draft, created = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"},
+            current_step=1, expected_revision=0,
+        )
+        self.assertTrue(created)
+        self.assertEqual(draft.revision, 1)
+        self.assertEqual(draft.fields, {"request_type": "webapp"})
+        self.assertEqual(draft.current_step, 1)
+
+    def test_creating_with_nonzero_expected_revision_conflicts(self):
+        with self.assertRaises(DraftConflictError) as ctx:
+            save_draft_fields(
+                owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=5,
+            )
+        self.assertIsNone(ctx.exception.draft)
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 0)
+
+    def test_correct_update_increments_revision_by_exactly_one(self):
+        draft, _ = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"},
+            current_step=0, expected_revision=0,
+        )
+        updated, created = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "website"},
+            current_step=1, expected_revision=draft.revision,
+        )
+        self.assertFalse(created)
+        self.assertEqual(updated.revision, draft.revision + 1)
+        self.assertEqual(updated.fields, {"request_type": "website"})
+        self.assertEqual(updated.current_step, 1)
+
+    def test_identical_save_is_idempotent_and_keeps_the_same_revision(self):
+        draft, _ = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"},
+            current_step=1, expected_revision=0,
+        )
+        same, created = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"},
+            current_step=1, expected_revision=draft.revision,
+        )
+        self.assertFalse(created)
+        self.assertEqual(same.revision, draft.revision)
+        self.assertGreater(same.expires_at, draft.expires_at)
+
+    def test_stale_expected_revision_conflicts_without_overwriting(self):
+        draft, _ = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"},
+            current_step=0, expected_revision=0,
+        )
+        with self.assertRaises(DraftConflictError) as ctx:
+            save_draft_fields(
+                owner=self.owner, form_type="leads_contact", fields={"request_type": "website"},
+                current_step=2, expected_revision=draft.revision + 1,
+            )
+        conflict_draft = ctx.exception.draft
+        self.assertEqual(conflict_draft.pk, draft.pk)
+        self.assertEqual(conflict_draft.fields, {"request_type": "webapp"})
+        self.assertEqual(conflict_draft.current_step, 0)
+        self.assertEqual(conflict_draft.revision, draft.revision)
+
+    def test_conflict_only_ever_returns_the_requesting_owners_own_draft(self):
+        mine, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+        save_draft_fields(owner=self.other, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+
+        with self.assertRaises(DraftConflictError) as ctx:
+            save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=1, expected_revision=999)
+        self.assertEqual(ctx.exception.draft.owner_id, self.owner.pk)
+        self.assertEqual(ctx.exception.draft.pk, mine.pk)
+
+    def test_unknown_and_forbidden_fields_are_rejected(self):
+        with self.assertRaises(DraftValidationError):
+            save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"totally_made_up": "x"}, current_step=0, expected_revision=0)
+        with self.assertRaises(DraftValidationError):
+            save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"phone": "0912"}, current_step=0, expected_revision=0)
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 0)
+
+    def test_out_of_range_current_step_and_invalid_service_id_are_rejected(self):
+        with self.assertRaises(DraftValidationError):
+            save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=99, expected_revision=0)
+        with self.assertRaises(DraftValidationError):
+            save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"service_id": 999999}, current_step=0, expected_revision=0)
+        self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 0)
+
+    def test_expired_draft_requires_expected_revision_zero_to_recreate(self):
+        stale, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=0, expected_revision=0)
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        with self.assertRaises(DraftConflictError) as ctx:
+            save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=stale.revision)
+        self.assertIsNone(ctx.exception.draft)
+
+        fresh, created = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"request_type": "website"}, current_step=0, expected_revision=0)
+        self.assertTrue(created)
+        self.assertEqual(fresh.revision, 1)
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+
+    def test_staff_and_superuser_are_rejected(self):
+        with self.assertRaises(DraftValidationError) as ctx:
+            save_draft_fields(owner=self.staff, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+        self.assertEqual(ctx.exception.code, "staff_or_superuser_not_allowed")
+        self.assertEqual(FormDraft.objects.filter(owner=self.staff).count(), 0)
+
+    def test_anonymous_owner_is_rejected(self):
+        anonymous = type("Anon", (), {"is_authenticated": False, "pk": None})()
+        with self.assertRaises(DraftValidationError):
+            save_draft_fields(owner=anonymous, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+
+
+class DeleteDraftWithRevisionTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="delete-rev-owner@example.com", email="delete-rev-owner@example.com", password="x", is_active=True,
+        )
+
+    def test_deleting_when_none_exists_is_idempotent(self):
+        result = delete_draft_with_revision(owner=self.owner, form_type="leads_contact", expected_revision=0)
+        self.assertFalse(result)
+
+    def test_correct_revision_hard_deletes(self):
+        draft, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+        result = delete_draft_with_revision(owner=self.owner, form_type="leads_contact", expected_revision=draft.revision)
+        self.assertTrue(result)
+        self.assertEqual(FormDraft.objects.filter(pk=draft.pk).count(), 0)
+
+    def test_repeated_delete_is_idempotent(self):
+        draft, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+        delete_draft_with_revision(owner=self.owner, form_type="leads_contact", expected_revision=draft.revision)
+        result = delete_draft_with_revision(owner=self.owner, form_type="leads_contact", expected_revision=draft.revision)
+        self.assertFalse(result)
+
+    def test_stale_revision_conflicts_without_deleting(self):
+        draft, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
+        with self.assertRaises(DraftConflictError) as ctx:
+            delete_draft_with_revision(owner=self.owner, form_type="leads_contact", expected_revision=draft.revision + 1)
+        self.assertEqual(ctx.exception.draft.pk, draft.pk)
+        self.assertTrue(FormDraft.objects.filter(pk=draft.pk).exists())
+
+    def test_staff_is_rejected(self):
+        staff = User.objects.create_user(
+            username="delete-rev-staff@example.com", email="delete-rev-staff@example.com", password="x", is_active=True, is_staff=True,
+        )
+        with self.assertRaises(DraftValidationError) as ctx:
+            delete_draft_with_revision(owner=staff, form_type="leads_contact", expected_revision=0)
+        self.assertEqual(ctx.exception.code, "staff_or_superuser_not_allowed")
+
+
+class SerializeDraftCanonicalTests(TestCase):
+    def test_canonical_shape_never_leaks_owner_pk_or_submitted_lead(self):
+        owner = User.objects.create_user(
+            username="serialize-owner@example.com", email="serialize-owner@example.com", password="x", is_active=True,
+        )
+        draft, _ = save_draft_fields(owner=owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=1, expected_revision=0)
+
+        payload = serialize_draft_canonical(draft)
+
+        self.assertEqual(set(payload), {
+            "form_type", "current_step", "fields", "demo_snapshot", "status", "revision", "updated_at", "expires_at",
+        })
+        self.assertEqual(payload["form_type"], "leads_contact")
+        self.assertEqual(payload["current_step"], 1)
+        self.assertEqual(payload["fields"], {"request_type": "webapp"})
+        self.assertEqual(payload["revision"], 1)
+        # No key resembling the primary key, owner, or submitted_lead
+        # exists at all — checked by key name rather than by searching for
+        # a specific id value, since a small integer id could otherwise
+        # coincidentally collide with an unrelated field's own value
+        # (e.g. current_step) and produce a misleading pass or failure.
+        self.assertNotIn("id", payload)
+        self.assertNotIn("pk", payload)
+        self.assertNotIn("owner", payload)
+        self.assertNotIn("owner_id", payload)
+        self.assertNotIn("submitted_lead", payload)
+        self.assertNotIn("submitted_lead_id", payload)
 
 
 class OpaqueValidationErrorTests(TestCase):

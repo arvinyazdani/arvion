@@ -50,6 +50,16 @@ class FormDraft(models.Model):
     fields = models.JSONField(default=dict, blank=True)
     demo_snapshot = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=12, choices=STATUSES, default="open", db_index=True)
+    revision = models.PositiveBigIntegerField(
+        default=1,
+        help_text=(
+            "Optimistic-concurrency counter for the account-bound draft API. "
+            "Starts at 1 on creation and increments by exactly 1 whenever "
+            "fields/current_step/demo_snapshot/status actually change; an "
+            "idempotent no-op save (identical content) never bumps it. "
+            "leads.form_draft_service is the only code that may change it."
+        ),
+    )
     submitted_lead = models.ForeignKey(
         "leads.Lead", on_delete=models.SET_NULL, blank=True, null=True, related_name="source_form_drafts",
     )

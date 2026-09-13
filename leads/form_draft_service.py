@@ -4,18 +4,29 @@ directly — this is where the field allowlist, the race-safe single-active-
 draft rule, the expiry lifecycle, and the demo-snapshot attach/clear rules
 are enforced.
 
-Scope: leads_contact only. `leads.signals` (pre-login hand-off) and
-`leads.views.contact.LeadCreateView` (already-authenticated hand-off) are
-the only callers outside this module and its own tests — no auto-save
-endpoint, restore/delete UI, or Lead-submission wiring exists yet.
+Scope: leads_contact only. `leads.signals` (pre-login hand-off),
+`leads.views.contact.LeadCreateView` (already-authenticated hand-off),
+and `leads.views.draft_api` (the account-bound read/save/delete API) are
+the only callers outside this module and its own tests — no
+Lead-submission wiring exists yet.
 
 Every `DraftValidationError` message below is a fixed, generic string with
 no interpolated value or caller-supplied key name: both a submitted field
 value and an unrecognized field's own name may be attacker-controlled, and
 this module's exceptions are allowed to reach logs, admin error pages, or
-(eventually) API responses. Categorization is via the `.code` attribute,
-drawn only from this module's own fixed vocabulary — never from payload
-content.
+API responses. Categorization is via the `.code` attribute, drawn only
+from this module's own fixed vocabulary — never from payload content.
+
+`FormDraft.revision` is this module's optimistic-concurrency counter: it
+starts at 1 on creation and increments by exactly 1 whenever `fields`/
+`current_step`/`demo_snapshot`/`status` actually change (an idempotent
+no-op save never bumps it, though it may still extend `expires_at`).
+`save_draft_fields`/`delete_draft_with_revision` are the only functions
+that take a caller-supplied `expected_revision` and enforce it, raising
+`DraftConflictError` (carrying the current, canonical draft) on a
+mismatch — every other write function in this module changes `revision`
+unconditionally as a side effect of a real content change, with no
+precondition check of its own.
 """
 
 from datetime import timedelta
@@ -78,6 +89,23 @@ class DraftValidationError(ValidationError):
     caller-supplied content."""
 
 
+class DraftConflictError(Exception):
+    """Raised by `save_draft_fields`/`delete_draft_with_revision` when a
+    caller's `expected_revision` does not match the draft's actual
+    current revision (including the case where the caller expected a
+    draft to exist — any `expected_revision != 0` — but none does, or
+    vice versa). Carries the current, canonical draft as `.draft` (or
+    `None` when none exists) so the caller can build a 409 response
+    without a second query — `.draft`, when not `None`, always belongs to
+    the exact same owner who made the request; this error is never
+    raised with, and never exposes, another account's data. The message
+    is fixed and never repeats any caller-supplied value."""
+
+    def __init__(self, draft):
+        self.draft = draft
+        super().__init__("The draft has changed since it was last read.")
+
+
 def _reject(code, message):
     raise DraftValidationError(message, code=code)
 
@@ -105,6 +133,22 @@ def _require_real_owner(owner):
 def _require_supported_form_type(form_type):
     if form_type not in FORM_TYPE_STEP_COUNTS:
         _reject("unsupported_form_type", "Unsupported form_type.")
+
+
+def _require_non_staff_owner(owner):
+    """Defense in depth for the account-bound draft API: the view is the
+    primary place staff/superuser accounts are turned away (with a 403,
+    before any query), but any other caller of `save_draft_fields`/
+    `delete_draft_with_revision` — direct, future, or in tests — gets the
+    same guarantee. A staff/superuser account must never create or modify
+    a customer-shaped `FormDraft` of its own."""
+    if owner.is_staff or owner.is_superuser:
+        _reject("staff_or_superuser_not_allowed", "Staff and superuser accounts cannot own a customer draft.")
+
+
+def _validate_expected_revision(expected_revision):
+    if not isinstance(expected_revision, int) or isinstance(expected_revision, bool) or expected_revision < 0:
+        _reject("invalid_expected_revision", "expected_revision must be a non-negative integer.")
 
 
 def normalize_fields(form_type, raw_fields):
@@ -178,13 +222,18 @@ def _get_active_draft_locked(locked_owner, form_type, now):
     """Must only be called with `locked_owner` already `select_for_update()`-
     locked inside an open transaction. The only place an active draft's
     status is ever transitioned to "expired" as a write: everywhere else
-    (get_active_draft) is read-only."""
+    (get_active_draft) is read-only. A status change is itself a real
+    content change, so it bumps `revision` exactly like any other write
+    below — a client polling with a stale `expected_revision` against a
+    row that expired between reads must see a conflict, not a silent
+    stale match."""
     existing = FormDraft.objects.filter(
         owner=locked_owner, form_type=form_type, status__in=FormDraft.ACTIVE_STATUSES,
     ).first()
     if existing and existing.expires_at <= now:
         existing.status = "expired"
-        existing.save(update_fields=["status", "updated_at"])
+        existing.revision = existing.revision + 1
+        existing.save(update_fields=["status", "revision", "updated_at"])
         existing = None
     return existing
 
@@ -213,7 +262,9 @@ def upsert_active_draft(*, owner, form_type, fields, current_step=0):
     transitioned to "expired" first — never silently reused past its own
     expiry — and a fresh one is created in its place. `expires_at` is
     always recomputed to exactly `DRAFT_RETENTION_DAYS` from now, on every
-    valid save.
+    valid save. `revision` increments by exactly 1 only when `fields`/
+    `current_step` actually change — a byte-identical save extends
+    `expires_at` but never bumps it.
 
     Never creates a draft for an anonymous/unauthenticated owner: that
     check happens before any query, let alone any write.
@@ -242,10 +293,15 @@ def upsert_active_draft(*, owner, form_type, fields, current_step=0):
 
         expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
         if existing:
+            changed = existing.fields != cleaned_fields or existing.current_step != current_step
             existing.current_step = current_step
             existing.fields = cleaned_fields
             existing.expires_at = expires_at
-            existing.save(update_fields=["current_step", "fields", "expires_at", "updated_at"])
+            update_fields = ["current_step", "fields", "expires_at", "updated_at"]
+            if changed:
+                existing.revision = existing.revision + 1
+                update_fields.append("revision")
+            existing.save(update_fields=update_fields)
             return existing
         return FormDraft.objects.create(
             owner=locked_owner, form_type=form_type, current_step=current_step,
@@ -284,7 +340,10 @@ def ensure_active_draft_with_demo_snapshot(*, owner, form_type, demo_selection):
     Unlike `attach_demo_snapshot`, this never raises `no_active_draft`: if
     no active draft exists yet, one is created with the snapshot already
     attached in a single write. An existing draft's `fields`/`current_step`
-    are left untouched, exactly like `attach_demo_snapshot`.
+    are left untouched, exactly like `attach_demo_snapshot`. `revision`
+    increments by exactly 1 only when the snapshot's actual content
+    changes on an existing draft — attaching the identical snapshot again
+    still extends `expires_at` but never bumps it.
 
     `demo_selection` is validated and re-read fresh from the database the
     same way `attach_demo_snapshot` does — see `_reload_demo_selection`.
@@ -306,9 +365,14 @@ def ensure_active_draft_with_demo_snapshot(*, owner, form_type, demo_selection):
             return FormDraft.objects.create(
                 owner=locked_owner, form_type=form_type, demo_snapshot=snapshot, expires_at=expires_at,
             )
+        changed = existing.demo_snapshot != snapshot
         existing.demo_snapshot = snapshot
         existing.expires_at = expires_at
-        existing.save(update_fields=["demo_snapshot", "expires_at", "updated_at"])
+        update_fields = ["demo_snapshot", "expires_at", "updated_at"]
+        if changed:
+            existing.revision = existing.revision + 1
+            update_fields.append("revision")
+        existing.save(update_fields=update_fields)
         return existing
 
 
@@ -346,7 +410,10 @@ def attach_demo_snapshot(*, owner, form_type, demo_selection):
     owner's current active draft, and extend `expires_at` to exactly
     `DRAFT_RETENTION_DAYS` from now — attaching a snapshot is itself a
     valid draft-touching operation, exactly like `upsert_active_draft`.
-    `fields`/`current_step` are left untouched.
+    `fields`/`current_step` are left untouched. `revision` increments by
+    exactly 1 only when the snapshot's actual content changes — attaching
+    the identical snapshot again still extends `expires_at` but never
+    bumps it.
 
     `demo_selection` must be a real, already saved `DemoSelection` row —
     never a dict, never raw JSON, never anything a caller could shape
@@ -388,9 +455,14 @@ def attach_demo_snapshot(*, owner, form_type, demo_selection):
         now = timezone.now()
         draft = _get_active_draft_locked(locked_owner, form_type, now)
         if draft is not None:
+            changed = draft.demo_snapshot != snapshot
             draft.demo_snapshot = snapshot
             draft.expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
-            draft.save(update_fields=["demo_snapshot", "expires_at", "updated_at"])
+            update_fields = ["demo_snapshot", "expires_at", "updated_at"]
+            if changed:
+                draft.revision = draft.revision + 1
+                update_fields.append("revision")
+            draft.save(update_fields=update_fields)
 
     # Raised only after the transaction above has committed: if
     # _get_active_draft_locked just transitioned a stale draft to
@@ -409,7 +481,9 @@ def clear_demo_snapshot(*, owner, form_type):
     like `upsert_active_draft`. `fields`/`current_step` are left
     untouched. This is the only other sanctioned way `demo_snapshot` may
     change after creation — ordinary field saves via `upsert_active_draft`
-    never touch it, by design.
+    never touch it, by design. `revision` increments by exactly 1 only
+    when there was actually something to clear — clearing an
+    already-empty snapshot still extends `expires_at` but never bumps it.
     """
     _require_real_owner(owner)
     _require_supported_form_type(form_type)
@@ -420,9 +494,14 @@ def clear_demo_snapshot(*, owner, form_type):
         now = timezone.now()
         draft = _get_active_draft_locked(locked_owner, form_type, now)
         if draft is not None:
+            changed = draft.demo_snapshot != {}
             draft.demo_snapshot = {}
             draft.expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
-            draft.save(update_fields=["demo_snapshot", "expires_at", "updated_at"])
+            update_fields = ["demo_snapshot", "expires_at", "updated_at"]
+            if changed:
+                draft.revision = draft.revision + 1
+                update_fields.append("revision")
+            draft.save(update_fields=update_fields)
 
     # See attach_demo_snapshot: raised only after the transaction above
     # has committed, so a concurrently-discovered expiry is never rolled
@@ -440,3 +519,118 @@ def delete_draft(owner, draft_id):
         return False
     deleted, _ = FormDraft.objects.filter(pk=draft_id, owner=owner).delete()
     return deleted > 0
+
+
+def save_draft_fields(*, owner, form_type, fields, current_step, expected_revision):
+    """The race-safe, revision-checked create-or-update behind the
+    account-bound draft API (`leads.views.draft_api`). Unlike
+    `upsert_active_draft`, this enforces optimistic concurrency: the
+    caller must supply the revision they last observed —
+    `expected_revision=0` means "I believe no active draft exists yet."
+
+    On a mismatch, raises `DraftConflictError` carrying the current,
+    canonical draft (or `None` if none exists) — nothing is written.
+    This includes the case where `existing is None` but
+    `expected_revision != 0`: the caller's belief that a draft (of some
+    revision) already existed is itself already stale, so it is treated
+    as a conflict rather than silently creating a new draft with a
+    surprising revision.
+
+    On success, returns `(draft, created)`. Never touches `demo_snapshot`
+    — only `attach_demo_snapshot`/`clear_demo_snapshot`/
+    `ensure_active_draft_with_demo_snapshot` may change it. Idempotent:
+    resaving a payload identical to the existing `fields`/`current_step`
+    still extends `expires_at` but never bumps `revision` — see
+    `upsert_active_draft`'s docstring for the same rule.
+
+    Staff/superuser accounts are rejected outright (defense in depth —
+    the view itself already turns them away with a 403 before ever
+    calling this).
+    """
+    _require_real_owner(owner)
+    _require_non_staff_owner(owner)
+    _require_supported_form_type(form_type)
+    _validate_current_step(form_type, current_step)
+    _validate_expected_revision(expected_revision)
+    cleaned_fields = normalize_fields(form_type, fields)
+
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        now = timezone.now()
+        existing = _get_active_draft_locked(locked_owner, form_type, now)
+        expires_at = now + timedelta(days=DRAFT_RETENTION_DAYS)
+
+        if existing is None:
+            if expected_revision != 0:
+                raise DraftConflictError(None)
+            draft = FormDraft.objects.create(
+                owner=locked_owner, form_type=form_type, current_step=current_step,
+                fields=cleaned_fields, expires_at=expires_at,
+            )
+            return draft, True
+
+        if existing.revision != expected_revision:
+            raise DraftConflictError(existing)
+
+        changed = existing.fields != cleaned_fields or existing.current_step != current_step
+        existing.current_step = current_step
+        existing.fields = cleaned_fields
+        existing.expires_at = expires_at
+        update_fields = ["current_step", "fields", "expires_at", "updated_at"]
+        if changed:
+            existing.revision = existing.revision + 1
+            update_fields.append("revision")
+        existing.save(update_fields=update_fields)
+        return existing, False
+
+
+def delete_draft_with_revision(*, owner, form_type, expected_revision):
+    """Hard-deletes the owner's active draft for `form_type`, enforcing
+    the same optimistic-concurrency contract as `save_draft_fields`.
+
+    Idempotent when no active draft exists: returns `False` without
+    raising and without regard to `expected_revision` (there is nothing
+    to conflict with). Strictly ownership-scoped by construction — the
+    row is found via the owner's own lock and this form_type only; no
+    draft id is ever accepted from a caller, so there is no id a client
+    could pass to reach another account's draft.
+
+    On a revision mismatch (an active draft does exist, but not at the
+    expected revision), raises `DraftConflictError` carrying the current,
+    canonical draft — nothing is deleted.
+    """
+    _require_real_owner(owner)
+    _require_non_staff_owner(owner)
+    _require_supported_form_type(form_type)
+    _validate_expected_revision(expected_revision)
+
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        now = timezone.now()
+        existing = _get_active_draft_locked(locked_owner, form_type, now)
+        if existing is None:
+            return False
+        if existing.revision != expected_revision:
+            raise DraftConflictError(existing)
+        existing.delete()
+        return True
+
+
+def serialize_draft_canonical(draft):
+    """The only safe, external representation of a `FormDraft` — used by
+    every response the account-bound draft API ever returns, success or
+    conflict alike, so a client never sees two different shapes for "the
+    current state of my draft." Never includes the database primary key,
+    `owner_id`, `submitted_lead_id`, or any token/session key — only the
+    fields a client legitimately needs to render and resume its own
+    draft, and to detect and resolve a revision conflict."""
+    return {
+        "form_type": draft.form_type,
+        "current_step": draft.current_step,
+        "fields": draft.fields,
+        "demo_snapshot": draft.demo_snapshot,
+        "status": draft.status,
+        "revision": draft.revision,
+        "updated_at": draft.updated_at.isoformat(),
+        "expires_at": draft.expires_at.isoformat(),
+    }
