@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.generic import DetailView, FormView
 
 from core.views.lang import LanguageViewMixin
-from leads.demo_handoff import handle_resolved_demo_selection
+from leads.demo_handoff import handle_resolved_demo_selection, maybe_retry_pending_demo_selection
 from leads.forms import LeadForm
 from leads.models import Lead
 from services.models import Service
@@ -44,12 +44,22 @@ class LeadCreateView(LanguageViewMixin, FormView):
         authenticated hand-off (`handle_resolved_demo_selection`) also
         runs exactly once here, as a side effect of the first resolution,
         rather than once per call site.
+
+        When there is no explicit `?demo=` at all (never for an
+        invalid/foreign one — that must not silently fall back to an
+        unrelated old marker), an authenticated non-staff customer also
+        gets one retry of a pending marker left over from an earlier
+        failed attach (at login, or a prior visit here) — see
+        `maybe_retry_pending_demo_selection`. This is the only place in
+        the whole site that check runs; it is not a middleware.
         """
         if not hasattr(self, "_demo_selection_cache"):
             selection = _session_demo_selection(self.request)
             self._demo_selection_cache = selection
             if selection:
                 handle_resolved_demo_selection(self.request, selection)
+            elif not self.request.GET.get("demo", ""):
+                maybe_retry_pending_demo_selection(self.request)
         return self._demo_selection_cache
 
     def get_form_kwargs(self):

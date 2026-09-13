@@ -1,11 +1,12 @@
+import unittest
 from unittest import mock
 
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model, login as auth_login
 from django.contrib.sessions.backends.db import SessionStore
 from django.http import HttpRequest
-from django.test import Client, TestCase
+from django.test import Client, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
-from django.db import connection
+from django.db import DatabaseError, connection
 from django.urls import reverse
 
 from leads.demo_handoff import (
@@ -16,6 +17,7 @@ from leads.demo_handoff import (
 )
 from leads.form_draft_service import DraftValidationError
 from leads.models import FormDraft
+from projects.demo_snapshots import build_demo_selection_snapshot
 from projects.models import DemoSelection, DemoTemplate
 
 User = get_user_model()
@@ -301,16 +303,38 @@ class LoginSignalHandoffTests(TestCase):
         self.assertNotIn(PENDING_DEMO_SESSION_KEY, request.session)
         self.assertEqual(FormDraft.objects.filter(owner=user).count(), 0)
 
+    def test_database_error_looking_up_demo_selection_does_not_block_login(self):
+        """The DemoSelection lookup itself used to sit outside any
+        try/except in leads/signals.py — a DatabaseError there would have
+        propagated all the way up through auth_login() into whatever
+        view called it. It must not: login must complete, the user must
+        actually be authenticated, the marker must survive intact for a
+        retry, and no partial FormDraft may be created."""
+        request, selection = self._pending_session_with_selection()
+        user = User.objects.create_user(username="login-db-error@example.com", email="login-db-error@example.com", password="x", is_active=True)
+
+        with mock.patch(
+            "leads.demo_handoff.DemoSelection.objects.select_related",
+            side_effect=DatabaseError("simulated connection hiccup"),
+        ):
+            auth_login(request, user)  # must not raise
+
+        self.assertEqual(request.session.get(SESSION_KEY), str(user.pk))
+        marker = request.session.get(PENDING_DEMO_SESSION_KEY)
+        self.assertEqual(marker, {"demo_selection_id": selection.pk, "form_type": FORM_TYPE})
+        self.assertEqual(FormDraft.objects.filter(owner=user).count(), 0)
+
     def test_transient_error_does_not_block_login_and_restores_the_marker_for_retry(self):
         request, selection = self._pending_session_with_selection()
         user = User.objects.create_user(username="login-transient@example.com", email="login-transient@example.com", password="x", is_active=True)
 
         with mock.patch(
-            "leads.signals.ensure_active_draft_with_demo_snapshot",
+            "leads.demo_handoff.ensure_active_draft_with_demo_snapshot",
             side_effect=OSError("simulated transient database hiccup"),
         ):
             auth_login(request, user)  # must not raise
 
+        self.assertEqual(request.session.get(SESSION_KEY), str(user.pk))
         marker = request.session.get(PENDING_DEMO_SESSION_KEY)
         self.assertEqual(marker, {"demo_selection_id": selection.pk, "form_type": FORM_TYPE})
         self.assertEqual(FormDraft.objects.filter(owner=user).count(), 0)
@@ -320,7 +344,7 @@ class LoginSignalHandoffTests(TestCase):
         user = User.objects.create_user(username="login-rejected@example.com", email="login-rejected@example.com", password="x", is_active=True)
 
         with mock.patch(
-            "leads.signals.ensure_active_draft_with_demo_snapshot",
+            "leads.demo_handoff.ensure_active_draft_with_demo_snapshot",
             side_effect=DraftValidationError("boom", code="invalid_snapshot_shape"),
         ):
             auth_login(request, user)  # must not raise
@@ -414,3 +438,214 @@ class RegistrationHandoffTests(TestCase):
         draft = FormDraft.objects.get(owner=user)
         self.assertEqual(draft.demo_snapshot["demo_template_slug"], "registration-demo")
         self.assertNotIn(PENDING_DEMO_SESSION_KEY, client.session)
+
+
+class RetryPendingDemoSelectionOnContactPageTests(TestCase):
+    """The narrow, page-scoped retry path (leads/demo_handoff.py's
+    maybe_retry_pending_demo_selection, wired in only from
+    LeadCreateView._resolved_demo_selection): an authenticated, non-staff
+    customer's next visit to the contact page *without* a `?demo=` gets
+    one more chance to attach a pending marker left over from an earlier
+    failed attempt (at login, or a prior visit)."""
+
+    def setUp(self):
+        self.template = make_template(slug="retry-demo")
+        self.customer = User.objects.create_user(
+            username="retry-customer@example.com", email="retry-customer@example.com", password="x", is_active=True,
+        )
+
+    def _selection(self, session_key="retry-selection-session"):
+        return DemoSelection.objects.create(
+            template=self.template, session_key=session_key,
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+
+    def _client_with_pending_marker(self, selection):
+        client = Client()
+        client.force_login(self.customer)
+        session = client.session
+        session[PENDING_DEMO_SESSION_KEY] = {"demo_selection_id": selection.pk, "form_type": FORM_TYPE}
+        session.save()
+        return client
+
+    def test_retry_attaches_the_snapshot_and_clears_the_marker(self):
+        selection = self._selection()
+        client = self._client_with_pending_marker(selection)
+
+        response = client.get(reverse("leads:contact") + "?lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        draft = FormDraft.objects.get(owner=self.customer)
+        self.assertEqual(draft.demo_snapshot["demo_template_slug"], "retry-demo")
+        self.assertNotIn(PENDING_DEMO_SESSION_KEY, client.session)
+        self.assertEqual(FormDraft.objects.filter(owner=self.customer).count(), 1)
+
+    def test_repeated_visits_after_a_successful_retry_stay_idempotent(self):
+        selection = self._selection()
+        client = self._client_with_pending_marker(selection)
+
+        client.get(reverse("leads:contact") + "?lang=fa")
+        client.get(reverse("leads:contact") + "?lang=fa")
+        client.get(reverse("leads:contact") + "?lang=fa")
+
+        self.assertEqual(FormDraft.objects.filter(owner=self.customer).count(), 1)
+
+    def test_deleted_demo_selection_clears_the_marker_without_creating_a_draft(self):
+        selection = self._selection()
+        stale_pk = selection.pk
+        DemoSelection.objects.filter(pk=stale_pk).delete()
+        client = self._client_with_pending_marker(selection)
+
+        response = client.get(reverse("leads:contact") + "?lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(PENDING_DEMO_SESSION_KEY, client.session)
+        self.assertEqual(FormDraft.objects.filter(owner=self.customer).count(), 0)
+
+    def test_transient_error_during_retry_preserves_the_marker_and_still_renders(self):
+        selection = self._selection()
+        client = self._client_with_pending_marker(selection)
+
+        with mock.patch(
+            "leads.demo_handoff.ensure_active_draft_with_demo_snapshot",
+            side_effect=OSError("simulated transient database hiccup"),
+        ):
+            response = client.get(reverse("leads:contact") + "?lang=fa")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            client.session.get(PENDING_DEMO_SESSION_KEY),
+            {"demo_selection_id": selection.pk, "form_type": FORM_TYPE},
+        )
+        self.assertEqual(FormDraft.objects.filter(owner=self.customer).count(), 0)
+
+    def test_explicit_valid_demo_wins_over_an_old_marker_and_clears_it(self):
+        old_selection = self._selection(session_key="retry-old-session")
+        client = self._client_with_pending_marker(old_selection)
+        session = client.session
+        session["new-selection-init"] = True
+        session.save()
+        new_selection = DemoSelection.objects.create(
+            template=self.template, session_key=session.session_key,
+            selections={"theme": "warm", "personality": "minimal", "features": []},
+        )
+
+        response = client.get(reverse("leads:contact") + f"?lang=fa&demo={new_selection.public_token}")
+
+        self.assertEqual(response.status_code, 200)
+        draft = FormDraft.objects.get(owner=self.customer)
+        self.assertEqual(draft.demo_snapshot, build_demo_selection_snapshot(new_selection))
+        self.assertNotIn(PENDING_DEMO_SESSION_KEY, client.session)
+        self.assertEqual(FormDraft.objects.filter(owner=self.customer).count(), 1)
+
+    def test_invalid_demo_param_does_not_fall_back_to_retrying_the_old_marker(self):
+        selection = self._selection()
+        client = self._client_with_pending_marker(selection)
+
+        response = client.get(reverse("leads:contact") + "?lang=fa&demo=not-a-real-token")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(FormDraft.objects.filter(owner=self.customer).count(), 0)
+        # The old marker is left untouched — neither consumed nor
+        # discarded — so a later visit without the bad param can still
+        # retry it successfully.
+        self.assertEqual(
+            client.session.get(PENDING_DEMO_SESSION_KEY),
+            {"demo_selection_id": selection.pk, "form_type": FORM_TYPE},
+        )
+
+    def test_staff_and_superuser_visits_never_trigger_the_retry(self):
+        selection = self._selection()
+        for is_staff, is_superuser, username in [
+            (True, False, "retry-staff@example.com"), (False, True, "retry-superuser@example.com"),
+        ]:
+            staff_or_super = User.objects.create_user(
+                username=username, email=username, password="x", is_active=True,
+                is_staff=is_staff, is_superuser=is_superuser,
+            )
+            client = Client()
+            client.force_login(staff_or_super)
+            session = client.session
+            session[PENDING_DEMO_SESSION_KEY] = {"demo_selection_id": selection.pk, "form_type": FORM_TYPE}
+            session.save()
+
+            response = client.get(reverse("leads:contact") + "?lang=fa")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(FormDraft.objects.filter(owner=staff_or_super).count(), 0)
+
+    def test_no_forbidden_tokens_anywhere_after_a_successful_retry(self):
+        selection = self._selection()
+        client = self._client_with_pending_marker(selection)
+
+        response = client.get(reverse("leads:contact") + "?lang=fa")
+
+        draft = FormDraft.objects.get(owner=self.customer)
+        serialized = (
+            str(draft.demo_snapshot) + str(dict(client.session.items())) + response.content.decode()
+        )
+        self.assertNotIn(str(selection.public_token), serialized)
+        self.assertNotIn(selection.session_key, serialized)
+        self.assertNotIn("submission_token", serialized)
+
+
+@unittest.skipUnless(
+    connection.vendor == "postgresql",
+    "A genuine database-level transaction abort can only be forced and observed on a real "
+    "database engine; a mocked Python exception (used elsewhere in this file) behaves "
+    "identically on any backend and is not evidence about PostgreSQL's own transaction "
+    "semantics — skipped on SQLite.",
+)
+class RealTransactionErrorRecoveryTests(TransactionTestCase):
+    """A mocked `OSError`/`DraftValidationError` proves our own exception
+    handling works, but it never touches the database — it is not
+    evidence that a *genuine* PostgreSQL transaction abort (a real
+    statement failure inside `ensure_active_draft_with_demo_snapshot`'s
+    own `transaction.atomic()` block) unwinds cleanly, leaves the
+    connection usable afterward, and still lets the marker be restored
+    for a retry. This forces a real, server-side error mid-transaction
+    (an actual invalid `SELECT` sent to PostgreSQL, not a Python-level
+    mock) to prove exactly that."""
+
+    def setUp(self):
+        self.template = make_template(slug="real-tx-error-demo")
+
+    def test_a_genuine_postgresql_error_mid_attach_restores_the_marker_and_leaves_the_connection_usable(self):
+        session = make_session()
+        session.save()
+        selection = DemoSelection.objects.create(
+            template=self.template, session_key=session.session_key,
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+        request = HttpRequest()
+        request.session = session
+        store_pending_demo_selection(request, selection)
+        session.save()
+        user = User.objects.create_user(
+            username="real-tx-error@example.com", email="real-tx-error@example.com", password="x", is_active=True,
+        )
+
+        def _raise_real_database_error(*args, **kwargs):
+            # A real, server-rejected statement — not a Python-level
+            # mock — so PostgreSQL itself aborts the current transaction
+            # exactly the way a genuine transient failure would.
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1/0")
+
+        with mock.patch("leads.form_draft_service.FormDraft.objects.create", side_effect=_raise_real_database_error):
+            auth_login(request, user)  # must not raise, despite the real DB-level error
+
+        # The connection must be perfectly usable again afterward — proof
+        # that Django's own transaction.atomic() rolled back cleanly
+        # rather than leaving the connection in an aborted state.
+        self.assertEqual(request.session.get(SESSION_KEY), str(user.pk))
+        marker = request.session.get(PENDING_DEMO_SESSION_KEY)
+        self.assertEqual(marker, {"demo_selection_id": selection.pk, "form_type": FORM_TYPE})
+        self.assertEqual(FormDraft.objects.filter(owner=user).count(), 0)
+
+        # A subsequent, real retry (no mock this time) must succeed
+        # cleanly on the very same connection.
+        from leads.demo_handoff import consume_pending_demo_selection
+        consume_pending_demo_selection(request, user)
+        draft = FormDraft.objects.get(owner=user)
+        self.assertEqual(draft.demo_snapshot["demo_template_slug"], "real-tx-error-demo")
