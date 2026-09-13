@@ -40,6 +40,8 @@ customer-shaped `FormDraft` owned by a staff account.
 
 import logging
 
+from django.db import transaction
+
 from projects.models import DemoSelection
 
 from .form_draft_service import DraftValidationError, ensure_active_draft_with_demo_snapshot
@@ -115,7 +117,20 @@ def consume_pending_demo_selection(request, user):
     - The `DemoSelection` lookup itself raises (a transient database
       error, etc.): logs a fixed message and restores the marker (by id
       only — the row was never actually fetched) so a later attempt can
-      retry; no partial or corrupt `FormDraft` is ever created.
+      retry; no partial or corrupt `FormDraft` is ever created. The
+      lookup runs inside its own `transaction.atomic()` block, and the
+      `try`/`except` around it sits *outside* that block — under
+      `ATOMIC_REQUESTS=True`, a genuine database error there aborts the
+      underlying PostgreSQL transaction; only letting the exception
+      propagate out of `atomic()` first makes Django roll back to that
+      block's own savepoint before we catch it, leaving the *outer*
+      request transaction (login/registration) clean and still usable.
+      Catching the exception *inside* the `atomic()` block instead would
+      swallow it before `atomic()` ever sees a failure to roll back from,
+      leaving the outer transaction's connection still marked as needing
+      a rollback — the next query in the same request would then fail
+      with `TransactionManagementError`, or the whole request would be
+      forced to roll back regardless of what this function did.
     - `ensure_active_draft_with_demo_snapshot` raises `DraftValidationError`
       (a definitive rejection, e.g. a same-instant deletion race or an
       invalid snapshot shape): logs a fixed message and does not restore
@@ -134,8 +149,14 @@ def consume_pending_demo_selection(request, user):
         return
 
     try:
-        selection = DemoSelection.objects.select_related("template").filter(pk=selection_id).first()
+        with transaction.atomic():
+            selection = DemoSelection.objects.select_related("template").filter(pk=selection_id).first()
     except Exception:
+        # The `except` deliberately sits outside the `atomic()` block
+        # above: an exception raised *inside* it makes `atomic()` roll
+        # back to its own savepoint before propagating here, so the
+        # surrounding request transaction (e.g. login/registration under
+        # ATOMIC_REQUESTS) is never left needing a rollback of its own.
         logger.exception("Unexpected error looking up a pending demo selection.")
         _restore_pending_demo_selection_id(request, selection_id)
         return

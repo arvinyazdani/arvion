@@ -6,7 +6,7 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.http import HttpRequest
 from django.test import Client, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
-from django.db import DatabaseError, connection
+from django.db import DatabaseError, connection, transaction
 from django.urls import reverse
 
 from leads.demo_handoff import (
@@ -649,3 +649,89 @@ class RealTransactionErrorRecoveryTests(TransactionTestCase):
         consume_pending_demo_selection(request, user)
         draft = FormDraft.objects.get(owner=user)
         self.assertEqual(draft.demo_snapshot["demo_template_slug"], "real-tx-error-demo")
+
+
+@unittest.skipUnless(
+    connection.vendor == "postgresql",
+    "A genuine database-level transaction abort inside an outer ATOMIC_REQUESTS-style "
+    "transaction can only be forced and observed on a real database engine — skipped on SQLite.",
+)
+class RealTransactionErrorDuringLookupRecoveryTests(TransactionTestCase):
+    """`RealTransactionErrorRecoveryTests` above proves recovery from a
+    real PostgreSQL error inside the *attach* step (which already runs
+    inside its own `transaction.atomic()` in
+    `ensure_active_draft_with_demo_snapshot`). It does not prove anything
+    about the separate `DemoSelection` *lookup* in
+    `consume_pending_demo_selection`, which is the specific query this
+    corrective phase wraps in its own `transaction.atomic()`. This class
+    is that missing proof, and it does not replace the attach-side test —
+    both are kept.
+
+    Simulates `ATOMIC_REQUESTS=True` by wrapping the whole
+    login()+lookup()+next-query sequence in one outer
+    `transaction.atomic()`, exactly like Django's own per-request
+    wrapping would. A real, server-rejected statement (not a mocked
+    Python exception) is injected at the exact moment the lookup query
+    would run, so PostgreSQL itself aborts that transaction the way a
+    genuine transient failure would.
+    """
+
+    def setUp(self):
+        self.template = make_template(slug="lookup-tx-error-demo")
+
+    def _run_scenario(self):
+        session = make_session()
+        session.save()
+        selection = DemoSelection.objects.create(
+            template=self.template, session_key=session.session_key,
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+        request = HttpRequest()
+        request.session = session
+        store_pending_demo_selection(request, selection)
+        session.save()
+        user = User.objects.create_user(
+            username=f"lookup-tx-error-{selection.pk}@example.com",
+            email=f"lookup-tx-error-{selection.pk}@example.com",
+            password="x", is_active=True,
+        )
+
+        def _raise_real_database_error(*args, **kwargs):
+            # A real, server-rejected statement — not a Python-level
+            # mock — so PostgreSQL itself aborts the *outer* transaction
+            # exactly the way a genuine transient failure would under
+            # ATOMIC_REQUESTS.
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1/0")
+
+        # The outer `transaction.atomic()` stands in for Django's own
+        # ATOMIC_REQUESTS wrapping of the whole request.
+        with transaction.atomic():
+            with mock.patch(
+                "leads.demo_handoff.DemoSelection.objects.select_related",
+                side_effect=_raise_real_database_error,
+            ):
+                auth_login(request, user)  # must not raise, despite the real DB-level error
+
+            # Still inside the SAME outer transaction: a real, healthy
+            # query must succeed here. If the inner lookup's failure had
+            # left the outer transaction needing a rollback, this would
+            # raise TransactionManagementError instead of returning True.
+            self.assertTrue(User.objects.filter(pk=user.pk).exists())
+
+        # The outer transaction committed normally — prove the whole
+        # scenario's outcome once it's closed.
+        self.assertEqual(request.session.get(SESSION_KEY), str(user.pk))
+        marker = request.session.get(PENDING_DEMO_SESSION_KEY)
+        self.assertEqual(marker, {"demo_selection_id": selection.pk, "form_type": FORM_TYPE})
+        self.assertEqual(FormDraft.objects.filter(owner=user).count(), 0)
+
+        # A subsequent, real retry (no mock, same connection) must attach
+        # the snapshot cleanly.
+        from leads.demo_handoff import consume_pending_demo_selection
+        consume_pending_demo_selection(request, user)
+        draft = FormDraft.objects.get(owner=user)
+        self.assertEqual(draft.demo_snapshot["demo_template_slug"], "lookup-tx-error-demo")
+
+    def test_a_genuine_postgresql_error_during_the_lookup_never_poisons_the_outer_atomic_requests_style_transaction(self):
+        self._run_scenario()
