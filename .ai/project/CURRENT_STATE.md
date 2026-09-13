@@ -2,29 +2,46 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-B2 second corrective — the `DemoSelection`
-  lookup inside `leads.demo_handoff.consume_pending_demo_selection`
-  gained a `try`/`except` in the first corrective phase (`2cd1032`), but
-  that alone was not enough: `2cd1032` is now known to have shipped
-  `PARTIAL`. Under `ATOMIC_REQUESTS=True` (production), a *genuine*
-  PostgreSQL error inside that lookup query aborts the underlying
-  database transaction at the server level — merely catching the Python
-  exception does not undo that. The lookup was not wrapped in its own
-  `transaction.atomic()`, so nothing ever issued the `ROLLBACK TO
-  SAVEPOINT` needed to recover; the *outer* request transaction
-  (login/registration) was left needing a rollback, and the very next
-  query on that connection — including, empirically, a request as basic
-  as `login()`'s own follow-up work — would fail with
-  `django.db.utils.InternalError: current transaction is aborted,
-  commands ignored until end of transaction block`. This was reproduced
-  before the fix (temporarily reverting the fix and re-running the new
-  test below fails exactly this way) and is now fixed and verified — see
-  "V2.1-B2 second corrective" entries below. Status: `VERIFIED` (local).
-- **Last verified phase (code):** V2.1-B2 second corrective, on top of
-  the V2.1-B2 first corrective phase (`2cd1032`), V2.1-B2 (`757f7a4`),
-  the V2.1-B1 second corrective phase, the V2.1-B1 first corrective phase
-  (`0e1a208`), V2.1-B1 (`537c9a2`), the V2.1-A corrective phase, and
-  `08bd910`.
+- **Current phase:** V2.1-B2 third corrective — `1baf584` (the second
+  corrective phase) correctly wrapped the *first* `DemoSelection` lookup
+  (inside `leads.demo_handoff.consume_pending_demo_selection` itself) in
+  its own `transaction.atomic()`, and that fix remains fully correct and
+  `VERIFIED` — it is **not** touched or re-litigated here. But the
+  overall V2.1-B2 feature is now known to have shipped `PARTIAL` even
+  after `1baf584`, because there is a **second**, separate
+  `DemoSelection` lookup in the same call chain that had the identical
+  unwrapped-query problem: after the first lookup succeeds,
+  `consume_pending_demo_selection` calls
+  `ensure_active_draft_with_demo_snapshot`, which calls
+  `leads.form_draft_service._reload_demo_selection` — its own
+  `DemoSelection.objects.select_related("template").filter(pk=...)
+  .first()` query, run with no `transaction.atomic()` of its own. A
+  genuine PostgreSQL error there aborted the underlying transaction the
+  exact same way, and under `ATOMIC_REQUESTS=True` left the *outer*
+  request transaction needing a rollback — reproduced empirically
+  (temporarily reverting the fix made the new tests below fail with
+  exactly `django.db.utils.InternalError: current transaction is
+  aborted`) and now fixed and verified — see "V2.1-B2 third corrective"
+  entries below. Status: `VERIFIED` (local); the overall V2.1-B2 feature
+  (all three corrective phases plus the original) is now `VERIFIED` as a
+  whole for the first time.
+- **Last verified phase (code):** V2.1-B2 third corrective, on top of
+  the V2.1-B2 second corrective phase (`1baf584`), the V2.1-B2 first
+  corrective phase (`2cd1032`), V2.1-B2 (`757f7a4`), the V2.1-B1 second
+  corrective phase, the V2.1-B1 first corrective phase (`0e1a208`),
+  V2.1-B1 (`537c9a2`), the V2.1-A corrective phase, and `08bd910`.
+- **V2.1-B2 second corrective — historical recap, kept `VERIFIED` and
+  untouched by this phase:** `2cd1032` (the first corrective phase) added
+  a `try`/`except` around the first `DemoSelection` lookup, but never
+  wrapped the query itself in `transaction.atomic()` — under
+  `ATOMIC_REQUESTS=True`, a genuine PostgreSQL error there aborted the
+  outer request transaction without ever being rolled back to a
+  savepoint. Fixed in `1baf584` by wrapping only that lookup query in its
+  own `transaction.atomic()`, with the `try`/`except` kept outside that
+  block. Proven with a real, reproduced-then-fixed PostgreSQL test
+  (`RealTransactionErrorDuringLookupRecoveryTests`). This fix and its
+  test are **unchanged and still fully correct** — this phase only adds
+  the equivalent fix for the *second*, previously-unaddressed lookup.
 - **V2.1-B2 first corrective — historical recap (superseded as the
   "current phase"; kept for reference):** `757f7a4` shipped `PARTIAL`:
   (1) in `leads/signals.py`, the pending marker was popped before
@@ -42,15 +59,10 @@
   added, wired into `LeadCreateView._resolved_demo_selection()` only when
   there is no explicit `?demo=`. **However**, the fetch's `try`/`except`
   added in `2cd1032` did not itself wrap the query in a
-  `transaction.atomic()` — see "Current phase" above for why that still
-  left a real gap under PostgreSQL, closed in this second corrective
-  phase. `2cd1032`'s own `RealTransactionErrorRecoveryTests` (PostgreSQL,
-  forcing a real `SELECT 1/0`) only ever exercised the *attach* step
-  (which already had its own internal `transaction.atomic()` inside
-  `ensure_active_draft_with_demo_snapshot`) — it did not, and could not,
-  say anything about the separate, unwrapped lookup query, which is
-  exactly the gap this second corrective phase closes and adds real
-  PostgreSQL evidence for.
+  `transaction.atomic()`, fixed in the second corrective phase above —
+  and that second corrective phase's own fix, in turn, did not extend to
+  the *second*, separate lookup inside `_reload_demo_selection`, which is
+  exactly the gap this third corrective phase closes.
 - **V2.1-B2 — historical recap (superseded as the "current phase"; kept
   for reference):** the first real wiring of `FormDraft` into a live
   path: a visitor's demo selection survives the login/register
@@ -1274,9 +1286,135 @@
   needed; `makemigrations --check --dry-run` reported "No changes
   detected." No model or schema change — this phase touched only
   `leads/demo_handoff.py` and `leads/test_demo_handoff.py`.
+- **Git boundary (as of `1baf584`, historical — see the accurate,
+  up-to-date count directly below):** `main` was sixteen commits ahead of
+  `origin/main` at that point — the fifteen from the prior entry, plus
+  `1baf584`. No prior commit was amended.
+- **V2.1-B2 third corrective — root cause and fix:** `leads/form_draft
+  _service.py`'s `_reload_demo_selection(demo_selection)` — shared by
+  both `ensure_active_draft_with_demo_snapshot` (the only caller reached
+  from the login-signal and already-authenticated hand-off paths) and
+  `attach_demo_snapshot` — did:
+  ```python
+  if not isinstance(demo_selection, DemoSelection) or demo_selection.pk is None:
+      return None
+  return DemoSelection.objects.select_related("template").filter(pk=demo_selection.pk).first()
+  ```
+  with no `transaction.atomic()` around the query. This is the exact same
+  class of bug `1baf584` fixed for the *first* lookup, just one call
+  deeper: a genuine PostgreSQL error here aborts the database transaction
+  at the server level; the calling code's own `try`/`except` (already
+  present in `leads.demo_handoff.consume_pending_demo_selection`, from
+  the first corrective phase, wrapping the whole
+  `ensure_active_draft_with_demo_snapshot(...)` call) catches the Python
+  exception, but without a savepoint to roll back to, the *outer*
+  `ATOMIC_REQUESTS` transaction was left needing a rollback anyway.
+  Fixed by wrapping only the query in its own `transaction.atomic()`,
+  letting a real error propagate out of that block (never swallowed
+  inside it) so Django's own machinery rolls back to that block's
+  savepoint before the exception ever reaches a caller:
+  ```python
+  if not isinstance(demo_selection, DemoSelection) or demo_selection.pk is None:
+      return None
+  with transaction.atomic():
+      return DemoSelection.objects.select_related("template").filter(pk=demo_selection.pk).first()
+  ```
+  The `None`-for-invalid-instance-or-deleted-row behaviour is unchanged
+  (that check still runs before entering the `atomic()` block, since it
+  needs no query at all). Both current callers are now safe: whichever
+  one is used, a real database error during this reload propagates up to
+  wherever *they* are called from with the outer transaction already
+  clean — `ensure_active_draft_with_demo_snapshot` has no
+  `try`/`except` of its own around this call, so the error reaches
+  `leads.demo_handoff.consume_pending_demo_selection`'s existing
+  `except Exception:` (restoring the marker) or
+  `handle_resolved_demo_selection`'s existing `except Exception:`
+  (logging and swallowing so the contact page still renders) exactly as
+  before; `attach_demo_snapshot` likewise has no `try`/`except` of its
+  own, so its caller is responsible for handling it, and doing so no
+  longer risks leaving *their* outer transaction poisoned either — proven
+  directly (see test level below). No log message anywhere in this
+  module or `leads/demo_handoff.py` interpolates a snapshot, token,
+  session key, or any other payload value — this phase added no new log
+  statements at all, since the fix is purely about where a `try`/`except`
+  and an `atomic()` block sit relative to each other. `LeadCreateView`,
+  `leads/signals.py`, and every model are completely untouched; no new
+  import was needed (`transaction` was already imported at the top of
+  `leads/form_draft_service.py`).
+- **V2.1-B2 third corrective — the bug reproduced, then fixed and
+  re-verified:** before finalizing, the fix was temporarily reverted and
+  both new PostgreSQL tests below were re-run against the reverted code —
+  both failed exactly as predicted, with
+  `django.db.utils.InternalError: current transaction is aborted, commands
+  ignored until end of transaction block` raised from a plain, healthy
+  query made immediately after the simulated second-lookup failure,
+  inside the same outer transaction. The fix was then restored and both
+  tests re-verified passing. This confirms the tests actually exercise
+  the bug rather than trivially passing regardless.
+- **V2.1-B2 third corrective — test level:** two new PostgreSQL-only
+  tests, kept alongside — not replacing — `1baf584`'s existing
+  `RealTransactionErrorDuringLookupRecoveryTests` (which is unchanged and
+  still passes, proving the *first* lookup remains fixed).
+  `leads/test_demo_handoff.py` gained
+  `RealTransactionErrorDuringSecondLookupRecoveryTests`: opens an outer
+  `transaction.atomic()` (simulating `ATOMIC_REQUESTS`); patches
+  `DemoSelection.objects.select_related` (one shared manager instance
+  regardless of which module's import reaches it, so one patch covers
+  both lookups) with a closure-tracked call-counting `side_effect` that
+  lets the *first* call through to the real implementation (proving the
+  first lookup genuinely succeeds) and only forces a real, server-side
+  `SELECT 1/0` on the *second* call; asserts `auth_login` does not raise;
+  **still inside the same outer `atomic()` block**, runs a real, unmocked
+  `User.objects.filter(pk=user.pk).exists()` query and asserts it
+  succeeds (the specific assertion that fails without the fix); asserts
+  the call counter is exactly `2` (direct proof the error happened on the
+  *second* lookup, not the first); after the outer transaction closes,
+  asserts the user is genuinely authenticated, the marker survived with
+  its exact original id/form_type, and no `FormDraft` was created; then,
+  on the same connection with no mock active, calls
+  `consume_pending_demo_selection` again and confirms the snapshot
+  attaches successfully. `leads/test_form_draft.py` gained
+  `test_attach_demo_snapshot_survives_a_real_postgresql_error_in_the
+  _reload_lookup` in `FormDraftPostgresRaceTests`: calls
+  `attach_demo_snapshot` directly inside an outer `transaction.atomic()`,
+  with the same real `SELECT 1/0` injected into the reload lookup, and
+  the call wrapped in `assertRaises` — modelling a real caller catching
+  the propagated error themselves — then, still inside that same outer
+  transaction, runs a real, healthy query and asserts it succeeds, and
+  confirms no partial `FormDraft` was created. `leads.test_demo_handoff` +
+  `leads.test_form_draft` on PostgreSQL: 108 tests, all passing, 0 skips
+  (every SQLite-skip-guarded test — 10 of them now — runs for real here).
+  `leads` app on SQLite: 120 tests total, 110 passed, 10 correctly
+  skipped (up from 118/7 skips at `1baf584` by exactly these 2 new
+  tests). `accounts` app: 73 tests, all passing (2 skips) — confirming no
+  regression in registration, login, phone verification, or email
+  verification. Full project suite (SQLite): 668 tests total, 655
+  passed, 13 correctly skipped (all PostgreSQL-only; up from 666
+  total/11 skips before this phase by exactly these 2 new tests).
+  `manage.py check` (0 issues), `makemigrations --check
+  --dry-run` ("No changes detected" — no model or migration change), and
+  `git diff --check` (clean) all passed.
+- **V2.1-B2 third corrective — PostgreSQL evidence:** run against the
+  same isolated local PostgreSQL 16 `test_arvion_ci_local` database used
+  throughout this project (never the permanent `arvion_ci_local`). Both
+  new tests were run once, then 5 additional repeats each — all clean.
+  `1baf584`'s existing `RealTransactionErrorDuringLookupRecoveryTests`
+  and `2cd1032`'s existing `RealTransactionErrorRecoveryTests` were
+  re-run alongside and remain unchanged and passing. The
+  `assessments/services.py` PostgreSQL incompatibility found during the
+  V2.1-B2 phase (`revoke_assessment_access`'s `select_for_update()` on an
+  outer join) remains **present, unrelated, and untouched by any commit
+  in this session** — recorded again here so it is never lost or quietly
+  dropped from the project record; it still needs separate human
+  prioritization.
+- **V2.1-B2 third corrective — migration status:** none created or
+  needed; `makemigrations --check --dry-run` reported "No changes
+  detected." No model or schema change — this phase touched only
+  `leads/form_draft_service.py`, `leads/test_demo_handoff.py`, and
+  `leads/test_form_draft.py`.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is sixteen commits ahead of `origin/main` — the fifteen listed
-  above, plus this V2.1-B2 second corrective commit. No prior commit is
+  `main` is seventeen commits ahead of `origin/main` — the sixteen listed
+  above, plus this V2.1-B2 third corrective commit. No prior commit is
   amended.
 - **Prior phase's change (kept for reference; unaffected by this
   design-only phase; one function in one file):** `writeDemoContext` in
@@ -1347,12 +1485,12 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this V2.1-B2 second corrective phase's own commit
-  (see `git log`) — a separate commit on top of `2cd1032`, which is not
+- **Last commit:** this V2.1-B2 third corrective phase's own commit
+  (see `git log`) — a separate commit on top of `1baf584`, which is not
   amended.
-- **Next action:** V2.1-B1 (both corrective phases included), V2.1-B2,
-  and both V2.1-B2 corrective phases are all done and fully verified — a
-  visitor's demo selection now reliably
+- **Next action:** V2.1-B1 (both corrective phases included) and V2.1-B2
+  (all three corrective phases included) are all done and fully
+  verified — a visitor's demo selection now reliably
   survives login/registration and lands on their account's `FormDraft` as
   a safe snapshot, and an already-authenticated customer gets the same
   sync immediately on the contact page. Still missing before this feature
@@ -1409,5 +1547,7 @@
 | Resumable order drafts — V2.1-B2 (pre-login session marker + login-signal hand-off + already-authenticated sync, both into `FormDraft`) (`757f7a4`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL`: the `DemoSelection` fetch in `leads/signals.py` sat outside any `try`/`except`, so a transient `DatabaseError` there would have turned a real login into a 500; and the documented "retries on the customer's next authenticated request" claim had no actual retry code behind it anywhere. See the corrective-phase row below, which fixes and re-verifies both. |
 | Resumable order drafts — V2.1-B2 first corrective (safe DemoSelection-fetch orchestration + real contact-page retry path) (`2cd1032`) | `VERIFIED` (local), corrected again | Initially verified, then found `PARTIAL` a second time: the fetch's `try`/`except` did not wrap the query in a `transaction.atomic()`, so a genuine PostgreSQL error there aborted the outer `ATOMIC_REQUESTS` transaction without ever being rolled back to a savepoint — the next query in the same request would fail with `InFailedSqlTransaction`/`InternalError`. See the second-corrective row below, which fixes and re-verifies it with a real, reproduced-then-fixed PostgreSQL test. New `leads.demo_handoff.consume_pending_demo_selection` is the single safe orchestration (pop → staff-check → fetch → attach, restoring the marker only on a presumed-transient failure) shared by the login receiver (now a 2-line trigger) and the new `maybe_retry_pending_demo_selection`, wired into `LeadCreateView._resolved_demo_selection()` only when there is no explicit `?demo=` at all. An explicit, valid `?demo=` still always wins and now also clears any stale old marker on success; an explicit invalid/foreign one still never falls back to the old marker. `handle_resolved_demo_selection` gained a second `except Exception` so a transient error there can no longer 500 the contact page either. 10 new tests, `leads` app (117 tests total: 110 passed, 7 skips), `accounts` (73 tests, 2 skips), full project suite (665 tests total: 655 passed, 10 skips). `757f7a4` not amended. |
 | Resumable order drafts — V2.1-B2 second corrective (wrap the DemoSelection lookup in its own transaction.atomic() so a real PostgreSQL error there can never poison the outer ATOMIC_REQUESTS transaction) | `VERIFIED` (local) | See "V2.1-B2 second corrective" entries above. The lookup query in `consume_pending_demo_selection` now runs inside its own `with transaction.atomic():`, with the `try`/`except` kept outside that block, so a real database error there triggers Django's own savepoint rollback before the exception is caught — leaving the surrounding request transaction (login/registration under `ATOMIC_REQUESTS`) fully usable afterward. The bug was reproduced first (temporarily reverting the fix made the new test fail with exactly `InternalError: current transaction is aborted`), then the fix was restored and the same test re-verified passing. New PostgreSQL-only `RealTransactionErrorDuringLookupRecoveryTests`, kept alongside (not replacing) `2cd1032`'s existing attach-step `RealTransactionErrorRecoveryTests`: forces a real `SELECT 1/0` at the exact lookup call site inside an outer `transaction.atomic()` standing in for `ATOMIC_REQUESTS`, proves a real query immediately afterward inside the same outer transaction still succeeds, proves the user is authenticated, the marker survives intact, no `FormDraft` is created, and a subsequent real retry on the same connection attaches the snapshot successfully. Run once plus 5 repeats on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 106 tests, all passing. `leads` app on SQLite: 118 tests (7 skips); `accounts`: 73 tests (2 skips) — no regression in registration/login/phone-verification/email-verification. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. `2cd1032` not amended. |
+| Resumable order drafts — V2.1-B2 (all corrective phases) — overall feature status before the third lookup fix (`757f7a4`→`2cd1032`→`1baf584`) | `PARTIAL` → corrected below | Each individual commit up to and including `1baf584` was independently `VERIFIED` for the specific defect it fixed, but the *feature as a whole* remained `PARTIAL` until the third corrective phase below closed the second, previously-unaddressed `DemoSelection` lookup inside `_reload_demo_selection`. `1baf584` itself, and its first-lookup fix and test, are unchanged and remain correct. |
+| Resumable order drafts — V2.1-B2 third corrective (wrap `_reload_demo_selection`'s query in its own `transaction.atomic()`, safe for both `ensure_active_draft_with_demo_snapshot` and `attach_demo_snapshot`) | `VERIFIED` (local) — V2.1-B2 as a whole now `VERIFIED` | See "V2.1-B2 third corrective" entries above. `leads.form_draft_service._reload_demo_selection` now runs its query inside its own `transaction.atomic()`, letting a real database error propagate out (never swallowed inside) so Django rolls back to that savepoint before either caller's own exception handling ever sees it — closing the exact same class of bug `1baf584` fixed for the *first* lookup, one call deeper. Reproduced first (reverting the fix made both new tests fail with `InternalError: current transaction is aborted`), then fixed and re-verified. Two new PostgreSQL-only tests, kept alongside `1baf584`'s and `2cd1032`'s existing ones (all three real-transaction test classes now coexist): `RealTransactionErrorDuringSecondLookupRecoveryTests` (login-signal path, call-counter-proven second-lookup failure, healthy query inside the same outer transaction, marker restored, snapshot attaches on retry) and `test_attach_demo_snapshot_survives_a_real_postgresql_error_in_the_reload_lookup` (direct `attach_demo_snapshot` call, caller catches the propagated error, outer transaction still usable). `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 108 tests, all passing, 0 skips. `leads` app on SQLite: 120 tests (110 passed, 10 skips); `accounts`: 73 tests (71 passed, 2 skips) — no regression in registration/login/phone-verification/email-verification. Run once plus 5 repeats each on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. No prior commit amended; only `leads/form_draft_service.py`, `leads/test_demo_handoff.py`, and `leads/test_form_draft.py` touched. |
 | Resumable order drafts — V2.1 Phases B3–E (auto-save endpoint, draft restore/delete UI, atomic final submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase B3 begins; depends on the now-`VERIFIED` Phase B1+B2 foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

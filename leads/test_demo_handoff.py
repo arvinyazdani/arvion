@@ -735,3 +735,99 @@ class RealTransactionErrorDuringLookupRecoveryTests(TransactionTestCase):
 
     def test_a_genuine_postgresql_error_during_the_lookup_never_poisons_the_outer_atomic_requests_style_transaction(self):
         self._run_scenario()
+
+
+@unittest.skipUnless(
+    connection.vendor == "postgresql",
+    "A genuine database-level transaction abort inside an outer ATOMIC_REQUESTS-style "
+    "transaction can only be forced and observed on a real database engine — skipped on SQLite.",
+)
+class RealTransactionErrorDuringSecondLookupRecoveryTests(TransactionTestCase):
+    """`RealTransactionErrorDuringLookupRecoveryTests` above proves
+    recovery from a real PostgreSQL error in the *first* `DemoSelection`
+    lookup — the one inside `consume_pending_demo_selection` itself. It
+    says nothing about the *second* lookup: after that first lookup
+    succeeds, `consume_pending_demo_selection` calls
+    `ensure_active_draft_with_demo_snapshot`, which calls
+    `leads.form_draft_service._reload_demo_selection` — a second,
+    separate `DemoSelection.objects.select_related(...).filter(pk=...)
+    .first()` query — before it ever reaches its own write transaction.
+    This class is the missing proof for that second query specifically,
+    and does not replace either of the other two real-transaction test
+    classes in this file — all three are kept.
+
+    `DemoSelection.objects` is one shared manager instance regardless of
+    which module imports the `DemoSelection` name, so the *same*
+    `select_related` mock intercepts both lookups; a closure-tracked call
+    counter lets the first call through to the real implementation
+    (proving the first lookup genuinely succeeds) and only forces a real,
+    server-rejected `SELECT 1/0` on the second call — proving the error
+    this test is about really did happen in the second lookup, not the
+    first.
+    """
+
+    def setUp(self):
+        self.template = make_template(slug="reload-tx-error-demo")
+
+    def test_a_genuine_postgresql_error_during_the_second_lookup_never_poisons_the_outer_transaction(self):
+        session = make_session()
+        session.save()
+        selection = DemoSelection.objects.create(
+            template=self.template, session_key=session.session_key,
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+        request = HttpRequest()
+        request.session = session
+        store_pending_demo_selection(request, selection)
+        session.save()
+        user = User.objects.create_user(
+            username=f"reload-tx-error-{selection.pk}@example.com",
+            email=f"reload-tx-error-{selection.pk}@example.com",
+            password="x", is_active=True,
+        )
+
+        real_select_related = DemoSelection.objects.select_related
+        call_count = {"n": 0}
+
+        def _select_related_side_effect(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                # The first lookup — inside consume_pending_demo_selection
+                # itself — must genuinely succeed, not be faked.
+                return real_select_related(*args, **kwargs)
+            # The second lookup — inside _reload_demo_selection, reached
+            # via ensure_active_draft_with_demo_snapshot — is where this
+            # test injects a real, server-rejected statement.
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1/0")
+
+        # `DemoSelection.objects` is the same manager object no matter
+        # which module's import of `DemoSelection` is used to reach it,
+        # so this one patch covers both call sites.
+        with transaction.atomic():  # simulates ATOMIC_REQUESTS
+            with mock.patch(
+                "projects.models.DemoSelection.objects.select_related",
+                side_effect=_select_related_side_effect,
+            ):
+                auth_login(request, user)  # must not raise, despite the real DB-level error
+
+            # Still inside the SAME outer transaction: a real, healthy
+            # query must succeed here.
+            self.assertTrue(User.objects.filter(pk=user.pk).exists())
+
+        # Proof the error happened on the *second* lookup, not the first:
+        # both calls actually reached the (mocked) select_related, and
+        # the first one used the real implementation successfully.
+        self.assertEqual(call_count["n"], 2)
+
+        self.assertEqual(request.session.get(SESSION_KEY), str(user.pk))
+        marker = request.session.get(PENDING_DEMO_SESSION_KEY)
+        self.assertEqual(marker, {"demo_selection_id": selection.pk, "form_type": FORM_TYPE})
+        self.assertEqual(FormDraft.objects.filter(owner=user).count(), 0)
+
+        # A subsequent, real retry (no mock, same connection) must attach
+        # the snapshot cleanly.
+        from leads.demo_handoff import consume_pending_demo_selection
+        consume_pending_demo_selection(request, user)
+        draft = FormDraft.objects.get(owner=user)
+        self.assertEqual(draft.demo_snapshot["demo_template_slug"], "reload-tx-error-demo")

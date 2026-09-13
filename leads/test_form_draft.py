@@ -1076,3 +1076,61 @@ class FormDraftPostgresRaceTests(TransactionTestCase):
         survivor = FormDraft.objects.get(owner=owner)
         self.assertEqual(survivor.demo_snapshot, build_demo_selection_snapshot(selection))
         self.assertEqual(survivor.status, "open")
+
+    def test_attach_demo_snapshot_survives_a_real_postgresql_error_in_the_reload_lookup(self):
+        """`_reload_demo_selection` (shared by `attach_demo_snapshot` and
+        `ensure_active_draft_with_demo_snapshot`) wraps its query in its
+        own `transaction.atomic()` and lets a real database error
+        propagate to the caller rather than swallowing it — that's the
+        point: whoever calls `attach_demo_snapshot` is responsible for
+        handling the error, and doing so must never leave *their own*
+        outer transaction poisoned. This forces a real, server-rejected
+        statement (not a mocked Python exception) at the exact moment
+        `_reload_demo_selection`'s query runs, with the call wrapped in an
+        outer `transaction.atomic()` standing in for a caller's own
+        request-level transaction (e.g. `ATOMIC_REQUESTS=True`), and
+        proves a real, healthy query immediately afterward — still inside
+        that same outer transaction — succeeds."""
+        owner = User.objects.create_user(
+            username="attach-reload-tx-error@example.com", email="attach-reload-tx-error@example.com",
+            password="x", is_active=True,
+        )
+        template = DemoTemplate.objects.create(
+            slug="attach-reload-tx-error-demo", category="ecommerce",
+            title_fa="دموی فروشگاهی", title_en="Storefront demo",
+            tagline_fa="فرضی", tagline_en="Fictional",
+            fictional_brand_fa="برند فرضی", fictional_brand_en="Fictional Brand",
+            style_key="minimal",
+        )
+        selection = DemoSelection.objects.create(
+            template=template, session_key="attach-reload-tx-error-session",
+            selections={"theme": "sage", "personality": "luxury", "features": ["booking"]},
+        )
+
+        def _raise_real_database_error(*args, **kwargs):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1/0")
+
+        # The outer `transaction.atomic()` stands in for a real caller's
+        # own request-level transaction (e.g. ATOMIC_REQUESTS).
+        with transaction.atomic():
+            with mock.patch(
+                "projects.models.DemoSelection.objects.select_related",
+                side_effect=_raise_real_database_error,
+            ):
+                # The caller is responsible for handling this — modeled
+                # here by catching it directly, exactly like a real
+                # caller (e.g. leads.demo_handoff.consume_pending_demo_selection)
+                # would.
+                with self.assertRaises(Exception):
+                    attach_demo_snapshot(owner=owner, form_type="leads_contact", demo_selection=selection)
+
+            # Still inside the SAME outer transaction: a real, healthy
+            # query must succeed. Without _reload_demo_selection's own
+            # savepoint, this would instead raise
+            # TransactionManagementError / "current transaction is
+            # aborted".
+            self.assertTrue(User.objects.filter(pk=owner.pk).exists())
+
+        # No partial FormDraft was ever created from the failed attach.
+        self.assertEqual(FormDraft.objects.filter(owner=owner).count(), 0)

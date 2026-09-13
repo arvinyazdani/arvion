@@ -317,12 +317,28 @@ def _reload_demo_selection(demo_selection):
     `selections` (or any other field) may have been mutated locally
     without being saved. Re-reading by primary key guarantees
     `build_demo_selection_snapshot` only ever sees what is actually
-    persisted, and also catches a since-deleted row. Returns None (never
-    raises) so the caller can reject with the one fixed, generic
-    `invalid_demo_selection` message regardless of which check failed."""
+    persisted, and also catches a since-deleted row. Returns None for an
+    invalid instance or a genuinely-deleted row — never raises for those
+    two cases, so both callers (`ensure_active_draft_with_demo_snapshot`,
+    `attach_demo_snapshot`) can reject with the one fixed, generic
+    `invalid_demo_selection` message regardless of which check failed.
+
+    The query itself runs inside its own `transaction.atomic()` — a real
+    database error there must propagate out of that block (never be
+    swallowed here) so Django's own machinery rolls back to this block's
+    savepoint *before* the exception reaches the caller. Both current
+    callers already run this before their own `transaction.atomic()`
+    write block and are themselves called from a `try`/`except` in
+    `leads.demo_handoff` — so a real failure here is caught there, the
+    caller's pending marker (if any) is restored, and the surrounding
+    request transaction (e.g. login/registration under
+    `ATOMIC_REQUESTS=True`) is left perfectly usable, exactly like the
+    lookup in `leads.demo_handoff.consume_pending_demo_selection` itself.
+    """
     if not isinstance(demo_selection, DemoSelection) or demo_selection.pk is None:
         return None
-    return DemoSelection.objects.select_related("template").filter(pk=demo_selection.pk).first()
+    with transaction.atomic():
+        return DemoSelection.objects.select_related("template").filter(pk=demo_selection.pk).first()
 
 
 def attach_demo_snapshot(*, owner, form_type, demo_selection):
