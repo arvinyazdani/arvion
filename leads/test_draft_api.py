@@ -361,6 +361,38 @@ class FormDraftPostViewTests(TestCase):
         self.assertEqual(response.status_code, 405)
         self.assertIn("Allow", response)
 
+    def test_conflict_against_an_expired_draft_still_commits_the_expiry_transition(self):
+        """API-level regression proof for the same rollback bug covered at
+        the service level: a 409 conflict raised because the caller's
+        (now-stale) expected_revision no longer matches an active draft
+        that just expired must not roll back that expiry transition.
+        Checked immediately after the 409 response, before any second
+        request, so a later save cannot mask whether this request's own
+        transition actually committed."""
+        customer = make_customer()
+        client = Client()
+        client.force_login(customer)
+        created = post_json(client, DRAFT_URL, {"fields": {"request_type": "webapp"}, "current_step": 0, "expected_revision": 0}).json()
+        stale_pk = FormDraft.objects.get(owner=customer).pk
+        initial_revision = created["draft"]["revision"]
+        FormDraft.objects.filter(pk=stale_pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        response = post_json(client, DRAFT_URL, {
+            "fields": {"request_type": "consultation"}, "current_step": 2, "expected_revision": initial_revision,
+        })
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIsNone(response.json()["draft"])
+
+        stale = FormDraft.objects.get(pk=stale_pk)
+        self.assertEqual(stale.status, "expired")
+        self.assertEqual(stale.revision, initial_revision + 1)
+        self.assertEqual(stale.fields, {"request_type": "webapp"})
+        self.assertEqual(stale.current_step, 0)
+        self.assertEqual(
+            FormDraft.objects.filter(owner=customer, status__in=FormDraft.ACTIVE_STATUSES).count(), 0,
+        )
+
     def test_expired_draft_recreates_with_expected_revision_zero(self):
         customer = make_customer()
         client = Client()
@@ -563,3 +595,52 @@ class FormDraftApiPostgresConcurrencyTests(TransactionTestCase):
         survivor = FormDraft.objects.get(owner=customer)
         self.assertEqual(survivor.revision, shared_expected_revision + 1)
         self.assertIn(survivor.fields["request_type"], ("website", "ecommerce"))
+
+
+@unittest.skipUnless(
+    connection.vendor == "postgresql",
+    "A genuine outer-transaction commit boundary can only be observed on a real "
+    "database engine with real transaction semantics — skipped on SQLite.",
+)
+class FormDraftApiExpiredConflictUnderOuterTransactionTests(TransactionTestCase):
+    """Proves the fix at the exact boundary the corrective phase is about:
+    the view calling save_draft_fields, itself wrapped in a real outer
+    transaction.atomic() standing in for Django's own ATOMIC_REQUESTS
+    per-request wrapping. The 409 conflict must not require unwinding the
+    outer transaction (the view catches DraftConflictError and returns a
+    normal response), and the expiry transition committed inside
+    save_draft_fields' own internal savepoint must be visible immediately
+    — proven by a real, unmocked query against the same connection while
+    still inside the outer transaction, before it ever closes."""
+
+    def test_conflict_against_an_expired_draft_commits_under_a_real_outer_transaction(self):
+        customer = User.objects.create_user(
+            username="draft-api-outer-tx@example.com", email="draft-api-outer-tx@example.com",
+            password="x", is_active=True,
+        )
+        client = Client()
+        client.force_login(customer)
+        created = post_json(client, DRAFT_URL, {"fields": {"request_type": "webapp"}, "current_step": 0, "expected_revision": 0}).json()
+        stale_pk = FormDraft.objects.get(owner=customer).pk
+        initial_revision = created["draft"]["revision"]
+        FormDraft.objects.filter(pk=stale_pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        with transaction.atomic():  # stands in for ATOMIC_REQUESTS wrapping the whole request
+            response = post_json(client, DRAFT_URL, {
+                "fields": {"request_type": "consultation"}, "current_step": 2, "expected_revision": initial_revision,
+            })
+            self.assertEqual(response.status_code, 409)
+            self.assertIsNone(response.json()["draft"])
+
+            # Still inside the same outer transaction: a real, unmocked
+            # query must succeed — proof the outer transaction was never
+            # left needing a rollback by the 409 the view returned.
+            self.assertTrue(FormDraft.objects.filter(pk=stale_pk, status="expired").exists())
+
+        stale = FormDraft.objects.get(pk=stale_pk)
+        self.assertEqual(stale.status, "expired")
+        self.assertEqual(stale.revision, initial_revision + 1)
+        self.assertEqual(stale.fields, {"request_type": "webapp"})
+        self.assertEqual(
+            FormDraft.objects.filter(owner=customer, status__in=FormDraft.ACTIVE_STATUSES).count(), 0,
+        )

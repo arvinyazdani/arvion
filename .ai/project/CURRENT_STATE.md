@@ -2,26 +2,47 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-B3 — the first account-bound, versioned HTTP
-  API for `FormDraft`: `GET`/`POST` on `leads:draft` (read the customer's
-  current `leads_contact` draft; race-safe, optimistic-concurrency
-  create-or-update of its `fields`/`current_step`) and `POST` on
+- **Current phase:** V2.1-B3 corrective — a P2 lifecycle bug in
+  `save_draft_fields` found right after `57a6be8` shipped: when the
+  active draft `_get_active_draft_locked` finds turns out to be expired,
+  it transitions it to `"expired"` (bumping `revision`) as a write inside
+  the same `transaction.atomic()` block `save_draft_fields` itself is
+  running in. If the caller's `expected_revision` was then non-zero (they
+  believed *some* draft existed), the old code raised
+  `DraftConflictError(None)` **from inside that same atomic block** — an
+  exception propagating out of `transaction.atomic()` rolls back
+  everything written inside it, so the expiry transition that should
+  have survived was undone. `57a6be8`'s own final report incorrectly
+  claimed this transition was not rolled back in this case; it was.
+  `57a6be8`'s own regression test
+  (`test_expired_draft_requires_expected_revision_zero_to_recreate`)
+  never caught this because it performed a *second* save immediately
+  after the conflict — which itself re-expired the row — before ever
+  inspecting the database, masking whether the first call's own
+  transition had committed. Fixed and verified with a test that inspects
+  the row immediately after the conflict, before any second save — see
+  "V2.1-B3 corrective" entries below. Status: `VERIFIED` (local).
+- **Last verified phase (code):** V2.1-B3 corrective, on top of V2.1-B3
+  (`57a6be8`), the V2.1-B2 third corrective phase, the V2.1-B2 second
+  corrective phase (`1baf584`), the V2.1-B2 first corrective phase
+  (`2cd1032`), V2.1-B2 (`757f7a4`), the V2.1-B1 second corrective phase,
+  the V2.1-B1 first corrective phase (`0e1a208`), V2.1-B1 (`537c9a2`),
+  the V2.1-A corrective phase, and `08bd910`.
+- **V2.1-B3 — historical recap (superseded as the "current phase"; kept
+  for reference):** the first account-bound, versioned HTTP API for
+  `FormDraft`: `GET`/`POST` on `leads:draft` (read the customer's current
+  `leads_contact` draft; race-safe, optimistic-concurrency create-or-
+  update of its `fields`/`current_step`) and `POST` on
   `leads:draft_delete` (race-safe, revision-checked hard delete). No UI,
   JavaScript, template change, auto-save wiring, or `FormDraft`→`Lead`
-  conversion in this phase — this is server-side infrastructure only, for
-  the future Phase C UI to call. A new `FormDraft.revision`
-  (`PositiveBigIntegerField`, additive migration
+  conversion in that phase — server-side infrastructure only. A new
+  `FormDraft.revision` (`PositiveBigIntegerField`, additive migration
   `0007_formdraft_revision`) is the optimistic-concurrency counter every
-  write path in `leads/form_draft_service.py` now maintains consistently
-  (not just the new API), and a new `DraftConflictError` carries the
-  current, canonical, owner-scoped draft for building a 409 response.
-  Status: `VERIFIED` (local).
-- **Last verified phase (code):** V2.1-B3, on top of the V2.1-B2 third
-  corrective phase, the V2.1-B2 second corrective phase (`1baf584`), the
-  V2.1-B2 first corrective phase (`2cd1032`), V2.1-B2 (`757f7a4`), the
-  V2.1-B1 second corrective phase, the V2.1-B1 first corrective phase
-  (`0e1a208`), V2.1-B1 (`537c9a2`), the V2.1-A corrective phase, and
-  `08bd910`.
+  write path in `leads/form_draft_service.py` maintains, and a new
+  `DraftConflictError` carries the current, canonical, owner-scoped
+  draft for building a 409 response — see "V2.1-B3" entries below for
+  what it built; see "V2.1-B3 corrective" entries for the one defect
+  found in it since.
 - **V2.1-B2 third corrective — historical recap (superseded as the
   "current phase"; kept `VERIFIED` and untouched by this phase):**
   `1baf584` (the second corrective phase) correctly wrapped the *first*
@@ -1657,9 +1678,159 @@
   author knowing about. The unrelated, pre-existing PostgreSQL
   incompatibility in `assessments/services.py` remains unfixed and
   outside this phase's scope, as instructed.
+- **Git boundary (as of `57a6be8`, historical — see the accurate,
+  up-to-date count directly below):** `main` was eighteen commits ahead
+  of `origin/main` at that point — the seventeen from the prior entry,
+  plus `57a6be8`. No prior commit was amended.
+- **V2.1-B3 corrective — root cause and fix:** `save_draft_fields`'s
+  `existing is None` branch was:
+  ```python
+  if existing is None:
+      if expected_revision != 0:
+          raise DraftConflictError(None)
+      draft = FormDraft.objects.create(...)
+      return draft, True
+  ```
+  all still *inside* the enclosing `with transaction.atomic():` block.
+  `existing is None` here can mean either "there was never a draft" *or*
+  "`_get_active_draft_locked` just found one, discovered it was expired,
+  and wrote `status="expired"`/bumped `revision` before returning
+  `None`." In the second case, raising `DraftConflictError` right there
+  makes the exception propagate out of the `atomic()` block, and Django's
+  own transaction machinery rolls back *everything* written inside that
+  block when that happens — including the expiry transition, which has
+  nothing to do with why the conflict was raised. Fixed by recording the
+  conflict outcome in a local sentinel instead of raising immediately,
+  and only converting it into a raised `DraftConflictError` *after* the
+  `with` block has exited normally:
+  ```python
+  _NO_CONFLICT = object()
+  ...
+  conflict = _NO_CONFLICT
+  draft = None
+  created = False
+  with transaction.atomic():
+      ...
+      if existing is None:
+          if expected_revision != 0:
+              conflict = None       # conflict, canonical is "no draft"
+          else:
+              draft = FormDraft.objects.create(...); created = True
+      elif existing.revision != expected_revision:
+          conflict = existing        # conflict, canonical is the active draft
+      else:
+          ...save...; draft = existing
+  if conflict is not _NO_CONFLICT:
+      raise DraftConflictError(conflict)
+  return draft, created
+  ```
+  A dedicated sentinel object (not `None`) distinguishes "no conflict"
+  from "conflict with `draft=None`" — `None` is itself a valid, meaningful
+  conflict payload (no active draft exists), so it cannot double as the
+  "nothing went wrong" marker. This exactly mirrors the ordering already
+  used by `attach_demo_snapshot`/`clear_demo_snapshot`'s own
+  `no_active_draft` case (raised only after their `transaction.atomic()`
+  block closes) — `save_draft_fields` just hadn't been given the same
+  treatment when it was first written. `delete_draft_with_revision` was
+  checked and does **not** have this bug: its own "no active draft"
+  case is a plain `return False` (never a `raise`) from inside its
+  `atomic()` block, so a normal return commits the block as usual; it
+  was left untouched, per this phase's narrow scope.
+- **V2.1-B3 corrective — the bug reproduced, then fixed and
+  re-verified:** before finalizing, the fix was temporarily reverted
+  (restoring the old immediate `raise DraftConflictError(None)`) and the
+  new regression tests below were re-run against that reverted code —
+  both failed with `AssertionError: 'open' != 'expired'`, i.e. the
+  expired transition really had been rolled back. The fix was then
+  restored and the same tests re-verified passing. This was done once at
+  the service-function level and once at the full HTTP-API level,
+  confirming the fix (and the tests) are real, not incidental.
+- **V2.1-B3 corrective — why the previous test missed this:**
+  `57a6be8`'s `test_expired_draft_requires_expected_revision_zero_to_recreate`
+  asserted a `DraftConflictError` was raised, then *immediately made a
+  second `save_draft_fields` call* (with `expected_revision=0`) and only
+  inspected the database *after* that second call. That second call's
+  own, independent `_get_active_draft_locked` invocation re-discovered
+  the (still, at that point, un-rolled-back-looking-but-actually-rolled-
+  back) draft as expired and transitioned it *again* — so the test's
+  final `stale.refresh_from_db()` reflected the *second* call's write,
+  not whether the *first* call's conflict had preserved anything. Fixed
+  by adding a test that inspects the row immediately after the conflict,
+  with no second save in between (see test level below); the original
+  test is kept, renamed, and now checks that the pattern this project
+  actually relies on (retry with `expected_revision=0` after seeing
+  `draft: null`) still results in exactly one active draft.
+- **V2.1-B3 corrective — test level:** `leads/test_form_draft.py`:
+  `test_expired_draft_transition_survives_an_immediate_conflict` (new) —
+  creates a draft, backdates its `expires_at`, calls `save_draft_fields`
+  once with the original (now-stale) `expected_revision`, asserts
+  `DraftConflictError` with `draft=None`, then — with **no second save**
+  — asserts via `refresh_from_db()` that the row is `status="expired"`,
+  `revision == initial_revision + 1`, and its `fields`/`current_step` are
+  completely unchanged, and that zero active drafts exist for the owner.
+  `test_expired_draft_then_separate_create_with_expected_revision_zero`
+  (renamed from the old, insufficient test) — keeps the original
+  "conflict, then a *separate* `expected_revision=0` call creates a fresh
+  draft" assertion, now also confirming exactly one active draft exists
+  afterward. `test_stale_expected_revision_conflicts_without_overwriting`
+  (strengthened) — a conflict against an *already-active* (non-expired)
+  draft with the wrong revision now also asserts `expires_at`/
+  `updated_at` are byte-identical before and after (this branch never
+  had the rollback bug, since no write happens before that raise, but
+  the test now proves it explicitly rather than by omission).
+  `leads/test_draft_api.py` gained
+  `test_conflict_against_an_expired_draft_still_commits_the_expiry_transition`
+  (the same scenario through the real HTTP view, checked immediately
+  after the 409 response) and a new PostgreSQL-only class,
+  `FormDraftApiExpiredConflictUnderOuterTransactionTests` (see below).
+  `leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff`
+  on SQLite: 173 tests, all passing (12 skips). `leads` app total: 185
+  tests, all passing (12 skips). `accounts`+`projects`+
+  `management_portal`: 234 tests, all passing (2 skips) — confirming no
+  regression. Full project suite (SQLite): 733 tests total, 718 passed,
+  15 correctly skipped (all PostgreSQL-only; up from 730 total/14 skips
+  at `57a6be8` by exactly the 3 new tests this phase added). `manage.py
+  check` (0 issues), `makemigrations --check --dry-run` ("No changes
+  detected" — no migration in this phase), and `git diff --check`
+  (clean) all passed.
+- **V2.1-B3 corrective — PostgreSQL evidence:** new
+  `FormDraftApiExpiredConflictUnderOuterTransactionTests` (PostgreSQL-
+  only): calls the real `POST leads:draft` view (via the Django test
+  client, in-process, same connection) *inside* a genuine outer
+  `transaction.atomic()` standing in for Django's own `ATOMIC_REQUESTS`
+  per-request wrapping, targeting the exact same expired-draft-plus-
+  stale-`expected_revision` scenario. Confirms: the view's own 409
+  response is returned normally (the view catches `DraftConflictError`
+  itself — no exception ever propagates out of the outer `atomic()`
+  block); a real, unmocked query for the row **while still inside that
+  same outer transaction** correctly shows `status="expired"`; after the
+  outer transaction closes, the row's `revision` is confirmed to have
+  advanced by exactly 1 and no active draft exists for the owner. Run
+  against the same isolated local PostgreSQL 16 `test_arvion_ci_local`
+  database used throughout this project (never the permanent
+  `arvion_ci_local`), once plus 5 additional repeats — all clean.
+  `leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff`
+  also re-run in full against that same real PostgreSQL database: 173
+  tests, all passing, 0 skips (every SQLite-skip-guarded test — 12 of
+  them — runs for real here, including the pre-existing
+  `FormDraftApiPostgresConcurrencyTests` concurrency test, re-confirmed
+  unaffected by this fix). The unrelated, pre-existing
+  `assessments/services.py` PostgreSQL incompatibility
+  (`revoke_assessment_access`'s `select_for_update()` on an outer join)
+  remains **present, unrelated, and untouched by any commit in this
+  session** — recorded again here so it is never lost or quietly dropped
+  from the project record; it still needs separate human prioritization.
+- **V2.1-B3 corrective — migration status:** none created or needed
+  (none was expected for this phase); `makemigrations --check --dry-run`
+  reported "No changes detected." This phase touched only
+  `leads/form_draft_service.py` (one function, `save_draft_fields`),
+  `leads/test_form_draft.py`, and `leads/test_draft_api.py` —
+  `delete_draft_with_revision` and every other service function are
+  byte-for-byte unchanged, per this phase's explicit narrow scope.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is eighteen commits ahead of `origin/main` — the seventeen
-  listed above, plus this V2.1-B3 commit. No prior commit is amended.
+  `main` is nineteen commits ahead of `origin/main` — the eighteen
+  listed above, plus this V2.1-B3 corrective commit. No prior commit is
+  amended.
 - **Prior phase's change (kept for reference; unaffected by this
   design-only phase; one function in one file):** `writeDemoContext` in
   `core/static/core/js/wizard-engine.js` now clears the one-shot
@@ -1729,11 +1900,13 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this V2.1-B3 phase's own commit (see `git log`) — a
-  separate commit on top of `afde089`, which is not amended.
+- **Last commit:** this V2.1-B3 corrective phase's own commit (see
+  `git log`) — a separate commit on top of `57a6be8`, which is not
+  amended.
 - **Next action:** V2.1-B1 (both corrective phases included), V2.1-B2
   (all three corrective phases included), and V2.1-B3 (the account-bound
-  `FormDraft` API) are all done and fully verified — a visitor's demo
+  `FormDraft` API, plus this corrective phase) are all done and fully
+  verified — a visitor's demo
   selection reliably survives login/registration and lands on their
   account's `FormDraft` as a safe snapshot, an already-authenticated
   customer gets the same sync immediately on the contact page, and the
@@ -1794,6 +1967,7 @@
 | Resumable order drafts — V2.1-B2 second corrective (wrap the DemoSelection lookup in its own transaction.atomic() so a real PostgreSQL error there can never poison the outer ATOMIC_REQUESTS transaction) | `VERIFIED` (local) | See "V2.1-B2 second corrective" entries above. The lookup query in `consume_pending_demo_selection` now runs inside its own `with transaction.atomic():`, with the `try`/`except` kept outside that block, so a real database error there triggers Django's own savepoint rollback before the exception is caught — leaving the surrounding request transaction (login/registration under `ATOMIC_REQUESTS`) fully usable afterward. The bug was reproduced first (temporarily reverting the fix made the new test fail with exactly `InternalError: current transaction is aborted`), then the fix was restored and the same test re-verified passing. New PostgreSQL-only `RealTransactionErrorDuringLookupRecoveryTests`, kept alongside (not replacing) `2cd1032`'s existing attach-step `RealTransactionErrorRecoveryTests`: forces a real `SELECT 1/0` at the exact lookup call site inside an outer `transaction.atomic()` standing in for `ATOMIC_REQUESTS`, proves a real query immediately afterward inside the same outer transaction still succeeds, proves the user is authenticated, the marker survives intact, no `FormDraft` is created, and a subsequent real retry on the same connection attaches the snapshot successfully. Run once plus 5 repeats on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 106 tests, all passing. `leads` app on SQLite: 118 tests (7 skips); `accounts`: 73 tests (2 skips) — no regression in registration/login/phone-verification/email-verification. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. `2cd1032` not amended. |
 | Resumable order drafts — V2.1-B2 (all corrective phases) — overall feature status before the third lookup fix (`757f7a4`→`2cd1032`→`1baf584`) | `PARTIAL` → corrected below | Each individual commit up to and including `1baf584` was independently `VERIFIED` for the specific defect it fixed, but the *feature as a whole* remained `PARTIAL` until the third corrective phase below closed the second, previously-unaddressed `DemoSelection` lookup inside `_reload_demo_selection`. `1baf584` itself, and its first-lookup fix and test, are unchanged and remain correct. |
 | Resumable order drafts — V2.1-B2 third corrective (wrap `_reload_demo_selection`'s query in its own `transaction.atomic()`, safe for both `ensure_active_draft_with_demo_snapshot` and `attach_demo_snapshot`) | `VERIFIED` (local) — V2.1-B2 as a whole now `VERIFIED` | See "V2.1-B2 third corrective" entries above. `leads.form_draft_service._reload_demo_selection` now runs its query inside its own `transaction.atomic()`, letting a real database error propagate out (never swallowed inside) so Django rolls back to that savepoint before either caller's own exception handling ever sees it — closing the exact same class of bug `1baf584` fixed for the *first* lookup, one call deeper. Reproduced first (reverting the fix made both new tests fail with `InternalError: current transaction is aborted`), then fixed and re-verified. Two new PostgreSQL-only tests, kept alongside `1baf584`'s and `2cd1032`'s existing ones (all three real-transaction test classes now coexist): `RealTransactionErrorDuringSecondLookupRecoveryTests` (login-signal path, call-counter-proven second-lookup failure, healthy query inside the same outer transaction, marker restored, snapshot attaches on retry) and `test_attach_demo_snapshot_survives_a_real_postgresql_error_in_the_reload_lookup` (direct `attach_demo_snapshot` call, caller catches the propagated error, outer transaction still usable). `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 108 tests, all passing, 0 skips. `leads` app on SQLite: 120 tests (110 passed, 10 skips); `accounts`: 73 tests (71 passed, 2 skips) — no regression in registration/login/phone-verification/email-verification. Run once plus 5 repeats each on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. No prior commit amended; only `leads/form_draft_service.py`, `leads/test_demo_handoff.py`, and `leads/test_form_draft.py` touched. |
-| Resumable order drafts — V2.1-B3 (account-bound, revision-checked FormDraft API: GET/POST `leads:draft`, POST `leads:draft_delete`) | `VERIFIED` (local) | See "V2.1-B3" entries above. New `FormDraft.revision` field (additive migration `0007_formdraft_revision`, not applied to any permanent database) is now maintained consistently across every write path in `leads/form_draft_service.py` (`_get_active_draft_locked`, `upsert_active_draft`, `attach_demo_snapshot`, `clear_demo_snapshot`, `ensure_active_draft_with_demo_snapshot`), not just the two new API functions `save_draft_fields`/`delete_draft_with_revision`. New `DraftConflictError` carries the current, owner-scoped canonical draft for 409 responses; new `serialize_draft_canonical` is the one function deciding what a client may ever see (never the pk, `owner_id`, `submitted_lead_id`, or any token). Both new views (`leads/views/draft_api.py`) require an authenticated non-staff/non-superuser customer (JSON 401/403, never an HTML redirect), accept no draft/owner/user id from any payload, reject any unknown top-level key (including `demo_snapshot`) before any query, and rely on the project's existing global CSRF middleware (genuinely verified via `Client(enforce_csrf_checks=True)`). 62 new tests (37 in new `leads/test_draft_api.py`, 25 in `leads/test_form_draft.py`); `leads` app (182 tests, 11 skips); `accounts`+`projects`+`management_portal` (234 tests, 2 skips); full project suite (730 tests total, 716 passed, 14 skips — all PostgreSQL-only). New PostgreSQL concurrency test proves two simultaneous saves with the same `expected_revision` converge to exactly one winner and one real conflict, never a lost update, run once plus 5 repeats — all clean; `accounts`+`leads`+`projects` also re-run against real PostgreSQL (276 tests, all passing). The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected" once the new migration is included), and `git diff --check` (clean) all passed. No prior commit amended. No UI, JavaScript, template, auto-save wiring, or Lead-submission change — server-side infrastructure only. |
+| Resumable order drafts — V2.1-B3 (account-bound, revision-checked FormDraft API: GET/POST `leads:draft`, POST `leads:draft_delete`) (`57a6be8`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL`: `save_draft_fields` raised `DraftConflictError` from *inside* its own `transaction.atomic()` block when an expired draft's `expected_revision` no longer matched, rolling back the expiry transition `_get_active_draft_locked` had just committed within that same block. `57a6be8`'s own report incorrectly claimed this case did not roll back. See the corrective-phase row below, which fixes and re-verifies it with a test that inspects the row immediately after the conflict. |
+| Resumable order drafts — V2.1-B3 corrective (defer `save_draft_fields`'s conflict raise until after its transaction commits, so an expiry transition always survives) | `VERIFIED` (local) | See "V2.1-B3 corrective" entries above. `save_draft_fields` now records a conflict outcome in a local `_NO_CONFLICT`-sentinel-guarded variable instead of raising immediately, and only raises `DraftConflictError` after its `transaction.atomic()` block has exited normally — mirroring `attach_demo_snapshot`/`clear_demo_snapshot`'s existing `no_active_draft` ordering. `delete_draft_with_revision` was checked and confirmed to not have this bug (its "no draft" case is a plain `return`, never a `raise`, from inside its own atomic block) — left untouched. Reproduced first (reverting the fix made the new tests fail with `'open' != 'expired'`, both at the service level and through the real HTTP view), then fixed and re-verified. New PostgreSQL-only `FormDraftApiExpiredConflictUnderOuterTransactionTests` proves the same scenario holds even when the real view is called inside a genuine outer `transaction.atomic()` standing in for `ATOMIC_REQUESTS` — the 409 is returned normally with no exception ever reaching the outer block, and the expiry transition is visible via a real query while still inside that same outer transaction. Run once plus 5 repeats — all clean; the pre-existing `FormDraftApiPostgresConcurrencyTests` concurrency test was re-confirmed unaffected. `leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff` (173 tests, 12 skips on SQLite; same 173 tests, 0 skips on real PostgreSQL); `leads` app (185 tests, 12 skips); `accounts`+`projects`+`management_portal` (234 tests, 2 skips) — no regression. No migration in this phase (none was expected); only `leads/form_draft_service.py` (one function), `leads/test_form_draft.py`, and `leads/test_draft_api.py` touched — `delete_draft_with_revision` and every other service function byte-for-byte unchanged. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. `57a6be8` not amended. |
 | Resumable order drafts — V2.1 Phases C–D (contact-page wizard actually calling the new API, restore/delete UI, atomic FormDraft→Lead final submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase C begins; depends on the now-`VERIFIED` Phase B1+B2+B3 foundation. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

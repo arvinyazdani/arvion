@@ -521,6 +521,9 @@ def delete_draft(owner, draft_id):
     return deleted > 0
 
 
+_NO_CONFLICT = object()
+
+
 def save_draft_fields(*, owner, form_type, fields, current_step, expected_revision):
     """The race-safe, revision-checked create-or-update behind the
     account-bound draft API (`leads.views.draft_api`). Unlike
@@ -546,6 +549,23 @@ def save_draft_fields(*, owner, form_type, fields, current_step, expected_revisi
     Staff/superuser accounts are rejected outright (defense in depth —
     the view itself already turns them away with a 403 before ever
     calling this).
+
+    `DraftConflictError` is only ever raised *after* the write
+    transaction below has committed, never from inside it — exactly like
+    `attach_demo_snapshot`/`clear_demo_snapshot`'s own `no_active_draft`
+    case. `_get_active_draft_locked` may itself transition a stale draft
+    to `"expired"` (bumping its `revision`) as part of finding "the"
+    active draft; if `expected_revision` then turns out not to match
+    (including the `existing is None` "the draft is gone" case), raising
+    the conflict from *inside* the same `transaction.atomic()` block
+    would roll that expiry transition back out along with everything
+    else — an exception propagating out of `atomic()` undoes the whole
+    block, including writes that have nothing to do with why the
+    exception was raised. The conflict outcome is instead recorded in a
+    local sentinel and only turned into a raised `DraftConflictError`
+    once the `with` block has exited normally, so the expiry transition
+    always survives regardless of whether this call goes on to report a
+    conflict.
     """
     _require_real_owner(owner)
     _require_non_staff_owner(owner)
@@ -553,6 +573,10 @@ def save_draft_fields(*, owner, form_type, fields, current_step, expected_revisi
     _validate_current_step(form_type, current_step)
     _validate_expected_revision(expected_revision)
     cleaned_fields = normalize_fields(form_type, fields)
+
+    conflict = _NO_CONFLICT
+    draft = None
+    created = False
 
     with transaction.atomic():
         locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
@@ -562,26 +586,34 @@ def save_draft_fields(*, owner, form_type, fields, current_step, expected_revisi
 
         if existing is None:
             if expected_revision != 0:
-                raise DraftConflictError(None)
-            draft = FormDraft.objects.create(
-                owner=locked_owner, form_type=form_type, current_step=current_step,
-                fields=cleaned_fields, expires_at=expires_at,
-            )
-            return draft, True
+                # No active draft exists (never did, or just expired
+                # above) — that in itself is the conflict; report it as
+                # "canonical: none" rather than silently creating a new
+                # draft with a surprising revision.
+                conflict = None
+            else:
+                draft = FormDraft.objects.create(
+                    owner=locked_owner, form_type=form_type, current_step=current_step,
+                    fields=cleaned_fields, expires_at=expires_at,
+                )
+                created = True
+        elif existing.revision != expected_revision:
+            conflict = existing
+        else:
+            changed = existing.fields != cleaned_fields or existing.current_step != current_step
+            existing.current_step = current_step
+            existing.fields = cleaned_fields
+            existing.expires_at = expires_at
+            update_fields = ["current_step", "fields", "expires_at", "updated_at"]
+            if changed:
+                existing.revision = existing.revision + 1
+                update_fields.append("revision")
+            existing.save(update_fields=update_fields)
+            draft = existing
 
-        if existing.revision != expected_revision:
-            raise DraftConflictError(existing)
-
-        changed = existing.fields != cleaned_fields or existing.current_step != current_step
-        existing.current_step = current_step
-        existing.fields = cleaned_fields
-        existing.expires_at = expires_at
-        update_fields = ["current_step", "fields", "expires_at", "updated_at"]
-        if changed:
-            existing.revision = existing.revision + 1
-            update_fields.append("revision")
-        existing.save(update_fields=update_fields)
-        return existing, False
+    if conflict is not _NO_CONFLICT:
+        raise DraftConflictError(conflict)
+    return draft, created
 
 
 def delete_draft_with_revision(*, owner, form_type, expected_revision):

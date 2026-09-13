@@ -590,16 +590,29 @@ class SaveDraftFieldsTests(TestCase):
             owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"},
             current_step=0, expected_revision=0,
         )
+        before = FormDraft.objects.get(pk=draft.pk)
+
         with self.assertRaises(DraftConflictError) as ctx:
             save_draft_fields(
                 owner=self.owner, form_type="leads_contact", fields={"request_type": "website"},
                 current_step=2, expected_revision=draft.revision + 1,
             )
+
         conflict_draft = ctx.exception.draft
         self.assertEqual(conflict_draft.pk, draft.pk)
         self.assertEqual(conflict_draft.fields, {"request_type": "webapp"})
         self.assertEqual(conflict_draft.current_step, 0)
         self.assertEqual(conflict_draft.revision, draft.revision)
+        # Nothing at all changed on the row — a conflict against an
+        # already-active draft (as opposed to the expired-transition
+        # case) must not write anything, not even expires_at/updated_at.
+        after = FormDraft.objects.get(pk=draft.pk)
+        self.assertEqual(after.status, before.status)
+        self.assertEqual(after.revision, before.revision)
+        self.assertEqual(after.fields, before.fields)
+        self.assertEqual(after.current_step, before.current_step)
+        self.assertEqual(after.expires_at, before.expires_at)
+        self.assertEqual(after.updated_at, before.updated_at)
 
     def test_conflict_only_ever_returns_the_requesting_owners_own_draft(self):
         mine, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={}, current_step=0, expected_revision=0)
@@ -624,7 +637,38 @@ class SaveDraftFieldsTests(TestCase):
             save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"service_id": 999999}, current_step=0, expected_revision=0)
         self.assertEqual(FormDraft.objects.filter(owner=self.owner).count(), 0)
 
-    def test_expired_draft_requires_expected_revision_zero_to_recreate(self):
+    def test_expired_draft_transition_survives_an_immediate_conflict(self):
+        """Regression proof for the rollback bug this corrective phase
+        fixes: raising DraftConflictError from inside the same
+        transaction.atomic() block that had just expired a stale draft
+        would roll that expiry transition back out too. This checks the
+        database state *immediately* after the conflict — before any
+        second save — since a second save (with expected_revision=0)
+        would itself re-expire the row and mask whether the first call's
+        own transition had actually committed."""
+        stale, _ = save_draft_fields(
+            owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=0, expected_revision=0,
+        )
+        initial_revision = stale.revision
+        FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+
+        with self.assertRaises(DraftConflictError) as ctx:
+            save_draft_fields(
+                owner=self.owner, form_type="leads_contact", fields={"request_type": "consultation"},
+                current_step=2, expected_revision=stale.revision,
+            )
+        self.assertIsNone(ctx.exception.draft)
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, "expired")
+        self.assertEqual(stale.revision, initial_revision + 1)
+        self.assertEqual(stale.fields, {"request_type": "webapp"})
+        self.assertEqual(stale.current_step, 0)
+        self.assertEqual(
+            FormDraft.objects.filter(owner=self.owner, status__in=FormDraft.ACTIVE_STATUSES).count(), 0,
+        )
+
+    def test_expired_draft_then_separate_create_with_expected_revision_zero(self):
         stale, _ = save_draft_fields(owner=self.owner, form_type="leads_contact", fields={"request_type": "webapp"}, current_step=0, expected_revision=0)
         FormDraft.objects.filter(pk=stale.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
 
@@ -637,6 +681,9 @@ class SaveDraftFieldsTests(TestCase):
         self.assertEqual(fresh.revision, 1)
         stale.refresh_from_db()
         self.assertEqual(stale.status, "expired")
+        self.assertEqual(
+            FormDraft.objects.filter(owner=self.owner, status__in=FormDraft.ACTIVE_STATUSES).count(), 1,
+        )
 
     def test_staff_and_superuser_are_rejected(self):
         with self.assertRaises(DraftValidationError) as ctx:
