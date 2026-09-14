@@ -32,6 +32,8 @@ from .models import PhoneVerification, User
 from .services import issue_phone_verification
 from .security import AttemptThrottle
 from assessments.models import AttemptResult, Order
+from leads.draft_dashboard import build_draft_dashboard_card
+from leads.form_draft_service import get_active_draft
 
 
 def _safe_auth_destination(request, target):
@@ -517,6 +519,7 @@ def dashboard(request):
         elif not attempt and entitlement.attempts_remaining:
             group["ready"] += entitlement.attempts_remaining
             group["ready_entitlement"] = group["ready_entitlement"] or entitlement
+    order_draft = build_draft_dashboard_card(get_active_draft(request.user, "leads_contact"))
     return render(request, "accounts/dashboard.html", {
-        "lang": lang, "assessment_groups": list(grouped.values()),
+        "lang": lang, "assessment_groups": list(grouped.values()), "order_draft": order_draft,
     })

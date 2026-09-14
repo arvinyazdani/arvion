@@ -1,8 +1,8 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static assessment_extras %}
 
 {% block title %}{% if lang == 'fa' %}حساب من | آرویون{% else %}My account | Rvion{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'accounts/css/dashboard.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'accounts/css/dashboard.css' %}?v=5">{% endblock %}
 
 {% block content %}
 <section class="account-workspace">
@@ -18,6 +18,20 @@
     </header>
 
     <nav class="account-compass" aria-label="{% if lang == 'fa' %}کارهای اصلی حساب{% else %}Primary account actions{% endif %}" data-ui-reveal>
+      <a href="{% if order_draft %}#my-order-draft{% else %}{% url 'leads:contact' %}{% endif %}">
+        <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg>
+        <span>
+          <strong>{% if lang == 'fa' %}سفارش پروژه{% else %}Project enquiry{% endif %}</strong>
+          <small>
+            {% if order_draft %}
+              {% if lang == 'fa' %}ناتمام · مرحله {{ order_draft.current_step|fa_digits }} از {{ order_draft.total_steps|fa_digits }}{% else %}In progress · step {{ order_draft.current_step }} of {{ order_draft.total_steps }}{% endif %}
+            {% else %}
+              {% if lang == 'fa' %}شروع سفارش پروژه{% else %}Start a project enquiry{% endif %}
+            {% endif %}
+          </small>
+        </span>
+        <svg class="ui-icon account-action-arrow" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
+      </a>
       <a href="#my-assessments">
         <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#assessment"></use></svg>
         <span><strong>{% if lang == 'fa' %}آزمون‌های من{% else %}My assessments{% endif %}</strong><small>{% if lang == 'fa' %}شروع، ادامه و نتیجه{% else %}Start, continue and results{% endif %}</small></span>
@@ -36,6 +50,41 @@
     </nav>
 
     <div class="account-layout">
+      <div class="account-main">
+      {% if order_draft %}
+      <article class="account-panel account-draft" id="my-order-draft" data-ui-reveal>
+        <header class="account-panel-head">
+          <div>
+            <span>{% if lang == 'fa' %}سفارش{% else %}Order{% endif %}</span>
+            <h2>{% if lang == 'fa' %}پیش‌نویس سفارش پروژه{% else %}Project enquiry draft{% endif %}</h2>
+          </div>
+        </header>
+
+        <div class="account-draft-progress">
+          <div class="account-draft-progress-head">
+            <span>{% if lang == 'fa' %}مرحله {{ order_draft.current_step|fa_digits }} از {{ order_draft.total_steps|fa_digits }}{% else %}Step {{ order_draft.current_step }} of {{ order_draft.total_steps }}{% endif %}</span>
+            <span>{% if lang == 'fa' %}{{ order_draft.progress_percent|fa_digits }}٪{% else %}{{ order_draft.progress_percent }}%{% endif %}</span>
+          </div>
+          <div class="account-draft-progress-bar" role="progressbar" aria-valuenow="{{ order_draft.progress_percent }}" aria-valuemin="0" aria-valuemax="100" aria-label="{% if lang == 'fa' %}درصد پیشرفت پیش‌نویس سفارش{% else %}Order draft progress{% endif %}"><span style="width:{{ order_draft.progress_percent }}%"></span></div>
+        </div>
+
+        <dl class="account-draft-meta">
+          {% if order_draft.request_type_label_fa or order_draft.request_type_label_en %}<div><dt>{% if lang == 'fa' %}نوع درخواست{% else %}Request type{% endif %}</dt><dd>{% if lang == 'fa' %}{{ order_draft.request_type_label_fa }}{% else %}{{ order_draft.request_type_label_en }}{% endif %}</dd></div>{% endif %}
+          {% if order_draft.service_title_fa or order_draft.service_title_en %}<div><dt>{% if lang == 'fa' %}خدمت{% else %}Service{% endif %}</dt><dd>{% if lang == 'fa' %}{{ order_draft.service_title_fa }}{% else %}{{ order_draft.service_title_en }}{% endif %}</dd></div>{% endif %}
+          {% if order_draft.budget_range_label_fa or order_draft.budget_range_label_en %}<div><dt>{% if lang == 'fa' %}بودجه{% else %}Budget{% endif %}</dt><dd>{% if lang == 'fa' %}{{ order_draft.budget_range_label_fa }}{% else %}{{ order_draft.budget_range_label_en }}{% endif %}</dd></div>{% endif %}
+          {% if order_draft.timeline_label_fa or order_draft.timeline_label_en %}<div><dt>{% if lang == 'fa' %}زمان‌بندی{% else %}Timeline{% endif %}</dt><dd>{% if lang == 'fa' %}{{ order_draft.timeline_label_fa }}{% else %}{{ order_draft.timeline_label_en }}{% endif %}</dd></div>{% endif %}
+          {% if order_draft.preferred_contact_label_fa or order_draft.preferred_contact_label_en %}<div><dt>{% if lang == 'fa' %}روش تماس{% else %}Contact method{% endif %}</dt><dd>{% if lang == 'fa' %}{{ order_draft.preferred_contact_label_fa }}{% else %}{{ order_draft.preferred_contact_label_en }}{% endif %}</dd></div>{% endif %}
+          {% if order_draft.demo %}<div><dt>{% if lang == 'fa' %}دموی مرجع{% else %}Reference demo{% endif %}</dt><dd>{% if lang == 'fa' %}{{ order_draft.demo.title_fa }} · {{ order_draft.demo.category_fa }} · {{ order_draft.demo.brand }}{% else %}{{ order_draft.demo.title_en }} · {{ order_draft.demo.category_en }} · {{ order_draft.demo.brand }}{% endif %}</dd></div>{% endif %}
+        </dl>
+
+        <p class="account-draft-timing">{% if lang == 'fa' %}آخرین ذخیره: {{ order_draft.updated_at|date:"Y/m/d · H:i"|fa_digits }} · {{ order_draft.days_remaining|fa_digits }} روز تا انقضا{% else %}Last saved: {{ order_draft.updated_at|date:"M j, Y · H:i" }} · expires in {{ order_draft.days_remaining }} day{{ order_draft.days_remaining|pluralize }}{% endif %}</p>
+
+        <div class="account-draft-actions">
+          <a class="button" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}ادامه تکمیل سفارش{% else %}Continue enquiry{% endif %}</a>
+          <p class="account-draft-hint">{% if lang == 'fa' %}در صفحه فرم می‌توانید ادامه دهید یا پیش‌نویس را پاک کنید.{% else %}On the form page you can continue the enquiry or clear this draft.{% endif %}</p>
+        </div>
+      </article>
+      {% endif %}
       <article class="account-panel account-assessments" id="my-assessments" data-ui-reveal>
         <header class="account-panel-head">
           <div><span>{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</span><h2>{% if lang == 'fa' %}آزمون‌های من{% else %}My assessments{% endif %}</h2></div>
@@ -76,6 +125,7 @@
           {% endfor %}
         </div>
       </article>
+      </div>
 
       <aside class="account-sidebar">
         <section class="account-panel account-profile" data-ui-reveal>
@@ -87,6 +137,7 @@
         <section class="account-panel account-tools" data-ui-reveal>
           <div><small>{% if lang == 'fa' %}ابزارهای حساب{% else %}Account tools{% endif %}</small><h2>{% if lang == 'fa' %}سوابق و پشتیبانی{% else %}History & support{% endif %}</h2></div>
           <nav class="dashboard-account-links" aria-label="{% if lang == 'fa' %}ابزارهای حساب{% else %}Account tools{% endif %}">
+            {% if not order_draft %}<a class="dashboard-order-link" href="{% url 'projects:demo_gallery' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}مشاهده نمونه‌ها و انتخاب طراحی{% else %}Browse demos & pick a design{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>{% endif %}
             <a class="dashboard-order-link" href="{% url 'accounts:orders_history' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#receipt"></use></svg><span>{% if lang == 'fa' %}تاریخچه خریدها و رسیدها{% else %}Purchase history & receipts{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
             <a class="dashboard-support-link" href="{% url 'assessments:support_create' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#plus"></use></svg><span>{% if lang == 'fa' %}درخواست پشتیبانی جدید{% else %}New support request{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
             <a class="dashboard-support-link" href="{% url 'assessments:support_history' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#message"></use></svg><span>{% if lang == 'fa' %}پیگیری درخواست‌ها{% else %}Track requests{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
