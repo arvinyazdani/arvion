@@ -78,6 +78,11 @@
       submitStatus.classList.toggle("is-error", !!isError);
     };
 
+    // برخی ویزاردها (CRM/Clinic) عنوان مرحله را با h2 می‌سازند؛ leads-contact
+    // با legend (چون هر مرحله یک fieldset است). یک تیتر معتبر برای هر دو شکل
+    // پیدا می‌کند — هرگز خودِ fieldset را برنمی‌گرداند، فقط عنوان داخلی آن را.
+    const stepHeading = (step) => step.querySelector("h2") || step.querySelector("legend");
+
     const show = (index, moveFocus = true, pushHistory = true) => {
       current = Math.max(0, Math.min(index, steps.length - 1));
       steps.forEach((step, position) => step.hidden = position !== current);
@@ -94,8 +99,8 @@
         try { history.pushState({ wizardStep: current }, "", location.href.split("#")[0] + "#step-" + (current + 1)); } catch (e) {}
       }
       if (moveFocus) {
-        steps[current].querySelector("h2")?.setAttribute("tabindex", "-1");
-        steps[current].querySelector("h2")?.focus({ preventScroll: true });
+        stepHeading(steps[current])?.setAttribute("tabindex", "-1");
+        stepHeading(steps[current])?.focus({ preventScroll: true });
         steps[current].scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
       }
     };
@@ -178,6 +183,13 @@
     };
     const clearDraft = () => { try { localStorage.removeItem(wizardKey); } catch (e) {} };
 
+    // این پرچم هم پایین‌تر (زمینهٔ دمو) و هم بلافاصله زیر همین خط (حالت
+    // پیش‌نویس سروری) لازم است — تعریفش باید پیش از هر دو استفاده باشد،
+    // وگرنه با یک TDZ ReferenceError کل wizard متوقف می‌شود (باگ واقعی
+    // یافت‌شده در این فاز اصلاحی: پیش از این، تعریف پایین‌تر بود ولی همین‌جا
+    // استفاده می‌شد).
+    const isDemoContinuationWizard = wizardName === "leads-contact";
+
     // --- حالت پیش‌نویس سروری (V2.1-C1): فقط برای leads-contact، فقط وقتی
     // سرور صریحاً برای مشتری واردشدهٔ غیر staff فعالش کرده باشد (از طریق
     // data-server-draft="1" که هرگز برای مهمان/staff رندر نمی‌شود). این حالت
@@ -195,6 +207,7 @@
       request_type: "request_type", service: "service_id", budget_range: "budget_range",
       timeline: "timeline", preferred_contact: "preferred_contact",
     };
+    const VALID_API_FIELD_KEYS = new Set(Object.values(DOM_TO_API_FIELD));
 
     const collectApiFields = () => {
       const out = {};
@@ -230,7 +243,7 @@
     // خودِ URL خوانده می‌شود — همان مکانیزم موجود ?demo= که از قبل آن را حمل
     // می‌کند، نه یک data-attribute جدید. سرور فقط یک برچسب انسانیِ غیرحساس
     // (عنوان عمومی قالب دمو) را در data-demo-label برمی‌گرداند.
-    const isDemoContinuationWizard = wizardName === "leads-contact";
+    // (isDemoContinuationWizard اکنون بالاتر، پیش از حالت پیش‌نویس سروری، تعریف شده است.)
     const demoContextKey = wizardKey + ":demo";
     const demoRedirectGuardKey = wizardKey + ":demo-redirect-guard";
     const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -443,6 +456,7 @@
     });
     form.addEventListener("change", event => {
       clearFieldError(event);
+      clearTimeout(saveTimer); // یک POST/write فوری همین‌جا ارسال می‌شود؛ تایمر debounce معلق input دیگر لازم نیست و نباید تکرار شود
       if (serverDraftEnabled) requestServerSave();
       else { writeDraft(); renderDraftControls(); }
     });
@@ -454,7 +468,10 @@
     form.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" || e.target.tagName === "TEXTAREA" || e.target.type === "submit") return;
       e.preventDefault();
-      if (current < steps.length - 1 && validate()) show(current + 1);
+      if (current < steps.length - 1 && validate()) {
+        show(current + 1);
+        if (serverDraftEnabled) requestServerSave();
+      }
     });
 
     // سابمیت مقاوم در برابر خطای شبکه/سرور — تا رسیدن به صفحه کد پیگیری، هیچ پاسخی گم نمی‌شود
@@ -490,7 +507,7 @@
       });
     }
 
-    steps.forEach(step => step.querySelector("h2")?.setAttribute("tabindex", "-1"));
+    steps.forEach(step => stepHeading(step)?.setAttribute("tabindex", "-1"));
     show(current, false, false);
     if (form.dataset.errorStep) { form.querySelector(".crm-error-summary")?.setAttribute("tabindex", "-1"); form.querySelector(".crm-error-summary")?.focus(); }
 
@@ -521,11 +538,46 @@
         return { status: response.status, payload };
       }
 
-      // undefined فقط برای شکل غیرمنتظرهٔ پاسخ — هرگز فرم را پاک نمی‌کند؛
-      // null یک payload کاملاً معتبر است (یعنی «پیش‌نویسی موجود نیست»).
+      // طبقه‌بندی مشترک هر پاسخ API (GET/save/delete) — تفکیک صریح شبکه/۴۰۱/
+      // ۴۰۳/تعارض/موفق/نامشخص، به‌جای فروریختن همه‌چیز به یک وضعیت «offline».
+      function classifyResponse(result) {
+        if (result.networkError) return { kind: "network" };
+        if (result.status === 401) return { kind: "auth" };
+        if (result.status === 403) return { kind: "forbidden" };
+        if (result.status === 409) return { kind: "conflict", payload: result.payload };
+        if (result.status === 200 || result.status === 201) return { kind: "ok", payload: result.payload };
+        return { kind: "error" };
+      }
+
+      // اعتبارسنجی واقعی شکل draft — فقط دو حالت معتبرند: draft:null، یا یک
+      // شیء با revision صحیح، current_step در بازهٔ مجاز، و fields به‌شکل
+      // object با فقط کلیدها/نوع‌های مجاز همین آداپتور. هیچ پاسخ ناقص/نادرستی
+      // نباید بتواند به .revision/.fields برسد یا DOM/state را تغییر دهد.
+      function isValidFieldsObject(fields) {
+        if (!fields || typeof fields !== "object" || Array.isArray(fields)) return false;
+        for (const key of Object.keys(fields)) {
+          if (!VALID_API_FIELD_KEYS.has(key)) return false;
+        }
+        if ("service_id" in fields && fields.service_id !== null && !Number.isInteger(fields.service_id)) return false;
+        for (const key of ["request_type", "budget_range", "timeline", "preferred_contact"]) {
+          if (key in fields && typeof fields[key] !== "string") return false;
+        }
+        return true;
+      }
+      function isValidCanonicalDraft(draft) {
+        if (draft === null) return true;
+        if (!draft || typeof draft !== "object") return false;
+        if (!Number.isInteger(draft.revision) || draft.revision < 1) return false;
+        if (!Number.isInteger(draft.current_step) || draft.current_step < 0 || draft.current_step > steps.length - 1) return false;
+        return isValidFieldsObject(draft.fields);
+      }
+      // {ok:false} فقط برای شکل غیرمنتظره/نامعتبر — هرگز با draft:null (که
+      // خودش یک payload کاملاً معتبر به‌معنای «پیش‌نویسی موجود نیست» است)
+      // اشتباه گرفته نمی‌شود.
       function safeDraft(payload) {
-        if (!payload || typeof payload !== "object" || !("draft" in payload)) return undefined;
-        return payload.draft;
+        if (!payload || typeof payload !== "object" || !("draft" in payload)) return { ok: false };
+        if (!isValidCanonicalDraft(payload.draft)) return { ok: false };
+        return { ok: true, draft: payload.draft };
       }
 
       const reconcileBanner = document.createElement("div");
@@ -533,6 +585,27 @@
       reconcileBanner.hidden = true;
       reconcileBanner.setAttribute("role", "status");
       form.prepend(reconcileBanner);
+
+      // مالک واحد هر پیام conflict/session/forbidden/network — هر فراخوانی
+      // محتوای همین یک عنصر را جایگزین می‌کند، هرگز عنصر تازه نمی‌سازد؛ در
+      // نتیجه هیچ‌گاه چند پیام این‌چنینی هم‌زمان روی فرم انباشته نمی‌شود.
+      const issuePanel = document.createElement("div");
+      issuePanel.className = "wizard-draft-banner is-conflict";
+      issuePanel.hidden = true;
+      issuePanel.setAttribute("role", "alert");
+      form.prepend(issuePanel);
+      function showIssue(nodes) {
+        issuePanel.textContent = "";
+        nodes.forEach(node => issuePanel.appendChild(node));
+        issuePanel.hidden = false;
+      }
+      function hideIssue() { issuePanel.hidden = true; issuePanel.textContent = ""; }
+      function renderRetryableIssue(message, retryFn) {
+        const label = document.createElement("span");
+        label.textContent = message;
+        const retryBtn = buildBannerButton(serverCopy("تلاش مجدد", "Retry"), () => { hideIssue(); retryFn(); }, true);
+        showIssue([label, retryBtn]);
+      }
 
       const draftStatusLine = document.createElement("p");
       draftStatusLine.className = "wizard-draft-status";
@@ -587,15 +660,46 @@
         return row;
       }
 
+      // خروجی: deleted | conflict (payload) | auth | forbidden | network | malformed | error
       async function performDelete(expectedRevision) {
         const result = await apiRequest(serverDraftDeleteUrl, "POST", { expected_revision: expectedRevision });
-        if (result.networkError) return { outcome: "network" };
-        if (result.status === 200) return { outcome: "deleted" };
-        if (result.status === 409) {
-          const canonical = safeDraft(result.payload);
-          return canonical === null ? { outcome: "deleted" } : { outcome: "conflict", payload: result.payload };
+        const c = classifyResponse(result);
+        if (c.kind === "network") return { outcome: "network" };
+        if (c.kind === "auth") return { outcome: "auth" };
+        if (c.kind === "forbidden") return { outcome: "forbidden" };
+        if (c.kind === "conflict") {
+          const safe = safeDraft(c.payload);
+          if (!safe.ok) return { outcome: "malformed" };
+          return safe.draft === null ? { outcome: "deleted" } : { outcome: "conflict", payload: c.payload };
         }
+        if (c.kind === "ok") return { outcome: "deleted" };
         return { outcome: "error" };
+      }
+
+      // یک ردیف تأیید حذف که روی شکست (به‌جز conflict/auth/forbidden که خودشان
+      // UI اختصاصی دارند) یک پیام «تلاش مجدد» می‌سازد که خودِ همین ردیف را
+      // دوباره باز می‌کند — به همان container (reconcileBanner یا
+      // draftControls) که فراخوان مشخص کرده.
+      function buildDeleteAttemptRow(expectedRevision, container, onDeleted) {
+        return buildDeleteConfirmRow(async (confirmRow) => {
+          const result = await performDelete(expectedRevision);
+          if (result.outcome === "deleted") { hideIssue(); onDeleted(); return; }
+          if (result.outcome === "conflict") {
+            confirmRow.remove();
+            if (container === reconcileBanner) hideReconcileBanner();
+            handleConflict(result.payload);
+            return;
+          }
+          if (result.outcome === "auth") { confirmRow.remove(); showSessionEndedNotice(); return; }
+          if (result.outcome === "forbidden") { confirmRow.remove(); showForbiddenNotice(); return; }
+          confirmRow.remove();
+          renderRetryableIssue(
+            result.outcome === "network"
+              ? serverCopy("حذف انجام نشد؛ اتصال اینترنت را بررسی کنید.", "Delete failed; check your connection.")
+              : serverCopy("حذف انجام نشد.", "Delete failed."),
+            () => container.appendChild(buildDeleteAttemptRow(expectedRevision, container, onDeleted)),
+          );
+        });
       }
 
       function renderPersistentDraftControls() {
@@ -607,24 +711,15 @@
         clearBtn.className = "wizard-draft-clear";
         clearBtn.textContent = serverCopy("پاک‌کردن پیش‌نویس حساب", "Clear my account draft");
         clearBtn.addEventListener("click", () => {
-          draftControls.appendChild(buildDeleteConfirmRow(async (row) => {
-            const result = await performDelete(state.revision);
-            if (result.outcome === "deleted") {
-              clearDraft();
-              if (isDemoContinuationWizard) clearDemoContext();
-              state.revision = 0;
-              draftFields.forEach(el => { el.value = ""; });
-              syncConditionalFields();
-              show(0, true, false);
-              renderPersistentDraftControls();
-              announceRestore(serverCopy("پیش‌نویس حساب پاک شد.", "Your account draft was cleared."));
-            } else if (result.outcome === "conflict") {
-              row.remove();
-              handleConflict(result.payload);
-            } else {
-              row.remove();
-              setDraftStatus("offline");
-            }
+          draftControls.appendChild(buildDeleteAttemptRow(state.revision, draftControls, () => {
+            clearDraft();
+            if (isDemoContinuationWizard) clearDemoContext();
+            state.revision = 0;
+            draftFields.forEach(el => { el.value = ""; });
+            syncConditionalFields();
+            show(0, true, false);
+            renderPersistentDraftControls();
+            announceRestore(serverCopy("پیش‌نویس حساب پاک شد.", "Your account draft was cleared."));
           }));
         });
         draftControls.appendChild(clearBtn);
@@ -643,8 +738,8 @@
         applyApiFieldsToDom(canonical.fields || {});
         syncConditionalFields();
         if (Number.isInteger(canonical.current_step)) show(canonical.current_step, false, false);
-        steps[current].querySelector("h2")?.setAttribute("tabindex", "-1");
-        steps[current].querySelector("h2")?.focus({ preventScroll: true });
+        stepHeading(steps[current])?.setAttribute("tabindex", "-1");
+        stepHeading(steps[current])?.focus({ preventScroll: true });
         announceRestore(serverCopy("پیش‌نویس حساب شما بازیابی شد.", "Your account draft was restored."));
       }
 
@@ -656,9 +751,8 @@
       }
 
       function showSessionEndedNotice() {
-        const panel = document.createElement("div");
-        panel.className = "wizard-draft-banner is-conflict";
-        panel.setAttribute("role", "alert");
+        state.pauseReason = "auth";
+        clearDraftStatus();
         const label = document.createElement("span");
         label.textContent = serverCopy(
           "نشست شما پایان یافته است. پاسخ‌های شما در همین صفحه حفظ شده‌اند.",
@@ -669,18 +763,32 @@
         const next = encodeURIComponent(location.pathname + location.search);
         loginLink.href = `${form.dataset.loginUrl || "/"}?next=${next}`;
         loginLink.textContent = serverCopy("ورود دوباره", "Sign in again");
-        panel.append(label, loginLink);
-        form.prepend(panel);
+        showIssue([label, loginLink]);
+      }
+
+      function showForbiddenNotice() {
+        state.pauseReason = "forbidden";
         clearDraftStatus();
+        const label = document.createElement("span");
+        label.textContent = serverCopy(
+          "ذخیرهٔ خودکار حساب برای این حساب در دسترس نیست.",
+          "Account-saved drafts are not available for this account.",
+        );
+        showIssue([label]);
       }
 
       function handleConflict(payload) {
+        const safe = safeDraft(payload);
+        if (!safe.ok) {
+          renderRetryableIssue(
+            serverCopy("پاسخ سرور نامعتبر بود.", "The server's response was invalid."),
+            () => queueServerSave(),
+          );
+          return;
+        }
         state.pauseReason = "conflict";
         setDraftStatus("conflict");
-        const canonical = safeDraft(payload);
-        const panel = document.createElement("div");
-        panel.className = "wizard-draft-banner is-conflict";
-        panel.setAttribute("role", "alert");
+        const canonical = safe.draft;
         const label = document.createElement("span");
         if (canonical) {
           label.textContent = serverCopy(
@@ -689,7 +797,7 @@
           const loadBtn = buildBannerButton(serverCopy("بارگذاری نسخه حساب", "Load account version"), () => {
             applyCanonicalDraft(canonical);
             enableAutosave(canonical.revision);
-            panel.remove();
+            hideIssue();
           }, true);
           const keepBtn = document.createElement("button");
           keepBtn.type = "button";
@@ -699,17 +807,31 @@
             const result = await apiRequest(serverDraftUrl, "POST", {
               fields: collectApiFields(), current_step: current, expected_revision: canonical.revision,
             });
-            if (result.status === 200 || result.status === 201) {
-              const fresh = safeDraft(result.payload);
-              panel.remove();
-              enableAutosave(fresh ? fresh.revision : canonical.revision);
+            const c = classifyResponse(result);
+            if (c.kind === "auth") { showSessionEndedNotice(); return; }
+            if (c.kind === "forbidden") { showForbiddenNotice(); return; }
+            if (c.kind === "conflict") { handleConflict(c.payload); return; }
+            if (c.kind === "ok") {
+              const fresh = safeDraft(c.payload);
+              if (!fresh.ok) {
+                keepBtn.disabled = false;
+                renderRetryableIssue(serverCopy("پاسخ ذخیره‌سازی نامعتبر بود.", "The save response was invalid."), () => keepBtn.click());
+                return;
+              }
+              hideIssue();
+              enableAutosave(fresh.draft.revision);
               setDraftStatus("saved");
-            } else if (result.status === 409) {
-              panel.remove();
-              handleConflict(result.payload);
-            } else { keepBtn.disabled = false; }
+              return;
+            }
+            keepBtn.disabled = false;
+            renderRetryableIssue(
+              c.kind === "network"
+                ? serverCopy("ذخیره انجام نشد؛ اتصال اینترنت را بررسی کنید.", "Save failed; check your connection.")
+                : serverCopy("ذخیره انجام نشد.", "Save failed."),
+              () => keepBtn.click(),
+            );
           });
-          panel.append(label, loadBtn, keepBtn);
+          showIssue([label, loadBtn, keepBtn]);
         } else {
           label.textContent = serverCopy(
             "پیش‌نویس قبلی شما دیگر فعال نیست.", "Your previous draft is no longer active.",
@@ -719,37 +841,40 @@
             const result = await apiRequest(serverDraftUrl, "POST", {
               fields: collectApiFields(), current_step: current, expected_revision: 0,
             });
-            if (result.status === 200 || result.status === 201) {
-              const fresh = safeDraft(result.payload);
-              panel.remove();
-              enableAutosave(fresh ? fresh.revision : 1);
+            const c = classifyResponse(result);
+            if (c.kind === "auth") { showSessionEndedNotice(); return; }
+            if (c.kind === "forbidden") { showForbiddenNotice(); return; }
+            if (c.kind === "conflict") { handleConflict(c.payload); return; }
+            if (c.kind === "ok") {
+              const fresh = safeDraft(c.payload);
+              if (!fresh.ok) {
+                saveNewBtn.disabled = false;
+                renderRetryableIssue(serverCopy("پاسخ ذخیره‌سازی نامعتبر بود.", "The save response was invalid."), () => saveNewBtn.click());
+                return;
+              }
+              hideIssue();
+              enableAutosave(fresh.draft.revision);
               setDraftStatus("saved");
-            } else if (result.status === 409) {
-              panel.remove();
-              handleConflict(result.payload);
-            } else { saveNewBtn.disabled = false; }
+              return;
+            }
+            saveNewBtn.disabled = false;
+            renderRetryableIssue(
+              c.kind === "network"
+                ? serverCopy("ذخیره انجام نشد؛ اتصال اینترنت را بررسی کنید.", "Save failed; check your connection.")
+                : serverCopy("ذخیره انجام نشد.", "Save failed."),
+              () => saveNewBtn.click(),
+            );
           }, true);
-          panel.append(label, saveNewBtn);
+          showIssue([label, saveNewBtn]);
         }
-        form.prepend(panel);
       }
 
-      let networkRetryTimer = null;
-      let networkRetryAttempts = 0;
-      const NETWORK_RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000];
-      function scheduleNetworkRetry() {
-        clearTimeout(networkRetryTimer);
-        if (networkRetryAttempts >= NETWORK_RETRY_DELAYS_MS.length) return; // بدون تلاش بی‌نهایت
-        const delay = NETWORK_RETRY_DELAYS_MS[networkRetryAttempts];
-        networkRetryAttempts += 1;
-        networkRetryTimer = setTimeout(() => { queueServerSave(); }, delay);
-      }
+      const SAVE_RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000];
+      let saveRetryTimer = null;
+      let saveRetryAttempts = 0;
+      const resetSaveRetry = () => { saveRetryAttempts = 0; clearTimeout(saveRetryTimer); };
       window.addEventListener("online", () => {
-        if (state.ready && !state.pauseReason && networkRetryAttempts > 0) {
-          clearTimeout(networkRetryTimer);
-          networkRetryAttempts = 0;
-          queueServerSave();
-        }
+        if (state.ready && !state.pauseReason && saveRetryAttempts > 0) { resetSaveRetry(); queueServerSave(); }
       });
 
       async function queueServerSave() {
@@ -761,23 +886,45 @@
           fields: collectApiFields(), current_step: current, expected_revision: state.revision,
         });
         state.saving = false;
-        if (result.networkError) { setDraftStatus("offline"); scheduleNetworkRetry(); return; }
-        if (result.status === 401) { state.pauseReason = "auth"; showSessionEndedNotice(); return; }
-        if (result.status === 403) { state.pauseReason = "forbidden"; clearDraftStatus(); return; }
-        if (result.status === 409) { handleConflict(result.payload); return; }
-        if (result.status === 200 || result.status === 201) {
-          const canonical = safeDraft(result.payload);
-          if (canonical) {
-            networkRetryAttempts = 0;
-            state.revision = canonical.revision;
-            setDraftStatus("saved");
-            renderPersistentDraftControls();
+        const c = classifyResponse(result);
+
+        if (c.kind === "network") {
+          clearTimeout(saveRetryTimer);
+          if (saveRetryAttempts >= SAVE_RETRY_DELAYS_MS.length) {
+            clearDraftStatus();
+            renderRetryableIssue(
+              serverCopy("ذخیرهٔ خودکار متوقف شد؛ اتصال اینترنت را بررسی کنید.", "Autosave stopped; check your connection."),
+              () => { resetSaveRetry(); queueServerSave(); },
+            );
+            return;
           }
+          setDraftStatus("offline");
+          const delay = SAVE_RETRY_DELAYS_MS[saveRetryAttempts];
+          saveRetryAttempts += 1;
+          saveRetryTimer = setTimeout(() => queueServerSave(), delay);
+          return;
+        }
+        if (c.kind === "auth") { showSessionEndedNotice(); return; }
+        if (c.kind === "forbidden") { showForbiddenNotice(); return; }
+        if (c.kind === "conflict") { handleConflict(c.payload); return; }
+        if (c.kind === "ok") {
+          const safe = safeDraft(c.payload);
+          if (!safe.ok) {
+            renderRetryableIssue(serverCopy("پاسخ ذخیره‌سازی نامعتبر بود.", "The save response was invalid."), () => queueServerSave());
+            return;
+          }
+          resetSaveRetry();
+          hideIssue();
+          state.revision = safe.draft.revision;
+          setDraftStatus("saved");
+          renderPersistentDraftControls();
           if (state.dirty) { state.dirty = false; queueServerSave(); }
           return;
         }
-        // یک وضعیت غیرمنتظرهٔ دیگر (مثلاً 400 اعتبارسنجی) — داده‌های DOM دست‌نخورده می‌مانند
-        setDraftStatus("offline");
+        // یک وضعیت غیرمنتظرهٔ دیگر (مثلاً 400 اعتبارسنجی که خودِ
+        // collectApiFields هرگز نباید تولید کند) — داده‌های DOM و revision
+        // محلی دست‌نخورده می‌مانند.
+        renderRetryableIssue(serverCopy("ذخیره انجام نشد.", "Save failed."), () => queueServerSave());
       }
       requestServerSave = () => { queueServerSave(); };
 
@@ -805,14 +952,49 @@
         } catch (e) { return ""; }
       }
 
+      const GET_RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000];
+      let getRetryTimer = null;
+      let getRetryAttempts = 0;
+
       async function reconcile() {
         // خواندنِ فقط-در-حافظه: local draft هرگز به‌خودی‌خود روی DOM اعمال
         // نمی‌شود — فقط برای تصمیم‌گیری reconciliation استفاده می‌شود.
         const localSnapshot = readDraft();
         const result = await apiRequest(serverDraftUrl, "GET");
-        if (result.networkError || result.status !== 200) { setDraftStatus("offline"); return; }
-        const canonical = safeDraft(result.payload);
-        if (canonical === undefined) { setDraftStatus("offline"); return; }
+        const c = classifyResponse(result);
+
+        if (c.kind === "network") {
+          clearTimeout(getRetryTimer);
+          if (getRetryAttempts >= GET_RETRY_DELAYS_MS.length) {
+            clearDraftStatus();
+            renderRetryableIssue(
+              serverCopy("بارگذاری وضعیت پیش‌نویس متوقف شد؛ اتصال اینترنت را بررسی کنید.", "Loading your draft status stopped; check your connection."),
+              () => { getRetryAttempts = 0; reconcile(); },
+            );
+            return;
+          }
+          setDraftStatus("offline");
+          const delay = GET_RETRY_DELAYS_MS[getRetryAttempts];
+          getRetryAttempts += 1;
+          getRetryTimer = setTimeout(() => reconcile(), delay);
+          return;
+        }
+        if (c.kind === "auth") { showSessionEndedNotice(); return; }
+        if (c.kind === "forbidden") { showForbiddenNotice(); return; }
+        if (c.kind !== "ok") {
+          // GET هرگز به‌طور مشروع ۴۰۹ یا هر status دیگری نمی‌دهد — به همان
+          // شکل «پاسخ نامعتبر» با امکان تلاش مجدد دستی رفتار می‌شود.
+          renderRetryableIssue(serverCopy("وضعیت پیش‌نویس دریافت نشد.", "Could not load your draft status."), () => reconcile());
+          return;
+        }
+        const safe = safeDraft(c.payload);
+        if (!safe.ok) {
+          renderRetryableIssue(serverCopy("پاسخ سرور نامعتبر بود.", "The server's response was invalid."), () => reconcile());
+          return;
+        }
+        getRetryAttempts = 0;
+        hideIssue();
+        const canonical = safe.draft;
 
         if (isErrorRerender) {
           // پاسخ‌های فعلی فرم (از رندر خطای جنگو) اولویت دارند و هرگز
@@ -833,11 +1015,8 @@
             hideReconcileBanner();
           }, true);
           const restartBtn = buildBannerButton(serverCopy("شروع دوباره", "Start over"), () => {
-            reconcileBanner.appendChild(buildDeleteConfirmRow(async (row) => {
-              const deleteResult = await performDelete(canonical.revision);
-              if (deleteResult.outcome === "deleted") { startFreshAtZero(); hideReconcileBanner(); }
-              else if (deleteResult.outcome === "conflict") { hideReconcileBanner(); handleConflict(deleteResult.payload); }
-              else { row.remove(); setDraftStatus("offline"); }
+            reconcileBanner.appendChild(buildDeleteAttemptRow(canonical.revision, reconcileBanner, () => {
+              startFreshAtZero(); hideReconcileBanner();
             }));
           });
           renderReconcileBanner([label, continueBtn, restartBtn]);
@@ -854,16 +1033,30 @@
               current_step: Number.isInteger(localSnapshot.step) ? localSnapshot.step : 0,
               expected_revision: 0,
             });
-            if (result2.status === 200 || result2.status === 201) {
-              const fresh = safeDraft(result2.payload);
-              applyCanonicalDraft(fresh);
+            const c2 = classifyResponse(result2);
+            if (c2.kind === "auth") { showSessionEndedNotice(); return; }
+            if (c2.kind === "forbidden") { showForbiddenNotice(); return; }
+            if (c2.kind === "conflict") { hideReconcileBanner(); handleConflict(c2.payload); return; }
+            if (c2.kind === "ok") {
+              const fresh = safeDraft(c2.payload);
+              if (!fresh.ok || !fresh.draft) {
+                importBtn.disabled = false;
+                renderRetryableIssue(serverCopy("پاسخ سرور نامعتبر بود.", "The server's response was invalid."), () => importBtn.click());
+                return;
+              }
+              applyCanonicalDraft(fresh.draft);
               clearDraft();
-              enableAutosave(fresh.revision);
+              enableAutosave(fresh.draft.revision);
               hideReconcileBanner();
-            } else if (result2.status === 409) {
-              hideReconcileBanner();
-              handleConflict(result2.payload);
-            } else { importBtn.disabled = false; setDraftStatus("offline"); }
+              return;
+            }
+            importBtn.disabled = false;
+            renderRetryableIssue(
+              c2.kind === "network"
+                ? serverCopy("انتقال انجام نشد؛ اتصال اینترنت را بررسی کنید.", "Move failed; check your connection.")
+                : serverCopy("انتقال انجام نشد.", "Move failed."),
+              () => importBtn.click(),
+            );
           }, true);
           const freshBtn = buildBannerButton(serverCopy("شروع تازه", "Start fresh"), () => {
             clearDraft();
@@ -894,23 +1087,34 @@
             current_step: Number.isInteger(localSnapshot.step) ? localSnapshot.step : 0,
             expected_revision: canonical.revision,
           });
-          if (result3.status === 200 || result3.status === 201) {
-            const fresh = safeDraft(result3.payload);
-            applyCanonicalDraft(fresh);
+          const c3 = classifyResponse(result3);
+          if (c3.kind === "auth") { showSessionEndedNotice(); return; }
+          if (c3.kind === "forbidden") { showForbiddenNotice(); return; }
+          if (c3.kind === "conflict") { hideReconcileBanner(); handleConflict(c3.payload); return; }
+          if (c3.kind === "ok") {
+            const fresh = safeDraft(c3.payload);
+            if (!fresh.ok || !fresh.draft) {
+              useDeviceBtn.disabled = false;
+              renderRetryableIssue(serverCopy("پاسخ سرور نامعتبر بود.", "The server's response was invalid."), () => useDeviceBtn.click());
+              return;
+            }
+            applyCanonicalDraft(fresh.draft);
             clearDraft();
-            enableAutosave(fresh.revision);
+            enableAutosave(fresh.draft.revision);
             hideReconcileBanner();
-          } else if (result3.status === 409) {
-            hideReconcileBanner();
-            handleConflict(result3.payload);
-          } else { useDeviceBtn.disabled = false; setDraftStatus("offline"); }
+            return;
+          }
+          useDeviceBtn.disabled = false;
+          renderRetryableIssue(
+            c3.kind === "network"
+              ? serverCopy("ذخیره انجام نشد؛ اتصال اینترنت را بررسی کنید.", "Save failed; check your connection.")
+              : serverCopy("ذخیره انجام نشد.", "Save failed."),
+            () => useDeviceBtn.click(),
+          );
         });
         const restartBtn = buildBannerButton(serverCopy("شروع دوباره", "Start over"), () => {
-          reconcileBanner.appendChild(buildDeleteConfirmRow(async (row) => {
-            const deleteResult = await performDelete(canonical.revision);
-            if (deleteResult.outcome === "deleted") { clearDraft(); startFreshAtZero(); hideReconcileBanner(); }
-            else if (deleteResult.outcome === "conflict") { hideReconcileBanner(); handleConflict(deleteResult.payload); }
-            else { row.remove(); setDraftStatus("offline"); }
+          reconcileBanner.appendChild(buildDeleteAttemptRow(canonical.revision, reconcileBanner, () => {
+            clearDraft(); startFreshAtZero(); hideReconcileBanner();
           }));
         });
         renderReconcileBanner([label, timesLine, useAccountBtn, useDeviceBtn, restartBtn]);
