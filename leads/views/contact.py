@@ -35,6 +35,21 @@ class LeadCreateView(LanguageViewMixin, FormView):
     template_name = "leads/contact.html"
     form_class = LeadForm
 
+    # One-based step index matching the template's fieldset[data-step]
+    # numbering, used only to focus a Django-side validation error rerender
+    # on the right step — mirrors the existing CrmOrderCreateView/
+    # ClinicOrderCreateView field_steps pattern.
+    FIELD_STEPS = {
+        **dict.fromkeys(("request_type", "service", "business_name", "website_url", "message"), 1),
+        **dict.fromkeys(("budget_range", "timeline"), 2),
+        **dict.fromkeys(("name", "phone", "email_or_telegram", "preferred_contact", "privacy_accept"), 3),
+    }
+
+    def form_invalid(self, form):
+        error_fields = [name for name in form.errors if name != "__all__"]
+        error_step = min((self.FIELD_STEPS.get(name, 1) for name in error_fields), default=1)
+        return self.render_to_response(self.get_context_data(form=form, error_step=error_step))
+
     def _resolved_demo_selection(self):
         """Resolve `?demo=` for this request at most once — `get_initial`,
         `get_context_data`, and `form_valid` can all run within the same
@@ -110,6 +125,17 @@ class LeadCreateView(LanguageViewMixin, FormView):
             context["demo_context"] = {
                 "label": selection.template.title_fa if self.lang == "fa" else selection.template.title_en,
             }
+        user = self.request.user
+        if user.is_authenticated and not user.is_staff and not user.is_superuser:
+            # Server-side account-bound draft mode (V2.1-C1): only ever
+            # offered to a real, non-staff customer — never a guest, staff,
+            # or superuser. Only plain, already-reversed URLs and a fixed
+            # "1" flag are exposed; no draft id, owner id, token, or session
+            # key is ever part of this context.
+            context["server_draft_enabled"] = True
+            context["draft_url"] = reverse("leads:draft")
+            context["draft_delete_url"] = reverse("leads:draft_delete")
+            context["login_url"] = reverse("accounts:login")
         return context
 
     def form_valid(self, form):

@@ -2,7 +2,33 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-B3 corrective — a P2 lifecycle bug in
+- **Current phase:** V2.1-C1 — wiring the `leads-contact` wizard itself to
+  the account-bound `FormDraft` API from V2.1-B1–B3. Covers restore,
+  autosave, conflict resolution, and account-draft delete/start-over inside
+  the contact wizard only — no saved-drafts dashboard section, no
+  `FormDraft`→`Lead` conversion, no Phase D, no push/deploy/production
+  migration. See "V2.1-C1" entries below for the full design and what was
+  built; see "V2.1-C1 — historical recap" further down for the superseded
+  "current phase" text this replaces. Status: `PARTIAL` — the server-side
+  half (view context, template data attributes, mandatory bilingual
+  disclosure, `data-error-step` marker) is implemented and covered by a real
+  Python/HTTP test suite that passes; the client-side half
+  (`wizard-engine.js`'s reconciliation/autosave/conflict logic) was
+  implemented and carefully self-reviewed but could **not** be exercised in
+  a live browser this session — the only browser-automation tool available
+  in this environment stopped executing page JavaScript partway through
+  this phase (confirmed via an isolated, code-independent repro: even a
+  trivial inline `<script>` on a blank page never ran, while
+  CDP-injected `page.evaluate()` calls kept working) and, after that,
+  further degraded to the point that even scripted form-fill/submit
+  stopped reliably working. This is an environment/tooling limitation, not
+  a defect established in the shipped code, but per this project's own
+  test-strategy rule ("never label unavailable checks PASS"), the phase is
+  recorded as `PARTIAL` until a working browser session can actually drive
+  the 16 named journeys. See "V2.1-C1 — browser verification: what could
+  and could not be checked" below for the exact, honest breakdown.
+- **V2.1-B3 corrective — historical recap (superseded as the "current
+  phase"; kept for reference):** a P2 lifecycle bug in
   `save_draft_fields` found right after `57a6be8` shipped: when the
   active draft `_get_active_draft_locked` finds turns out to be expired,
   it transitions it to `"expired"` (bumping `revision`) as a write inside
@@ -1900,34 +1926,289 @@
   `IntegrityError` recovery safe under `ATOMIC_REQUESTS = True`). See git
   history on `projects/views/projects.py` (`DemoConfigureView`) and
   `management_portal/cases.py` for full detail if needed again.
-- **Last commit:** this V2.1-B3 corrective phase's own commit (see
-  `git log`) — a separate commit on top of `57a6be8`, which is not
+- **V2.1-C1 — what was built:** `leads/views/contact.py`'s
+  `LeadCreateView` gained a `FIELD_STEPS` map and a `form_invalid`
+  override (mirroring `CrmOrderCreateView`/`ClinicOrderCreateView`'s own
+  existing pattern) that computes and renders `error_step` on a Django
+  validation-error rerender — this template never had that marker before
+  this phase. `get_context_data` now adds, only for
+  `request.user.is_authenticated and not is_staff and not is_superuser`:
+  `server_draft_enabled=True`, `draft_url=reverse("leads:draft")`,
+  `draft_delete_url=reverse("leads:draft_delete")`,
+  `login_url=reverse("accounts:login")` — never a draft id, owner id,
+  token, or session key. `leads/templates/leads/contact.html`: the
+  `<form>` tag now carries `data-error-step` (only when `form.errors`,
+  exactly like the CRM/clinic templates) and, only when
+  `server_draft_enabled`, five safe data attributes
+  (`data-server-draft="1"`, `data-draft-url`, `data-draft-delete-url`,
+  `data-login-url`, `data-lang`) — the last of these (a plain, non-secret
+  language code) was added beyond the four explicitly named in the
+  request because the mandated 401 flow needs a login link with `next`,
+  and this was the least-surprising way to get one without inventing a
+  new naming scheme. For an authenticated non-staff customer, a fixed,
+  always-visible bilingual disclosure paragraph
+  (`.wizard-server-draft-notice`) replaces the old
+  per-device `data-draft-consent` box entirely (the box markup itself is
+  not rendered in server mode at all, not merely hidden) — the disclosure
+  is mandatory information, not an opt-in gate, since the account
+  relationship itself is what authorizes storage, mirroring the design
+  note already on record under "V2.1 — privacy boundary". Guests and
+  staff/superusers get neither the new attributes nor the notice; guests
+  keep the exact old consent-box flow.
+  `core/static/core/js/wizard-engine.js` (cache-busted to `?v=3` in
+  `core/templates/core/base.html`) gained a second, fully separate
+  execution mode, `serverDraftEnabled` (`isDemoContinuationWizard &&
+  form.dataset.serverDraft === "1"`), branching only the
+  draft-persistence sections of `initWizard` — `validate()`, `show()`,
+  conditional-field sync, the demo-context reconstruction helper, and the
+  final submit-with-fetch handler are all shared, untouched code paths for
+  both modes. In server mode: the old `readConsent`/`writeConsent`/
+  `showConsent`/local `renderDraftControls` banner logic never runs (the
+  guest reconciliation block at the end of `initWizard` is now wrapped in
+  `if (!serverDraftEnabled) { … }`); `input`/`change` on a draft field and
+  a `Next`/`Back` step change all call a new `requestServerSave()`
+  indirection (a `let` reassigned once `initServerDraftMode()` runs,
+  matching the existing 400ms debounce timer variable) instead of
+  `writeDraft()`. A new `initServerDraftMode()` closure (defined once, at
+  the very end of `initWizard`, invoked only when `serverDraftEnabled`)
+  holds: an explicit DOM↔API field adapter
+  (`request_type↔request_type`, `service↔service_id`,
+  `budget_range↔budget_range`, `timeline↔timeline`,
+  `preferred_contact↔preferred_contact`; an empty/unanswered DOM value is
+  never sent at all, matching `save_draft_fields`'s own "omit the key"
+  contract — never an explicit `null`) via `collectApiFields`/
+  `applyApiFieldsToDom` (declared at the outer `initWizard` scope, next to
+  the mode-detection consts, since both are pure and side-effect-free); a
+  small state machine (`revision`, `ready`, `saving`, `dirty`,
+  `pauseReason`) enforcing exactly one in-flight `POST` at a time
+  (a change arriving mid-save sets `dirty` and is folded into the next
+  save once the current one resolves, never queued as a second concurrent
+  request); the five required states A–D (reconcile on load: GET the
+  server, read any local draft only into memory via the existing
+  `readDraft()` — never applied to the DOM until an explicit choice) with
+  their own bilingual banner + two/three named actions each — "ادامه
+  پیش‌نویس حساب", "شروع دوباره" (state B); "انتقال این پیش‌نویس به حساب",
+  "شروع تازه" (state C); "ادامه نسخه حساب", "استفاده از نسخه این دستگاه",
+  "شروع دوباره" (state D, with both sides' last-saved times rendered via
+  `Intl.DateTimeFormat`); nothing at all shown for state A beyond quietly
+  arming autosave at `expected_revision=0`; state E (a Django
+  validation-error rerender, detected via the pre-existing
+  `isErrorRerender = !!form.dataset.errorStep`) only ever reads the
+  server's `revision` to arm autosave correctly going forward — it never
+  calls `applyApiFieldsToDom`/`show()`, so the customer's just-typed,
+  currently-rendered answers are never touched); a 409 handler
+  (`handleConflict`) usable both during initial reconciliation actions and
+  at any later autosave, distinguishing a real canonical draft ("بارگذاری
+  نسخه حساب" / "ذخیره نسخه فعلی من", the latter resubmitting with the
+  canonical `revision` as the new `expected_revision`) from
+  `draft: null` ("ذخیره این صفحه به‌عنوان پیش‌نویس جدید" at
+  `expected_revision=0`); a 401 handler that never redirects, preserves
+  every DOM value, and shows a login link built from the new
+  `data-login-url` attribute plus a `next` pointing back at the exact
+  current path+query; a 403 handler that pauses autosave permanently with
+  no retry (defense in depth — the view itself already turns staff away
+  before this could fire); a bounded network-error retry
+  (`[2000, 5000, 15000, 30000, 60000]` ms, capped at 5 attempts, reset by
+  either a real success or the browser's own `online` event, never an
+  unbounded loop); and a shared, explicit, bilingual two-step delete
+  confirmation (`buildDeleteConfirmRow`) reused by both the reconciliation
+  banner's "شروع دوباره" and a new persistent "پاک‌کردن پیش‌نویس حساب"
+  control in the existing `[data-draft-controls]` slot (shown only once a
+  real server revision is known) — a 409 on delete whose canonical
+  `draft` is `null` is treated as already-achieved (idempotent, matching
+  `delete_draft_with_revision`'s own idempotent-when-absent contract) and
+  never as a failure. `core/static/core/css/site.css` gained
+  `.wizard-server-draft-notice`, `.wizard-draft-banner.is-conflict`,
+  `.wizard-draft-banner [data-draft-primary-action]` (a marker attribute,
+  not a `.button` class, so the reconciliation banner's primary choice
+  visually matches the existing local-draft restore banner's own
+  `[data-draft-restore]` styling rather than competing with the wizard's
+  actual `Next`/`Submit` CTA), `.wizard-draft-confirm`, and
+  `.wizard-draft-status`/`.is-error` — all built from existing design
+  tokens (`--color-line`, `--color-surface-2`, `--color-muted`,
+  `--status-danger-border`, `--color-danger-surface`,
+  `--color-status-red-text`), so light/dark and RTL/LTR are inherited
+  automatically, and no new animation was introduced (so there is nothing
+  for `prefers-reduced-motion` to need to disable beyond the rules that
+  already covered `.wizard-draft-banner`/`.button` before this phase).
+- **V2.1-C1 — privacy/field boundary:** the exact same five-field
+  allowlist as every prior phase (`request_type`, `service_id`,
+  `budget_range`, `timeline`, `preferred_contact`) is the *only* thing
+  `collectApiFields`/`apiFieldsFromLocal` will ever read off the DOM or a
+  local-draft blob — `name`, `phone`, `email_or_telegram`,
+  `business_name`, `website_url`, `message`, `privacy_accept`, the CSRF
+  hidden field, and any demo token are never touched by either function,
+  matching the server's own `FORBIDDEN_FIELD_KEYS`/strict top-level-key
+  checks (a payload with an extra key is already rejected server-side —
+  the client simply never constructs one). `demo_snapshot` is never sent
+  by the client at all (no code path in this phase's JS references it),
+  matching the API's own hard rule that no client can ever set it.
+  Restoring a canonical draft's `fields` onto the DOM
+  (`applyApiFieldsToDom`) only ever assigns a value that already matches
+  one of that `<select>`'s own existing `<option>` values (checked
+  explicitly before assignment) or the empty string — never `innerHTML`,
+  never an arbitrary string injected as markup; every banner/status
+  message is built via `textContent` assignment or child-element
+  `append`, and the one place raw data flows through a template literal
+  (`.innerHTML` on the guest-only, pre-existing local-draft banner) was
+  not touched by this phase and only ever interpolates this project's own
+  fixed, translated `copy` strings — never a value that came from the
+  server response or `localStorage`.
+- **V2.1-C1 — reconciliation and autosave-queue rules:** see the "what was
+  built" bullet above for the full state-by-state behavior; in short,
+  nothing is ever applied to the DOM or sent to the server as a side
+  effect of merely loading the page — every transition out of states
+  B/C/D requires one explicit click, "local draft" is read only in memory
+  until that click, and local `localStorage` data for this wizard is
+  cleared only after the corresponding server operation's response comes
+  back successful (never optimistically, never on the request itself).
+  A conflict's `draft: null` case and an idempotent-delete's `draft: null`
+  case are both explicitly branched, never conflated with "no response
+  yet"/`undefined` — `safeDraft()` returns `undefined` only for a
+  genuinely malformed response shape, which is always treated as "leave
+  the DOM alone, show a not-saved status", never as "no draft".
+- **V2.1-C1 — Phase D limitation (explicitly recorded, not fixed here):**
+  as in every prior V2.1 phase, `FormDraft`→`Lead` conversion does not
+  exist yet — a successful final submission through
+  `LeadCreateView.form_valid` still leaves any `open` `FormDraft` for that
+  customer exactly as it was (this phase's own submit-handling code is
+  byte-for-byte the pre-existing fetch-based handler; nothing in this
+  phase touches it). No JavaScript-side workaround (a `keepalive` delete
+  fired on submit, a delete triggered after the success redirect, etc.)
+  was added to paper over this, per explicit instruction — inventing a
+  client-side substitute for the real, still-`NOT_STARTED` atomic
+  `open/submitting → submitted` transition would create a second, racy,
+  unauthoritative path to the same state. **This means the current set of
+  commits (V2.1-A through this C1 phase) must not be deployed** until
+  Phase D closes this gap — a customer who submits the contact form today
+  would keep seeing a "continue your draft" banner for a request they
+  already sent, which is confusing even though it causes no data
+  corruption (the original `Lead` is unaffected either way).
+- **V2.1-C1 — browser verification: what could and could not be
+  checked:** all 9 requested Python-level checks were run for real and
+  pass (see "test level" below) — guest sees zero new data attributes;
+  an authenticated non-staff customer sees all five safe, reversed-URL
+  attributes; staff and superuser see neither the attributes nor the
+  notice; no draft id/session key/token appears in the HTML even when a
+  real draft already exists for that customer; the Persian page renders
+  only the Persian notice sentence and the English page only the English
+  one; a validation error correctly sets `data-error-step` to the field's
+  actual step (1 or 3, tested both); the existing `leads`/`accounts`
+  suites, `manage.py check`, `makemigrations --check --dry-run`, and
+  `git diff --check` all pass with zero regressions. What could **not**
+  be checked this session: any of the 16 named live-browser journeys
+  (guest local save/restore, all four reconciliation states, the 409/401/
+  403/network-error paths, delete confirmation, mobile 320/390,
+  light/dark, keyboard-only, `prefers-reduced-motion`). The only
+  browser-automation tool available here was used extensively — first
+  successfully (a fresh customer/staff login and page load against a
+  disposable, migrated-only-for-this-session SQLite database under
+  `arvion/settings/_c1_browser_check.py`, never `db.sqlite3` or
+  `arvion_ci_local`, deleted again before this commit), then it stopped
+  running any page JavaScript at all partway through the session — proven
+  with a minimal, code-independent repro: a blank page's own inline
+  `<script>console.log(...)</script>` never fired, while `page.evaluate()`
+  (a separate, CDP-level mechanism) kept returning correct results the
+  whole time, which is how the data-attribute/notice-text checks above
+  were still confirmed directly against real server responses. After
+  that, the same tool further degraded to where scripted form-fill/submit
+  itself stopped reliably taking effect (a login attempt whose fields
+  were filled via the tool's own API was submitted empty). This reads as
+  an environment/tool regression independent of anything in this
+  session's code — not a defect being reported against the shipped
+  feature — but per this project's own rule against ever labeling an
+  unavailable check as passing, the 16 journeys are recorded as not run,
+  not as passed. One usable screenshot was still captured before the
+  tool's JS execution broke (`guest-mobile.png`, port `127.0.0.1:8811`,
+  390×844): it incidentally surfaced a real, **pre-existing, out-of-scope**
+  CSS defect — `.wizard-consent{display:grid;…}` in `site.css` has no
+  `[hidden]` override outside `.flow-page`-wrapped templates (only
+  `flow.css`'s `.flow-page [hidden]{display:none!important}` covers that
+  case, and `leads/contact.html` is not a `.flow-page` template) — so the
+  guest per-device consent box is visually shown from first paint
+  regardless of the `hidden` attribute already on it in the template,
+  until/unless JS defers to `showConsent()`'s own logic. This existed
+  before this phase (confirmed: this phase never touched that CSS rule or
+  that attribute) and is unrelated to the new server-draft mode (which
+  never renders that box at all), so it was recorded here rather than
+  fixed, per this phase's explicit narrow scope — a future phase should
+  add `.wizard-consent[hidden]{display:none}` (or move the leads-contact
+  page under whatever wrapper class `flow.css` already targets) and
+  verify no guest-facing regression. No test data or screenshots from
+  this verification were committed — the disposable database, settings
+  module, and every screenshot/script lived only under this session's
+  scratch directory or a since-deleted settings file, all removed before
+  this phase's commit.
+- **V2.1-C1 — test level:** new `leads/test_contact_server_draft_ui.py`
+  (9 tests, `ServerDraftDataAttributeTests` + `ErrorRerenderStepMarkerTests`):
+  guest sees none of `data-server-draft`/`data-draft-url`/
+  `data-draft-delete-url`/`data-login-url`/the new notice class, and still
+  sees the old `data-draft-consent` box; an authenticated non-staff
+  customer sees `data-server-draft="1"` and all three reversed URLs plus
+  `data-lang="fa"`, and does **not** see the old consent box; staff and a
+  real superuser both get neither; a real, existing `FormDraft` (created
+  via `save_draft_fields` directly) never leaks its own pk, the owner's
+  pk, `session_key`, `public_token`, or `submission_token` into the page
+  (checked as specific attribute shapes, not bare small-integer
+  substrings, which would otherwise collide harmlessly with unrelated
+  page content like asset version query strings); the fa page contains
+  only the Persian notice sentence and the en page only the English one;
+  posting an invalid step-3 field (missing `privacy_accept`) yields
+  `data-error-step="3"`, an invalid step-1 field (`request_type`) yields
+  `data-error-step="1"`, and a fully valid submission has no marker at
+  all (a real 302). `leads.test_contact_server_draft_ui`+`leads.tests`:
+  21 tests, all passing — confirming zero regression in the pre-existing
+  `LeadTests` suite (demo hand-off, rate limiting, honeypot, bilingual
+  labels, etc.) from the `form_invalid`/`get_context_data` additions.
+  `leads`+`accounts` full suite: 267 tests, all passing (14 skips, all
+  correctly PostgreSQL-only). `manage.py check` (0 issues),
+  `makemigrations --check --dry-run` ("No changes detected" — no model or
+  schema touched in this phase), and `git diff --check` (clean) all
+  passed. Full project SQLite suite: 742 tests total, 727 passed, 15
+  correctly skipped (up from 733 total/15 skips at the V2.1-B3 corrective
+  commit by exactly the 9 new tests this phase added).
+- **V2.1-C1 — migration status:** none created or needed; this phase
+  touched only `leads/views/contact.py`, `leads/templates/leads/contact.html`,
+  `core/static/core/js/wizard-engine.js`, `core/static/core/css/site.css`,
+  `core/templates/core/base.html` (the `?v=2`→`?v=3` cache-bust only), and
+  the new `leads/test_contact_server_draft_ui.py` — no model, no
+  migration, confirmed by `makemigrations --check --dry-run`.
+- **V2.1-C1 — risks/limitations:** (1) the client-side reconciliation/
+  autosave/conflict logic has not been exercised in a live browser this
+  session — see the browser-verification bullet above for the exact,
+  honest breakdown of what was and was not checked, and why; (2) the
+  Phase D gap (successful submission does not close the `FormDraft`) means
+  this and every earlier V2.1 commit remain **not deployable** until Phase
+  D ships; (3) a newly discovered, pre-existing, out-of-scope CSS defect
+  (`.wizard-consent` ignoring its own `hidden` attribute outside
+  `.flow-page` templates) affects the guest experience on this same page
+  and should be fixed in a small, separate, visually-verified phase;
+  (4) the one added data attribute beyond the four explicitly named
+  (`data-lang`) is a deliberate, minimal deviation to satisfy the
+  mandatory 401 login-link requirement — flagged here rather than done
+  silently; (5) every decision still open under "V2.1 — decisions
+  requiring explicit human approval" above remains open and unaffected by
+  this phase.
+- **Git boundary (current, accurate as of this phase's own commit):**
+  `main` is twenty commits ahead of `origin/main` — the nineteen listed
+  above, plus this V2.1-C1 commit. No prior commit is amended.
+- **Last commit:** this V2.1-C1 phase's own commit (see `git log`) — a
+  separate commit on top of the V2.1-B3 corrective commit, which is not
   amended.
-- **Next action:** V2.1-B1 (both corrective phases included), V2.1-B2
-  (all three corrective phases included), and V2.1-B3 (the account-bound
-  `FormDraft` API, plus this corrective phase) are all done and fully
-  verified — a visitor's demo
-  selection reliably survives login/registration and lands on their
-  account's `FormDraft` as a safe snapshot, an already-authenticated
-  customer gets the same sync immediately on the contact page, and the
-  customer can now read/save/delete that draft through a real,
-  revision-checked, account-bound HTTP API. Still missing before any of
-  this is customer-visible: the contact-page wizard actually calling this
-  API (auto-save as the visitor progresses, restore-on-return), a
-  restore/delete UI on the contact page and account dashboard, and the
-  atomic final-submission step (`FormDraft` → `Lead`, `open`/`submitting`
-  → `submitted`, `submitted_lead` set) — all still Phase C/D, per the
-  original V2.1 plan, and still gated on the explicit human decisions
-  flagged under "V2.1 — decisions requiring explicit human approval"
-  above (free-text/contact-info consent layer, final `FormDraft`
-  retention confirmation — 7 days is now implemented and reachable via
-  both login and the new API, not just proposed — whether to nudge
-  guests to sign in, and `cleanup_demo_selections`/`cleanup_form_drafts`
-  scheduling), plus the still-deferred session/ownership authorization
-  check on which `DemoSelection` a caller may attach via
-  `attach_demo_snapshot`/`ensure_active_draft_with_demo_snapshot`
-  directly (unrelated to the new API, which never touches
-  `demo_snapshot` at all). One **unrelated, pre-existing** issue remains
+- **Next action:** before any deploy: (a) get a working browser session
+  (this environment's tool needs investigation/repair, or a different
+  machine/session) and actually run the 16 named V2.1-C1 journeys,
+  correcting anything the live DOM reveals that static review missed;
+  (b) Phase D — atomic `FormDraft`→`Lead` conversion on successful submit,
+  which is the hard blocker on deploying *any* of V2.1-A through C1;
+  (c) the small, separate `.wizard-consent[hidden]` CSS fix noted above;
+  (d) the still-`NOT_STARTED` saved-drafts dashboard section and the
+  human-approval decisions already on record (free-text/contact consent
+  layer, guest sign-in nudging, `cleanup_form_drafts` scheduling). V2.1-B1
+  (both corrective phases), V2.1-B2 (all three corrective phases), and
+  V2.1-B3 (plus its corrective phase) remain done and fully verified —
+  see their own entries above; nothing in this phase touched or
+  re-litigated any of them. One **unrelated, pre-existing** issue remains
   flagged from V2.1-B2's own regression testing on PostgreSQL —
   `assessments/services.py`'s `revoke_assessment_access` cannot run its
   `select_for_update()` query on PostgreSQL due to an outer join from
@@ -1935,11 +2216,11 @@
   separately; it does not block this phase and was not touched here
   either. The earlier, separate V2 idea (a time-boxed, signed
   continuation link) remains superseded by the login-based approach
-  unless explicitly reopened. Resumable order drafts beyond
-  leads-contact (CRM/Clinic) remain `NOT_STARTED`. Re-run the release
-  gate on the exact deployable revision before any production action,
-  including applying `0004_activesession`, `0006_formdraft_and_more`,
-  and `0007_formdraft_revision` to any real database.
+  unless explicitly reopened. Resumable order drafts beyond leads-contact
+  (CRM/Clinic) remain `NOT_STARTED`. Re-run the full release gate on the
+  exact deployable revision before any production action, including
+  applying `0004_activesession`, `0006_formdraft_and_more`, and
+  `0007_formdraft_revision` to any real database.
 
 ## Phase ledger
 
@@ -1969,5 +2250,6 @@
 | Resumable order drafts — V2.1-B2 third corrective (wrap `_reload_demo_selection`'s query in its own `transaction.atomic()`, safe for both `ensure_active_draft_with_demo_snapshot` and `attach_demo_snapshot`) | `VERIFIED` (local) — V2.1-B2 as a whole now `VERIFIED` | See "V2.1-B2 third corrective" entries above. `leads.form_draft_service._reload_demo_selection` now runs its query inside its own `transaction.atomic()`, letting a real database error propagate out (never swallowed inside) so Django rolls back to that savepoint before either caller's own exception handling ever sees it — closing the exact same class of bug `1baf584` fixed for the *first* lookup, one call deeper. Reproduced first (reverting the fix made both new tests fail with `InternalError: current transaction is aborted`), then fixed and re-verified. Two new PostgreSQL-only tests, kept alongside `1baf584`'s and `2cd1032`'s existing ones (all three real-transaction test classes now coexist): `RealTransactionErrorDuringSecondLookupRecoveryTests` (login-signal path, call-counter-proven second-lookup failure, healthy query inside the same outer transaction, marker restored, snapshot attaches on retry) and `test_attach_demo_snapshot_survives_a_real_postgresql_error_in_the_reload_lookup` (direct `attach_demo_snapshot` call, caller catches the propagated error, outer transaction still usable). `leads.test_demo_handoff`+`leads.test_form_draft` on PostgreSQL: 108 tests, all passing, 0 skips. `leads` app on SQLite: 120 tests (110 passed, 10 skips); `accounts`: 73 tests (71 passed, 2 skips) — no regression in registration/login/phone-verification/email-verification. Run once plus 5 repeats each on the same isolated local PostgreSQL 16 `test_arvion_ci_local` database (never the permanent one) — all clean. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. No prior commit amended; only `leads/form_draft_service.py`, `leads/test_demo_handoff.py`, and `leads/test_form_draft.py` touched. |
 | Resumable order drafts — V2.1-B3 (account-bound, revision-checked FormDraft API: GET/POST `leads:draft`, POST `leads:draft_delete`) (`57a6be8`) | `VERIFIED` (local), corrected | Initially verified, then found `PARTIAL`: `save_draft_fields` raised `DraftConflictError` from *inside* its own `transaction.atomic()` block when an expired draft's `expected_revision` no longer matched, rolling back the expiry transition `_get_active_draft_locked` had just committed within that same block. `57a6be8`'s own report incorrectly claimed this case did not roll back. See the corrective-phase row below, which fixes and re-verifies it with a test that inspects the row immediately after the conflict. |
 | Resumable order drafts — V2.1-B3 corrective (defer `save_draft_fields`'s conflict raise until after its transaction commits, so an expiry transition always survives) | `VERIFIED` (local) | See "V2.1-B3 corrective" entries above. `save_draft_fields` now records a conflict outcome in a local `_NO_CONFLICT`-sentinel-guarded variable instead of raising immediately, and only raises `DraftConflictError` after its `transaction.atomic()` block has exited normally — mirroring `attach_demo_snapshot`/`clear_demo_snapshot`'s existing `no_active_draft` ordering. `delete_draft_with_revision` was checked and confirmed to not have this bug (its "no draft" case is a plain `return`, never a `raise`, from inside its own atomic block) — left untouched. Reproduced first (reverting the fix made the new tests fail with `'open' != 'expired'`, both at the service level and through the real HTTP view), then fixed and re-verified. New PostgreSQL-only `FormDraftApiExpiredConflictUnderOuterTransactionTests` proves the same scenario holds even when the real view is called inside a genuine outer `transaction.atomic()` standing in for `ATOMIC_REQUESTS` — the 409 is returned normally with no exception ever reaching the outer block, and the expiry transition is visible via a real query while still inside that same outer transaction. Run once plus 5 repeats — all clean; the pre-existing `FormDraftApiPostgresConcurrencyTests` concurrency test was re-confirmed unaffected. `leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff` (173 tests, 12 skips on SQLite; same 173 tests, 0 skips on real PostgreSQL); `leads` app (185 tests, 12 skips); `accounts`+`projects`+`management_portal` (234 tests, 2 skips) — no regression. No migration in this phase (none was expected); only `leads/form_draft_service.py` (one function), `leads/test_form_draft.py`, and `leads/test_draft_api.py` touched — `delete_draft_with_revision` and every other service function byte-for-byte unchanged. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. `57a6be8` not amended. |
-| Resumable order drafts — V2.1 Phases C–D (contact-page wizard actually calling the new API, restore/delete UI, atomic FormDraft→Lead final submission) | `NOT_STARTED` | Requires explicit human approval on the still-open decisions above before Phase C begins; depends on the now-`VERIFIED` Phase B1+B2+B3 foundation. |
+| Resumable order drafts — V2.1-C1 (leads-contact wizard wired to the account-bound FormDraft API: restore, autosave, conflict resolution, delete/start-over) | `PARTIAL` | Server side (view context, safe data attributes, mandatory bilingual disclosure, `data-error-step` marker) implemented and covered by a real, passing 9-test Python/HTTP suite (`leads.test_contact_server_draft_ui`) plus zero regression in `leads`+`accounts` (267 tests) and the full 742-test project suite. Client side (`wizard-engine.js` reconciliation/autosave/conflict/delete logic) implemented and carefully self-reviewed but not exercised live — the only browser-automation tool available in this environment stopped executing page JavaScript mid-session (proven via an isolated, code-independent repro) and later degraded further. See "V2.1-C1 — browser verification" above for the full, honest breakdown, including one incidentally-discovered, pre-existing, out-of-scope CSS defect (`.wizard-consent[hidden]` has no effect outside `.flow-page` templates). `check` (0 issues), migration dry-run ("No changes detected" — no model/migration in this phase), and `git diff --check` (clean) all passed. Not deployable yet regardless: Phase D (FormDraft→Lead conversion) does not exist, so a successful submission still leaves the draft open — recorded explicitly, no JS workaround added. |
+| Resumable order drafts — V2.1 Phase D (atomic FormDraft→Lead final submission) and the saved-drafts dashboard section | `NOT_STARTED` | The hard blocker on deploying any V2.1 commit (A through C1). Requires explicit human approval on the still-open decisions above; depends on the now-`VERIFIED` B1+B2+B3 foundation and this session's C1 work. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

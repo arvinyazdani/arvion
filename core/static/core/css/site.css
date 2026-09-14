@@ -169,6 +169,15 @@ button,input[type=checkbox],input[type=radio],select{accent-color:#a92f08}
 /* Separate local-draft actions remain readable when both controls are visible. */
 .wizard-draft-controls{display:flex;flex-wrap:wrap;gap:8px 18px}
 
+/* V2.1-C1: account-bound server draft mode (leads-contact only). */
+.wizard-server-draft-notice{margin-block-end:var(--space-5);padding:12px 16px;border:1px solid var(--color-line);border-radius:var(--radius-md);background:var(--color-surface-2);color:var(--color-muted);font-size:.82rem;line-height:1.8}
+.wizard-draft-banner.is-conflict{border-color:var(--status-danger-border);background:var(--color-danger-surface);color:var(--color-status-red-text)}
+.wizard-draft-banner small{flex:1 1 100%;color:var(--color-muted);font-weight:400}
+.wizard-draft-banner [data-draft-primary-action]{background:var(--color-panel-dark);color:#fff}
+.wizard-draft-confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:8px;font-size:.8rem}
+.wizard-draft-status{margin:8px 0 0;font-size:.78rem;color:var(--color-muted)}
+.wizard-draft-status.is-error{color:var(--color-status-red-text)}
+
 /* Theme-safe compatibility layer for legacy public components.
    Keep these selectors last until the older one-line sections are migrated. */
 .lead{color:var(--muted)}
