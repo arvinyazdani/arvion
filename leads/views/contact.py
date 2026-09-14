@@ -1,3 +1,4 @@
+import secrets
 from uuid import UUID
 
 from django.conf import settings
@@ -10,6 +11,13 @@ from django.views.generic import DetailView, FormView
 
 from core.views.lang import LanguageViewMixin
 from leads.demo_handoff import handle_resolved_demo_selection, maybe_retry_pending_demo_selection
+from leads.form_draft_service import (
+    InvalidSubmissionTokenError,
+    MAX_SUBMISSION_TOKEN_LENGTH,
+    NewLeadRateLimitedError,
+    SubmissionConflictError,
+    finalize_form_draft_to_lead,
+)
 from leads.forms import LeadForm
 from leads.models import Lead
 from services.models import Service
@@ -77,6 +85,24 @@ class LeadCreateView(LanguageViewMixin, FormView):
                 maybe_retry_pending_demo_selection(self.request)
         return self._demo_selection_cache
 
+    def _resolved_final_submission_token(self):
+        """Minted fresh on every ordinary `GET`, so a genuinely new visit
+        can never collide with an earlier, unrelated attempt's identity
+        (V2.1-D). On a validation-error rerender (the same request that
+        was just POSTed), the value the customer already submitted is
+        echoed back verbatim instead — fixing a typo and resubmitting must
+        still be recognized as the same attempt, not a new one that resets
+        rate-limit/idempotency bookkeeping. Cached per request since both
+        `get_context_data` and `form_valid` may need it. Never rendered at
+        all for a guest, staff, or superuser — see `get_context_data`."""
+        if not hasattr(self, "_final_submission_token_cache"):
+            if self.request.method == "POST":
+                posted = self.request.POST.get("final_submission_token", "").strip()[:MAX_SUBMISSION_TOKEN_LENGTH]
+                self._final_submission_token_cache = posted or secrets.token_urlsafe(24)
+            else:
+                self._final_submission_token_cache = secrets.token_urlsafe(24)
+        return self._final_submission_token_cache
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["lang"] = self.lang
@@ -136,9 +162,17 @@ class LeadCreateView(LanguageViewMixin, FormView):
             context["draft_url"] = reverse("leads:draft")
             context["draft_delete_url"] = reverse("leads:draft_delete")
             context["login_url"] = reverse("accounts:login")
+            context["final_submission_token"] = self._resolved_final_submission_token()
         return context
 
     def form_valid(self, form):
+        user = self.request.user
+        if user.is_authenticated and not user.is_staff and not user.is_superuser:
+            # V2.1-D: the only branch that touches FormDraft at all —
+            # guest/staff/superuser behavior below is byte-for-byte
+            # unchanged from before this phase.
+            return self._form_valid_authenticated_customer(form)
+
         client_ip = self.request.META.get("REMOTE_ADDR", "unknown")
         limit_key = f"lead-submit:{client_ip}"
         if not cache.add(limit_key, True, settings.LEAD_RATE_LIMIT_SECONDS):
@@ -163,6 +197,81 @@ class LeadCreateView(LanguageViewMixin, FormView):
             recipient_list=[settings.CONTACT_NOTIFICATION_EMAIL],
             fail_silently=True,
         )
+        messages.success(self.request, "درخواست شما با موفقیت ثبت شد." if self.lang == "fa" else "Your enquiry was submitted successfully.")
+        return super().form_valid(form)
+
+    def _form_valid_authenticated_customer(self, form):
+        """V2.1-D: atomic, non-duplicating FormDraft->Lead conversion for
+        an authenticated, non-staff, non-superuser customer. All of the
+        actual transition/idempotency logic lives in
+        `leads.form_draft_service.finalize_form_draft_to_lead` — this
+        method only wires the request-level concerns (the rate limiter and
+        the deferred notification email) around it, exactly like the
+        unchanged guest/staff/superuser path above does for itself."""
+        user = self.request.user
+        client_ip = self.request.META.get("REMOTE_ADDR", "unknown")
+        limit_key = f"lead-submit:{client_ip}"
+        token = self.request.POST.get("final_submission_token", "")
+        selection = _session_demo_selection(self.request)
+
+        consumed_rate_limit = False
+
+        def allow_new_lead():
+            nonlocal consumed_rate_limit
+            if cache.add(limit_key, True, settings.LEAD_RATE_LIMIT_SECONDS):
+                consumed_rate_limit = True
+                return True
+            return False
+
+        def notify(lead):
+            send_mail(
+                subject=f"New Rvion enquiry [{lead.tracking_code}]",
+                message=(
+                    f"Reference: {lead.tracking_code}\nName: {lead.name}\nBusiness: {lead.business_name or '-'}\n"
+                    f"Contact: {lead.email_or_telegram}\nPhone: {lead.phone or '-'}\nPreferred: {lead.preferred_contact}\n"
+                    f"Type: {lead.request_type}\nService: {lead.service or '-'}\nBudget: {lead.budget_range}\n"
+                    f"Timeline: {lead.timeline}\nWebsite: {lead.website_url or '-'}\n\n{lead.message}"
+                ),
+                from_email=None,
+                recipient_list=[settings.CONTACT_NOTIFICATION_EMAIL],
+                fail_silently=True,
+            )
+
+        try:
+            lead, created = finalize_form_draft_to_lead(
+                owner=user, form=form, final_submission_token=token,
+                demo_selection=selection, allow_new_lead=allow_new_lead, on_created=notify,
+            )
+        except NewLeadRateLimitedError:
+            form.add_error(None, "لطفاً کمی صبر کنید و دوباره تلاش کنید." if self.lang == "fa" else "Please wait before submitting another enquiry.")
+            return self.form_invalid(form)
+        except InvalidSubmissionTokenError:
+            # Covers both a missing/malformed token and one belonging to a
+            # different owner — never distinguished here either, for the
+            # same reason the service itself never distinguishes them.
+            form.add_error(
+                None,
+                "این صفحه قدیمی است؛ لطفاً آن را تازه‌سازی کنید و دوباره تلاش کنید."
+                if self.lang == "fa" else "This page is out of date; please refresh it and try again.",
+            )
+            return self.form_invalid(form)
+        except SubmissionConflictError:
+            form.add_error(
+                None,
+                "این ارسال قبلاً با اطلاعات دیگری ثبت شده است؛ لطفاً صفحه را تازه‌سازی کنید."
+                if self.lang == "fa" else "This submission was already recorded with different information; please refresh the page.",
+            )
+            return self.form_invalid(form)
+        except Exception:
+            # A genuinely unexpected failure (not one of the three known,
+            # handled rejections above) after the rate limit may already
+            # have been consumed by this exact request must never leave
+            # the customer locked out of a real retry for no reason.
+            if consumed_rate_limit:
+                cache.delete(limit_key)
+            raise
+
+        self.lead = lead
         messages.success(self.request, "درخواست شما با موفقیت ثبت شد." if self.lang == "fa" else "Your enquiry was submitted successfully.")
         return super().form_valid(form)
 

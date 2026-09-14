@@ -586,7 +586,13 @@ class RetryPendingDemoSelectionOnContactPageTests(TestCase):
         )
         self.assertNotIn(str(selection.public_token), serialized)
         self.assertNotIn(selection.session_key, serialized)
-        self.assertNotIn("submission_token", serialized)
+        # V2.1-D intentionally renders a hidden, non-secret idempotency
+        # field literally named "final_submission_token" on this exact
+        # authenticated customer's page — not a leak. This checks the
+        # internal DB field's own value never leaks instead of the (now
+        # legitimate) substring "submission_token".
+        self.assertIsNone(draft.submission_token)
+        self.assertNotIn("data-submission-token", serialized)
 
 
 @unittest.skipUnless(

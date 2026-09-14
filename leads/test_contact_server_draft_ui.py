@@ -110,8 +110,28 @@ class ServerDraftDataAttributeTests(TestCase):
         self.assertNotIn(f'data-draft-url="{reverse("leads:draft")}{draft.pk}', content)
         self.assertNotIn("session_key", content)
         self.assertNotIn("public_token", content)
-        self.assertNotIn("submission_token", content)
+        # V2.1-D intentionally renders one hidden, non-secret idempotency
+        # field literally named "final_submission_token" — that is not a
+        # leak, so this checks for the *internal DB field/value* leaking
+        # instead of the (now legitimate) substring "submission_token".
+        self.assertNotIn("data-submission-token", content)
+        self.assertIsNone(draft.submission_token)
         self.assertEqual(FormDraft.objects.filter(owner=customer).count(), 1)
+
+    def test_final_submission_token_is_present_only_for_authenticated_non_staff(self):
+        customer = make_customer(suffix="fst")
+        self.client.force_login(customer)
+        response = self.client.get(CONTACT_URL + "?lang=fa")
+        self.assertContains(response, 'name="final_submission_token"')
+
+        self.client.logout()
+        guest_response = self.client.get(CONTACT_URL + "?lang=fa")
+        self.assertNotContains(guest_response, "final_submission_token")
+
+        staff = make_staff(suffix="fst")
+        self.client.force_login(staff)
+        staff_response = self.client.get(CONTACT_URL + "?lang=fa")
+        self.assertNotContains(staff_response, "final_submission_token")
 
     def test_fa_page_shows_only_fa_notice_text_en_page_shows_only_en(self):
         customer = make_customer()

@@ -3,17 +3,22 @@
 - **Project:** Rvion
 - **Workflow:** single primary agent
 - **Current phase:** V2.1-D — atomic, non-duplicating `FormDraft`→`Lead`
-  conversion on final contact-form submission. **`BLOCKED` before any
-  implementation** — per this phase's own explicit instruction, the
-  server-side idempotency mechanism (how a resubmitted request, arriving
-  *after* the first attempt's transaction already fully committed, is
-  recognized as "the same submission" rather than a new one) was proven
-  out on paper first, and the current data/request contract turned out
-  not to be sufficient without a forbidden heuristic. No product code,
-  test, or migration was written this phase. See "V2.1-D — blocked:
-  idempotency analysis" below for the full reasoning and the two proposed
-  designs; a decision on one of them (or an explicit override) is needed
-  before this phase can proceed.
+  conversion on final contact-form submission. **`VERIFIED` (local)** —
+  after the prior phase's `BLOCKED` finding (see "V2.1-D — blocked:
+  idempotency analysis" below, kept as historical record), the user
+  explicitly authorized Design A (corrected): a nullable, unique
+  `FormDraft.submission_token` field plus a non-secret hidden
+  `final_submission_token` input, minted fresh on every GET for an
+  authenticated non-staff customer and echoed back unchanged on a
+  validation rerender. The corrected constraint — that the
+  `ACTIVE_STATUSES` lookup alone cannot recognize a *sequential* retry
+  arriving after the first attempt already committed, since the draft
+  has by then flipped to `submitted` and left the active set — is what
+  the token exists to solve; true concurrency was already covered by the
+  pre-existing owner-row `select_for_update()` lock. See "V2.1-D —
+  implemented and verified" below for the full design, evidence
+  (SQLite + real isolated PostgreSQL concurrency/rollback + full
+  real-browser verification), and remaining risks.
 - **V2.1-C1 second corrective — historical recap (superseded as the
   "current phase"; kept for reference):** this time a working
   browser session was available, and 6 real defects found by review of
@@ -2608,47 +2613,142 @@
       Design A's new HTML token is specifically unacceptable.
   - Neither design was implemented — both are proposals awaiting an
     explicit decision. No migration was created; no field, endpoint, or
-    template change exists on disk from this phase.
+    template change exists on disk from this phase. **(Historical —
+    superseded by the explicit authorization and implementation below.)**
+- **V2.1-D — implemented and verified (Design A, corrected).** The user
+  gave explicit architectural authorization ("Design A اصلاح‌شده تأیید
+  است و باید اجرا شود") with one corrected constraint on top of the
+  analysis above: the new token must resolve *both* true concurrency
+  and sequential replay-after-commit — `expected_revision`/Design B was
+  explicitly rejected.
+  - **Schema:** `FormDraft.submission_token` —
+    `CharField(max_length=64, unique=True, null=True, blank=True)`, no
+    `db_index=True` (the unique constraint already creates one). One
+    additive migration, `leads/migrations/0008_formdraft_submission_token.py`
+    — no data migration, confirmed never applied to the permanent local
+    `db.sqlite3`.
+  - **Token carriage:** minted with `secrets.token_urlsafe(24)` on every
+    ordinary GET of `leads/contact.html` for an authenticated, non-staff,
+    non-superuser customer only (mirrors `DemoSelection.submission_token`
+    exactly); rendered as one hidden `final_submission_token` input; on a
+    validation-error rerender the same POSTed value is echoed back
+    verbatim instead of minting a new one; never in a query string,
+    `localStorage`/`sessionStorage`, the Draft JSON API, logs, email, or
+    admin/export views. Guest/staff/superuser POST/GET paths are
+    byte-for-byte unchanged — no `FormDraft` is ever touched for them.
+  - **`leads/form_draft_service.finalize_form_draft_to_lead`** is the
+    sole authority for Draft→Lead conversion: locks the owner row via
+    `select_for_update()`; re-verifies non-staff/active; searches *all*
+    statuses (not just `ACTIVE_STATUSES`) for a `FormDraft` matching
+    `owner + form_type + submission_token`; on a first-seen token,
+    reuses the owner's active draft (locked) or builds a minimal valid
+    one from the final form's five non-sensitive fields, attaches the
+    token, transitions `→submitting→submitted`, builds the `Lead` from
+    `form.cleaned_data` (never the stale draft), preserves the demo
+    snapshot, and registers the notification email via
+    `transaction.on_commit()` inside the same atomic block — exactly
+    once, only on the genuinely-new-Lead path. On a replay with the same
+    token, the new request's canonical data is compared against the
+    original `submitted_lead` itself (service id, normalized nullable
+    fields, normalized phone) — identical → same `Lead`/tracking code,
+    no new `Lead`, no second email; different → a safe bilingual
+    conflict response, no `Lead` ever created or modified. A token
+    belonging to another owner is rejected with the same message as an
+    invalid token (`ForeignSubmissionTokenError` subclasses
+    `InvalidSubmissionTokenError`), revealing nothing about its
+    existence. A genuine `IntegrityError` race (last line of defense
+    only — the owner lock already serializes same-owner races) is
+    caught in a nested `transaction.atomic()` savepoint, outside of
+    which the token is re-read and only an exact owner+content match
+    returns the previous `Lead`. The per-IP rate limiter is invoked only
+    on the genuinely-new-Lead path, after the token/submitting write
+    succeeds — a replay is never rate-limited — and the view only clears
+    its own rate-limit cache key on an unexpected failure, never a
+    shared key another concurrent request may hold.
+  - **Evidence:** `leads.test_finalize` (new, 37 tests) plus the full
+    required targeted suite — `leads.test_finalize`,
+    `leads.test_contact_server_draft_ui`, `leads.test_draft_api`,
+    `leads.test_form_draft`, `leads.test_demo_handoff`, and the whole
+    `leads` app — 232 tests, all passing, 15 correctly skipped
+    (PostgreSQL-only), on SQLite. The same 37 `test_finalize` tests,
+    including the 3 PostgreSQL-only concurrency/rollback tests, all pass
+    on real isolated PostgreSQL (`arvion_ci_local`); the concurrency
+    (`threading.Barrier(2)`, two truly simultaneous same-token requests
+    converge to exactly one `Lead`) and rollback (`SELECT 1/0` injected
+    between `Lead` creation and the draft's `submitted` write, proven to
+    roll back both and leave the outer transaction usable afterward)
+    subset was repeated 5 additional times, all clean. `check` (0
+    issues), migration dry-run ("No changes detected"), `node --check`
+    on `wizard-engine.js` (untouched, no JS change was needed since
+    `FormData(form)` already includes any new hidden input), and
+    `git diff --check` all passed. Full real-browser verification on a
+    disposable SQLite environment covered: complete authenticated fa and
+    en journeys ending at real tracking-code thanks pages; token
+    stability across a validation rerender; a genuine repeated POST with
+    the same token producing no second `Lead` (confirmed via shell); a
+    real `setOffline`/reconnect/retry sequence producing exactly one
+    `Lead`; no submitted-draft banner on return to the form; 320px/390px
+    with no horizontal scroll; zero JavaScript exceptions throughout.
+  - **Two pre-existing tests** (`test_no_sensitive_token_or_id_in_html_even_with_an_existing_draft`,
+    `test_no_forbidden_tokens_anywhere_after_a_successful_retry`) had a
+    blanket "no substring `submission_token`" assertion that predated
+    this phase and would now false-positive on the legitimate
+    `final_submission_token` field name; corrected to assert the
+    specific internal-leak shape (`data-submission-token`) and
+    `draft.submission_token is None` instead — the underlying guarantee
+    (the *internal* DB token never leaks) is unchanged and still
+    enforced.
+  - Files touched: `leads/models/form_draft.py`,
+    `leads/migrations/0008_formdraft_submission_token.py`,
+    `leads/form_draft_service.py`, `leads/views/contact.py`,
+    `leads/templates/leads/contact.html`,
+    `leads/test_contact_server_draft_ui.py`, `leads/test_demo_handoff.py`,
+    `leads/test_finalize.py` (new). No CRM/Clinic, contract, exam, or
+    management-notification code touched. Not pushed, deployed, or
+    migrated on production; `0008_formdraft_submission_token` was never
+    applied to the permanent local `db.sqlite3`.
+  - **Remaining risk, unrelated to this phase:** the pre-existing
+    `assessments/services.py`'s `revoke_assessment_access` PostgreSQL
+    incompatibility (flagged since V2.1-B2) remains unfixed and
+    untouched — still needs separate human prioritization. The
+    saved-drafts dashboard remains `NOT_STARTED` by explicit scope
+    boundary.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is twenty-three commits ahead of `origin/main` — the twenty-two
-  listed above, plus this V2.1-D blocked-analysis documentation commit
-  (no product code). No prior commit is amended.
-- **Last commit:** this phase's own commit — documentation only
-  (`.ai/project/CURRENT_STATE.md`), recording the `BLOCKED` finding and
-  the two proposed designs above; a separate commit on top of the V2.1-C1
-  second corrective commit (`28876dc`), which is not amended. No
-  `leads/`, template, or JS file was touched this phase.
-- **Next action:** get an explicit decision on Design A vs. Design B
-  above (or an explicit instruction to proceed with a specific, accepted
-  trade-off) before any V2.1-D implementation begins — this is now the
-  single blocking item for the whole V2.1 line, ahead of even the
-  already-known Phase-D-is-required-before-deploy fact from prior
-  phases. Once unblocked: implement the finalize service
-  (`transaction.atomic()` + `select_for_update()` on the owner and the
-  active draft, real PostgreSQL concurrency proof, `transaction.on_commit()`
-  for the notification email, rate-limit ordering that never rejects a
-  genuine idempotent replay), wire it into `LeadCreateView.form_valid()`
-  only for an authenticated non-staff customer with an active draft
-  (guest/staff/superuser behavior stays exactly as today), and the full
-  test list already specified in this phase's own instructions. V2.1-B1
-  (both corrective phases), V2.1-B2 (all three corrective phases), V2.1-B3
-  (plus its corrective phase), and V2.1-C1 (plus both corrective phases)
-  remain done and fully verified — see their own entries above; nothing
-  in this phase touched or re-litigated any of them, and nothing in this
-  phase's own (documentation-only) commit requires re-verifying them.
-  One **unrelated, pre-existing** issue remains flagged from V2.1-B2's
-  own regression testing on PostgreSQL — `assessments/services.py`'s
-  `revoke_assessment_access` cannot run its `select_for_update()` query
-  on PostgreSQL due to an outer join from `select_related("attempt")` —
-  still needs a human to prioritize it separately; it does not block this
-  phase and was not touched here either. The earlier, separate V2 idea (a
-  time-boxed, signed continuation link) remains superseded by the
-  login-based approach unless explicitly reopened. Resumable order drafts
-  beyond leads-contact (CRM/Clinic) remain `NOT_STARTED`. Re-run the full
-  release gate on the
-  exact deployable revision before any production action, including
-  applying `0004_activesession`, `0006_formdraft_and_more`, and
-  `0007_formdraft_revision` to any real database.
+  `main` is twenty-four commits ahead of `origin/main` — the twenty-three
+  listed above (including the V2.1-D blocked-analysis documentation
+  commit, `6d75c4f`), plus this phase's own V2.1-D implementation commit.
+  No prior commit is amended.
+- **Last commit:** this phase's own commit — the full V2.1-D
+  implementation: `leads/models/form_draft.py`,
+  `leads/migrations/0008_formdraft_submission_token.py`,
+  `leads/form_draft_service.py`, `leads/views/contact.py`,
+  `leads/templates/leads/contact.html`,
+  `leads/test_contact_server_draft_ui.py`, `leads/test_demo_handoff.py`,
+  `leads/test_finalize.py`, and `.ai/project/CURRENT_STATE.md`; a
+  separate commit on top of `6d75c4f` (the blocked-analysis commit,
+  itself on top of the V2.1-C1 second corrective commit `28876dc`),
+  neither of which is amended.
+- **Next action:** V2.1-D is implemented and verified locally; no
+  further action is required to unblock it. The saved-drafts dashboard
+  (out of scope this phase) remains `NOT_STARTED` and can now proceed
+  since V2.1-D is no longer a blocker. V2.1-B1 (both corrective phases),
+  V2.1-B2 (all three corrective phases), V2.1-B3 (plus its corrective
+  phase), and V2.1-C1 (plus both corrective phases) remain done and
+  fully verified — see their own entries above; nothing in this phase
+  touched or re-litigated any of them. One **unrelated, pre-existing**
+  issue remains flagged from V2.1-B2's own regression testing on
+  PostgreSQL — `assessments/services.py`'s `revoke_assessment_access`
+  cannot run its `select_for_update()` query on PostgreSQL due to an
+  outer join from `select_related("attempt")` — still needs a human to
+  prioritize it separately; it does not block this phase and was not
+  touched here either. The earlier, separate V2 idea (a time-boxed,
+  signed continuation link) remains superseded by the login-based
+  approach unless explicitly reopened. Resumable order drafts beyond
+  leads-contact (CRM/Clinic) remain `NOT_STARTED`. Re-run the full
+  release gate on the exact deployable revision before any production
+  action, including applying `0004_activesession`,
+  `0006_formdraft_and_more`, `0007_formdraft_revision`, and
+  `0008_formdraft_submission_token` to any real database.
 
 ## Phase ledger
 
@@ -2681,6 +2781,7 @@
 | Resumable order drafts — V2.1-C1 (leads-contact wizard wired to the account-bound FormDraft API: restore, autosave, conflict resolution, delete/start-over) (`bef7d45`) | `PARTIAL`, corrected | Initially `PARTIAL` (client-side logic unverified live); real browser testing then surfaced 5 real P1 defects (TDZ crash stopping the whole wizard, `[hidden]` not actually hiding two elements, focus targeting a nonexistent `h2`, GET error handling collapsing everything to "offline", no real response-shape validation). See the corrective-phase row below, which fixes all five and remains `PARTIAL` for the same live-verification reason. |
 | Resumable order drafts — V2.1-C1 corrective (TDZ fix, `[hidden]` CSS fix, `legend`-aware focus helper, classified GET/save/delete error handling with honest retry exhaustion, real draft-response validation, Enter/change-event/duplicate-message smaller fixes) | `PARTIAL` (local) | See "V2.1-C1 corrective" entries above for full root-cause/fix detail. All five P1s fixed in `core/static/core/js/wizard-engine.js`; `.wizard-consent[hidden]`/`.enquiry-actions [hidden]`/`.wizard-draft-banner[hidden]` added to `core/static/core/css/site.css` (targeted, not a site-wide `[hidden]` reset). `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff`+`leads`+`accounts` (267 tests, 14 skips), `crm_orders`+`clinic_orders` (28 tests, real smoke check their own wizard wiring is unaffected), full project suite (742 tests, 15 skips — identical to before this phase, zero regression). `manage.py check` (0 issues), migration dry-run ("No changes detected" — no model/migration touched), `git diff --check` (clean), and `node --check` on the edited JS file all passed. Live-browser verification was attempted again with a freshly rebuilt disposable environment; the same code-independent JS-execution probe used in the original C1 phase still returned `NOT_RUN` — the tool remains broken, unrelated to this project's code — so per explicit instruction this phase stays `PARTIAL`, not `VERIFIED`, even though the fixes are complete and self-reviewed. `bef7d45` not amended; a separate commit on top of it. |
 | Resumable order drafts — V2.1-C1 second corrective (stale cache-bust, `draft:null`-on-save validation, delete-response validation, real-option field validation, single-flight offline retry, `updated_at` hardening) | `VERIFIED` (local) | See "V2.1-C1 second corrective" entries above. All 6 defects fixed in `wizard-engine.js`; cache-bust bumped in `base.html`; one pre-existing test's hardcoded version string updated in `core/tests.py`. Genuinely exercised in a real browser this time (guest flow; states A–D; malformed GET/save/409/delete; a real 401 via server-side session expiry; a real 403 via mid-session staff promotion; real `setOffline` network cut proving only 2 real attempts fire across a 4-change burst, not 4–5; validation rerender; fa/en; 320/390 light/dark; CRM/Clinic smoke) — zero uncaught console errors throughout. Targeted suite (295 tests, 14 skips) and full suite (742 tests, 15 skips) both pass; `check`, migration dry-run, `git diff --check`, `node --check` all pass. One honest residual gap: keyboard Enter-activation of the reconciliation banner's primary button did not register through this automation tool despite confirmed DOM focus — read as a tool limitation (two other unrelated tool quirks were found and worked around this same session), not a suspected defect, since the button is unmodified native `<button>` markup. `bef7d45`/`3b8fb71` not amended; a separate commit on top of `3b8fb71`. |
-| Resumable order drafts — V2.1-D (atomic, non-duplicating FormDraft→Lead conversion) | `BLOCKED` | See "V2.1-D — blocked: idempotency analysis" above. Proven on paper before writing any code: the true-concurrency case is already solvable with the existing schema (shared-row locking), but a *sequential* retry arriving after the first attempt's transaction already committed cannot be told apart from a genuinely new, unrelated submission without one of the explicitly-forbidden heuristics (most-recent/highest-pk draft, CSRF token, time window, revision-alone, content match) — all individually traced through and shown to fail on a concrete counter-scenario. Two low-risk designs proposed (Design A: a `submission_token` field on FormDraft, mirroring the already-shipped, already-tested `DemoSelection.submission_token`/`DemoConfigureView` precedent in this exact codebase; Design B: a JSON finalize endpoint keyed on the existing `expected_revision` concept, larger flow change, not preferred). Neither implemented; no migration, code, or test written this phase — awaiting an explicit decision. |
+| Resumable order drafts — V2.1-D blocked analysis (`6d75c4f`) | `BLOCKED` → superseded below | See "V2.1-D — blocked: idempotency analysis" above (kept as historical record). Proven on paper before writing any code: the true-concurrency case is already solvable with the existing schema (shared-row locking), but a *sequential* retry arriving after the first attempt's transaction already committed cannot be told apart from a genuinely new, unrelated submission without one of the explicitly-forbidden heuristics (most-recent/highest-pk draft, CSRF token, time window, revision-alone, content match) — all individually traced through and shown to fail on a concrete counter-scenario. Two low-risk designs proposed (Design A: a `submission_token` field on FormDraft, mirroring the already-shipped, already-tested `DemoSelection.submission_token`/`DemoConfigureView` precedent; Design B: a JSON finalize endpoint keyed on `expected_revision`, larger flow change, not preferred). Neither implemented at that time; superseded by explicit authorization and the implementation below. |
+| Resumable order drafts — V2.1-D (atomic, non-duplicating FormDraft→Lead conversion, Design A corrected) | `VERIFIED` (local) | See "V2.1-D — implemented and verified" above for full detail. User explicitly authorized Design A with a corrected constraint: the token must solve both true concurrency and sequential replay-after-commit, not just the latter (Design B/`expected_revision` explicitly rejected). Added `FormDraft.submission_token` (nullable, unique, additive migration `0008_formdraft_submission_token`, never applied to the permanent local db); `leads/form_draft_service.finalize_form_draft_to_lead` is the sole Draft→Lead authority (owner-row locking, all-statuses token lookup, minimal-draft fallback, `submitted_lead`-based replay comparison, `IntegrityError` savepoint as last-resort race defense, `transaction.on_commit()` for exactly-once notification, rate limiter invoked only on the genuinely-new-Lead path); wired into `LeadCreateView` only for authenticated non-staff customers, guest/staff/superuser paths byte-for-byte unchanged. New `leads.test_finalize` (37 tests) plus the full targeted suite (232 tests, 15 skips) pass on SQLite; the same 37 tests, including 3 PostgreSQL-only concurrency/rollback tests, pass on real isolated PostgreSQL, with the concurrency/rollback subset repeated 5 additional times, all clean. `check`, migration dry-run, `node --check` (no JS change needed), and `git diff --check` all passed. Full real-browser verification on a disposable environment covered fa/en journeys, token stability across validation rerender, no-duplicate-Lead on repeat POST and on network-offline/retry, no submitted-draft banner on return, 320/390px, zero JS exceptions. Two pre-existing tests with an over-broad "no substring `submission_token`" assertion were corrected to check the actual internal-leak shape instead, since `final_submission_token` is a legitimate, intentionally-named new field. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. Not pushed, deployed, or migrated on production. |
 | Resumable order drafts — V2.1 saved-drafts dashboard section | `NOT_STARTED` | Out of this session's scope by explicit instruction; depends on V2.1-D being unblocked and shipped first. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

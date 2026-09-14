@@ -63,6 +63,20 @@ class FormDraft(models.Model):
     submitted_lead = models.ForeignKey(
         "leads.Lead", on_delete=models.SET_NULL, blank=True, null=True, related_name="source_form_drafts",
     )
+    submission_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text=(
+            "A non-secret, server-minted, single-use idempotency key for the "
+            "final leads_contact submission this draft belongs to — never an "
+            "access token. Set only by leads.form_draft_service."
+            "finalize_form_draft_to_lead, exactly once, when a submission "
+            "first begins finalizing. Mirrors projects.DemoSelection."
+            "submission_token's own, already-proven shape and purpose."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField(default=default_draft_expiry, db_index=True)

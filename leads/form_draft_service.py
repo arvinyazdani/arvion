@@ -5,10 +5,10 @@ draft rule, the expiry lifecycle, and the demo-snapshot attach/clear rules
 are enforced.
 
 Scope: leads_contact only. `leads.signals` (pre-login hand-off),
-`leads.views.contact.LeadCreateView` (already-authenticated hand-off),
-and `leads.views.draft_api` (the account-bound read/save/delete API) are
-the only callers outside this module and its own tests — no
-Lead-submission wiring exists yet.
+`leads.views.contact.LeadCreateView` (already-authenticated hand-off, and
+— via `finalize_form_draft_to_lead` — the final, account-bound submission
+path), and `leads.views.draft_api` (the account-bound read/save/delete
+API) are the only callers outside this module and its own tests.
 
 Every `DraftValidationError` message below is a fixed, generic string with
 no interpolated value or caller-supplied key name: both a submitted field
@@ -32,7 +32,7 @@ precondition check of its own.
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from projects.demo_snapshots import build_demo_selection_snapshot
@@ -646,6 +646,274 @@ def delete_draft_with_revision(*, owner, form_type, expected_revision):
             raise DraftConflictError(existing)
         existing.delete()
         return True
+
+
+FINALIZE_FORM_TYPE = "leads_contact"
+MAX_SUBMISSION_TOKEN_LENGTH = 64
+
+
+class FinalizeSubmissionError(Exception):
+    """Base class for every rejection `finalize_form_draft_to_lead` can
+    raise. Every message is a fixed, generic string — never a
+    caller-supplied value, never the token itself — safe to reach a log,
+    an admin error page, or a bilingual view-level message. See each
+    subclass's own docstring for exactly what it represents."""
+
+
+class InvalidSubmissionTokenError(FinalizeSubmissionError):
+    """A missing, empty, or too-long `final_submission_token` — and,
+    deliberately, also a token that belongs to a different owner (see
+    `ForeignSubmissionTokenError`, which this class effectively merges
+    with at the call site): the two are never told apart in what a caller
+    can observe, since doing so would let a caller learn whether a given
+    token string exists at all."""
+
+
+class ForeignSubmissionTokenError(InvalidSubmissionTokenError):
+    """`final_submission_token` names a real `FormDraft` row, but not one
+    belonging to the requesting owner. Subclasses
+    `InvalidSubmissionTokenError` on purpose — callers that only catch the
+    parent already reject this exactly like a malformed token, with the
+    same fixed message; nothing distinguishes "belongs to someone else"
+    from "not a real token" anywhere a caller could observe it."""
+
+
+class NewLeadRateLimitedError(FinalizeSubmissionError):
+    """Raised only on the genuinely-new-Lead path, only when the caller's
+    own `allow_new_lead()` callable returns `False`. Never raised on a
+    replay — replaying an already-completed submission is never
+    rate-limited, regardless of how recently a new Lead was created from
+    the same IP."""
+
+
+class SubmissionConflictError(FinalizeSubmissionError):
+    """`final_submission_token` names a `FormDraft` whose `submitted_lead`
+    already exists, but this submission's canonical content differs from
+    that Lead's own current, stored values. Never silently treated as a
+    replay, and the original Lead is left completely untouched — the
+    caller must show a safe, bilingual conflict message instead."""
+
+
+def _validate_submission_token(raw_token):
+    token = (raw_token or "").strip()
+    if not token or len(token) > MAX_SUBMISSION_TOKEN_LENGTH:
+        _raise_invalid_submission_token()
+    return token
+
+
+def _raise_invalid_submission_token():
+    raise InvalidSubmissionTokenError("The submission token is missing or invalid.")
+
+
+def _minimal_draft_fields_from_cleaned_data(cleaned_data):
+    """The exact same five-field allowlist every other draft-writing
+    function in this module enforces, extracted from the already-validated
+    final form — used only for the one case where no autosave ever created
+    a draft before the customer reached Submit. Reuses `normalize_fields`
+    itself, so this can never silently diverge from the allowlist enforced
+    everywhere else in this module."""
+    service = cleaned_data.get("service")
+    raw = {
+        "request_type": cleaned_data.get("request_type"),
+        "budget_range": cleaned_data.get("budget_range"),
+        "timeline": cleaned_data.get("timeline"),
+        "preferred_contact": cleaned_data.get("preferred_contact"),
+    }
+    if service is not None:
+        raw["service_id"] = service.pk
+    return normalize_fields(FINALIZE_FORM_TYPE, raw)
+
+
+def _lead_canonical_signature(lead):
+    """Every field a replay must match, byte for byte, against the
+    already-created Lead — service and other nullable/FK values are
+    compared in their normalized, stored form (never re-derived from a
+    caller-supplied guess), exactly like `phone`, which `LeadForm.
+    clean_phone` already normalizes before it is ever saved."""
+    return {
+        "request_type": lead.request_type,
+        "service_id": lead.service_id,
+        "budget_range": lead.budget_range,
+        "timeline": lead.timeline,
+        "preferred_contact": lead.preferred_contact,
+        "name": lead.name,
+        "business_name": lead.business_name or "",
+        "email_or_telegram": lead.email_or_telegram,
+        "phone": lead.phone or "",
+        "website_url": lead.website_url or "",
+        "message": lead.message,
+    }
+
+
+def _cleaned_data_canonical_signature(cleaned_data):
+    service = cleaned_data.get("service")
+    return {
+        "request_type": cleaned_data.get("request_type"),
+        "service_id": service.pk if service else None,
+        "budget_range": cleaned_data.get("budget_range"),
+        "timeline": cleaned_data.get("timeline"),
+        "preferred_contact": cleaned_data.get("preferred_contact"),
+        "name": cleaned_data.get("name", ""),
+        "business_name": cleaned_data.get("business_name") or "",
+        "email_or_telegram": cleaned_data.get("email_or_telegram", ""),
+        "phone": cleaned_data.get("phone") or "",
+        "website_url": cleaned_data.get("website_url") or "",
+        "message": cleaned_data.get("message", ""),
+    }
+
+
+def _lead_matches_cleaned_data(lead, cleaned_data):
+    return _lead_canonical_signature(lead) == _cleaned_data_canonical_signature(cleaned_data)
+
+
+def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_selection, allow_new_lead, on_created=None):
+    """The only sanctioned way to convert a customer's `leads_contact`
+    `FormDraft` into a `Lead`, atomically and without ever creating a
+    duplicate `Lead` for the same submission attempt. Called only from
+    `LeadCreateView.form_valid()`, only for an authenticated, non-staff,
+    non-superuser customer. `form` must already be a validated `LeadForm`
+    (`form.is_valid()` already `True`) — this never validates form fields
+    itself, only the draft/token/ownership/rate-limit state around it, and
+    it never lets `FormDraft` data override anything `form.cleaned_data`
+    already holds: the validated POST is the sole source of every `Lead`
+    field.
+
+    `final_submission_token` is the raw value read from the POST body's
+    hidden `final_submission_token` field — a fresh, server-minted,
+    non-secret idempotency key rendered on every ordinary `GET` of the
+    contact page for an authenticated non-staff customer (never on a
+    validation-error rerender, which instead echoes back the token the
+    customer already submitted, so a fix-and-retry is still recognized as
+    the same attempt — see `LeadCreateView._resolved_final_submission_token`).
+
+    `demo_selection` is the caller's already-resolved, session-bound
+    `DemoSelection` (or `None`) — resolved and authorized exactly the same
+    way the pre-existing guest/staff/superuser path already does; this
+    function never derives a live FK from a draft's frozen `demo_snapshot`.
+
+    `allow_new_lead` is a zero-argument callable the caller supplies
+    (normally wrapping its own IP-based rate limiter). It is called, and
+    its return value enforced, only on the path that is about to create a
+    genuinely new `Lead` — a replay of an already-completed submission
+    never consults it and is never rate-limited.
+
+    `on_created`, if given, is called with the new `Lead` via
+    `transaction.on_commit()` from *inside* this function's own open
+    transaction — so it only ever runs after a real, successful commit,
+    exactly once, and never at all on a replay or on any rollback. The
+    caller is expected to pass a closure that sends the notification email
+    (kept out of this module so it stays decoupled from Django's mail
+    backend and independently testable).
+
+    Returns `(lead, created)` — `created` is `True` only when this call
+    itself just made a new `Lead`; `False` for a recognized replay of an
+    already-completed submission (same token, same canonical content —
+    `lead` is the original `Lead`; nothing was written).
+
+    Raises `InvalidSubmissionTokenError` (covers both a missing/malformed
+    token and one belonging to a different owner — the two are never
+    distinguished in what is raised), `NewLeadRateLimitedError` (this
+    would have been a new `Lead`, and the caller's own rate limiter
+    refused it), or `SubmissionConflictError` (the token already names a
+    completed `Lead`, but this submission's content differs from it).
+    """
+    _require_real_owner(owner)
+    _require_non_staff_owner(owner)
+    token = _validate_submission_token(final_submission_token)
+
+    lead = None
+    created = False
+
+    with transaction.atomic():
+        locked_owner = owner.__class__.objects.select_for_update().get(pk=owner.pk)
+        # Re-checked against the freshest, lock-held row: request.user may
+        # be a stale copy of the account from before this exact request if
+        # anything about it changed between session authentication and
+        # this query.
+        if locked_owner.is_staff or locked_owner.is_superuser or not locked_owner.is_active:
+            _raise_invalid_submission_token()
+
+        existing = FormDraft.objects.filter(submission_token=token).first()
+        if existing is not None:
+            if existing.owner_id != locked_owner.pk or existing.form_type != FINALIZE_FORM_TYPE:
+                # Never reveal whether the token exists at all — identical
+                # outward behavior to a token that was never issued.
+                raise ForeignSubmissionTokenError("The submission token is missing or invalid.")
+            if existing.submitted_lead_id is not None:
+                original = existing.submitted_lead
+                if _lead_matches_cleaned_data(original, form.cleaned_data):
+                    return original, False
+                raise SubmissionConflictError(
+                    "This submission was already recorded with different information."
+                )
+            # A token attached to a not-yet-submitted draft, owned by this
+            # same locked owner, can only be a leftover from an attempt
+            # that never reached "submitted" — the owner-row lock this
+            # function itself holds for its entire duration means no other
+            # request for this owner can be concurrently mid-flight right
+            # now, and the transition below always commits the
+            # "submitting" write and the "submitted" write together, in
+            # the same outer transaction (never one without the other) —
+            # so this state, reached under a fresh lock, is safe to resume
+            # rather than treat as a conflict.
+            draft = existing
+        else:
+            now = timezone.now()
+            draft = _get_active_draft_locked(locked_owner, FINALIZE_FORM_TYPE, now)
+            creating = draft is None
+            minimal_fields = _minimal_draft_fields_from_cleaned_data(form.cleaned_data) if creating else None
+            try:
+                with transaction.atomic():
+                    if creating:
+                        draft = FormDraft.objects.create(
+                            owner=locked_owner, form_type=FINALIZE_FORM_TYPE, fields=minimal_fields,
+                            current_step=FORM_TYPE_STEP_COUNTS[FINALIZE_FORM_TYPE] - 1, status="submitting",
+                            submission_token=token, expires_at=now + timedelta(days=DRAFT_RETENTION_DAYS),
+                        )
+                    else:
+                        draft.status = "submitting"
+                        draft.submission_token = token
+                        draft.revision = draft.revision + 1
+                        draft.save(update_fields=["status", "submission_token", "revision", "updated_at"])
+            except IntegrityError:
+                # Last line of defense against a token collision — the
+                # owner-row lock above already makes this unreachable for
+                # a same-owner race, so in practice this only guards a
+                # (cryptographically negligible) cross-owner token
+                # collision, or a future change that weakens the lock.
+                # Re-read scoped by owner+form_type, never by token alone,
+                # and never guess: only a matching, already-completed
+                # submission for this exact owner is treated as a replay.
+                recovered = FormDraft.objects.filter(
+                    owner=locked_owner, form_type=FINALIZE_FORM_TYPE, submission_token=token,
+                ).first()
+                if recovered is not None and recovered.submitted_lead_id is not None:
+                    original = recovered.submitted_lead
+                    if _lead_matches_cleaned_data(original, form.cleaned_data):
+                        return original, False
+                raise SubmissionConflictError(
+                    "This submission was already recorded with different information."
+                )
+
+        if not allow_new_lead():
+            raise NewLeadRateLimitedError("Please wait before submitting another enquiry.")
+
+        lead = form.save(commit=False)
+        if demo_selection is not None:
+            lead.demo_selection = demo_selection
+        lead.privacy_accepted_at = timezone.now()
+        lead.save()
+        created = True
+
+        draft.submitted_lead = lead
+        draft.status = "submitted"
+        draft.revision = draft.revision + 1
+        draft.save(update_fields=["submitted_lead", "status", "revision", "updated_at"])
+
+        if on_created is not None:
+            transaction.on_commit(lambda: on_created(lead))
+
+    return lead, created
 
 
 def serialize_draft_canonical(draft):
