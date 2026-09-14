@@ -2,40 +2,51 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-C1 corrective — five real defects found by
-  real-browser testing of the just-shipped V2.1-C1 phase (`bef7d45`) were
-  fixed: (1) **P1** — `isDemoContinuationWizard` was read (building
-  `serverDraftEnabled`) before its own `const` declaration further down the
-  file, a genuine temporal-dead-zone `ReferenceError` that stopped the
-  *entire* wizard — guest and authenticated alike — from initializing at
-  all; (2) **P1** — `[hidden]` alone did not hide `.wizard-consent` or the
-  Back/Submit buttons inside `.enquiry-actions`, because
-  `.wizard-consent{display:grid}` and the generic `.button{display:
-  inline-flex}` rule are author-origin declarations that always beat the
-  UA stylesheet's `[hidden]{display:none}` regardless of specificity; (3)
-  **P1** — focus restoration looked only for an `h2`, which
-  `leads/contact.html`'s `<legend>`-based steps don't have, so focus never
-  moved anywhere on restore; (4) **P1** — the initial `GET` in
-  `reconcile()` collapsed every non-200 response into one generic
-  "offline" state, silently mishandling 401/403/malformed responses and
-  never retrying a genuine network failure; (5) **P1** — `safeDraft()`
-  only checked that a `draft` key existed, so a malformed or unexpected
-  response shape could reach `.revision`/`.fields` unvalidated. See
-  "V2.1-C1 corrective" entries below for the full root-cause/fix detail;
-  see "V2.1-C1 — historical recap" further down for the superseded
-  "current phase" text this replaces. Status: `PARTIAL` (unchanged from
-  before this corrective phase, for the same reason): all five defects
-  are fixed and self-reviewed, and the full Python/HTTP suite plus
-  `check`/migration-dry-run/`git diff --check` all pass, but live-browser
-  verification of the fix was attempted again this phase and the only
-  browser-automation tool available in this environment is still unable
-  to execute page JavaScript at all (re-confirmed via the same
-  code-independent probe used in the original C1 phase — a trivial inline
-  `<script>` on a blank page still never runs). Per this project's own
-  rule against ever labeling an unavailable check as passing, this phase
-  is *not* marked `VERIFIED` even though the fixes are, by careful code
-  review, correct and complete. See "V2.1-C1 corrective — browser
-  verification" below for the exact, honest breakdown.
+- **Current phase:** V2.1-C1 second corrective — this time a working
+  browser session was available, and 6 real defects found by review of
+  `3b8fb71` were fixed and then genuinely exercised live: (1) **P1** —
+  `base.html` still served `site.css?v=38`/`wizard-engine.js?v=3`, stale
+  relative to `bef7d45`/`3b8fb71`'s own edits to those files — bumped to
+  `v=39`/`v=4`; (2) **P1** — a successful save/conflict-resolution
+  response with `{"draft": null}` (a shape only valid for GET/409) could
+  still reach `.revision`/`.fields` in `queueServerSave()`/
+  `handleConflict()`'s two POST handlers/the state-C/D import/use-device
+  handlers — fixed with a new `safeSavedDraft()` (rejects `draft: null`)
+  used at all five save-success call sites, `safeDraft()` itself kept
+  unchanged for GET/409; (3) **P1** — `performDelete()` treated *any*
+  200/201 as a successful delete without checking the body at all — fixed
+  with `safeDeleteResult()` (requires a real `deleted: boolean`); (4)
+  **P2** — field-value validation only checked type, not that a value
+  actually matches one of that `<select>`'s real options — fixed by
+  comparing against each field's live option set
+  (`fieldOptionValues`), rejecting anything unknown/oversized regardless
+  of type; (5) **P2** — rapid typing while an autosave retry was already
+  backoff-scheduled could fire a fresh attempt per keystroke, burning
+  through all 5 retries in seconds instead of over the intended ~112s
+  window — fixed with a `saveRetryTimer !== null` guard so only `state
+  .dirty` is set while a retry is pending, never a second real attempt;
+  (6) `formatSavedAt` hardened to reject an invalid `updated_at` before
+  ever formatting it. See "V2.1-C1 second corrective" below for fix
+  detail and the live-browser evidence — this time genuinely run (guest
+  flow, all 4 reconciliation states, malformed GET/save/409/delete, a
+  real 401 via server-side session expiry, a real 403 via a mid-session
+  staff promotion, real offline/reconnect with the single-flight fix
+  proven by request count, validation rerender, fa/en, 320/390 in both
+  themes, CRM/Clinic smoke, zero uncaught console errors throughout).
+  Status: `VERIFIED` (local) — the two prior blockers (an unrelated
+  `page.setContent` probe that never ran page JS, giving a false
+  "browser is broken" reading; and a mid-session environment reset) are
+  resolved; this phase's evidence comes from real navigation, real
+  server responses, and one genuine tool limitation (`page.route()`
+  interception needed the reconciliation banner clicked through first
+  before it reliably matched requests — a timing issue in the test
+  script, not the product) plus one inconclusive check (keyboard Enter
+  activating a focused `<button>` did not register through this specific
+  automation tool despite confirmed DOM focus — tab *order* was verified
+  correct; Enter-activation relies on unmodified native `<button>`
+  semantics the code never overrides, so this is recorded as unconfirmed
+  tooling, not a suspected defect). See "V2.1-C1 second corrective —
+  what was not fully confirmed" below for that one honest gap.
 - **V2.1-B3 corrective — historical recap (superseded as the "current
   phase"; kept for reference):** a P2 lifecycle bug in
   `save_draft_fields` found right after `57a6be8` shipped: when the
@@ -2368,35 +2379,126 @@
   conflate the two. The disposable settings module, database, seeded
   accounts, and dev server were all torn down again before this commit —
   nothing from this verification attempt is present in the working tree.
+- **V2.1-C1 second corrective — files changed:**
+  `core/templates/core/base.html` (cache-bust `v=38→39`/`v=3→4` only),
+  `core/static/core/js/wizard-engine.js` (the 6 fixes above — no CSS
+  change was needed this round, `3b8fb71`'s `[hidden]` fix already
+  covers what this phase needed), and `core/tests.py` (one pre-existing
+  test asserted the literal string `site.css?v=38`; updated to `v=39` —
+  the same "a test hardcoded a version/count that a real change legitimately
+  moves" pattern already seen elsewhere in this project, not a defect).
+  No model, migration, or dashboard code touched.
+- **V2.1-C1 second corrective — live-browser evidence:** run against a
+  freshly rebuilt disposable SQLite database (never `db.sqlite3`/
+  `arvion_ci_local`) with disposable customer/staff accounts, all deleted
+  afterward. Guest: consent accept, Next/Back/Submit all confirmed
+  advancing correctly and redirecting to the real thanks page; reload
+  showed the local-draft restore banner with correct bilingual text.
+  Confirmed via direct `getComputedStyle` that the step-1 Back/Submit
+  buttons are genuinely `display:none` while `hidden`, and that forcing
+  `hidden=true` on the consent box now genuinely computes to
+  `display:none` (the exact defect `3b8fb71` fixed). Confirmed
+  `site.css?v=39`/`wizard-engine.js?v=4` are what a plain reload actually
+  serves. State A (no draft): autosave saved correctly, focus after
+  `Next` landed on the step's real `<legend>` (the P1 #3 fix from
+  `3b8fb71`, now seen working live). States B/C/D: each reconciliation
+  banner rendered with correct text/buttons, nothing applied to the DOM
+  before an explicit click, `demo_snapshot` survived a "use device
+  version" save untouched. Malformed responses (via `page.route`, after
+  first clicking through the reconciliation banner so autosave was
+  genuinely armed — the tool only matched requests reliably at that
+  point, a test-script lesson, not a product issue): a `200
+  {"draft": null}` save response showed "پاسخ ذخیره‌سازی نامعتبر بود" /
+  "The save response was invalid" with no DOM change and no revision
+  corruption, and its own "تلاش مجدد" button then genuinely re-saved
+  successfully — this is the direct, live proof of this phase's headline
+  P1 fix; a malformed GET, a malformed 409, and a delete response missing
+  `deleted` were each rejected the same way, with local state provably
+  untouched (server-side revision/fields re-checked via a real `fetch`
+  after each). A **real** 401 (all server sessions expired mid-tab,
+  no mocking) showed the session-ended notice with a working
+  `?next=` login link and preserved the user's just-typed DOM value. A
+  **real** 403 (the same logged-in customer promoted to `is_staff=True`
+  server-side without reloading, so the client still believed
+  server-draft mode was on) showed the forbidden notice with no retry
+  loop. A **real** `context.setOffline(true)` network cut, four rapid
+  field changes fired during it, then reconnect: only 2 real failed
+  network attempts occurred across the whole burst (not 4, not 5) —
+  direct proof the P2 #2 single-flight fix works, and the `online` event
+  triggered an immediate successful save of the *last* value chosen
+  during the burst on reconnect. Delete: successful delete, cancel
+  (leaves the draft untouched), and malformed-response-does-not-clear
+  all confirmed. A Django validation rerender (an intentionally invalid
+  `preferred_contact=phone` with no phone number) preserved the
+  customer's just-typed name/email exactly, landed `data-error-step="3"`
+  correctly, and re-armed autosave from the server's real revision.
+  fa/en: the authenticated notice rendered in exactly one language on
+  each locale. 320px and 390px in both light and dark (screenshots taken)
+  showed the reconciliation banner compact, legible, and RTL-correct with
+  no horizontal scroll. CRM and Clinic wizards: real Next/Back smoke
+  test, `"مرحله 1 از 5"`/`"مرحله 1 از 6"` (JS-driven step text, proving
+  no TDZ crash reached them either — they were never affected, but this
+  confirms it directly rather than by inference), zero console errors.
+  Console/`pageerror` listeners were attached across every one of the
+  above and never once caught an uncaught exception — the only
+  "console errors" the tool ever reported were the browser's own
+  network-log lines for intentional non-2xx responses (a normal, expected
+  log for a deliberately-provoked 401/403/409/malformed status), never a
+  JavaScript exception.
+- **V2.1-C1 second corrective — what was not fully confirmed:** keyboard
+  Tab order through the reconciliation banner was verified correct
+  (skip-link → brand → menu → primary action → secondary action → form
+  fields); activating the focused primary button by pressing Enter did
+  not register through this specific automation tool, confirmed via
+  `document.activeElement` genuinely being the button at the moment of
+  the key press. Since the button is a plain, unmodified `<button
+  type="button">` and the code adds no keydown handling that could
+  interfere with the browser's own native Enter-activates-a-focused-
+  button behavior, this reads as a tool limitation (consistent with two
+  other tool quirks found and worked around this same session:
+  `page.fill()` silently no-op'ing on `type="email"` inputs where
+  `.type()` worked, and `page.route()` needing the reconciliation banner
+  clicked through before it reliably matched requests) rather than a
+  suspected product defect — but it was not independently proven safe
+  either, so it is recorded here rather than silently assumed. A full
+  desktop-width (not just 320/390) screenshot in each theme was not
+  separately captured, though every functional interaction above ran at
+  the tool's default (desktop-sized) viewport without any layout issue
+  observed. `prefers-reduced-motion` was not separately toggled and
+  checked; no new CSS animation exists on any element this phase or the
+  prior corrective phase touched, so there is nothing on this feature's
+  own surface for that media query to need to suppress.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is twenty-one commits ahead of `origin/main` — the twenty listed
-  above, plus this V2.1-C1 corrective commit. No prior commit is amended.
-- **Last commit:** this V2.1-C1 corrective phase's own commit (see
-  `git log`) — a separate commit on top of the V2.1-C1 commit (`bef7d45`),
-  which is not amended.
-- **Next action:** before any deploy: (a) the single highest-priority
-  remaining gap is still a working browser session — this environment's
-  automation tool needs investigation/repair (or use of a different
-  machine/session) before the 16 named V2.1-C1 journeys can actually be
-  driven and this phase can move from `PARTIAL` to `VERIFIED`; (b) Phase
-  D — atomic `FormDraft`→`Lead` conversion on successful submit, still
-  the hard blocker on deploying *any* of V2.1-A through C1 regardless of
-  (a); (c) the still-`NOT_STARTED` saved-drafts dashboard section and the
-  human-approval decisions already on record (free-text/contact consent
-  layer, guest sign-in nudging, `cleanup_form_drafts` scheduling). V2.1-B1
-  (both corrective phases), V2.1-B2 (all three corrective phases), and
-  V2.1-B3 (plus its corrective phase) remain done and fully verified —
-  see their own entries above; nothing in this phase touched or
-  re-litigated any of them. One **unrelated, pre-existing** issue remains
-  flagged from V2.1-B2's own regression testing on PostgreSQL —
-  `assessments/services.py`'s `revoke_assessment_access` cannot run its
-  `select_for_update()` query on PostgreSQL due to an outer join from
-  `select_related("attempt")` — still needs a human to prioritize it
-  separately; it does not block this phase and was not touched here
-  either. The earlier, separate V2 idea (a time-boxed, signed
-  continuation link) remains superseded by the login-based approach
-  unless explicitly reopened. Resumable order drafts beyond leads-contact
-  (CRM/Clinic) remain `NOT_STARTED`. Re-run the full release gate on the
+  `main` is twenty-two commits ahead of `origin/main` — the twenty-one
+  listed above, plus this V2.1-C1 second corrective commit. No prior
+  commit is amended.
+- **Last commit:** this V2.1-C1 second corrective phase's own commit (see
+  `git log`) — a separate commit on top of the V2.1-C1 corrective commit
+  (`3b8fb71`), which is not amended.
+- **Next action:** before any deploy: (a) Phase D — atomic
+  `FormDraft`→`Lead` conversion on successful submit — remains the hard
+  blocker on deploying *any* of V2.1-A through C1, independent of this
+  phase's now-`VERIFIED` client-side fixes; (b) the one honest residual
+  gap above (keyboard Enter-activation on the reconciliation banner's
+  primary button) is worth a from-a-different-tool or manual spot-check
+  before this specific interaction is relied upon, though nothing in the
+  code itself is suspected; (c) the still-`NOT_STARTED` saved-drafts
+  dashboard section and the human-approval decisions already on record
+  (free-text/contact consent layer, guest sign-in nudging,
+  `cleanup_form_drafts` scheduling). V2.1-B1 (both corrective phases),
+  V2.1-B2 (all three corrective phases), and V2.1-B3 (plus its corrective
+  phase) remain done and fully verified — see their own entries above;
+  nothing in this phase touched or re-litigated any of them. One
+  **unrelated, pre-existing** issue remains flagged from V2.1-B2's own
+  regression testing on PostgreSQL — `assessments/services.py`'s
+  `revoke_assessment_access` cannot run its `select_for_update()` query
+  on PostgreSQL due to an outer join from `select_related("attempt")` —
+  still needs a human to prioritize it separately; it does not block this
+  phase and was not touched here either. The earlier, separate V2 idea (a
+  time-boxed, signed continuation link) remains superseded by the
+  login-based approach unless explicitly reopened. Resumable order drafts
+  beyond leads-contact (CRM/Clinic) remain `NOT_STARTED`. Re-run the full
+  release gate on the
   exact deployable revision before any production action, including
   applying `0004_activesession`, `0006_formdraft_and_more`, and
   `0007_formdraft_revision` to any real database.
@@ -2431,5 +2533,6 @@
 | Resumable order drafts — V2.1-B3 corrective (defer `save_draft_fields`'s conflict raise until after its transaction commits, so an expiry transition always survives) | `VERIFIED` (local) | See "V2.1-B3 corrective" entries above. `save_draft_fields` now records a conflict outcome in a local `_NO_CONFLICT`-sentinel-guarded variable instead of raising immediately, and only raises `DraftConflictError` after its `transaction.atomic()` block has exited normally — mirroring `attach_demo_snapshot`/`clear_demo_snapshot`'s existing `no_active_draft` ordering. `delete_draft_with_revision` was checked and confirmed to not have this bug (its "no draft" case is a plain `return`, never a `raise`, from inside its own atomic block) — left untouched. Reproduced first (reverting the fix made the new tests fail with `'open' != 'expired'`, both at the service level and through the real HTTP view), then fixed and re-verified. New PostgreSQL-only `FormDraftApiExpiredConflictUnderOuterTransactionTests` proves the same scenario holds even when the real view is called inside a genuine outer `transaction.atomic()` standing in for `ATOMIC_REQUESTS` — the 409 is returned normally with no exception ever reaching the outer block, and the expiry transition is visible via a real query while still inside that same outer transaction. Run once plus 5 repeats — all clean; the pre-existing `FormDraftApiPostgresConcurrencyTests` concurrency test was re-confirmed unaffected. `leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff` (173 tests, 12 skips on SQLite; same 173 tests, 0 skips on real PostgreSQL); `leads` app (185 tests, 12 skips); `accounts`+`projects`+`management_portal` (234 tests, 2 skips) — no regression. No migration in this phase (none was expected); only `leads/form_draft_service.py` (one function), `leads/test_form_draft.py`, and `leads/test_draft_api.py` touched — `delete_draft_with_revision` and every other service function byte-for-byte unchanged. The unrelated, pre-existing `assessments/services.py` PostgreSQL incompatibility remains flagged, unfixed, and not hidden. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. `57a6be8` not amended. |
 | Resumable order drafts — V2.1-C1 (leads-contact wizard wired to the account-bound FormDraft API: restore, autosave, conflict resolution, delete/start-over) (`bef7d45`) | `PARTIAL`, corrected | Initially `PARTIAL` (client-side logic unverified live); real browser testing then surfaced 5 real P1 defects (TDZ crash stopping the whole wizard, `[hidden]` not actually hiding two elements, focus targeting a nonexistent `h2`, GET error handling collapsing everything to "offline", no real response-shape validation). See the corrective-phase row below, which fixes all five and remains `PARTIAL` for the same live-verification reason. |
 | Resumable order drafts — V2.1-C1 corrective (TDZ fix, `[hidden]` CSS fix, `legend`-aware focus helper, classified GET/save/delete error handling with honest retry exhaustion, real draft-response validation, Enter/change-event/duplicate-message smaller fixes) | `PARTIAL` (local) | See "V2.1-C1 corrective" entries above for full root-cause/fix detail. All five P1s fixed in `core/static/core/js/wizard-engine.js`; `.wizard-consent[hidden]`/`.enquiry-actions [hidden]`/`.wizard-draft-banner[hidden]` added to `core/static/core/css/site.css` (targeted, not a site-wide `[hidden]` reset). `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+`leads.test_form_draft`+`leads.test_demo_handoff`+`leads`+`accounts` (267 tests, 14 skips), `crm_orders`+`clinic_orders` (28 tests, real smoke check their own wizard wiring is unaffected), full project suite (742 tests, 15 skips — identical to before this phase, zero regression). `manage.py check` (0 issues), migration dry-run ("No changes detected" — no model/migration touched), `git diff --check` (clean), and `node --check` on the edited JS file all passed. Live-browser verification was attempted again with a freshly rebuilt disposable environment; the same code-independent JS-execution probe used in the original C1 phase still returned `NOT_RUN` — the tool remains broken, unrelated to this project's code — so per explicit instruction this phase stays `PARTIAL`, not `VERIFIED`, even though the fixes are complete and self-reviewed. `bef7d45` not amended; a separate commit on top of it. |
-| Resumable order drafts — V2.1 Phase D (atomic FormDraft→Lead final submission) and the saved-drafts dashboard section | `NOT_STARTED` | The hard blocker on deploying any V2.1 commit (A through C1). Requires explicit human approval on the still-open decisions above; depends on the now-`VERIFIED` B1+B2+B3 foundation and this session's C1 work. |
+| Resumable order drafts — V2.1-C1 second corrective (stale cache-bust, `draft:null`-on-save validation, delete-response validation, real-option field validation, single-flight offline retry, `updated_at` hardening) | `VERIFIED` (local) | See "V2.1-C1 second corrective" entries above. All 6 defects fixed in `wizard-engine.js`; cache-bust bumped in `base.html`; one pre-existing test's hardcoded version string updated in `core/tests.py`. Genuinely exercised in a real browser this time (guest flow; states A–D; malformed GET/save/409/delete; a real 401 via server-side session expiry; a real 403 via mid-session staff promotion; real `setOffline` network cut proving only 2 real attempts fire across a 4-change burst, not 4–5; validation rerender; fa/en; 320/390 light/dark; CRM/Clinic smoke) — zero uncaught console errors throughout. Targeted suite (295 tests, 14 skips) and full suite (742 tests, 15 skips) both pass; `check`, migration dry-run, `git diff --check`, `node --check` all pass. One honest residual gap: keyboard Enter-activation of the reconciliation banner's primary button did not register through this automation tool despite confirmed DOM focus — read as a tool limitation (two other unrelated tool quirks were found and worked around this same session), not a suspected defect, since the button is unmodified native `<button>` markup. `bef7d45`/`3b8fb71` not amended; a separate commit on top of `3b8fb71`. |
+| Resumable order drafts — V2.1 Phase D (atomic FormDraft→Lead final submission) and the saved-drafts dashboard section | `NOT_STARTED` | The hard blocker on deploying any V2.1 commit (A through C1), independent of C1's now-`VERIFIED` client-side fixes. Requires explicit human approval on the still-open decisions above; depends on the now-`VERIFIED` B1+B2+B3 foundation and this session's C1 work. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

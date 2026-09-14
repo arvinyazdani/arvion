@@ -209,6 +209,17 @@
     };
     const VALID_API_FIELD_KEYS = new Set(Object.values(DOM_TO_API_FIELD));
 
+    // مقادیر واقعیِ هر select — برای رد کردن هر مقدار ناشناخته/بیش‌ازحد
+    // بزرگ/جعلی که با هیچ option واقعی این فرم مطابقت ندارد، حتی اگر نوعش
+    // درست باشد. service_id عددی است ولی مقدار option آن رشته است؛ مقایسه
+    // با String(value) انجام می‌شود.
+    const fieldOptionValues = {};
+    draftFields.forEach(el => {
+      const apiKey = DOM_TO_API_FIELD[el.name];
+      if (!apiKey || el.tagName !== "SELECT") return;
+      fieldOptionValues[apiKey] = new Set([...el.options].map(option => option.value).filter(value => value !== ""));
+    });
+
     const collectApiFields = () => {
       const out = {};
       draftFields.forEach(el => {
@@ -558,9 +569,22 @@
         for (const key of Object.keys(fields)) {
           if (!VALID_API_FIELD_KEYS.has(key)) return false;
         }
-        if ("service_id" in fields && fields.service_id !== null && !Number.isInteger(fields.service_id)) return false;
+        if ("service_id" in fields) {
+          const value = fields.service_id;
+          if (value !== null) {
+            if (!Number.isInteger(value) || value <= 0) return false;
+            const options = fieldOptionValues.service_id;
+            // یک مقدار ناشناخته/بیش‌ازحد بزرگ که با هیچ option واقعی این
+            // select مطابقت ندارد رد می‌شود — نه فقط نوعش صحیح بودن.
+            if (options && !options.has(String(value))) return false;
+          }
+        }
         for (const key of ["request_type", "budget_range", "timeline", "preferred_contact"]) {
-          if (key in fields && typeof fields[key] !== "string") return false;
+          if (!(key in fields)) continue;
+          const value = fields[key];
+          if (typeof value !== "string") return false;
+          const options = fieldOptionValues[key];
+          if (options && !options.has(value)) return false;
         }
         return true;
       }
@@ -578,6 +602,26 @@
         if (!payload || typeof payload !== "object" || !("draft" in payload)) return { ok: false };
         if (!isValidCanonicalDraft(payload.draft)) return { ok: false };
         return { ok: true, draft: payload.draft };
+      }
+
+      // یک پاسخ موفق save (۲۰۰/۲۰۱) باید یک draft واقعی و غیر null داشته
+      // باشد — برخلاف GET/۴۰۹ که draft:null معنای معتبر «پیش‌نویسی موجود
+      // نیست» را دارد، یک ذخیرهٔ موفق که هیچ draft‌ای برنگرداند خودش یک
+      // پاسخ نامعتبر است (هرگز نباید بتواند revision محلی را null/undefined
+      // کند یا فرض «موفق» را بدون داشتن revision واقعی جا بیندازد).
+      function safeSavedDraft(payload) {
+        const result = safeDraft(payload);
+        if (!result.ok || result.draft === null) return { ok: false };
+        return result;
+      }
+
+      // پاسخ موفق حذف (۲۰۰) باید دقیقاً یک payload با کلید deleted از نوع
+      // boolean داشته باشد — true یا false هر دو نتیجهٔ معتبرِ «دیگر
+      // پیش‌نویس فعالی نیست» هستند (idempotent، مطابق قرارداد سرور)، ولی
+      // JSON خراب/ناقص یا deleted با نوع اشتباه هرگز حذف موفق تلقی نمی‌شود.
+      function safeDeleteResult(payload) {
+        if (!payload || typeof payload !== "object" || typeof payload.deleted !== "boolean") return { ok: false };
+        return { ok: true };
       }
 
       const reconcileBanner = document.createElement("div");
@@ -672,7 +716,10 @@
           if (!safe.ok) return { outcome: "malformed" };
           return safe.draft === null ? { outcome: "deleted" } : { outcome: "conflict", payload: c.payload };
         }
-        if (c.kind === "ok") return { outcome: "deleted" };
+        if (c.kind === "ok") {
+          if (!safeDeleteResult(c.payload).ok) return { outcome: "malformed" };
+          return { outcome: "deleted" };
+        }
         return { outcome: "error" };
       }
 
@@ -812,7 +859,7 @@
             if (c.kind === "forbidden") { showForbiddenNotice(); return; }
             if (c.kind === "conflict") { handleConflict(c.payload); return; }
             if (c.kind === "ok") {
-              const fresh = safeDraft(c.payload);
+              const fresh = safeSavedDraft(c.payload);
               if (!fresh.ok) {
                 keepBtn.disabled = false;
                 renderRetryableIssue(serverCopy("پاسخ ذخیره‌سازی نامعتبر بود.", "The save response was invalid."), () => keepBtn.click());
@@ -846,7 +893,7 @@
             if (c.kind === "forbidden") { showForbiddenNotice(); return; }
             if (c.kind === "conflict") { handleConflict(c.payload); return; }
             if (c.kind === "ok") {
-              const fresh = safeDraft(c.payload);
+              const fresh = safeSavedDraft(c.payload);
               if (!fresh.ok) {
                 saveNewBtn.disabled = false;
                 renderRetryableIssue(serverCopy("پاسخ ذخیره‌سازی نامعتبر بود.", "The save response was invalid."), () => saveNewBtn.click());
@@ -872,14 +919,33 @@
       const SAVE_RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000];
       let saveRetryTimer = null;
       let saveRetryAttempts = 0;
-      const resetSaveRetry = () => { saveRetryAttempts = 0; clearTimeout(saveRetryTimer); };
+      const resetSaveRetry = () => { saveRetryAttempts = 0; clearTimeout(saveRetryTimer); saveRetryTimer = null; };
+      // یک retry از قبل زمان‌بندی‌شده را با فراخوانی مستقیمِ خودش لغو و
+      // فوراً جایگزین نمی‌کند — فقط شمارنده/تایمر backoff واقعی را وقتی
+      // خودش (پس از تأخیر برنامه‌ریزی‌شده) اجرا می‌شود مصرف می‌کند.
+      function scheduleSaveRetry() {
+        const delay = SAVE_RETRY_DELAYS_MS[saveRetryAttempts];
+        saveRetryAttempts += 1;
+        saveRetryTimer = setTimeout(() => { saveRetryTimer = null; queueServerSave(); }, delay);
+      }
       window.addEventListener("online", () => {
-        if (state.ready && !state.pauseReason && saveRetryAttempts > 0) { resetSaveRetry(); queueServerSave(); }
+        if (state.ready && !state.pauseReason && saveRetryAttempts > 0 && saveRetryTimer !== null) {
+          resetSaveRetry();
+          queueServerSave();
+        }
       });
 
       async function queueServerSave() {
         if (!state.ready || state.pauseReason) return;
         if (state.saving) { state.dirty = true; return; }
+        // یک retry از قبل زمان‌بندی شده در انتظار است — این فراخوانی
+        // (مثلاً از یک input/change تازه هنگام آفلاین) فقط dirty را علامت
+        // می‌زند تا همان retry، وقتی برسد، آخرین وضعیت را بفرستد؛ هرگز
+        // شمارنده/تایمر backoff را زودتر مصرف نمی‌کند — دقیقاً همان چیزی که
+        // از چند input متوالی هنگام آفلاین جلوگیری می‌کند تا پنج تلاش ظرف
+        // چند ثانیه تمام نشوند.
+        if (saveRetryTimer !== null) { state.dirty = true; return; }
+        state.dirty = false; // این درخواست همین حالا آخرین وضعیت را می‌فرستد
         state.saving = true;
         setDraftStatus("saving");
         const result = await apiRequest(serverDraftUrl, "POST", {
@@ -889,7 +955,6 @@
         const c = classifyResponse(result);
 
         if (c.kind === "network") {
-          clearTimeout(saveRetryTimer);
           if (saveRetryAttempts >= SAVE_RETRY_DELAYS_MS.length) {
             clearDraftStatus();
             renderRetryableIssue(
@@ -899,16 +964,14 @@
             return;
           }
           setDraftStatus("offline");
-          const delay = SAVE_RETRY_DELAYS_MS[saveRetryAttempts];
-          saveRetryAttempts += 1;
-          saveRetryTimer = setTimeout(() => queueServerSave(), delay);
+          scheduleSaveRetry();
           return;
         }
         if (c.kind === "auth") { showSessionEndedNotice(); return; }
         if (c.kind === "forbidden") { showForbiddenNotice(); return; }
         if (c.kind === "conflict") { handleConflict(c.payload); return; }
         if (c.kind === "ok") {
-          const safe = safeDraft(c.payload);
+          const safe = safeSavedDraft(c.payload);
           if (!safe.ok) {
             renderRetryableIssue(serverCopy("پاسخ ذخیره‌سازی نامعتبر بود.", "The save response was invalid."), () => queueServerSave());
             return;
@@ -947,8 +1010,12 @@
       }
 
       function formatSavedAt(value) {
+        const date = new Date(value);
+        // یک updated_at نامعتبر/غیرمنتظره هرگز به UI راه پیدا نمی‌کند —
+        // فقط رشتهٔ خالی نمایش داده می‌شود، نه یک تاریخ جعلی یا "Invalid Date".
+        if (Number.isNaN(date.getTime())) return "";
         try {
-          return new Intl.DateTimeFormat(isPersian ? "fa-IR" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+          return new Intl.DateTimeFormat(isPersian ? "fa-IR" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(date);
         } catch (e) { return ""; }
       }
 
@@ -1038,7 +1105,7 @@
             if (c2.kind === "forbidden") { showForbiddenNotice(); return; }
             if (c2.kind === "conflict") { hideReconcileBanner(); handleConflict(c2.payload); return; }
             if (c2.kind === "ok") {
-              const fresh = safeDraft(c2.payload);
+              const fresh = safeSavedDraft(c2.payload);
               if (!fresh.ok || !fresh.draft) {
                 importBtn.disabled = false;
                 renderRetryableIssue(serverCopy("پاسخ سرور نامعتبر بود.", "The server's response was invalid."), () => importBtn.click());
@@ -1092,7 +1159,7 @@
           if (c3.kind === "forbidden") { showForbiddenNotice(); return; }
           if (c3.kind === "conflict") { hideReconcileBanner(); handleConflict(c3.payload); return; }
           if (c3.kind === "ok") {
-            const fresh = safeDraft(c3.payload);
+            const fresh = safeSavedDraft(c3.payload);
             if (!fresh.ok || !fresh.draft) {
               useDeviceBtn.disabled = false;
               renderRetryableIssue(serverCopy("پاسخ سرور نامعتبر بود.", "The server's response was invalid."), () => useDeviceBtn.click());
