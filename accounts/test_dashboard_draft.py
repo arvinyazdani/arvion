@@ -7,6 +7,7 @@ template's bilingual, no-leak, no-mutation contract. Does not touch
 see `leads.test_finalize`/`leads.test_form_draft`/`leads.test_draft_api`
 for those."""
 
+import re
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -47,11 +48,12 @@ def make_service(suffix="a", is_active=True):
     )
 
 
-def make_demo_selection(suffix="a"):
+def make_demo_selection(suffix="a", title_fa="دموی فروشگاهی", title_en="Storefront demo",
+                         fictional_brand_fa="برند آزمایشی", fictional_brand_en="Test Brand"):
     template = DemoTemplate.objects.create(
-        slug=f"dashboard-draft-demo-{suffix}", category="ecommerce", title_fa="دموی فروشگاهی",
-        title_en="Storefront demo", tagline_fa="x", tagline_en="y", fictional_brand_fa="برند آزمایشی",
-        fictional_brand_en="Test Brand", style_key="minimal",
+        slug=f"dashboard-draft-demo-{suffix}", category="ecommerce", title_fa=title_fa,
+        title_en=title_en, tagline_fa="x", tagline_en="y", fictional_brand_fa=fictional_brand_fa,
+        fictional_brand_en=fictional_brand_en, style_key="minimal",
     )
     return DemoSelection.objects.create(
         template=template, session_key=f"dashboard-draft-session-{suffix}",
@@ -205,10 +207,16 @@ class DashboardDraftDemoSnapshotTests(TestCase):
         fa_response = self.client.get(DASHBOARD_URL_FA)
         self.assertContains(fa_response, "دموی فروشگاهی")
         self.assertNotContains(fa_response, "Storefront demo")
+        # V2.1-C2 corrective: brand is not bilingual and must never render
+        # in either language on this card.
+        self.assertNotContains(fa_response, "برند آزمایشی")
+        self.assertNotContains(fa_response, "Test Brand")
 
         en_response = self.client.get(DASHBOARD_URL_EN)
         self.assertContains(en_response, "Storefront demo")
         self.assertNotContains(en_response, "دموی فروشگاهی")
+        self.assertNotContains(en_response, "برند آزمایشی")
+        self.assertNotContains(en_response, "Test Brand")
 
     def test_a_draft_with_no_demo_never_renders_a_demo_row(self):
         customer = make_customer(suffix="no-demo")
@@ -229,6 +237,68 @@ class DashboardDraftDemoSnapshotTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("دموی مرجع", response.content.decode("utf-8"))
+
+    def test_a_legacy_snapshot_with_only_valid_bilingual_title_and_category_still_renders(self):
+        # V2.1-C2 corrective, requirement 6: brand is no longer part of
+        # what this card requires or reads at all — a snapshot missing it
+        # entirely (e.g. written before brand existed, or simply dropped)
+        # must still show its title/category, not disappear.
+        customer = make_customer(suffix="legacy-no-brand")
+        draft = make_full_draft(customer)
+        FormDraft.objects.filter(pk=draft.pk).update(demo_snapshot={
+            "template_title_fa": "دموی قدیمی", "template_title_en": "Legacy demo",
+            "category_fa": "فروشگاه اینترنتی", "category_en": "E-commerce",
+        })
+        self.client.force_login(customer)
+
+        fa_response = self.client.get(DASHBOARD_URL_FA)
+        self.assertContains(fa_response, "دموی قدیمی")
+        self.assertContains(fa_response, "فروشگاه اینترنتی")
+
+        en_response = self.client.get(DASHBOARD_URL_EN)
+        self.assertContains(en_response, "Legacy demo")
+        self.assertContains(en_response, "E-commerce")
+
+    def test_snapshot_with_a_fully_persian_brand_never_leaks_into_the_english_dashboard(self):
+        customer = make_customer(suffix="brand-fa-only")
+        selection = make_demo_selection(
+            suffix="brand-fa-only", title_fa="دموی برند فارسی", title_en="Persian brand demo",
+            fictional_brand_fa="برند کاملاً فارسی", fictional_brand_en="Fully English Brand",
+        )
+        make_full_draft(customer)
+        attach_demo_snapshot(owner=customer, form_type="leads_contact", demo_selection=selection)
+        self.client.force_login(customer)
+
+        response = self.client.get(DASHBOARD_URL_EN)
+        content = response.content.decode("utf-8")
+
+        self.assertContains(response, "Persian brand demo")
+        self.assertContains(response, "E-commerce")
+        self.assertNotIn("برند کاملاً فارسی", content)
+        self.assertNotIn("Fully English Brand", content)
+
+        match = re.search(r"<dt>Reference demo</dt><dd>(.*?)</dd>", content)
+        self.assertIsNotNone(match, content)
+        demo_row_html = match.group(1)
+        self.assertFalse(re.search(r"[؀-ۿ]", demo_row_html), demo_row_html)
+
+    def test_snapshot_title_and_category_render_correctly_in_persian(self):
+        customer = make_customer(suffix="brand-fa-check")
+        selection = make_demo_selection(
+            suffix="brand-fa-check", title_fa="دموی برند فارسی دو", title_en="Persian brand demo two",
+            fictional_brand_fa="برند کاملاً فارسی", fictional_brand_en="Fully English Brand",
+        )
+        make_full_draft(customer)
+        attach_demo_snapshot(owner=customer, form_type="leads_contact", demo_selection=selection)
+        self.client.force_login(customer)
+
+        response = self.client.get(DASHBOARD_URL_FA)
+        content = response.content.decode("utf-8")
+
+        self.assertContains(response, "دموی برند فارسی دو")
+        self.assertContains(response, "فروشگاه اینترنتی")
+        self.assertNotIn("Fully English Brand", content)
+        self.assertNotIn("برند کاملاً فارسی", content)
 
 
 class DashboardDraftPrivacyTests(TestCase):

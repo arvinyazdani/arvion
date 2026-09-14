@@ -9,10 +9,17 @@ dataclass carrying only the values this phase's design explicitly
 allowlists for display: current step, progress, last-saved/expiry
 timestamps, the four allowlisted choice fields (translated to both
 languages), the selected service's title if any, and — from the frozen
-`demo_snapshot` only, never a live `DemoSelection` — the demo's name,
-category and brand. It never exposes `submission_token`, the draft's own
-id, the owner's id, `revision`, or any forbidden (contact/free-text)
-field, and it never writes to the database or mutates the draft.
+`demo_snapshot` only, never a live `DemoSelection` — the demo's bilingual
+template title and category. `demo_snapshot["brand"]` is deliberately
+never read here (V2.1-C2 corrective): it is the one snapshot field that
+is not bilingual — a single free-text-ish value that may fall back to
+the template's Persian `fictional_brand_fa` regardless of which language
+is rendering — so showing it in either language on this card would leak
+the wrong language's text. `template_title_*`/`category_*` remain fully
+bilingual and are the only demo fields this card shows. It never exposes
+`submission_token`, the draft's own id, the owner's id, `revision`, or
+any forbidden (contact/free-text) field, and it never writes to the
+database or mutates the draft.
 
 The choice labels below intentionally mirror `leads.forms.lead_form.
 LeadForm`'s own Persian labels and `leads.models.Lead`'s English choice
@@ -58,7 +65,7 @@ _CONTACT_METHOD_LABELS = {
     "telegram": ("تلگرام", "Telegram"),
 }
 
-_DEMO_SNAPSHOT_REQUIRED_KEYS = ("template_title_fa", "template_title_en", "category_fa", "category_en", "brand")
+_DEMO_SNAPSHOT_REQUIRED_KEYS = ("template_title_fa", "template_title_en", "category_fa", "category_en")
 
 
 @dataclass(frozen=True)
@@ -67,7 +74,6 @@ class DraftDemoSummary:
     title_en: str
     category_fa: str
     category_en: str
-    brand: str
 
 
 @dataclass(frozen=True)
@@ -116,7 +122,7 @@ def _demo_summary(demo_snapshot):
         return None
     return DraftDemoSummary(
         title_fa=values["template_title_fa"], title_en=values["template_title_en"],
-        category_fa=values["category_fa"], category_en=values["category_en"], brand=values["brand"],
+        category_fa=values["category_fa"], category_en=values["category_en"],
     )
 
 

@@ -2,24 +2,41 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-C2 — the account dashboard's safe, read-only
-  "order draft" section. **`VERIFIED` (local)** — see "V2.1-C2 — account
-  dashboard order-draft section" below. `accounts.views.dashboard` now
-  calls the existing `leads.form_draft_service.get_active_draft` (owner-
-  scoped, read-only, excludes expired/submitted) and passes it through a
-  new, small, pure view-model builder — `leads.draft_dashboard.
-  build_draft_dashboard_card` — that returns only allowlisted, already-
-  translated values (current step, progress, last-saved/expiry, the four
-  allowlisted choice fields, the selected service's title, and the demo's
-  name/category/brand from the frozen `demo_snapshot` only) and never a
-  raw `FormDraft`, `submission_token`, draft/owner id, or `revision`.
-  `accounts/templates/accounts/dashboard.html` gained a new draft card
-  (shown only when an active draft exists, positioned before the
-  assessments panel) and a new "Project enquiry" `account-compass` entry
-  (an anchor to the card when a draft exists, a direct link to
-  `leads:contact` otherwise); the sidebar gains a "browse demos" link
-  only in the no-draft state. No `FormDraft` write path, finalize/
-  idempotency/rate-limit/`on_commit` logic, or migration was touched.
+- **Current phase:** V2.1-C2 corrective — closes a language-isolation
+  defect in the account dashboard's order-draft card. **`VERIFIED`
+  (local)** — see "V2.1-C2 corrective — demo brand removed from the
+  dashboard card" below. `order_draft.demo.brand` (the one
+  `demo_snapshot` field that was never bilingual — it can fall back to
+  the template's Persian `fictional_brand_fa` regardless of which
+  language is rendering) was appended to the "Reference demo" row in
+  both languages, so an English-rendered card could show a Persian
+  brand name — breaking the "no Persian text in the English UI"
+  guarantee. Fixed by removing `brand` entirely from
+  `leads.draft_dashboard.DraftDemoSummary`, its required-keys check, and
+  the template's demo row, which now shows only the fully bilingual
+  `template_title_*`/`category_*` pair. A legacy snapshot with only
+  those two bilingual pairs (no `brand` key at all) still renders
+  correctly. No `demo_snapshot` schema, snapshot builder, model,
+  migration, order form, or management page was touched.
+- **V2.1-C2 — historical recap (superseded as the "current phase"; kept
+  for reference):** the account dashboard's safe, read-only "order
+  draft" section. `accounts.views.dashboard` calls the existing
+  `leads.form_draft_service.get_active_draft` (owner-scoped, read-only,
+  excludes expired/submitted) and passes it through a new, small, pure
+  view-model builder — `leads.draft_dashboard.build_draft_dashboard_card`
+  — that returns only allowlisted, already-translated values (current
+  step, progress, last-saved/expiry, the four allowlisted choice fields,
+  the selected service's title, and the demo's name/category from the
+  frozen `demo_snapshot` only) and never a raw `FormDraft`,
+  `submission_token`, draft/owner id, or `revision`. `accounts/
+  templates/accounts/dashboard.html` gained a new draft card (shown only
+  when an active draft exists, positioned before the assessments panel)
+  and a new "Project enquiry" `account-compass` entry (an anchor to the
+  card when a draft exists, a direct link to `leads:contact` otherwise);
+  the sidebar gains a "browse demos" link only in the no-draft state. No
+  `FormDraft` write path, finalize/idempotency/rate-limit/`on_commit`
+  logic, or migration was touched. (This recap originally also listed
+  `brand` as part of the demo summary — corrected by the phase above.)
 - **V2.1-D corrective — historical recap (superseded as the "current
   phase"; kept for reference):** two review findings against the
   `7e5e621` implementation, fixed. P1: the replay-identity comparison
@@ -2937,38 +2954,106 @@
     it, which correctly and immediately marked the new draft card
     visible exactly like every pre-existing panel; this is unmodified,
     site-wide behavior, not something built for this phase.
-  - **Known, pre-existing, out-of-scope limitation surfaced (not a
-    regression):** `demo_snapshot`'s `brand` key has always been a single,
-    non-bilingual value (falling back to `DemoTemplate.fictional_brand_fa`
-    specifically when the customer never customized it — see
+  - **Known, pre-existing, out-of-scope limitation surfaced at the time
+    (since fixed on the display side by the corrective phase below):**
+    `demo_snapshot`'s `brand` key has always been a single, non-bilingual
+    value (falling back to `DemoTemplate.fictional_brand_fa` specifically
+    when the customer never customized it — see
     `projects/demo_snapshots.py`), unlike `template_title_fa/en` and
-    `category_fa/en`, which are properly bilingual. This means an English
-    dashboard card can show a Persian brand name when the customer never
-    typed a custom one. This is inherited, unmodified V2.1-B1 snapshot
-    schema behavior — fixing it would require changing what
-    `build_demo_selection_snapshot` stores (a schema/migration-adjacent
-    change explicitly out of this phase's scope) — recorded here as a
-    remaining risk, not silently patched over.
+    `category_fa/en`, which are properly bilingual. This meant an English
+    dashboard card could show a Persian brand name when the customer
+    never typed a custom one. The corrective phase below removes `brand`
+    from what this card reads/shows entirely, closing the leak without
+    touching the underlying snapshot schema.
   - Files touched: `accounts/views.py`, `accounts/templates/accounts/
     dashboard.html`, `accounts/static/accounts/css/dashboard.css`,
     `accounts/test_dashboard_draft.py` (new), `leads/draft_dashboard.py`
     (new). No `leads/form_draft_service.py`, `leads/views/contact.py`,
     template, migration, or JS file touched. Not pushed, deployed, or
     migrated on production.
+- **V2.1-C2 corrective — demo brand removed from the dashboard card.**
+  Fixes the language-isolation defect the phase above surfaced: the
+  draft card's "Reference demo" row appended `demo.brand` in BOTH
+  languages, but `demo_snapshot["brand"]` is the one snapshot field that
+  is not bilingual (it can be — and, absent a customer override, always
+  is — the template's Persian `fictional_brand_fa`, regardless of which
+  language is rendering). This broke the "no Persian text in the English
+  UI" guarantee whenever a draft's demo had no customer-typed brand
+  override.
+  - **Fix:** `brand` was removed entirely from
+    `leads.draft_dashboard.DraftDemoSummary`, from
+    `_DEMO_SNAPSHOT_REQUIRED_KEYS` (so a snapshot missing it — including
+    every pre-existing/legacy snapshot with only the two bilingual pairs
+    — still renders normally instead of having the whole demo row
+    disappear), and from the `_demo_summary()` construction. The
+    template's demo row (`accounts/templates/accounts/dashboard.html`)
+    now shows only `template_title_fa`/`category_fa` (fa) or
+    `template_title_en`/`category_en` (en) — both fully bilingual
+    snapshot fields. `demo_snapshot`'s own shape, `build_demo_selection_
+    snapshot`, the `FormDraft`/`DemoSelection`/`DemoTemplate` models, all
+    migrations, the order/contact form, and every management-portal page
+    that also renders a demo snapshot are untouched — this fix is scoped
+    entirely to what the dashboard card itself reads and displays. No new
+    live `DemoSelection`/`DemoTemplate` lookup was added; the demo row
+    still comes only from the already-frozen `demo_snapshot`, unchanged
+    since V2.1-C2. The CSS cache-bust was not bumped since no CSS
+    changed (`dashboard.css` stays untouched at `?v=5`).
+  - **Evidence:** `accounts/test_dashboard_draft.py` grew from 18 to 21
+    tests: the existing bilingual-language test now also asserts neither
+    the fa nor the en brand string ever appears in either language's
+    response; a new test confirms a legacy snapshot holding only the
+    four bilingual keys (no `brand` at all) still renders its title and
+    category in both languages; a new fa-focused test confirms
+    `template_title_fa`/`category_fa` render correctly and the brand
+    strings (fa or en) never appear; a new, explicit regression test
+    seeds a snapshot whose `brand` is a fully-Persian string
+    ("برند کاملاً فارسی") and asserts the English dashboard shows the
+    English title/category, never that Persian string anywhere in the
+    page, and — parsing out just the "Reference demo" row's own HTML —
+    contains zero characters in the Persian/Arabic Unicode block. All 21
+    tests pass. `accounts` full suite (unchanged count) plus
+    `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+
+    `leads.test_form_draft`+`leads.test_finalize`+`leads.test_demo_handoff`
+    (323 tests total, 18 skips) all pass, zero regression. Every existing
+    privacy/no-leak test (`submission_token`/`session_key`/
+    `public_token`/`data-draft-id`/`data-owner-id`/`data-user-id`/
+    `revision`/free-text fields) was re-run unmodified and still passes —
+    the fix only removed a display field, it did not touch or weaken any
+    security assertion. `check` (0 issues), migration dry-run ("No
+    changes detected"), and `git diff --check` (clean) all passed.
+  - **Browser evidence:** disposable SQLite environment (fresh port,
+    one customer with an active draft whose demo snapshot's `brand` was
+    seeded as a fully-Persian string with no customer override).
+    Confirmed live: the fa dashboard's "دموی مرجع" row shows only the
+    demo's title and category (no brand segment at all); the en
+    dashboard's "Reference demo" row shows only the English title and
+    category — the Persian brand string does not appear anywhere on the
+    page, confirmed both visually and by a direct DOM query on the demo
+    row's own text content (`/[؀-ۿ]/` test returns `false`).
+    320px and 390px both show zero horizontal scroll in light and dark
+    themes (`scrollWidth === clientWidth` in all four combinations);
+    keyboards Tab still reaches the "Continue enquiry" CTA with a
+    visible focus outline and a 44px+ hit target, unaffected by the fix.
+    Zero JavaScript console errors or failed requests throughout.
+  - Files touched: `leads/draft_dashboard.py`, `accounts/templates/
+    accounts/dashboard.html`, `accounts/test_dashboard_draft.py`. No
+    `demo_snapshot` schema, snapshot builder, model, migration, order
+    form, management-portal page, or CSS file touched. Not pushed,
+    deployed, or migrated on production.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is twenty-six commits ahead of `origin/main` — the twenty-five
-  listed above (including the V2.1-D corrective commit, `126c70b`,
-  itself on top of `7e5e621`/`6d75c4f`), plus this phase's own V2.1-C2
-  commit. No prior commit is amended.
-- **Last commit:** this phase's own commit — the V2.1-C2 dashboard
-  order-draft section: `accounts/views.py`, `accounts/templates/
-  accounts/dashboard.html`, `accounts/static/accounts/css/dashboard.css`,
-  `accounts/test_dashboard_draft.py`, `leads/draft_dashboard.py`, and
-  `.ai/project/CURRENT_STATE.md`; a separate commit on top of `126c70b`
-  (the V2.1-D corrective commit), which is not amended.
-- **Next action:** V2.1-C2 is verified locally with no known P0/P1
-  remaining. The saved-drafts dashboard's remaining scope (if any beyond
-  this single-draft-type card) and CRM/Clinic resumable-draft support
+  `main` is twenty-seven commits ahead of `origin/main` — the twenty-six
+  listed above (including the V2.1-C2 commit, `7628343`, itself on top
+  of `126c70b`/`7e5e621`/`6d75c4f`), plus this phase's own V2.1-C2
+  corrective commit. No prior commit is amended.
+- **Last commit:** this phase's own commit — the V2.1-C2 corrective fix:
+  `leads/draft_dashboard.py`, `accounts/templates/accounts/
+  dashboard.html`, `accounts/test_dashboard_draft.py`, and
+  `.ai/project/CURRENT_STATE.md`; a separate commit on top of `7628343`
+  (the V2.1-C2 implementation commit), which is not amended.
+- **Next action:** V2.1-C2 (implementation plus this corrective) is
+  verified locally with no known P0/P1 remaining. The saved-drafts
+  dashboard's remaining scope (if any beyond this single-draft-type
+  card) and CRM/Clinic resumable-draft support
   both remain `NOT_STARTED`/out of scope, unless explicitly reopened.
   V2.1-B1 (both corrective phases), V2.1-B2 (all three corrective
   phases), V2.1-B3 (plus its corrective phase), V2.1-C1 (plus both
@@ -2980,11 +3065,12 @@
   `revoke_assessment_access` cannot run its `select_for_update()` query
   on PostgreSQL due to an outer join from `select_related("attempt")` —
   still needs a human to prioritize it separately; it does not block
-  this phase and was not touched here either. A second, unrelated,
-  pre-existing limitation was newly documented (not introduced) this
-  phase: `demo_snapshot`'s single, non-bilingual `brand` field (see
-  above) — also needs separate human prioritization if it matters
-  product-wise. The earlier, separate V2 idea (a time-boxed, signed
+  this phase and was not touched here either. The dashboard-card leak of
+  `demo_snapshot`'s single, non-bilingual `brand` field (documented as a
+  remaining risk in V2.1-C2's own entry above) is now closed by this
+  corrective phase — the underlying `demo_snapshot` schema itself is
+  still single-language by design (unchanged, out of scope), but nothing
+  built by V2.1-C2 reads or displays it anymore. The earlier, separate V2 idea (a time-boxed, signed
   continuation link) remains superseded by the login-based approach
   unless explicitly reopened. Re-run the full release gate on the exact
   deployable revision before any production action, including applying
@@ -3026,6 +3112,7 @@
 | Resumable order drafts — V2.1-D blocked analysis (`6d75c4f`) | `BLOCKED` → superseded below | See "V2.1-D — blocked: idempotency analysis" above (kept as historical record). Proven on paper before writing any code: the true-concurrency case is already solvable with the existing schema (shared-row locking), but a *sequential* retry arriving after the first attempt's transaction already committed cannot be told apart from a genuinely new, unrelated submission without one of the explicitly-forbidden heuristics (most-recent/highest-pk draft, CSRF token, time window, revision-alone, content match) — all individually traced through and shown to fail on a concrete counter-scenario. Two low-risk designs proposed (Design A: a `submission_token` field on FormDraft, mirroring the already-shipped, already-tested `DemoSelection.submission_token`/`DemoConfigureView` precedent; Design B: a JSON finalize endpoint keyed on `expected_revision`, larger flow change, not preferred). Neither implemented at that time; superseded by explicit authorization and the implementation below. |
 | Resumable order drafts — V2.1-D (atomic, non-duplicating FormDraft→Lead conversion, Design A corrected) (`7e5e621`) | `VERIFIED` (local), corrected | Initially verified, then review found two defects: the replay-identity comparison omitted `demo_selection_id`, and the `IntegrityError` recovery branch raised the wrong exception when no record existed for the requesting owner. See the corrective-phase row below, which fixes and re-verifies both; the schema, token-carriage contract, and overall design described here (Added `FormDraft.submission_token`, nullable/unique, additive migration `0008_formdraft_submission_token`, never applied to the permanent local db; `leads/form_draft_service.finalize_form_draft_to_lead` as the sole Draft→Lead authority; owner-row locking; all-statuses token lookup; minimal-draft fallback; `IntegrityError` savepoint as last-resort race defense; `transaction.on_commit()` for exactly-once notification; rate limiter invoked only on the genuinely-new-Lead path; wired into `LeadCreateView` only for authenticated non-staff customers, guest/staff/superuser paths byte-for-byte unchanged) remain accurate and unchanged. Original evidence: `leads.test_finalize` (37 tests) plus the full targeted suite (232 tests, 15 skips) on SQLite; the same 37 tests including 3 PostgreSQL-only concurrency/rollback tests on real isolated PostgreSQL, repeated 5 additional times, all clean; full real-browser verification (fa/en journeys, token stability, no-duplicate-Lead on repeat POST/offline-retry, no submitted-draft banner on return, 320/390px, zero JS exceptions). |
 | Resumable order drafts — V2.1-D corrective (canonical replay identity now includes `demo_selection_id`; `IntegrityError` recovery raises the correct exception for a no-match-for-this-owner collision) | `VERIFIED` (local) | See "V2.1-D corrective" above for full detail. P1: `_lead_matches_this_submission` (renamed from `_lead_matches_cleaned_data`) now compares `demo_selection_id` on both sides — the stored `Lead`'s value vs. the caller's resolved `demo_selection` for this exact request — at both the initial token lookup and the `IntegrityError` recovery block, so a reused token with a different/added/removed demo selection is correctly rejected as a conflict rather than accepted as a replay. P2: the recovery block now raises `InvalidSubmissionTokenError` (not `SubmissionConflictError`) when no `FormDraft` exists for the requesting owner+form_type+token — matching the initial lookup's own foreign-token handling and never revealing that a cross-owner collision occurred; a record found but never `submitted` still safely conflicts; a `submitted` record still compares via the corrected content+demo signature. `leads.test_finalize` grew from 37 to 46 tests (4 demo-identity, 4 deterministic `IntegrityError`-recovery-branch, 1 new real-PostgreSQL two-owner unique-collision race using a barrier placed only at the real insert call) — all pass on SQLite (4 skips) and on real isolated PostgreSQL (46/46, 0 skips), with the concurrency/collision/rollback subset (4 tests) run once plus 5 repeats, all clean. Full required targeted suite on SQLite: 241 tests, 16 skips, zero regression from the 232/15 baseline. `check`, migration dry-run ("No changes detected" — migration `0008` untouched), and `git diff --check` all passed. Only `leads/form_draft_service.py` and `leads/test_finalize.py` touched — no template/JS/migration/rate-limit/lifecycle/`on_commit` change. `7e5e621` and `6d75c4f` not amended. |
-| Resumable order drafts — V2.1-C2 (account dashboard order-draft section) | `VERIFIED` (local) | See "V2.1-C2 — account dashboard order-draft section" above for full detail. `accounts.views.dashboard` calls the existing, unmodified `get_active_draft`; new `leads/draft_dashboard.py` (`build_draft_dashboard_card`) returns a safe, allowlisted-only view model (step/progress/dates, the four allowlisted choice fields bilingually, the selected service's title, and demo name/category/brand from the frozen `demo_snapshot` only) — never the raw `FormDraft`, `submission_token`, draft/owner id, or `revision`. `accounts/templates/accounts/dashboard.html` gained a new `account-compass` "Project enquiry" entry, a new draft card (shown only when a draft exists, before the assessments panel), and a no-draft-state sidebar link to the demo gallery; the continue CTA is a plain `leads:contact` URL with no id/token. New CSS in `accounts/static/accounts/css/dashboard.css` (cache-bust `v=4`→`v=5`) built entirely on existing tokens, with an accessible `role="progressbar"`. New `accounts/test_dashboard_draft.py` (18 tests: login-required, no-draft shortcut, active/expired/submitted/another-owner draft visibility, bilingual allowlist-label translation, demo-snapshot language and malformed-snapshot safety, no-forbidden-identifier/free-text leakage, clean continue-CTA URL, GET-never-mutates, flat query count under 30 historical drafts, existing-sections regression) all pass; `accounts` full suite (255 tests) plus `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+`leads.test_form_draft` (237 tests, 11 skips) all pass, zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration), and `git diff --check` (clean) all passed. Full real-browser verification (fa/en, light/dark, 320/390px no horizontal scroll, keyboard focus/44px targets, zero JS errors) on a disposable SQLite environment. A pre-existing, unrelated `demo_snapshot.brand` non-bilingual-field limitation was surfaced (not introduced) and recorded as a remaining risk, not fixed (out of scope). No `FormDraft` API, finalize/idempotency/rate-limit/`on_commit`, or migration touched. Not pushed, deployed, or migrated on production. |
+| Resumable order drafts — V2.1-C2 (account dashboard order-draft section) (`7628343`) | `VERIFIED` (local), corrected | Initially verified, then found to leak the non-bilingual `demo_snapshot.brand` field into both languages of the "Reference demo" row — see the corrective-phase row below, which fixes and re-verifies it. The rest of this phase's design (`accounts.views.dashboard` calling the existing, unmodified `get_active_draft`; `leads/draft_dashboard.py`'s `build_draft_dashboard_card` safe view model; the new `account-compass` "Project enquiry" entry, draft card, and no-draft-state sidebar link; a plain `leads:contact` continue CTA; no `FormDraft` API/finalize/idempotency/rate-limit/`on_commit`/migration touched) remains accurate and unchanged. |
+| Resumable order drafts — V2.1-C2 corrective (demo `brand` removed from the dashboard card; language isolation restored) | `VERIFIED` (local) | See "V2.1-C2 corrective — demo brand removed from the dashboard card" above for full detail. `brand` removed from `DraftDemoSummary`, `_DEMO_SNAPSHOT_REQUIRED_KEYS`, and the demo row template — the row now shows only the fully bilingual `template_title_*`/`category_*` pair; a legacy snapshot with only those two bilingual pairs (no `brand` key) still renders correctly. No `demo_snapshot` schema, snapshot builder, model, migration, order form, or management-portal page touched; no new live `DemoSelection`/`DemoTemplate` lookup added; no CSS change, cache-bust untouched. `accounts/test_dashboard_draft.py` grew from 18 to 21 tests (legacy-snapshot-without-brand render check, fa title/category check, and an explicit Persian-brand-never-leaks-into-English regression test that parses the demo row's own HTML and asserts zero Persian/Arabic Unicode characters), all passing; every existing privacy/no-leak test re-run unmodified and still passing. `accounts` full suite plus `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+`leads.test_form_draft`+`leads.test_finalize`+`leads.test_demo_handoff` (323 tests, 18 skips) all pass, zero regression. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. Full real-browser verification (fa/en with a fully-Persian-brand snapshot, light/dark, 320/390px no horizontal scroll, keyboard focus/44px target) on a disposable SQLite environment confirmed no Persian text anywhere in the English demo row. `7628343` not amended. |
 | Resumable order drafts — V2.1 saved-drafts dashboard, beyond this single-draft-type card | `NOT_STARTED` | Out of this phase's scope; V2.1-C2 covers only the one active `leads_contact` draft. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
