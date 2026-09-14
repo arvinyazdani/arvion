@@ -729,7 +729,10 @@ def _lead_canonical_signature(lead):
     already-created Lead — service and other nullable/FK values are
     compared in their normalized, stored form (never re-derived from a
     caller-supplied guess), exactly like `phone`, which `LeadForm.
-    clean_phone` already normalizes before it is ever saved."""
+    clean_phone` already normalizes before it is ever saved. Includes
+    `demo_selection_id`: two submissions with identical form content but a
+    different (or added, or removed) demo selection are different
+    submissions, not a replay of each other."""
     return {
         "request_type": lead.request_type,
         "service_id": lead.service_id,
@@ -742,10 +745,16 @@ def _lead_canonical_signature(lead):
         "phone": lead.phone or "",
         "website_url": lead.website_url or "",
         "message": lead.message,
+        "demo_selection_id": lead.demo_selection_id,
     }
 
 
-def _cleaned_data_canonical_signature(cleaned_data):
+def _submission_canonical_signature(cleaned_data, demo_selection):
+    """The same shape as `_lead_canonical_signature`, built from this exact
+    request's own inputs: the just-validated form and the caller's already
+    resolved, session-bound `demo_selection` (never a `DemoSelection`
+    reconstructed from a draft's frozen `demo_snapshot`, which could go
+    stale independently of the live row)."""
     service = cleaned_data.get("service")
     return {
         "request_type": cleaned_data.get("request_type"),
@@ -759,11 +768,12 @@ def _cleaned_data_canonical_signature(cleaned_data):
         "phone": cleaned_data.get("phone") or "",
         "website_url": cleaned_data.get("website_url") or "",
         "message": cleaned_data.get("message", ""),
+        "demo_selection_id": demo_selection.pk if demo_selection is not None else None,
     }
 
 
-def _lead_matches_cleaned_data(lead, cleaned_data):
-    return _lead_canonical_signature(lead) == _cleaned_data_canonical_signature(cleaned_data)
+def _lead_matches_this_submission(lead, cleaned_data, demo_selection):
+    return _lead_canonical_signature(lead) == _submission_canonical_signature(cleaned_data, demo_selection)
 
 
 def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_selection, allow_new_lead, on_created=None):
@@ -810,12 +820,16 @@ def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_sel
     already-completed submission (same token, same canonical content —
     `lead` is the original `Lead`; nothing was written).
 
-    Raises `InvalidSubmissionTokenError` (covers both a missing/malformed
-    token and one belonging to a different owner — the two are never
-    distinguished in what is raised), `NewLeadRateLimitedError` (this
-    would have been a new `Lead`, and the caller's own rate limiter
+    Raises `InvalidSubmissionTokenError` (covers a missing/malformed
+    token, one belonging to a different owner found at the initial
+    lookup, and one that resolves to a different owner after a real
+    unique-constraint collision is recovered from — none of these are
+    ever distinguished in what is raised), `NewLeadRateLimitedError`
+    (this would have been a new `Lead`, and the caller's own rate limiter
     refused it), or `SubmissionConflictError` (the token already names a
-    completed `Lead`, but this submission's content differs from it).
+    completed `Lead` whose content — including its `demo_selection` —
+    differs from this submission's, or names an untrusted, never-
+    submitted record recovered from a unique-constraint collision).
     """
     _require_real_owner(owner)
     _require_non_staff_owner(owner)
@@ -841,7 +855,7 @@ def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_sel
                 raise ForeignSubmissionTokenError("The submission token is missing or invalid.")
             if existing.submitted_lead_id is not None:
                 original = existing.submitted_lead
-                if _lead_matches_cleaned_data(original, form.cleaned_data):
+                if _lead_matches_this_submission(original, form.cleaned_data, demo_selection):
                     return original, False
                 raise SubmissionConflictError(
                     "This submission was already recorded with different information."
@@ -887,10 +901,25 @@ def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_sel
                 recovered = FormDraft.objects.filter(
                     owner=locked_owner, form_type=FINALIZE_FORM_TYPE, submission_token=token,
                 ).first()
-                if recovered is not None and recovered.submitted_lead_id is not None:
-                    original = recovered.submitted_lead
-                    if _lead_matches_cleaned_data(original, form.cleaned_data):
-                        return original, False
+                if recovered is None:
+                    # Nothing for *this* owner claimed the token — the row
+                    # that actually won the unique constraint belongs to
+                    # someone else. Identical outward behavior to a token
+                    # that was never issued or that names a different
+                    # owner: never reveal that a collision happened at all.
+                    _raise_invalid_submission_token()
+                if recovered.submitted_lead_id is None:
+                    # A record exists for this owner+token but never
+                    # reached "submitted" — under the owner-row lock this
+                    # should be unreachable, so it is not trusted as a
+                    # resumable draft; a safe rejection that creates
+                    # nothing is the only sound response.
+                    raise SubmissionConflictError(
+                        "This submission was already recorded with different information."
+                    )
+                original = recovered.submitted_lead
+                if _lead_matches_this_submission(original, form.cleaned_data, demo_selection):
+                    return original, False
                 raise SubmissionConflictError(
                     "This submission was already recorded with different information."
                 )
