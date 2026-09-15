@@ -2,24 +2,37 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-E0 — fixes the pre-existing PostgreSQL
+- **Current phase:** V2.1-E1 — `cleanup_form_drafts`, a safe,
+  batch-safe management command that deletes `FormDraft` rows only once
+  ALL FOUR hold: `status="expired"`, `expires_at` older than the
+  retention window (default 30 days), `submitted_lead IS NULL`, and
+  `submission_token IS NULL`. **`VERIFIED` (local)** — see "V2.1-E1 —
+  `cleanup_form_drafts` management command" below. Dry-run by default;
+  `--apply` required to delete; `--older-than-days`/`--batch-size`
+  (defaults 30/500) are validated as positive integers before any write,
+  raising `CommandError` otherwise. Deletion re-applies the full
+  eligibility filter at delete time (never bare `pk__in`), so a draft
+  that stops being eligible between batch-selection and delete survives.
+  Output prints only the aggregate count and a plain-language policy
+  description — no owner, email, id, `fields`, `demo_snapshot`, or token
+  ever appears. No model, migration, `FormDraft` lifecycle code, cron/
+  Celery Beat schedule, or UI was added or changed; `cleanup_demo_
+  selections` untouched.
+- **V2.1-E0 — historical recap (superseded as the "current phase"; kept
+  for reference):** fixes the pre-existing PostgreSQL
   incompatibility in `assessments.services.revoke_assessment_access`,
-  flagged and left unfixed since V2.1-B2. **`VERIFIED` (local)** — see
-  "V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation
-  fixed" below. Unrelated to the V2.1 leads-contact/FormDraft line;
-  this is the assessments/exam-entitlement domain. Root cause: `
-  ExamEntitlement.objects.select_for_update().select_related("attempt")`
-  builds a `LEFT OUTER JOIN` to `Attempt` (a `OneToOneField` an
-  entitlement may not have a row for), and PostgreSQL refuses `FOR
-  UPDATE` on the nullable side of an outer join — reproduced first with
-  the exact command the user supplied, which failed with
+  flagged and left unfixed since V2.1-B2. Unrelated to the V2.1
+  leads-contact/FormDraft line; this is the assessments/exam-entitlement
+  domain. Root cause: `ExamEntitlement.objects.select_for_update()
+  .select_related("attempt")` builds a `LEFT OUTER JOIN` to `Attempt`
+  (a `OneToOneField` an entitlement may not have a row for), and
+  PostgreSQL refuses `FOR UPDATE` on the nullable side of an outer join
+  — reproduced first with the exact command supplied, which failed with
   `FeatureNotSupported: FOR UPDATE cannot be applied to the nullable
   side of an outer join`, then fixed by locking the entitlement without
   `select_related` and fetching/locking the `Attempt` via its own,
   independent `select_for_update()` query. No migration; behavior for
-  every existing caller (`management_portal.views.
-  customer_assessment_access_revoke`, the `assessments.tests` suite)
-  is unchanged.
+  every existing caller unchanged.
 - **V2.1-C2 corrective — historical recap (superseded as the "current
   phase"; kept for reference):** closes a language-isolation defect in
   the account dashboard's order-draft card.
@@ -3124,34 +3137,100 @@
     `assessments/tests.py` (additive only — no existing test modified).
     No migration, model, management-portal view, or template touched.
     Not pushed, deployed, or migrated on production.
+- **V2.1-E1 — `cleanup_form_drafts` management command.** A manually-run
+  (no cron/Celery Beat/schedule added) command to remove `FormDraft`
+  rows that are truly done and unreachable — never invoked from any
+  view, endpoint, or UI.
+  - **Eligibility policy (all four required, enforced identically at
+    selection and at delete time):** `status="expired"` (never `open`/
+    `submitting`/`submitted`, regardless of age); `expires_at` older
+    than the retention window (default 30 days — an expired-but-recent
+    draft is kept longer for support/debugging); `submitted_lead IS
+    NULL`; `submission_token IS NULL`. The last two guard the V2.1-D
+    idempotency contract directly: a token or an attached Lead is
+    exactly what a sequential retry needs to find to recognize its own
+    prior submission, so either one present permanently excludes a row
+    from deletion no matter how old.
+  - **Command behavior:** `leads/management/commands/
+    cleanup_form_drafts.py`. Dry-run by default (reports a count only);
+    `--apply` required to actually delete. `--older-than-days` (default
+    30) and `--batch-size` (default 500) are both validated as positive
+    integers before any query runs — `0` or negative raises
+    `CommandError` immediately, no write attempted. Deletion proceeds in
+    batches (`order_by("pk")[:batch_size]` for id selection), and the
+    delete step re-applies the full four-condition filter combined with
+    `pk__in` — never `pk__in` alone — so a row that stops being eligible
+    (reopened, submitted, attached to a Lead, or given a token) in the
+    window between selection and delete survives, proven by a dedicated
+    test that mutates the row's status inside a patched `.filter()` call
+    positioned exactly in that window. Output is a single aggregate line
+    (a count plus a plain-language policy description with no field
+    names, ids, or values) for both the dry-run and the `--apply`
+    outcome — no owner, email, mobile, id, `fields`, `demo_snapshot`, or
+    token value ever printed, verified by a dedicated test using a real
+    email/fields payload. `FormDraft` deletion cannot cascade to `Lead`
+    or `User` (no FK from either points at `FormDraft`, and the
+    eligibility filter itself already requires `submitted_lead IS
+    NULL`), confirmed by a dedicated test with an unrelated Lead and the
+    draft's own owner both asserted to survive.
+  - **Evidence:** new `leads/test_cleanup_form_drafts.py` (12 tests) —
+    dry-run reports and deletes nothing; `--apply` deletes only the row
+    matching all four conditions, leaving a wrong-status row, a
+    Lead-attached row, and a token-bearing row untouched; a
+    freshly-expired row (inside the retention window) is not deleted;
+    `open`/`submitting`/`submitted` rows are never deleted even at 365
+    days old; a small `--batch-size` (2, for 5 eligible rows) correctly
+    processes multiple batches; `0`/negative `--older-than-days` and
+    `--batch-size` are each rejected with `CommandError`, writing
+    nothing; the race-safety test above; the no-leak-in-output test
+    above; the no-cascade test above. All 12 pass on SQLite. The same
+    12, plus `leads.test_form_draft`+`leads.test_finalize` (155 tests
+    total), pass on both SQLite (11 skips, PostgreSQL-only) and real
+    isolated PostgreSQL (`arvion_ci_local`, 0 skips), zero regression.
+    `check` (0 issues), migration dry-run ("No changes detected" — no
+    migration, as instructed), and `git diff --check` (clean) all
+    passed.
+  - Files touched (all new): `leads/management/__init__.py`,
+    `leads/management/commands/__init__.py`, `leads/management/
+    commands/cleanup_form_drafts.py`, `leads/test_cleanup_form_drafts.py`.
+    No model, migration, `FormDraft` lifecycle function in `leads.
+    form_draft_service`, `cleanup_demo_selections`, endpoint, or
+    management-portal page touched. Not pushed, deployed, or run with
+    `--apply` outside a test database; no dry-run was even run against
+    the permanent local `db.sqlite3` this phase (test evidence alone
+    was judged sufficient and lower-risk).
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is twenty-eight commits ahead of `origin/main` — the
-  twenty-seven listed above (including the V2.1-C2 corrective commit,
-  `1f85075`, itself on top of `7628343`/`126c70b`/`7e5e621`/`6d75c4f`),
-  plus this phase's own V2.1-E0 commit. No prior commit is amended.
-- **Last commit:** this phase's own commit — the V2.1-E0 fix:
-  `assessments/services.py`, `assessments/tests.py`, and
-  `.ai/project/CURRENT_STATE.md`; a separate commit on top of `1f85075`
-  (the V2.1-C2 corrective commit), which is not amended.
-- **Next action:** V2.1-E0 is verified locally with no known P0/P1
-  remaining — the last outstanding, previously-flagged remaining risk
-  from V2.1-B2 is now closed. V2.1-C2 (implementation plus its
-  corrective) remains done and fully verified — see its own entries
-  above; nothing in this phase touched or re-litigated it. The
-  saved-drafts dashboard's remaining scope (if any beyond the single
-  active `leads_contact` draft card) and CRM/Clinic resumable-draft
-  support both remain `NOT_STARTED`/out of scope, unless explicitly
-  reopened. V2.1-B1 (both corrective phases), V2.1-B2 (all three
-  corrective phases), V2.1-B3 (plus its corrective phase), V2.1-C1
-  (plus both corrective phases), and V2.1-D (plus its corrective phase)
-  remain done and fully verified — see their own entries above; nothing
-  in this phase touched or re-litigated any of them. The earlier,
-  separate V2 idea (a time-boxed, signed continuation link) remains
-  superseded by the login-based approach unless explicitly reopened.
-  Re-run the full release gate on the exact deployable revision before
-  any production action, including applying `0004_activesession`,
-  `0006_formdraft_and_more`, `0007_formdraft_revision`, and
-  `0008_formdraft_submission_token` to any real database.
+  `main` is twenty-nine commits ahead of `origin/main` — the
+  twenty-eight listed above (including the V2.1-E0 commit, `2ab8515`,
+  itself on top of `1f85075`/`7628343`/`126c70b`/`7e5e621`/`6d75c4f`),
+  plus this phase's own V2.1-E1 commit. No prior commit is amended.
+- **Last commit:** this phase's own commit — the V2.1-E1
+  `cleanup_form_drafts` command: `leads/management/__init__.py`,
+  `leads/management/commands/__init__.py`, `leads/management/
+  commands/cleanup_form_drafts.py`, `leads/test_cleanup_form_drafts.py`,
+  and `.ai/project/CURRENT_STATE.md`; a separate commit on top of
+  `2ab8515` (the V2.1-E0 commit), which is not amended.
+- **Next action:** V2.1-E1 is verified locally with no known P0/P1
+  remaining. V2.1-E0 remains done and fully verified — see its own
+  entry above; nothing in this phase touched or re-litigated it. V2.1-C2
+  (implementation plus its corrective) remains done and fully verified.
+  The saved-drafts dashboard's remaining scope (if any beyond the
+  single active `leads_contact` draft card) and CRM/Clinic
+  resumable-draft support both remain `NOT_STARTED`/out of scope,
+  unless explicitly reopened. V2.1-B1 (both corrective phases), V2.1-B2
+  (all three corrective phases), V2.1-B3 (plus its corrective phase),
+  V2.1-C1 (plus both corrective phases), and V2.1-D (plus its
+  corrective phase) remain done and fully verified — see their own
+  entries above; nothing in this phase touched or re-litigated any of
+  them. The earlier, separate V2 idea (a time-boxed, signed continuation
+  link) remains superseded by the login-based approach unless
+  explicitly reopened. Phase E2 (full release gate, migration review,
+  deploy-package preparation) is explicitly not this phase and was not
+  attempted. Re-run the full release gate on the exact deployable
+  revision before any production action, including applying
+  `0004_activesession`, `0006_formdraft_and_more`,
+  `0007_formdraft_revision`, and `0008_formdraft_submission_token` to
+  any real database.
 
 ## Phase ledger
 
@@ -3191,4 +3270,5 @@
 | Resumable order drafts — V2.1-C2 corrective (demo `brand` removed from the dashboard card; language isolation restored) | `VERIFIED` (local) | See "V2.1-C2 corrective — demo brand removed from the dashboard card" above for full detail. `brand` removed from `DraftDemoSummary`, `_DEMO_SNAPSHOT_REQUIRED_KEYS`, and the demo row template — the row now shows only the fully bilingual `template_title_*`/`category_*` pair; a legacy snapshot with only those two bilingual pairs (no `brand` key) still renders correctly. No `demo_snapshot` schema, snapshot builder, model, migration, order form, or management-portal page touched; no new live `DemoSelection`/`DemoTemplate` lookup added; no CSS change, cache-bust untouched. `accounts/test_dashboard_draft.py` grew from 18 to 21 tests (legacy-snapshot-without-brand render check, fa title/category check, and an explicit Persian-brand-never-leaks-into-English regression test that parses the demo row's own HTML and asserts zero Persian/Arabic Unicode characters), all passing; every existing privacy/no-leak test re-run unmodified and still passing. `accounts` full suite plus `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+`leads.test_form_draft`+`leads.test_finalize`+`leads.test_demo_handoff` (323 tests, 18 skips) all pass, zero regression. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. Full real-browser verification (fa/en with a fully-Persian-brand snapshot, light/dark, 320/390px no horizontal scroll, keyboard focus/44px target) on a disposable SQLite environment confirmed no Persian text anywhere in the English demo row. `7628343` not amended. |
 | Resumable order drafts — V2.1 saved-drafts dashboard, beyond this single-draft-type card | `NOT_STARTED` | Out of this phase's scope; V2.1-C2 covers only the one active `leads_contact` draft. |
 | V2.1-E0 — PostgreSQL-incompatible lock in `revoke_assessment_access` fixed | `VERIFIED` (local) | See "V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation fixed" above for full detail. Unrelated to the V2.1 leads-contact line — closes the `assessments/services.py` remaining risk flagged since V2.1-B2. Root cause reproduced first with the exact supplied command (`FeatureNotSupported: FOR UPDATE cannot be applied to the nullable side of an outer join`, from `select_for_update().select_related("attempt")`'s outer join to the nullable `Attempt` side); fixed by locking `ExamEntitlement` without `select_related` and fetching/locking `Attempt` via its own independent `select_for_update()` query. 4 new tests (no-attempt-yet revocation, idempotent double-revocation, payment-evidence preservation) plus a new PostgreSQL-only `AssessmentAccessRevocationConcurrencyTests` (two truly concurrent revocations converge to exactly one `changed=True`/one `changed=False`, attempt invalidated exactly once — run once plus 5 repeats, all clean). `assessments.tests.AssessmentEngineTests` (61 tests), full `assessments` app + `management_portal.tests.AssessmentAccessControlTests` (134 tests, 2 skips on SQLite, 0 on PostgreSQL) all pass on both SQLite and real isolated PostgreSQL, zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration), and `git diff --check` (clean) all passed. Only `assessments/services.py` and `assessments/tests.py` touched. Not pushed, deployed, or migrated on production. |
+| V2.1-E1 — `cleanup_form_drafts` management command | `VERIFIED` (local) | See "V2.1-E1 — `cleanup_form_drafts` management command" above for full detail. New `leads/management/commands/cleanup_form_drafts.py`: deletes a `FormDraft` only when `status="expired"` AND `expires_at` older than the retention window (default 30 days) AND `submitted_lead IS NULL` AND `submission_token IS NULL` — all four required, guarding the V2.1-D idempotency contract directly. Dry-run by default; `--apply` required to delete; `--older-than-days`/`--batch-size` (defaults 30/500) validated as positive integers before any write, else `CommandError`. Batch-safe: the delete step re-applies the full eligibility filter combined with `pk__in`, never `pk__in` alone, proven by a test that mutates a row's status inside a patched `.filter()` call positioned exactly between selection and delete. Output is one aggregate line (count + a plain-language, field-name-free policy description) — no owner/email/id/`fields`/`demo_snapshot`/token ever printed, proven by a dedicated test. No cascade to `Lead`/`User` on deletion, proven by a dedicated test. New `leads/test_cleanup_form_drafts.py` (12 tests) plus `leads.test_form_draft`+`leads.test_finalize` (155 tests total) pass on SQLite (11 skips) and real isolated PostgreSQL (0 skips), zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration, as instructed), and `git diff --check` (clean) all passed. No cron/Celery Beat schedule, endpoint, UI, model, migration, `FormDraft` lifecycle code, or `cleanup_demo_selections` touched — all files new. `--apply` was run only against test databases; no dry-run was even attempted against the permanent local `db.sqlite3`. Not pushed, deployed, or run against production. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
