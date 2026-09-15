@@ -15,7 +15,10 @@
 مواردی که باید به‌صورت دستی و بدون استفاده از دادهٔ واقعی مشتری بررسی شوند:
 
 - صفحهٔ اصلی و مسیرهای `/fa/` و `/en/` در موبایل و دسکتاپ؛
-- ثبت‌نام، دریافت و ورود کد OTP با حساب آزمایشی؛
+- ثبت‌نام با حساب آزمایشی؛ ثبت‌نام فعلی یک‌مرحله‌ای است و بلافاصله پس از ساخت حساب،
+  کاربر بدون کد OTP وارد می‌شود (`accounts.views.RegisterView.form_valid`). زیرساخت
+  OTP/تأیید موبایل (`PhoneVerificationView`) در کد باقی مانده اما فقط برای مسیر
+  تأیید دستی کارکنان به کار می‌رود، نه ثبت‌نام معمول مشتری؛
 - ثبت فرم نیازسنجی و ایجاد/نمایش قرارداد با نمونهٔ آزمایشی؛
 - ثبت رسید پرداخت آزمایشی و نمایش آن در Inbox؛
 - پاسخ به یک تیکت آزمایشی و مشاهدهٔ Timeline.
@@ -73,6 +76,40 @@ curl -fsS https://rvionai.com/health/
 ```
 
 اگر migration ناسازگار یا داده آسیب‌دیده است، پیش از هر restore با مالک سیستم هماهنگ کنید. از `pre-release-*.dump` مربوط به همان انتشار استفاده کنید؛ restore پایگاه‌داده production عملیاتی مخرب است و نباید خودکار یا بدون تأیید انجام شود.
+
+## Migrationهای این انتشار و ریسک rollback
+
+پنج migration زیر تازه‌اند و همگی additive هستند (بدون data migration، بدون تغییر مخرب روی ستون یا جدول موجود):
+
+- `accounts.0004_activesession`
+- `projects.0006_demoselection_submission_token`
+- `leads.0006_formdraft_and_more`
+- `leads.0007_formdraft_revision`
+- `leads.0008_formdraft_submission_token`
+
+**برگشت این migrationها داده‌محور و مخرب است:** rollback به قبل از این پنج migration
+جدول `ActiveSession` و `FormDraft` را کامل حذف و ستون `submission_token` روی
+`DemoSelection` را نیز حذف می‌کند — هر پیش‌نویس سفارش، نشست فعال یا شناسهٔ
+idempotency ثبت‌شده پس از این انتشار برای همیشه از دست می‌رود. بنابراین اگر پس از
+انتشار نیاز به rollback بود، فقط کد را برگردانید (بخش «بازگشت کد» بالا) و migration
+عقب نبرید، مگر با تأیید صریح مالک سیستم و پذیرفتن این از دست رفتن داده.
+
+## Cleanup commandهای این انتشار
+
+`cleanup_demo_selections` (موجود از قبل) و `cleanup_form_drafts` (جدید) هر دو
+دستی، پیش‌فرض dry-run و بدون هیچ زمان‌بندی خودکار (بدون cron/Celery Beat/systemd
+timer) هستند — برخلاف `cleanup_system_logs` که timer روزانهٔ خودش را دارد. حذف
+واقعی فقط با پرچم صریح `--apply` رخ می‌دهد؛ همیشه ابتدا بدون `--apply` اجرا کنید و
+شمار گزارش‌شده را بررسی کنید:
+
+```bash
+sudo -u arvion bash -c 'set -a; source /srv/arvion/.env.production; set +a; /srv/arvion/.venv/bin/python /srv/arvion/manage.py cleanup_form_drafts'
+```
+
+`cleanup_form_drafts` فقط پیش‌نویسی را حذف می‌کند که همزمان منقضی‌شده
+(`status=expired`)، قدیمی‌تر از بازهٔ نگهداری (پیش‌فرض ۳۰ روز، با `--older-than-days`
+قابل تغییر)، بدون سفارش ثبت‌شدهٔ متصل و بدون شناسهٔ idempotency باشد؛ پیش‌نویس فعال،
+در حال ثبت، ثبت‌شده یا متصل به سفارش هرگز حذف نمی‌شود.
 
 ## پشتیبان و سلامت دوره‌ای
 

@@ -5,6 +5,7 @@ behavior is exercised here (that is covered by manual browser verification);
 these tests only check what the server renders into the page."""
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 
@@ -150,6 +151,14 @@ class ServerDraftDataAttributeTests(TestCase):
 
 class ErrorRerenderStepMarkerTests(TestCase):
     def setUp(self):
+        # The guest submission path is rate-limited per client IP, and the
+        # Django test client always uses the same fixed REMOTE_ADDR — so an
+        # earlier, unrelated test's own successful guest submission (still
+        # within LEAD_RATE_LIMIT_SECONDS, and the cache backend is not
+        # reset between tests) can otherwise make this test's own POST
+        # spuriously fail with a validation re-render instead of the
+        # expected redirect. Real bug caught by --shuffle in CI.
+        cache.clear()
         self.url = CONTACT_URL + "?lang=fa"
         self.payload = {
             "name": "آروین یزدانی", "business_name": "", "email_or_telegram": "test@example.com",

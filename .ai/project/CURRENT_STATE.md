@@ -2,24 +2,43 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-E1 — `cleanup_form_drafts`, a safe,
-  batch-safe management command that deletes `FormDraft` rows only once
-  ALL FOUR hold: `status="expired"`, `expires_at` older than the
-  retention window (default 30 days), `submitted_lead IS NULL`, and
-  `submission_token IS NULL`. **`VERIFIED` (local)** — see "V2.1-E1 —
-  `cleanup_form_drafts` management command" below. Dry-run by default;
-  `--apply` required to delete; `--older-than-days`/`--batch-size`
-  (defaults 30/500) are validated as positive integers before any write,
-  raising `CommandError` otherwise. Deletion re-applies the full
-  eligibility filter at delete time (never bare `pk__in`), so a draft
-  that stops being eligible between batch-selection and delete survives.
-  Output prints only the aggregate count and a plain-language policy
-  description — no owner, email, id, `fields`, `demo_snapshot`, or token
-  ever appears. No model, migration, `FormDraft` lifecycle code, cron/
-  Celery Beat schedule, or UI was added or changed; `cleanup_demo_
-  selections` untouched.
-- **V2.1-E0 — historical recap (superseded as the "current phase"; kept
-  for reference):** fixes the pre-existing PostgreSQL
+- **Current phase:** V2.1-E2 — full Release Candidate gate audit of all
+  29 local commits ahead of `origin/main` (`a1d6700`). **`BLOCKED`** —
+  see "V2.1-E2 — Release Candidate gate audit" below for the complete
+  evidence. Everything in the gate passed except one: a genuine,
+  reproducible intermittent failure in `accounts.tests.
+  SingleSessionPostgresRaceTests.
+  test_two_simultaneous_logins_converge_to_exactly_one_active_session`
+  on real PostgreSQL (an inherent, pre-existing, narrow real-thread-race
+  timing issue in login-session concurrency handling, not a new
+  regression from this audit and not fixed by it — see below for full
+  severity analysis). One small, definite, low-risk, unrelated defect
+  *was* found and fixed in this phase: a test-isolation bug in
+  `leads/test_contact_server_draft_ui.py` (missing `cache.clear()`)
+  that the CI shuffle seed exposed. The 5 release migrations, the
+  PostgreSQL migration rehearsal (forward/backward/forward-again), the
+  production settings check, and the browser UAT of every reachable
+  critical flow all passed cleanly — recorded in full below. Python 3.11
+  was not available on this machine (only 3.12), so per the explicit
+  instruction the CI-version-matrix criterion is `PARTIAL`, not `PASS`,
+  independent of the BLOCKED status above.
+- **V2.1-E1 — historical recap (superseded as the "current phase"; kept
+  for reference):** `cleanup_form_drafts`, a safe, batch-safe management
+  command that deletes `FormDraft` rows only once ALL FOUR hold:
+  `status="expired"`, `expires_at` older than the retention window
+  (default 30 days), `submitted_lead IS NULL`, and `submission_token IS
+  NULL`. Dry-run by default; `--apply` required to delete;
+  `--older-than-days`/`--batch-size` (defaults 30/500) are validated as
+  positive integers before any write, raising `CommandError` otherwise.
+  Deletion re-applies the full eligibility filter at delete time (never
+  bare `pk__in`), so a draft that stops being eligible between
+  batch-selection and delete survives. Output prints only the aggregate
+  count and a plain-language policy description — no owner, email, id,
+  `fields`, `demo_snapshot`, or token ever appears. No model, migration,
+  `FormDraft` lifecycle code, cron/Celery Beat schedule, or UI was added
+  or changed; `cleanup_demo_selections` untouched.
+- **V2.1-E0 — historical recap (kept for reference):** fixes the
+  pre-existing PostgreSQL
   incompatibility in `assessments.services.revoke_assessment_access`,
   flagged and left unfixed since V2.1-B2. Unrelated to the V2.1
   leads-contact/FormDraft line; this is the assessments/exam-entitlement
@@ -3199,35 +3218,305 @@
     `--apply` outside a test database; no dry-run was even run against
     the permanent local `db.sqlite3` this phase (test evidence alone
     was judged sufficient and lower-risk).
+- **V2.1-E2 — Release Candidate gate audit.** Full audit of whether the
+  29 local commits ahead of `origin/main` (`a1d6700`) are ready to push,
+  per `AGENTS.md`/`release-check.sh`/`.github/workflows/quality.yml`/
+  `docs/OPERATIONS_RUNBOOK_FA.md`/`ops/release.sh`. Verification and
+  rehearsal only — no push, deploy, production connection, production
+  migration, or `--apply` outside a test database.
+  - **Git/diff audit:** all 74 changed files (13,914 insertions, 187
+    deletions vs. `origin/main`) categorized: 2 docs/state, 5 new
+    migrations, 9 `accounts` files, 1 settings file, 2 `assessments`
+    files, 8 `core` files, 22 `leads` non-migration files, 10
+    `management_portal` files, 15 `projects` non-migration files. No
+    file deleted; `requirements.txt` unchanged (no new dependency to
+    vet); `db.sqlite3` not tracked. Secret scan (`git diff origin/
+    main..HEAD` grepped for AWS/Google/Slack key patterns, PEM headers,
+    hardcoded `SECRET_KEY=`/`DATABASE_URL=` with embedded credentials):
+    clean — the only `password="..."` matches are trivial test-fixture
+    placeholders (`"x"`, `"safe-password"`, etc.), never a real secret.
+    No `.env`, key, or backup file added. No customer-data file removed
+    or replaced.
+  - **The 5 release migrations, reviewed line by line:**
+    `accounts.0004_activesession` (new `ActiveSession` table, one
+    `OneToOneField` to the user), `projects.0006_demoselection_
+    submission_token` (nullable unique `AddField`),
+    `leads.0006_formdraft_and_more` (new `FormDraft` table plus its
+    partial unique constraint), `leads.0007_formdraft_revision`
+    (nullable-by-default `AddField`), `leads.0008_formdraft_
+    submission_token` (nullable unique `AddField`) — all five are purely
+    additive (`CreateModel`/`AddField`/`AddConstraint` only, no
+    `RunPython`/`RunSQL`, no column removal, no `NOT NULL` without a
+    default), and each app's migration numbering follows directly from
+    `origin/main`'s last migration for that app with no fork/conflict.
+  - **Local gate — `release-check.sh` on HEAD:** full pass —
+    `manage.py check` (0 issues), `makemigrations --check --dry-run`
+    ("No changes detected"), `pip check` ("No broken requirements
+    found"), the full test suite (826 tests, 20 skips, all passing),
+    the strict question-bank audit (`english`/`python-django`, 0
+    editorial warnings each), `collectstatic --dry-run` (silent
+    success), and the assessment benchmark (100 attempts, ~27–37/s
+    throughput, no errors).
+  - **CI-equivalent steps, run exactly as `.github/workflows/quality.
+    yml` does, on HEAD:** `compileall` over every app (clean);
+    `manage.py test --parallel 4 --verbosity 1` (826 tests, 20 skips,
+    all passing); `manage.py test --shuffle=58291 --parallel 1
+    --verbosity 1` — **initially FAILED** (see finding below), then
+    passed cleanly after the fix, re-confirmed with a second, freshly
+    generated random shuffle seed too; `audit_question_banks
+    --strict-editorial` (pass); `node --check` on every tracked `*.js`
+    file (clean); `bash -n` on every `ops/*.sh` file (clean); `git diff
+    --check` (clean, no whitespace/conflict-marker issues).
+  - **Finding #1 (found and fixed this phase) — test-isolation bug
+    exposed only by the exact CI shuffle seed:** `leads.test_
+    contact_server_draft_ui.ErrorRerenderStepMarkerTests.
+    test_valid_submission_has_no_error_step_marker` expected a 302
+    redirect but got 200 under `--shuffle=58291`. Root cause: this test
+    posts a guest submission to the per-IP-rate-limited
+    `leads:contact` endpoint without ever calling `cache.clear()` in
+    `setUp` — Django's test client always uses the same fixed
+    `REMOTE_ADDR`, the cache backend is not reset between tests, and
+    the default rate-limit window is 60 seconds, so an earlier,
+    unrelated test's own successful guest submission (still within the
+    window, in this particular shuffle order) silently consumed the
+    shared rate-limit slot and made this test's own POST spuriously
+    fail validation instead of redirecting. Fixed with one `cache.
+    clear()` call at the top of that test's `setUp` (the same
+    established pattern already used in `leads.tests.LeadTests`).
+    Re-ran the exact failing seed (now passes) plus one fresh random
+    seed (also passes) — both on the default SQLite settings. This is a
+    genuine, low-risk, test-only fix; no production code was touched
+    for this finding.
+  - **Finding #2 (found this phase, NOT fixed — see severity analysis)
+    — a genuine, pre-existing, intermittent real-concurrency failure:**
+    `accounts.tests.SingleSessionPostgresRaceTests.
+    test_two_simultaneous_logins_converge_to_exactly_one_active_session`,
+    run repeatedly (once during the shuffle run, plus 8 additional
+    standalone repeats) against real isolated PostgreSQL, failed once
+    on Python 3.12 (via `django.contrib.sessions.backends.base.
+    UpdateError`, raised when `request.session.save()` finds 0 rows
+    affected) and once more out of 8 repeats on Python 3.9 (the main
+    `.venv`) — an observed flake rate around 10–15%, present on *both*
+    Python versions, so this is not a 3.12-specific incompatibility.
+    Root cause, traced through `accounts/signals.py`'s
+    `enforce_single_session_on_login`: two real, near-simultaneous
+    logins for the same user can interleave such that the *first*
+    thread's own follow-up `request.session.save()` (simulating what
+    `SessionMiddleware.process_response()` does in a real request) runs
+    *after* the *second* thread's login has already committed and
+    deleted the first thread's now-superseded `Session` row — the first
+    thread's own save then legitimately finds nothing to update and
+    Django's session backend raises `UpdateError`. This is a real,
+    narrow, timing-sensitive race in newly-introduced (relative to
+    `origin/main`) session-security code, not a hypothetical or
+    test-only artifact: in a genuine production request, the same
+    interleaving would surface as an occasional uncaught 500 on the
+    *losing* side of two truly simultaneous login requests for one
+    account (sub-second timing, essentially never triggered by a real
+    human, self-recovers on retry). It does **not** cause data loss,
+    does **not** bypass the single-session security guarantee itself
+    (exactly one session still ends up active either way), and does
+    **not** affect any other flow. It was **not** fixed in this phase:
+    a correct fix requires either wrapping/retrying around Django's own
+    session-save path or redesigning the eviction step, and rushing
+    that into security-critical session code inside a release-audit
+    phase — without its own dedicated design and test cycle — was
+    judged higher-risk than leaving it documented and unresolved. Per
+    the explicit instruction that a security-path test failure blocks
+    the gate, this is reported as the reason for `BLOCKED`, not
+    quietly downgraded to justify a pass.
+  - **Python version matrix:** Python 3.11 is **not installed** on this
+    machine (only System/Command-Line-Tools Python 3.9, used by the
+    project's own `.venv`, and Homebrew Python 3.12) — per the explicit
+    instruction, this is reported as unavailable, never as a false
+    `PASS`. Python 3.12 **was** exercised, in a throwaway venv created
+    with `/opt/homebrew/bin/python3.12 -m venv` outside the project
+    (the project's own `.venv` was never touched, rebuilt, or
+    replaced), dependencies installed from the unmodified
+    `requirements.txt` (`pip check`: "No broken requirements found"),
+    against real isolated PostgreSQL 16 (`arvion_ci_local`, matching
+    CI's `postgres:16-alpine`) via `arvion.settings.ci`: `manage.py
+    check` and `makemigrations --check --dry-run` both clean,
+    `compileall` clean, the parallel test step 826/826 passing (0
+    skips, real Postgres), and the shuffle step reproducing Finding #2
+    once (see above) — otherwise clean. The throwaway venv was deleted
+    with the rest of the scratch directory at the end of this phase.
+  - **PostgreSQL migration rehearsal (forward → backward → forward
+    again), on a disposable `release_rehearsal` database, never the
+    permanent local database:** a temporary `git worktree` was checked
+    out at `origin/main` and used to `migrate` `release_rehearsal` to
+    the exact pre-release baseline schema, then non-sensitive structural
+    fixtures were created directly through that worktree's own code
+    (one `User`, one `Lead`, one `DemoTemplate`/`DemoSelection`, one
+    `Exam`/`Order`/`ExamEntitlement`). The *same* database was then
+    migrated forward using the current `HEAD` checkout: all 5 new
+    migrations applied cleanly with no other pending migration, the
+    baseline fixtures (`User`/`Lead`/`DemoSelection`/`Order`/
+    `ExamEntitlement`) were all still readable afterward, and writing a
+    new `FormDraft`, a new `ActiveSession`, and a duplicate
+    `FormDraft.submission_token` value were all exercised directly —
+    the duplicate correctly raised a real `IntegrityError` from the new
+    unique constraint. **Backward migration was then rehearsed and is
+    confirmed destructive to new data**: reverting `leads.0006/0007/
+    0008`, `accounts.0004`, and `projects.0006` on the same database
+    dropped the `FormDraft` and `ActiveSession` tables entirely and
+    dropped `DemoSelection.submission_token` — the pre-release baseline
+    fixtures survived intact throughout, but any `FormDraft`/
+    `ActiveSession`/token data created after this release ships would
+    be permanently lost by a migration rollback. Migrating forward
+    again re-created a clean, healthy schema (`check`: 0 issues;
+    `makemigrations --check --dry-run`: "No changes detected"). This
+    finding — "code rollback is safe, migration rollback is not" — is
+    now recorded in `docs/OPERATIONS_RUNBOOK_FA.md` (see below). The
+    temporary worktree and the `release_rehearsal` database were both
+    removed at the end of the rehearsal.
+  - **Production settings check** (`arvion.settings.production`
+    imported with fake, non-real environment values — no real provider,
+    no real DSN, no message ever sent): `manage.py check --deploy`
+    passed with 0 issues. Confirmed directly: `DEBUG=False` (inherited,
+    never overridden for production); PostgreSQL enforced (`DATABASE_
+    URL` must start with `postgresql://`/`postgres://`, raises
+    otherwise); `PAYMENT_GATEWAY` in `{sandbox, free}` raises
+    `RuntimeError`; `SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE` both
+    `True` by default; `CSRF_TRUSTED_ORIGINS` resolves correctly;
+    `SECURE_HSTS_SECONDS=31536000` with subdomains/preload both `True`
+    when SSL redirect is on; S3 `STORAGES` backend wires correctly when
+    `USE_S3_STORAGE=1`; `SMS_BACKEND=core.sms.backends.
+    ConsoleSMSBackend` raises `RuntimeError` (a real, non-console
+    backend is required); Sentry (`core/observability.py`) reads
+    `SENTRY_RELEASE`/`SENTRY_DSN` from the environment and safely
+    no-ops with an empty DSN (confirmed no real Sentry connection was
+    attempted); the shared cache correctly resolves to Redis when
+    `CACHE_URL` is set and to the documented file-based fallback
+    (`/var/tmp/rvion-django-cache`) otherwise (both paths exercised);
+    `/health/` is wired and reachable via `HealthCheckView`.
+  - **Browser UAT**, on a disposable throwaway SQLite database (never
+    the permanent local database), seeded with disposable accounts/
+    exam/order/entitlement fixtures, torn down completely afterward.
+    Confirmed live, end-to-end: (1) home → demo gallery → customize
+    (brand/theme/personality/features) → "ادامه با این انتخاب" → the
+    contact form pre-filled with the right `request_type`, all 3 steps
+    completed, a real submission producing a real tracking code; (2) a
+    page reload and a browser-history **back** to the bfcache-restored
+    form, followed by a resubmit attempt, produced **zero** additional
+    `Lead` rows (`Lead.objects.count()` stayed at 1 throughout); (3)
+    guest consent banner for the local draft correctly offered and
+    handled; (4) **registration is confirmed, live, to be a single
+    step with no OTP anywhere in the flow** — the register page's own
+    copy literally reads "بعد از ثبت فرم، بلافاصله وارد حساب خود
+    می‌شوی" (immediately logged in after submitting), and submitting it
+    redirected straight to the dashboard with "حساب شما ساخته شد و
+    وارد شدید." and zero OTP screen; (5) logging in as the same account
+    from a second, fully independent browser session correctly
+    evicted the first session — navigating the first session afterward
+    redirected to login with the exact courtesy message "این دستگاه از
+    حساب شما خارج شد چون در جای دیگری وارد شدید."; (6) the second
+    (surviving) session could reach the account-bound contact form with
+    `data-server-draft="1"` and load its own account's draft — the
+    draft that had been created by an incidental (correct) demo→login
+    hand-off during registration; (7)/(8) full reconciliation-banner and
+    conflict-UI mechanics were not separately re-driven by hand this
+    round (the draft encountered was empty), and instead rely on the
+    already-passing, extensive `leads.test_draft_api`/`leads.
+    test_contact_server_draft_ui`/`leads.test_demo_handoff` automated
+    coverage — recorded here as a real, disclosed gap rather than
+    silently claimed as browser-verified; (9)/(10) likewise, the
+    offline/retry and final-no-duplicate-Lead guarantees were not
+    re-driven manually this round beyond what flow (2) above already
+    proved live, relying otherwise on `leads.test_finalize`'s extensive,
+    already-passing automated coverage (including real PostgreSQL
+    concurrency); (11) the dashboard's own order-draft card rendered
+    correctly for the authenticated customer ("سفارش پروژه … ناتمام ·
+    مرحله ۱ از ۳"); (12) the English dashboard showed correct English
+    labels throughout — the only Persian characters present were the
+    customer's own name as typed at registration ("Hello, کاربر"), which
+    is user-supplied identity data, not a translation-boundary defect,
+    and is explicitly not the kind of leak V2.1-C2's corrective phase
+    fixed; (13) a staff superuser, from the management portal, revoked
+    a customer's exam access with a reason, and the UI immediately
+    confirmed "دسترسی بسته شد و آزمون فعال متوقف گردید." with the
+    attempt shown as "باطل‌شده" — this exercises the exact
+    `revoke_assessment_access` function V2.1-E0 fixed; (14) the revoked
+    customer's own browser session, on requesting the same attempt
+    URL, was correctly shown "این آزمون بسته شده است / باطل‌شده" instead
+    of being able to continue. **Visual/responsive:** the contact form
+    and the dashboard both showed zero horizontal scroll at 320px and
+    390px in both light and dark themes (`scrollWidth === clientWidth`
+    in all four combinations checked per page); keyboard Tab produced a
+    visible focus outline on every element spot-checked on the contact
+    form. Zero JavaScript console errors or failed requests across the
+    entire pass (aside from the same pre-existing, unrelated
+    `AudioContext` autoplay warning already noted in prior phases).
+  - **Documentation corrected:** `docs/OPERATIONS_RUNBOOK_FA.md`'s
+    pre-release manual-check list previously said to check "ثبت‌نام،
+    دریافت و ورود کد OTP" (registration, receiving and entering an OTP
+    code) — stale relative to the actual code
+    (`accounts.views.RegisterView.form_valid`'s own docstring: "Phone
+    verification is deliberately out of the signup path"). Corrected to
+    state plainly that registration is single-step with immediate
+    login and no OTP, and that the OTP/`PhoneVerificationView`
+    machinery remains in the codebase only for a separate,
+    staff-initiated path — not the ordinary customer signup this
+    checklist item is about. Also added: a short, new "Migrationهای
+    این انتشار و ریسک rollback" section listing the 5 release
+    migrations and stating plainly, per the rehearsal finding above,
+    that reverting them destroys `FormDraft`/`ActiveSession`/token data
+    (code rollback only, never migration rollback, is the safe
+    recovery path); and a short "Cleanup commandهای این انتشار" section
+    stating that both `cleanup_demo_selections` and the new
+    `cleanup_form_drafts` are manual, dry-run-by-default, and carry no
+    automatic schedule of any kind (unlike `cleanup_system_logs`, which
+    already has its own daily timer) — no scheduled/cron/Celery Beat
+    execution was added for either.
+  - Files touched: `leads/test_contact_server_draft_ui.py` (Finding
+    #1's one-line fix), `docs/OPERATIONS_RUNBOOK_FA.md` (documentation
+    correction), `.ai/project/CURRENT_STATE.md`. No production code
+    beyond the one test-isolation fix was changed; no migration created
+    or run against a permanent database; nothing pushed, deployed, or
+    connected to production.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is twenty-nine commits ahead of `origin/main` — the
-  twenty-eight listed above (including the V2.1-E0 commit, `2ab8515`,
-  itself on top of `1f85075`/`7628343`/`126c70b`/`7e5e621`/`6d75c4f`),
-  plus this phase's own V2.1-E1 commit. No prior commit is amended.
-- **Last commit:** this phase's own commit — the V2.1-E1
-  `cleanup_form_drafts` command: `leads/management/__init__.py`,
-  `leads/management/commands/__init__.py`, `leads/management/
-  commands/cleanup_form_drafts.py`, `leads/test_cleanup_form_drafts.py`,
-  and `.ai/project/CURRENT_STATE.md`; a separate commit on top of
-  `2ab8515` (the V2.1-E0 commit), which is not amended.
-- **Next action:** V2.1-E1 is verified locally with no known P0/P1
-  remaining. V2.1-E0 remains done and fully verified — see its own
-  entry above; nothing in this phase touched or re-litigated it. V2.1-C2
-  (implementation plus its corrective) remains done and fully verified.
-  The saved-drafts dashboard's remaining scope (if any beyond the
-  single active `leads_contact` draft card) and CRM/Clinic
-  resumable-draft support both remain `NOT_STARTED`/out of scope,
-  unless explicitly reopened. V2.1-B1 (both corrective phases), V2.1-B2
-  (all three corrective phases), V2.1-B3 (plus its corrective phase),
-  V2.1-C1 (plus both corrective phases), and V2.1-D (plus its
-  corrective phase) remain done and fully verified — see their own
-  entries above; nothing in this phase touched or re-litigated any of
-  them. The earlier, separate V2 idea (a time-boxed, signed continuation
-  link) remains superseded by the login-based approach unless
-  explicitly reopened. Phase E2 (full release gate, migration review,
-  deploy-package preparation) is explicitly not this phase and was not
-  attempted. Re-run the full release gate on the exact deployable
-  revision before any production action, including applying
+  `main` is thirty commits ahead of `origin/main` — the twenty-nine
+  listed above (including the V2.1-E1 commit, `5374666`, itself on top
+  of `2ab8515`/`1f85075`/`7628343`/`126c70b`/`7e5e621`/`6d75c4f`), plus
+  this phase's own V2.1-E2 audit commit. No prior commit is amended.
+- **Last commit:** this phase's own commit — the V2.1-E2 audit's only
+  code/doc changes: `leads/test_contact_server_draft_ui.py`,
+  `docs/OPERATIONS_RUNBOOK_FA.md`, and `.ai/project/CURRENT_STATE.md`;
+  a separate commit on top of `5374666` (the V2.1-E1 commit), which is
+  not amended.
+- **Next action:** **Release is `BLOCKED`, not pushed.** Before this
+  candidate can become `READY_TO_PUSH`, a human must decide how to
+  handle the `SingleSessionPostgresRaceTests` login race (Finding #2
+  above): either accept the documented, narrow, non-security-bypassing
+  risk explicitly and proceed, or commission a dedicated follow-up
+  phase to harden `accounts/signals.py`'s single-session login path
+  against this exact interleaving (e.g. retrying or catching
+  `UpdateError` at the right layer) with its own careful design and
+  test cycle — this should **not** be rushed inside another audit
+  phase. Separately and non-blocking: Python 3.11 should be installed
+  and exercised on this machine (or accepted as `PARTIAL/READY_PENDING_
+  CI` until GitHub Actions itself runs the real matrix) before treating
+  the CI-parity claim as complete; the two browser-UAT gaps disclosed
+  above (live reconciliation-banner/conflict-UI driving, and a fresh
+  live offline/retry drive beyond what flow (2) already proved) can be
+  closed in a future UAT pass if a human wants stronger manual coverage
+  beyond the existing automated tests. V2.1-E0 and V2.1-E1 both remain
+  done and fully verified — see their own entries above; nothing in
+  this phase touched or re-litigated either. V2.1-C2 (implementation
+  plus its corrective) remains done and fully verified. The
+  saved-drafts dashboard's remaining scope (if any beyond the single
+  active `leads_contact` draft card) and CRM/Clinic resumable-draft
+  support both remain `NOT_STARTED`/out of scope, unless explicitly
+  reopened. V2.1-B1 (both corrective phases), V2.1-B2 (all three
+  corrective phases), V2.1-B3 (plus its corrective phase), V2.1-C1
+  (plus both corrective phases), and V2.1-D (plus its corrective phase)
+  remain done and fully verified — see their own entries above; nothing
+  in this phase touched or re-litigated any of them. The earlier,
+  separate V2 idea (a time-boxed, signed continuation link) remains
+  superseded by the login-based approach unless explicitly reopened.
+  Re-run the full release gate (this phase's own checklist, in full)
+  on the exact deployable revision once Finding #2 is resolved, and
+  immediately before any production action, including applying
   `0004_activesession`, `0006_formdraft_and_more`,
   `0007_formdraft_revision`, and `0008_formdraft_submission_token` to
   any real database.
@@ -3271,4 +3560,5 @@
 | Resumable order drafts — V2.1 saved-drafts dashboard, beyond this single-draft-type card | `NOT_STARTED` | Out of this phase's scope; V2.1-C2 covers only the one active `leads_contact` draft. |
 | V2.1-E0 — PostgreSQL-incompatible lock in `revoke_assessment_access` fixed | `VERIFIED` (local) | See "V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation fixed" above for full detail. Unrelated to the V2.1 leads-contact line — closes the `assessments/services.py` remaining risk flagged since V2.1-B2. Root cause reproduced first with the exact supplied command (`FeatureNotSupported: FOR UPDATE cannot be applied to the nullable side of an outer join`, from `select_for_update().select_related("attempt")`'s outer join to the nullable `Attempt` side); fixed by locking `ExamEntitlement` without `select_related` and fetching/locking `Attempt` via its own independent `select_for_update()` query. 4 new tests (no-attempt-yet revocation, idempotent double-revocation, payment-evidence preservation) plus a new PostgreSQL-only `AssessmentAccessRevocationConcurrencyTests` (two truly concurrent revocations converge to exactly one `changed=True`/one `changed=False`, attempt invalidated exactly once — run once plus 5 repeats, all clean). `assessments.tests.AssessmentEngineTests` (61 tests), full `assessments` app + `management_portal.tests.AssessmentAccessControlTests` (134 tests, 2 skips on SQLite, 0 on PostgreSQL) all pass on both SQLite and real isolated PostgreSQL, zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration), and `git diff --check` (clean) all passed. Only `assessments/services.py` and `assessments/tests.py` touched. Not pushed, deployed, or migrated on production. |
 | V2.1-E1 — `cleanup_form_drafts` management command | `VERIFIED` (local) | See "V2.1-E1 — `cleanup_form_drafts` management command" above for full detail. New `leads/management/commands/cleanup_form_drafts.py`: deletes a `FormDraft` only when `status="expired"` AND `expires_at` older than the retention window (default 30 days) AND `submitted_lead IS NULL` AND `submission_token IS NULL` — all four required, guarding the V2.1-D idempotency contract directly. Dry-run by default; `--apply` required to delete; `--older-than-days`/`--batch-size` (defaults 30/500) validated as positive integers before any write, else `CommandError`. Batch-safe: the delete step re-applies the full eligibility filter combined with `pk__in`, never `pk__in` alone, proven by a test that mutates a row's status inside a patched `.filter()` call positioned exactly between selection and delete. Output is one aggregate line (count + a plain-language, field-name-free policy description) — no owner/email/id/`fields`/`demo_snapshot`/token ever printed, proven by a dedicated test. No cascade to `Lead`/`User` on deletion, proven by a dedicated test. New `leads/test_cleanup_form_drafts.py` (12 tests) plus `leads.test_form_draft`+`leads.test_finalize` (155 tests total) pass on SQLite (11 skips) and real isolated PostgreSQL (0 skips), zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration, as instructed), and `git diff --check` (clean) all passed. No cron/Celery Beat schedule, endpoint, UI, model, migration, `FormDraft` lifecycle code, or `cleanup_demo_selections` touched — all files new. `--apply` was run only against test databases; no dry-run was even attempted against the permanent local `db.sqlite3`. Not pushed, deployed, or run against production. |
+| V2.1-E2 — Release Candidate gate audit (29→30 commits ahead of `origin/main`) | `BLOCKED` | See "V2.1-E2 — Release Candidate gate audit" above for full detail. Full local gate (`release-check.sh`), the exact CI steps (`compileall`, parallel test, strict question-bank audit, `node --check`, `bash -n`, `git diff --check`), the 5 release migrations reviewed and PostgreSQL-rehearsed forward/backward/forward-again, a production-settings `check --deploy` with fake credentials, and a live browser UAT of every reachable critical flow (funnel, no-duplicate resubmit, no-OTP registration, second-device session eviction, cross-device server draft, dashboard fa/en, admin exam-access revocation and its enforcement) all passed. One small, low-risk test-isolation bug (missing `cache.clear()` in `leads.test_contact_server_draft_ui.ErrorRerenderStepMarkerTests`, exposed only by the exact CI shuffle seed) was found and fixed. Blocking finding: `accounts.tests.SingleSessionPostgresRaceTests.test_two_simultaneous_logins_converge_to_exactly_one_active_session` fails intermittently (~10–15%) on real PostgreSQL on both Python 3.9 and 3.12 — a genuine, narrow, pre-existing real-thread-race in `accounts/signals.py`'s single-session login handling (`UpdateError` from Django's own session backend when a session row is deleted by a second concurrent login between the first login's own commit and its later `request.session.save()`). Low real-world impact (no data loss, no security-guarantee bypass, self-recovers on retry) but not fixed in this phase — deliberately left for a dedicated hardening phase rather than rushed into security-critical session code during an audit. Python 3.11 unavailable on this machine (3.12 was exercised in a disposable venv against real PostgreSQL, all green except the same Finding #2). Migration rollback of this release is confirmed destructive to new data (`FormDraft`/`ActiveSession`/token tables/columns dropped) — documented in `docs/OPERATIONS_RUNBOOK_FA.md`, which was also corrected to stop describing registration as requiring OTP. Not pushed, deployed, or connected to production; no `--apply`/migration was run outside disposable databases. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
