@@ -1035,6 +1035,78 @@ class AssessmentEngineTests(TestCase):
         with self.assertRaises(AssessmentAccessRevokedError):
             start_attempt(self.entitlement.pk, self.user)
 
+    def test_revocation_of_an_entitlement_with_no_attempt_yet_still_works(self):
+        # V2.1-E0: this is the exact shape that made select_related("attempt")
+        # build an outer join on PostgreSQL in the first place — an
+        # entitlement with no Attempt row at all. Locking the entitlement
+        # and the (absent) attempt via two independent queries must not
+        # require an attempt to exist.
+        manager = User.objects.create_superuser(
+            username="revocation-manager-no-attempt", email="revocation-manager-no-attempt@example.com",
+            password="safe-password",
+        )
+
+        entitlement, stopped_attempt, changed = revoke_assessment_access(
+            self.order.pk, actor=manager, reason="پرداخت هنوز تأیید نشده است",
+        )
+
+        self.assertTrue(changed)
+        self.assertIsNone(stopped_attempt)
+        entitlement.refresh_from_db()
+        self.assertTrue(entitlement.is_revoked)
+
+    def test_revoking_an_already_revoked_entitlement_is_idempotent(self):
+        attempt = self.start()
+        manager = User.objects.create_superuser(
+            username="revocation-manager-idempotent", email="revocation-manager-idempotent@example.com",
+            password="safe-password",
+        )
+
+        entitlement1, attempt1, changed1 = revoke_assessment_access(
+            self.order.pk, actor=manager, reason="پرداخت هنوز تأیید نشده است",
+        )
+        first_revoked_at = entitlement1.revoked_at
+        first_reason = entitlement1.revocation_reason
+
+        entitlement2, attempt2, changed2 = revoke_assessment_access(
+            self.order.pk, actor=manager, reason="یک دلیل کاملاً متفاوت",
+        )
+
+        self.assertTrue(changed1)
+        self.assertFalse(changed2)
+        self.assertEqual(attempt1.pk, attempt.pk)
+        self.assertEqual(attempt2.pk, attempt.pk)
+        entitlement2.refresh_from_db()
+        # The second (no-op) call must never overwrite the original
+        # revocation's timestamp or reason.
+        self.assertEqual(entitlement2.revoked_at, first_revoked_at)
+        self.assertEqual(entitlement2.revocation_reason, first_reason)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, "invalidated")
+
+    def test_revocation_never_rewrites_payment_evidence(self):
+        submission = ManualPaymentSubmission.objects.create(
+            order=self.order, payer_name="کاربر آزمون", reference_number="EVIDENCE-E0",
+            paid_at=timezone.now(), status="approved",
+        )
+        self.start()
+        manager = User.objects.create_superuser(
+            username="revocation-manager-evidence", email="revocation-manager-evidence@example.com",
+            password="safe-password",
+        )
+        order_amount_before = self.order.amount_irr
+        order_status_before = self.order.status
+
+        revoke_assessment_access(self.order.pk, actor=manager, reason="پرداخت هنوز تأیید نشده است")
+
+        self.order.refresh_from_db()
+        submission.refresh_from_db()
+        self.assertEqual(self.order.amount_irr, order_amount_before)
+        self.assertEqual(self.order.status, order_status_before)
+        self.assertEqual(submission.status, "approved")
+        self.assertEqual(submission.reference_number, "EVIDENCE-E0")
+        self.assertIsNone(submission.reviewed_at)
+
     def test_start_view_requires_complete_certificate_identity(self):
         self.user.last_name = ""
         self.user.save(update_fields=["last_name"])
@@ -2028,6 +2100,71 @@ class AssessmentFinishConcurrencyTests(TransactionTestCase):
         self.assertEqual(self.attempt.status, "completed")
         self.assertEqual(AttemptResult.objects.filter(attempt=self.attempt).count(), 1)
         self.assertEqual(Certificate.objects.filter(result__attempt=self.attempt).count(), 1)
+
+
+@skipUnless(connection.vendor == "postgresql", "PostgreSQL row locks are required")
+class AssessmentAccessRevocationConcurrencyTests(TransactionTestCase):
+    """V2.1-E0: proves the fixed locking (entitlement locked on its own,
+    the optional Attempt locked via an independent select_for_update()
+    query) is genuinely race-safe under PostgreSQL — the exact scenario
+    the old select_related("attempt") outer join made impossible to even
+    attempt, since every call failed outright before any lock was held."""
+
+    reset_sequences = True
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="revoke-concurrent@example.com", email="revoke-concurrent@example.com",
+            password="test-password-42", first_name="Revoke", last_name="Concurrent",
+        )
+        self.manager = User.objects.create_superuser(
+            username="revoke-concurrent-manager", email="revoke-concurrent-manager@example.com",
+            password="safe-password",
+        )
+        exam = Exam.objects.create(
+            slug="concurrent-revoke", title_fa="لغو هم‌زمان", title_en="Concurrent revoke",
+            description_fa="توضیح", description_en="Description",
+            question_count=1, duration_minutes=10,
+        )
+        version = ExamVersion.objects.create(exam=exam, version=1, is_published=True, published_at=timezone.now())
+        self.order = Order.objects.create(user=self.user, exam=exam, amount_irr=0, status="paid")
+        entitlement = ExamEntitlement.objects.create(user=self.user, exam=exam, order=self.order, attempts_remaining=0)
+        self.attempt = Attempt.objects.create(
+            user=self.user, exam=exam, version=version, entitlement=entitlement,
+            status="in_progress", started_at=timezone.now(), expires_at=timezone.now() + timedelta(minutes=10),
+        )
+
+    def test_two_concurrent_revocations_of_the_same_order_converge_safely(self):
+        barrier = threading.Barrier(2)
+        outcomes = []
+        errors = []
+
+        def revoke():
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                _, _, changed = revoke_assessment_access(
+                    self.order.pk, actor=self.manager, reason="پرداخت هنوز تأیید نشده است",
+                )
+                outcomes.append(changed)
+            except Exception as exc:  # pragma: no cover - asserted below
+                errors.append(exc)
+            finally:
+                close_old_connections()
+
+        close_old_connections()
+        threads = [threading.Thread(target=revoke), threading.Thread(target=revoke)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(errors, [], errors)
+        self.assertEqual(len(outcomes), 2)
+        self.assertEqual(sorted(outcomes), [False, True])
+        self.attempt.refresh_from_db()
+        self.assertEqual(self.attempt.status, "invalidated")
 
 
 class QuestionPaceIntegrityTests(TestCase):

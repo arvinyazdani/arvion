@@ -2,22 +2,40 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-C2 corrective — closes a language-isolation
-  defect in the account dashboard's order-draft card. **`VERIFIED`
-  (local)** — see "V2.1-C2 corrective — demo brand removed from the
-  dashboard card" below. `order_draft.demo.brand` (the one
-  `demo_snapshot` field that was never bilingual — it can fall back to
-  the template's Persian `fictional_brand_fa` regardless of which
-  language is rendering) was appended to the "Reference demo" row in
-  both languages, so an English-rendered card could show a Persian
-  brand name — breaking the "no Persian text in the English UI"
-  guarantee. Fixed by removing `brand` entirely from
-  `leads.draft_dashboard.DraftDemoSummary`, its required-keys check, and
-  the template's demo row, which now shows only the fully bilingual
-  `template_title_*`/`category_*` pair. A legacy snapshot with only
-  those two bilingual pairs (no `brand` key at all) still renders
-  correctly. No `demo_snapshot` schema, snapshot builder, model,
-  migration, order form, or management page was touched.
+- **Current phase:** V2.1-E0 — fixes the pre-existing PostgreSQL
+  incompatibility in `assessments.services.revoke_assessment_access`,
+  flagged and left unfixed since V2.1-B2. **`VERIFIED` (local)** — see
+  "V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation
+  fixed" below. Unrelated to the V2.1 leads-contact/FormDraft line;
+  this is the assessments/exam-entitlement domain. Root cause: `
+  ExamEntitlement.objects.select_for_update().select_related("attempt")`
+  builds a `LEFT OUTER JOIN` to `Attempt` (a `OneToOneField` an
+  entitlement may not have a row for), and PostgreSQL refuses `FOR
+  UPDATE` on the nullable side of an outer join — reproduced first with
+  the exact command the user supplied, which failed with
+  `FeatureNotSupported: FOR UPDATE cannot be applied to the nullable
+  side of an outer join`, then fixed by locking the entitlement without
+  `select_related` and fetching/locking the `Attempt` via its own,
+  independent `select_for_update()` query. No migration; behavior for
+  every existing caller (`management_portal.views.
+  customer_assessment_access_revoke`, the `assessments.tests` suite)
+  is unchanged.
+- **V2.1-C2 corrective — historical recap (superseded as the "current
+  phase"; kept for reference):** closes a language-isolation defect in
+  the account dashboard's order-draft card.
+  `order_draft.demo.brand` (the one `demo_snapshot` field that was
+  never bilingual — it can fall back to the template's Persian
+  `fictional_brand_fa` regardless of which language is rendering) was
+  appended to the "Reference demo" row in both languages, so an
+  English-rendered card could show a Persian brand name — breaking the
+  "no Persian text in the English UI" guarantee. Fixed by removing
+  `brand` entirely from `leads.draft_dashboard.DraftDemoSummary`, its
+  required-keys check, and the template's demo row, which now shows
+  only the fully bilingual `template_title_*`/`category_*` pair. A
+  legacy snapshot with only those two bilingual pairs (no `brand` key
+  at all) still renders correctly. No `demo_snapshot` schema, snapshot
+  builder, model, migration, order form, or management page was
+  touched.
 - **V2.1-C2 — historical recap (superseded as the "current phase"; kept
   for reference):** the account dashboard's safe, read-only "order
   draft" section. `accounts.views.dashboard` calls the existing
@@ -3040,43 +3058,100 @@
     `demo_snapshot` schema, snapshot builder, model, migration, order
     form, management-portal page, or CSS file touched. Not pushed,
     deployed, or migrated on production.
+- **V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation
+  fixed.** Unrelated to the V2.1 leads-contact/FormDraft line — this is
+  the `assessments`/exam-entitlement domain. Closes an issue flagged as
+  a remaining risk since V2.1-B2 and repeated, unfixed, through every
+  V2.1 phase since.
+  - **Root cause, reproduced first:** `assessments.services.
+    revoke_assessment_access` ran
+    `ExamEntitlement.objects.select_for_update().select_related(
+    "attempt").filter(order=order).first()`. `Attempt.entitlement` is a
+    `OneToOneField(ExamEntitlement, related_name="attempt")`, so an
+    entitlement may have zero or one `Attempt` row —
+    `select_related("attempt")` builds a `LEFT OUTER JOIN`, and
+    PostgreSQL refuses `FOR UPDATE` on the nullable side of an outer
+    join. Reproduced with the exact command supplied
+    (`DATABASE_URL=postgresql://rwin@localhost:5432/arvion_ci_local
+    DJANGO_SETTINGS_MODULE=arvion.settings.ci .venv/bin/python
+    manage.py test assessments.tests.AssessmentEngineTests.
+    test_manager_revocation_stops_active_attempt_and_blocks_restart`),
+    which failed with `psycopg.errors.FeatureNotSupported: FOR UPDATE
+    cannot be applied to the nullable side of an outer join` /
+    `django.db.utils.NotSupportedError` at that exact line, before any
+    fix was made.
+  - **Fix — locking design:** the entitlement is now locked with
+    `ExamEntitlement.objects.select_for_update().filter(order=order)
+    .first()` (no `select_related`), then the (optional) `Attempt` is
+    locked via its own, independent query:
+    `Attempt.objects.select_for_update().filter(entitlement=
+    entitlement).first()` — a plain equality filter on the FK, never a
+    join that could put `FOR UPDATE` on a nullable side. The
+    already-revoked idempotent-return check now happens after both rows
+    are locked (previously it happened before the attempt was even
+    read), so the returned `attempt` is always the real, locked instance
+    rather than an on-the-fly lazy fetch. No behavior change for either
+    caller: `management_portal.views.customer_assessment_access_revoke`
+    only reads `attempt.pk` from the return value, and the pre-existing
+    `assessments.tests` assertions on the return tuple's shape are
+    unchanged.
+  - **Evidence:** the exact reproduction command now passes on real
+    PostgreSQL. 4 new tests added to `AssessmentEngineTests` in
+    `assessments/tests.py`: revoking an entitlement with no `Attempt` at
+    all (the precise shape that produced the outer join) still works and
+    returns `None` for the stopped attempt; revoking an already-revoked
+    entitlement a second time is idempotent (`changed=False`, the
+    original `revoked_at`/`revocation_reason` are never overwritten by a
+    later, different-reasoned call); revocation never rewrites payment
+    evidence (`Order.amount_irr`/`status` and an approved
+    `ManualPaymentSubmission`'s `status`/`reference_number`/
+    `reviewed_at` are all unchanged after revocation). A new
+    PostgreSQL-only `AssessmentAccessRevocationConcurrencyTests`
+    (`TransactionTestCase`, `threading.Barrier(2)`, mirroring the
+    existing `AssessmentFinishConcurrencyTests` pattern) proves two
+    truly concurrent `revoke_assessment_access` calls for the same order
+    converge safely: no exception on either thread, exactly one
+    `changed=True` and one `changed=False`, the attempt ends up
+    `"invalidated"` exactly once — run once plus 5 repeats on real
+    PostgreSQL, all clean. `assessments.tests.AssessmentEngineTests` (61
+    tests) and the full `assessments` app plus
+    `management_portal.tests.AssessmentAccessControlTests` (134 tests, 2
+    skips on SQLite, 0 skips on PostgreSQL) all pass on both SQLite and
+    real isolated PostgreSQL, zero regression. `check` (0 issues),
+    migration dry-run ("No changes detected" — no migration, as
+    instructed), and `git diff --check` (clean) all passed.
+  - Files touched: `assessments/services.py` (one function),
+    `assessments/tests.py` (additive only — no existing test modified).
+    No migration, model, management-portal view, or template touched.
+    Not pushed, deployed, or migrated on production.
 - **Git boundary (current, accurate as of this phase's own commit):**
-  `main` is twenty-seven commits ahead of `origin/main` — the twenty-six
-  listed above (including the V2.1-C2 commit, `7628343`, itself on top
-  of `126c70b`/`7e5e621`/`6d75c4f`), plus this phase's own V2.1-C2
-  corrective commit. No prior commit is amended.
-- **Last commit:** this phase's own commit — the V2.1-C2 corrective fix:
-  `leads/draft_dashboard.py`, `accounts/templates/accounts/
-  dashboard.html`, `accounts/test_dashboard_draft.py`, and
-  `.ai/project/CURRENT_STATE.md`; a separate commit on top of `7628343`
-  (the V2.1-C2 implementation commit), which is not amended.
-- **Next action:** V2.1-C2 (implementation plus this corrective) is
-  verified locally with no known P0/P1 remaining. The saved-drafts
-  dashboard's remaining scope (if any beyond this single-draft-type
-  card) and CRM/Clinic resumable-draft support
-  both remain `NOT_STARTED`/out of scope, unless explicitly reopened.
-  V2.1-B1 (both corrective phases), V2.1-B2 (all three corrective
-  phases), V2.1-B3 (plus its corrective phase), V2.1-C1 (plus both
-  corrective phases), and V2.1-D (plus its corrective phase) remain done
-  and fully verified — see their own entries above; nothing in this
-  phase touched or re-litigated any of them. One **unrelated,
-  pre-existing** issue remains flagged from V2.1-B2's own regression
-  testing on PostgreSQL — `assessments/services.py`'s
-  `revoke_assessment_access` cannot run its `select_for_update()` query
-  on PostgreSQL due to an outer join from `select_related("attempt")` —
-  still needs a human to prioritize it separately; it does not block
-  this phase and was not touched here either. The dashboard-card leak of
-  `demo_snapshot`'s single, non-bilingual `brand` field (documented as a
-  remaining risk in V2.1-C2's own entry above) is now closed by this
-  corrective phase — the underlying `demo_snapshot` schema itself is
-  still single-language by design (unchanged, out of scope), but nothing
-  built by V2.1-C2 reads or displays it anymore. The earlier, separate V2 idea (a time-boxed, signed
-  continuation link) remains superseded by the login-based approach
-  unless explicitly reopened. Re-run the full release gate on the exact
-  deployable revision before any production action, including applying
-  `0004_activesession`, `0006_formdraft_and_more`,
-  `0007_formdraft_revision`, and `0008_formdraft_submission_token` to
-  any real database.
+  `main` is twenty-eight commits ahead of `origin/main` — the
+  twenty-seven listed above (including the V2.1-C2 corrective commit,
+  `1f85075`, itself on top of `7628343`/`126c70b`/`7e5e621`/`6d75c4f`),
+  plus this phase's own V2.1-E0 commit. No prior commit is amended.
+- **Last commit:** this phase's own commit — the V2.1-E0 fix:
+  `assessments/services.py`, `assessments/tests.py`, and
+  `.ai/project/CURRENT_STATE.md`; a separate commit on top of `1f85075`
+  (the V2.1-C2 corrective commit), which is not amended.
+- **Next action:** V2.1-E0 is verified locally with no known P0/P1
+  remaining — the last outstanding, previously-flagged remaining risk
+  from V2.1-B2 is now closed. V2.1-C2 (implementation plus its
+  corrective) remains done and fully verified — see its own entries
+  above; nothing in this phase touched or re-litigated it. The
+  saved-drafts dashboard's remaining scope (if any beyond the single
+  active `leads_contact` draft card) and CRM/Clinic resumable-draft
+  support both remain `NOT_STARTED`/out of scope, unless explicitly
+  reopened. V2.1-B1 (both corrective phases), V2.1-B2 (all three
+  corrective phases), V2.1-B3 (plus its corrective phase), V2.1-C1
+  (plus both corrective phases), and V2.1-D (plus its corrective phase)
+  remain done and fully verified — see their own entries above; nothing
+  in this phase touched or re-litigated any of them. The earlier,
+  separate V2 idea (a time-boxed, signed continuation link) remains
+  superseded by the login-based approach unless explicitly reopened.
+  Re-run the full release gate on the exact deployable revision before
+  any production action, including applying `0004_activesession`,
+  `0006_formdraft_and_more`, `0007_formdraft_revision`, and
+  `0008_formdraft_submission_token` to any real database.
 
 ## Phase ledger
 
@@ -3115,4 +3190,5 @@
 | Resumable order drafts — V2.1-C2 (account dashboard order-draft section) (`7628343`) | `VERIFIED` (local), corrected | Initially verified, then found to leak the non-bilingual `demo_snapshot.brand` field into both languages of the "Reference demo" row — see the corrective-phase row below, which fixes and re-verifies it. The rest of this phase's design (`accounts.views.dashboard` calling the existing, unmodified `get_active_draft`; `leads/draft_dashboard.py`'s `build_draft_dashboard_card` safe view model; the new `account-compass` "Project enquiry" entry, draft card, and no-draft-state sidebar link; a plain `leads:contact` continue CTA; no `FormDraft` API/finalize/idempotency/rate-limit/`on_commit`/migration touched) remains accurate and unchanged. |
 | Resumable order drafts — V2.1-C2 corrective (demo `brand` removed from the dashboard card; language isolation restored) | `VERIFIED` (local) | See "V2.1-C2 corrective — demo brand removed from the dashboard card" above for full detail. `brand` removed from `DraftDemoSummary`, `_DEMO_SNAPSHOT_REQUIRED_KEYS`, and the demo row template — the row now shows only the fully bilingual `template_title_*`/`category_*` pair; a legacy snapshot with only those two bilingual pairs (no `brand` key) still renders correctly. No `demo_snapshot` schema, snapshot builder, model, migration, order form, or management-portal page touched; no new live `DemoSelection`/`DemoTemplate` lookup added; no CSS change, cache-bust untouched. `accounts/test_dashboard_draft.py` grew from 18 to 21 tests (legacy-snapshot-without-brand render check, fa title/category check, and an explicit Persian-brand-never-leaks-into-English regression test that parses the demo row's own HTML and asserts zero Persian/Arabic Unicode characters), all passing; every existing privacy/no-leak test re-run unmodified and still passing. `accounts` full suite plus `leads.test_contact_server_draft_ui`+`leads.test_draft_api`+`leads.test_form_draft`+`leads.test_finalize`+`leads.test_demo_handoff` (323 tests, 18 skips) all pass, zero regression. `check` (0 issues), migration dry-run ("No changes detected"), and `git diff --check` (clean) all passed. Full real-browser verification (fa/en with a fully-Persian-brand snapshot, light/dark, 320/390px no horizontal scroll, keyboard focus/44px target) on a disposable SQLite environment confirmed no Persian text anywhere in the English demo row. `7628343` not amended. |
 | Resumable order drafts — V2.1 saved-drafts dashboard, beyond this single-draft-type card | `NOT_STARTED` | Out of this phase's scope; V2.1-C2 covers only the one active `leads_contact` draft. |
+| V2.1-E0 — PostgreSQL-incompatible lock in `revoke_assessment_access` fixed | `VERIFIED` (local) | See "V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation fixed" above for full detail. Unrelated to the V2.1 leads-contact line — closes the `assessments/services.py` remaining risk flagged since V2.1-B2. Root cause reproduced first with the exact supplied command (`FeatureNotSupported: FOR UPDATE cannot be applied to the nullable side of an outer join`, from `select_for_update().select_related("attempt")`'s outer join to the nullable `Attempt` side); fixed by locking `ExamEntitlement` without `select_related` and fetching/locking `Attempt` via its own independent `select_for_update()` query. 4 new tests (no-attempt-yet revocation, idempotent double-revocation, payment-evidence preservation) plus a new PostgreSQL-only `AssessmentAccessRevocationConcurrencyTests` (two truly concurrent revocations converge to exactly one `changed=True`/one `changed=False`, attempt invalidated exactly once — run once plus 5 repeats, all clean). `assessments.tests.AssessmentEngineTests` (61 tests), full `assessments` app + `management_portal.tests.AssessmentAccessControlTests` (134 tests, 2 skips on SQLite, 0 on PostgreSQL) all pass on both SQLite and real isolated PostgreSQL, zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration), and `git diff --check` (clean) all passed. Only `assessments/services.py` and `assessments/tests.py` touched. Not pushed, deployed, or migrated on production. |
 | Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |

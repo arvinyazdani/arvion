@@ -270,13 +270,20 @@ def revoke_assessment_access(order_id, *, actor, reason):
     if len(reason) < 3:
         raise AssessmentAccessRevokedError("A revocation reason is required")
     order = Order.objects.select_for_update().get(pk=order_id)
-    entitlement = ExamEntitlement.objects.select_for_update().select_related("attempt").filter(order=order).first()
+    # PostgreSQL refuses "FOR UPDATE" on the nullable side of an outer join
+    # ("FOR UPDATE cannot be applied to the nullable side of an outer join").
+    # Attempt.entitlement is a OneToOneField, so an entitlement may have no
+    # matching Attempt row at all — select_related("attempt") here builds
+    # exactly that outer join. The entitlement is locked on its own instead,
+    # and the (optional) Attempt is locked via its own independent
+    # select_for_update() query.
+    entitlement = ExamEntitlement.objects.select_for_update().filter(order=order).first()
     if entitlement is None:
         raise AssessmentAccessRevokedError("This order has no assessment access")
+    attempt = Attempt.objects.select_for_update().filter(entitlement=entitlement).first()
     if entitlement.is_revoked:
-        return entitlement, getattr(entitlement, "attempt", None), False
+        return entitlement, attempt, False
     now = timezone.now()
-    attempt = getattr(entitlement, "attempt", None)
     if attempt and attempt.status == "in_progress":
         attempt.status = "invalidated"
         attempt.submitted_at = now
