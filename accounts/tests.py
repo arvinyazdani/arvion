@@ -871,7 +871,7 @@ class SingleSessionTests(TestCase):
     def _client_with_session(session_key):
         return client_with_session(session_key)
 
-    def test_second_login_invalidates_first_session(self):
+    def test_second_login_revokes_first_session_before_its_next_view(self):
         client_a = Client()
         client_a.force_login(self.customer)
         key_a = client_a.session.session_key
@@ -881,8 +881,12 @@ class SingleSessionTests(TestCase):
         client_b.force_login(self.customer)
         key_b = client_b.session.session_key
 
-        self.assertFalse(Session.objects.filter(session_key=key_a).exists())
+        self.assertTrue(Session.objects.filter(session_key=key_a).exists())
         self.assertTrue(Session.objects.filter(session_key=key_b).exists())
+
+        response = client_a.get(reverse("accounts:dashboard"))
+        self.assertRedirects(response, f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}")
+        self.assertFalse(Session.objects.filter(session_key=key_a).exists())
 
     def test_first_session_becomes_anonymous_on_next_request(self):
         client_a = Client()
@@ -911,8 +915,7 @@ class SingleSessionTests(TestCase):
         client_b.force_login(self.customer)
         key_b = client_b.session.session_key
 
-        # client_a's own session row was already invalidated by client_b's
-        # login; simulate its stale cookie still trying to log out anyway.
+        # Simulate its stale cookie still trying to log out anyway.
         client_a.cookies[settings.SESSION_COOKIE_NAME] = key_a
         client_a.post(reverse("accounts:logout"))
 
@@ -1125,7 +1128,7 @@ class SingleSessionTests(TestCase):
         # marker/deletion side effects would still be idempotent, but a
         # duplicated receiver elsewhere would raise on the double `ready()`
         # call above already; this also checks the steady-state outcome.
-        self.assertFalse(Session.objects.filter(session_key=key_a).exists())
+        self.assertTrue(Session.objects.filter(session_key=key_a).exists())
         self.assertEqual(ActiveSession.objects.filter(user=self.customer).count(), 1)
 
     def test_single_session_can_be_disabled_via_setting(self):
@@ -1196,6 +1199,7 @@ class SingleSessionPostgresRaceTests(TransactionTestCase):
         )
         barrier = threading.Barrier(2)
         errors = []
+        session_keys = []
 
         def attempt():
             try:
@@ -1205,6 +1209,7 @@ class SingleSessionPostgresRaceTests(TransactionTestCase):
                 request.session = engine.SessionStore()
                 auth_login(request, user)
                 request.session.save()
+                session_keys.append(request.session.session_key)
             except Exception as exc:  # pragma: no cover - surfaced via errors list
                 errors.append(exc)
             finally:
@@ -1219,10 +1224,18 @@ class SingleSessionPostgresRaceTests(TransactionTestCase):
         self.assertEqual(errors, [])
         self.assertEqual(ActiveSession.objects.filter(user=user).count(), 1)
         active = ActiveSession.objects.get(user=user)
-        # Exactly one Session row should remain: whichever thread's login
-        # lost the race had its row deleted by the winner's transaction.
-        self.assertEqual(Session.objects.count(), 1)
-        self.assertEqual(Session.objects.get().session_key, active.session_key)
+        # Both response saves complete without racing a physical deletion,
+        # but only the pointer winner can reach an authenticated view.
+        self.assertEqual(len(session_keys), 2)
+        self.assertEqual(Session.objects.filter(session_key__in=session_keys).count(), 2)
+        statuses = []
+        for key in session_keys:
+            response = client_with_session(key).get(reverse("accounts:dashboard"))
+            statuses.append(response.status_code)
+        self.assertEqual(statuses.count(200), 1)
+        self.assertEqual(statuses.count(302), 1)
+        self.assertTrue(Session.objects.filter(session_key=active.session_key).exists())
+        self.assertEqual(Session.objects.filter(session_key__in=session_keys).count(), 1)
 
     def test_two_legacy_sessions_race_to_claim_the_active_session(self):
         """The gap the plain login-race test above does not cover: two

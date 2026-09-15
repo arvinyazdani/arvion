@@ -3,20 +3,10 @@ import hmac
 
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in, user_logged_out
-from django.contrib.sessions.models import Session
-from django.core.cache import cache
 from django.db import transaction
 from django.dispatch import receiver
 
 from .models import ActiveSession, User
-
-# Only for the courtesy message shown on a stale session's next request —
-# never the security boundary itself, which is the immediate Session
-# deletion below. A day is generous; the marker is consumed (deleted) the
-# first time it is read, so its lifetime only bounds how long a visitor who
-# never returns could theoretically still see the notice.
-SESSION_INVALIDATION_MARKER_TIMEOUT = 60 * 60 * 24
-
 
 def is_single_session_enforced(user):
     """Ordinary customer accounts only — staff/superusers may hold several
@@ -55,11 +45,12 @@ def enforce_single_session_on_login(sender, request, user, **kwargs):
         )
         old_key = active.session_key
         if not created and old_key != new_key:
-            try:
-                cache.set(session_invalidation_marker_key(old_key), True, SESSION_INVALIDATION_MARKER_TIMEOUT)
-            except Exception:
-                pass
-            Session.objects.filter(session_key=old_key).delete()
+            # ActiveSession is the authorization boundary. Do not delete the
+            # previous Session row here: a concurrent login may still be in
+            # SessionMiddleware's response-save phase, and deleting that row
+            # can make Django raise UpdateError and return HTTP 500. The old
+            # session is rejected (and flushed) by SingleSessionMiddleware
+            # before its next view runs.
             active.session_key = new_key
             active.save(update_fields=["session_key", "updated_at"])
 

@@ -2,26 +2,18 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-E2 — full Release Candidate gate audit of all
-  29 local commits ahead of `origin/main` (`a1d6700`). **`BLOCKED`** —
-  see "V2.1-E2 — Release Candidate gate audit" below for the complete
-  evidence. Everything in the gate passed except one: a genuine,
-  reproducible intermittent failure in `accounts.tests.
-  SingleSessionPostgresRaceTests.
-  test_two_simultaneous_logins_converge_to_exactly_one_active_session`
-  on real PostgreSQL (an inherent, pre-existing, narrow real-thread-race
-  timing issue in login-session concurrency handling, not a new
-  regression from this audit and not fixed by it — see below for full
-  severity analysis). One small, definite, low-risk, unrelated defect
-  *was* found and fixed in this phase: a test-isolation bug in
-  `leads/test_contact_server_draft_ui.py` (missing `cache.clear()`)
-  that the CI shuffle seed exposed. The 5 release migrations, the
-  PostgreSQL migration rehearsal (forward/backward/forward-again), the
-  production settings check, and the browser UAT of every reachable
-  critical flow all passed cleanly — recorded in full below. Python 3.11
-  was not available on this machine (only 3.12), so per the explicit
-  instruction the CI-version-matrix criterion is `PARTIAL`, not `PASS`,
-  independent of the BLOCKED status above.
+- **Current phase:** V2.1-E2 corrective — single-session concurrent-login
+  hardening. **`VERIFIED` (local).** The release audit's sole P1 blocker is
+  closed: the login signal no longer physically deletes a competing
+  session while its response may still be saving. `ActiveSession` remains
+  the server-side authorization boundary, and `SingleSessionMiddleware`
+  rejects and flushes the losing session before its next view runs. This
+  preserves the one-valid-device rule without Django's intermittent
+  `UpdateError`/HTTP 500. Evidence: 21/21 focused SQLite tests; both real
+  PostgreSQL concurrency tests; the formerly flaky login race repeated
+  30/30 times; and the full 73-test accounts suite on PostgreSQL, all
+  passing. No migration was created. Full release gate and official CI
+  are the next boundary before production deployment.
 - **V2.1-E1 — historical recap (superseded as the "current phase"; kept
   for reference):** `cleanup_form_drafts`, a safe, batch-safe management
   command that deletes `FormDraft` rows only once ALL FOUR hold:
@@ -3561,4 +3553,5 @@
 | V2.1-E0 — PostgreSQL-incompatible lock in `revoke_assessment_access` fixed | `VERIFIED` (local) | See "V2.1-E0 — PostgreSQL-incompatible lock in exam-access revocation fixed" above for full detail. Unrelated to the V2.1 leads-contact line — closes the `assessments/services.py` remaining risk flagged since V2.1-B2. Root cause reproduced first with the exact supplied command (`FeatureNotSupported: FOR UPDATE cannot be applied to the nullable side of an outer join`, from `select_for_update().select_related("attempt")`'s outer join to the nullable `Attempt` side); fixed by locking `ExamEntitlement` without `select_related` and fetching/locking `Attempt` via its own independent `select_for_update()` query. 4 new tests (no-attempt-yet revocation, idempotent double-revocation, payment-evidence preservation) plus a new PostgreSQL-only `AssessmentAccessRevocationConcurrencyTests` (two truly concurrent revocations converge to exactly one `changed=True`/one `changed=False`, attempt invalidated exactly once — run once plus 5 repeats, all clean). `assessments.tests.AssessmentEngineTests` (61 tests), full `assessments` app + `management_portal.tests.AssessmentAccessControlTests` (134 tests, 2 skips on SQLite, 0 on PostgreSQL) all pass on both SQLite and real isolated PostgreSQL, zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration), and `git diff --check` (clean) all passed. Only `assessments/services.py` and `assessments/tests.py` touched. Not pushed, deployed, or migrated on production. |
 | V2.1-E1 — `cleanup_form_drafts` management command | `VERIFIED` (local) | See "V2.1-E1 — `cleanup_form_drafts` management command" above for full detail. New `leads/management/commands/cleanup_form_drafts.py`: deletes a `FormDraft` only when `status="expired"` AND `expires_at` older than the retention window (default 30 days) AND `submitted_lead IS NULL` AND `submission_token IS NULL` — all four required, guarding the V2.1-D idempotency contract directly. Dry-run by default; `--apply` required to delete; `--older-than-days`/`--batch-size` (defaults 30/500) validated as positive integers before any write, else `CommandError`. Batch-safe: the delete step re-applies the full eligibility filter combined with `pk__in`, never `pk__in` alone, proven by a test that mutates a row's status inside a patched `.filter()` call positioned exactly between selection and delete. Output is one aggregate line (count + a plain-language, field-name-free policy description) — no owner/email/id/`fields`/`demo_snapshot`/token ever printed, proven by a dedicated test. No cascade to `Lead`/`User` on deletion, proven by a dedicated test. New `leads/test_cleanup_form_drafts.py` (12 tests) plus `leads.test_form_draft`+`leads.test_finalize` (155 tests total) pass on SQLite (11 skips) and real isolated PostgreSQL (0 skips), zero regression. `check` (0 issues), migration dry-run ("No changes detected" — no migration, as instructed), and `git diff --check` (clean) all passed. No cron/Celery Beat schedule, endpoint, UI, model, migration, `FormDraft` lifecycle code, or `cleanup_demo_selections` touched — all files new. `--apply` was run only against test databases; no dry-run was even attempted against the permanent local `db.sqlite3`. Not pushed, deployed, or run against production. |
 | V2.1-E2 — Release Candidate gate audit (29→30 commits ahead of `origin/main`) | `BLOCKED` | See "V2.1-E2 — Release Candidate gate audit" above for full detail. Full local gate (`release-check.sh`), the exact CI steps (`compileall`, parallel test, strict question-bank audit, `node --check`, `bash -n`, `git diff --check`), the 5 release migrations reviewed and PostgreSQL-rehearsed forward/backward/forward-again, a production-settings `check --deploy` with fake credentials, and a live browser UAT of every reachable critical flow (funnel, no-duplicate resubmit, no-OTP registration, second-device session eviction, cross-device server draft, dashboard fa/en, admin exam-access revocation and its enforcement) all passed. One small, low-risk test-isolation bug (missing `cache.clear()` in `leads.test_contact_server_draft_ui.ErrorRerenderStepMarkerTests`, exposed only by the exact CI shuffle seed) was found and fixed. Blocking finding: `accounts.tests.SingleSessionPostgresRaceTests.test_two_simultaneous_logins_converge_to_exactly_one_active_session` fails intermittently (~10–15%) on real PostgreSQL on both Python 3.9 and 3.12 — a genuine, narrow, pre-existing real-thread-race in `accounts/signals.py`'s single-session login handling (`UpdateError` from Django's own session backend when a session row is deleted by a second concurrent login between the first login's own commit and its later `request.session.save()`). Low real-world impact (no data loss, no security-guarantee bypass, self-recovers on retry) but not fixed in this phase — deliberately left for a dedicated hardening phase rather than rushed into security-critical session code during an audit. Python 3.11 unavailable on this machine (3.12 was exercised in a disposable venv against real PostgreSQL, all green except the same Finding #2). Migration rollback of this release is confirmed destructive to new data (`FormDraft`/`ActiveSession`/token tables/columns dropped) — documented in `docs/OPERATIONS_RUNBOOK_FA.md`, which was also corrected to stop describing registration as requiring OTP. Not pushed, deployed, or connected to production; no `--apply`/migration was run outside disposable databases. |
-| Push/deploy of `06812d2` and later phases | `NOT_STARTED` | Explicit production authorization has not been given in this task. |
+| V2.1-E2 corrective — concurrent login response-save race | `VERIFIED` (local) | Removed physical `Session` deletion from the login signal. The locked `ActiveSession` pointer is authoritative; middleware rejects and flushes the loser before any protected view. This closes the intermittent Django `UpdateError` without allowing two valid devices. Evidence: focused SQLite 21/21; PostgreSQL race 30/30 repeated plus both concurrency cases; full PostgreSQL accounts suite 73/73. No migration. |
+| Push/deploy of `06812d2` and later phases | `AUTHORIZED / PENDING` | User explicitly authorized completion and production deployment on 2026-09-15. Full release gate and official CI must pass first. |

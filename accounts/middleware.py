@@ -18,10 +18,11 @@ def _invalidated_message(lang):
 class SingleSessionMiddleware:
     """Enforces (and explains) the one-active-session-per-account rule.
 
-    This middleware is NOT the security boundary for a *new* login
-    superseding an old one — that is enforced immediately, at login time,
-    by deleting the old Session row (accounts.signals). It IS the security
-    boundary for the legacy-rollout case: an already-authenticated session
+    ActiveSession is the authorization boundary for a *new* login
+    superseding an old one. This middleware checks that pointer before the
+    view and flushes a stale session without deleting an in-flight login's
+    Session row. It is also the security boundary for the legacy-rollout
+    case: an already-authenticated session
     that predates this feature (no ActiveSession row yet) and for two such
     legacy sessions racing to be recognised as the account's one session —
     neither of those has a fresh login event to hook into, so they must be
@@ -41,8 +42,7 @@ class SingleSessionMiddleware:
     be retroactively cancelled; it completes as if it had won. Only that
     session's *next* request is guaranteed to see the mismatch and be
     logged out. This is inherent to request-scoped, not connection- or
-    query-scoped, enforcement, and is unrelated to the login-time Session
-    deletion, which does not have this gap.
+    query-scoped, enforcement.
 
     Failure of the cache-backed courtesy message must never block this
     enforcement: the `try/except` below only ever wraps the message-only
