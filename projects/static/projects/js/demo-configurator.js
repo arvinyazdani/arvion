@@ -175,6 +175,19 @@
       });
     }
 
+    const mobileConfig = root.querySelector("[data-mobile-config]");
+    const configToggle = root.querySelector("[data-config-toggle]");
+    if (mobileConfig && configToggle) {
+      const setConfigOpen = (open) => {
+        mobileConfig.classList.toggle("is-mobile-open", open);
+        configToggle.setAttribute("aria-expanded", String(open));
+      };
+      configToggle.addEventListener("click", () => setConfigOpen(!mobileConfig.classList.contains("is-mobile-open")));
+      root.querySelectorAll("[data-demo-submit], [data-demo-full-link]").forEach((control) => {
+        control.addEventListener("click", () => setConfigOpen(false));
+      });
+    }
+
     render();
   });
 })();
