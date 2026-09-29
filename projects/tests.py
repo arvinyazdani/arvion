@@ -113,6 +113,17 @@ class ProjectTests(TestCase):
         # so ordinary navigation still stays a single page.
         self.assertIn('addEventListener("pageshow", (event) => { if (event.persisted) location.reload(); })', script)
 
+    def test_restaurant_preview_has_category_specific_menu_scene(self):
+        demo = DemoTemplate.objects.create(
+            slug="restaurant-scene", category="restaurant", title_fa="کافه تست", title_en="Test café",
+            tagline_fa="طعم تازه", tagline_en="A fresh taste", fictional_brand_fa="کافه فرضی",
+            fictional_brand_en="FICTIONAL CAFE", style_key="bold", default_features=["booking"],
+        )
+        response = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
+        self.assertContains(response, "demo-site-restaurant")
+        self.assertContains(response, "پیشنهاد امشب")
+        self.assertContains(response, "رزرو میز")
+
     def test_preview_page_embeds_a_fresh_submission_token_on_every_render(self):
         demo = DemoTemplate.objects.create(
             slug="fresh-token", category="portfolio", title_fa="تست", title_en="Test",

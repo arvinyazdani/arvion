@@ -112,6 +112,7 @@
         site.style.setProperty("--demo-a", palette[0]);
         site.style.setProperty("--demo-b", palette[1]);
         site.dataset.personality = state.personality;
+        site.dataset.category = root.dataset.demoCategory || "generic";
       });
       root.querySelectorAll("[data-demo-brand]").forEach((item) => { item.textContent = state.brand; });
       root.querySelectorAll("[data-demo-initial]").forEach((item) => { item.textContent = state.brand.charAt(0).toUpperCase(); });
