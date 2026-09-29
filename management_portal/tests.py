@@ -807,6 +807,12 @@ class ManagementDashboardTests(TestCase):
 
         management_css = (Path(__file__).resolve().parent / "static" / "management_portal" / "v2" / "management.css").read_text(encoding="utf-8")
         self.assertIn('html[lang="en"]{--font-family-base:var(--font-family-latin)}', management_css)
+        mobile_bottom = management_css.rsplit(".m-bottom{", 1)[1].split("}", 1)[0]
+        self.assertIn("position:fixed", mobile_bottom)
+        self.assertIn("inset-block-end:", mobile_bottom)
+        self.assertNotIn("transform:", mobile_bottom)
+        self.assertNotIn("will-change:", mobile_bottom)
+        self.assertNotIn("contain:", mobile_bottom)
 
     def test_management_workspaces_keep_operational_labels_language_scoped(self):
         root = User.objects.create_superuser(username="language-root", email="language-root@example.com", password="safe-password")
