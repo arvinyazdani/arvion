@@ -16,12 +16,14 @@ from projects.models.projects import Project
 from core.views.lang import LanguageViewMixin
 
 
-THEMES = ("warm", "midnight", "sage", "plum", "custom")
-PERSONALITIES = ("minimal", "editorial", "luxury", "bold")
+THEMES = ("warm", "midnight", "sage", "plum", "gold", "custom")
+PERSONALITIES = ("minimal", "modern", "editorial", "luxury", "bold", "industrial")
 FEATURES = ("payment", "booking", "catalog", "blog", "membership", "multilingual")
+STYLE_THEMES = {"minimal": "warm", "editorial": "midnight", "luxury": "sage", "bold": "plum"}
+STYLE_PERSONALITIES = {"minimal": "minimal", "modern": "modern", "editorial": "editorial", "luxury": "luxury", "bold": "bold", "industrial": "industrial", "sage": "luxury", "plum": "bold"}
 REQUEST_TYPES = {
     "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
-    "corporate": "website", "clinic": "webapp", "education": "webapp",
+    "corporate": "website", "clinic": "webapp", "education": "webapp", "jewelry": "ecommerce",
 }
 
 CATEGORY_DETAILS = {
@@ -97,17 +99,32 @@ CATEGORY_DETAILS = {
             "detail": "Combines path selection, tutor confidence and continued learning in one coherent experience.",
         },
     },
+    "jewelry": {
+        "fa": {
+            "fit": "برای طلافروشی و برندی که اصالت، ساخت سفارشی و مشاوره را آنلاین ارائه می‌کند",
+            "pages": ("مجموعه‌های منتخب", "جزئیات عیار و ساخت", "مشاوره و سفارش", "اصالت و ارسال امن"),
+            "detail": "محصولات را با جزئیات عیار و ساخت معرفی می‌کند و مسیر مشاوره، سفارش و اعتماد را روشن نگه می‌دارد.",
+        },
+        "en": {
+            "fit": "For jewellery brands presenting authenticity, custom craft and consultation online",
+            "pages": ("Curated collections", "Materials and craft details", "Consultation and orders", "Authenticity and secure delivery"),
+            "detail": "Presents pieces with material and craft details, then makes consultation, ordering and trust signals easy to find.",
+        },
+    },
 }
 
 
 def _decorate_demo(demo, lang):
     content = CATEGORY_DETAILS[demo.category][lang]
-    feature_names = dict(_labels(lang)["features"])
+    feature_names = dict(_labels(lang, demo.category)["features"])
     demo.fit_label = content["fit"]
     demo.page_labels = content["pages"]
     demo.detail_text = content["detail"]
     demo.feature_labels = [feature_names[key] for key in demo.default_features if key in feature_names]
     demo.category_label = demo.get_category_display() if lang == "fa" else CATEGORY_LABELS_EN[demo.category]
+    demo.default_theme = "gold" if demo.category == "jewelry" else STYLE_THEMES.get(demo.style_key, "warm")
+    demo.default_personality = STYLE_PERSONALITIES.get(demo.style_key, "minimal")
+    demo.default_custom_color = "#b88b3c" if demo.category == "jewelry" else "#2563eb"
     return demo
 
 
@@ -135,7 +152,7 @@ class DemoGalleryView(LanguageViewMixin, ListView):
                     "key": key, "title": label_fa if self.lang == "fa" else CATEGORY_LABELS_EN[key],
                     "items": items,
                 })
-        context.update(categories=categories, lang=self.lang)
+        context.update(categories=categories, lang=self.lang, demo_count=len(demos), category_count=len(categories))
         return context
 
 
@@ -151,7 +168,7 @@ class DemoPreviewView(LanguageViewMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(
-            demo=_decorate_demo(context["demo"], self.lang), lang=self.lang, labels=_labels(self.lang),
+        demo=_decorate_demo(context["demo"], self.lang), lang=self.lang, labels=_labels(self.lang, context["demo"].category),
             # Minted server-side on every render so the one-shot idempotency
             # check in DemoConfigureView never depends on client JavaScript.
             submission_token=secrets.token_urlsafe(24),
@@ -172,7 +189,8 @@ class DemoConfigureView(LanguageViewMixin, View):
         submission_token = request.POST.get("submission_token", "").strip()[:64]
         theme = request.POST.get("theme", "")
         personality = request.POST.get("personality", "")
-        features = [item for item in request.POST.getlist("features") if item in FEATURES]
+        allowed_features = {key for key, _label in _labels(self.lang, demo.category)["features"]}
+        features = [item for item in request.POST.getlist("features") if item in allowed_features and item in FEATURES]
         brand_preview = request.POST.get("brand_preview", "").strip()[:48]
         custom_color = request.POST.get("custom_color", "").strip().lower()
         # The token is minted server-side by DemoPreviewView on every GET, so a

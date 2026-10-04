@@ -124,6 +124,87 @@ class ProjectTests(TestCase):
         self.assertContains(response, "پیشنهاد امشب")
         self.assertContains(response, "رزرو میز")
 
+    def test_each_business_category_renders_its_own_bilingual_sample_scene(self):
+        scenes = {
+            "ecommerce": ("demo-scene-shop", "گلدان آوید", "Avid sculpt vase"),
+            "restaurant": ("demo-scene-restaurant", "پاستای زعفرانی", "Saffron butter pasta"),
+            "portfolio": ("demo-scene-portfolio", "بازآفرینی تجربه خرید روزمره", "Reframing the everyday shop"),
+            "corporate": ("demo-scene-corporate", "تحلیل و مشاوره", "Discovery & advisory"),
+            "clinic": ("demo-scene-clinic", "نوبت‌های نمونه", "SAMPLE AVAILABILITY"),
+            "education": ("demo-scene-education", "مبانی طراحی محصول", "Product design essentials"),
+            "jewelry": ("demo-scene-jewelry", "انگشتر آفتاب", "Aftab signet ring"),
+        }
+        for category, (scene_class, sample_fa, sample_en) in scenes.items():
+            with self.subTest(category=category):
+                demo = DemoTemplate.objects.create(
+                    slug=f"scene-{category}", category=category,
+                    title_fa="نمونه تست", title_en="Sample test",
+                    tagline_fa="روایت نمونه", tagline_en="Sample story",
+                    fictional_brand_fa="برند فرضی", fictional_brand_en="FICTIONAL BRAND",
+                    style_key="modern", default_features=[],
+                )
+                fa_response = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
+                self.assertEqual(fa_response.status_code, 200)
+                self.assertContains(fa_response, scene_class, html=False)
+                self.assertContains(fa_response, sample_fa)
+                en_response = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=en")
+                self.assertEqual(en_response.status_code, 200)
+                self.assertContains(en_response, sample_en)
+                self.assertContains(en_response, 'data-default-personality="modern"', html=False)
+
+    def test_jewelry_demo_is_seeded_and_its_real_order_handoff_is_ecommerce(self):
+        seeded_demo = DemoTemplate.objects.get(slug="sarvin-atelier")
+        self.assertEqual(seeded_demo.category, "jewelry")
+        gallery = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
+        self.assertContains(gallery, "گالری طلا و جواهر")
+        demo = DemoTemplate.objects.create(
+            slug="jewelry-order-flow", category="jewelry", title_fa="گالری جواهر تست",
+            title_en="Test jewellery atelier", tagline_fa="یک انتخاب ماندگار",
+            tagline_en="A lasting choice", fictional_brand_fa="سروین",
+            fictional_brand_en="SARVIN", style_key="luxury",
+            default_features=["catalog", "booking"],
+        )
+        preview = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
+        self.assertContains(preview, "استعلام روز")
+        self.assertContains(preview, "وزن، عیار، اجرت و قیمت نهایی")
+        self.assertContains(preview, 'value="gold" checked', html=False)
+        token = preview.context["submission_token"]
+        response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
+            "submission_token": token, "brand_preview": "جواهر من", "theme": "gold",
+            "personality": "luxury", "features": ["catalog", "booking", "blog"],
+        })
+        selection = DemoSelection.objects.get()
+        self.assertRedirects(
+            response,
+            reverse("leads:contact") + f"?demo={selection.public_token}&request_type=ecommerce",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(selection.selections["features"], ["catalog", "booking"])
+        self.assertEqual(selection.selections["theme"], "gold")
+
+    def test_mobile_customizer_uses_one_live_preview_and_an_accessible_bottom_sheet(self):
+        demo = DemoTemplate.objects.create(
+            slug="mobile-customizer", category="jewelry", title_fa="نمونه موبایل",
+            title_en="Mobile sample", tagline_fa="شرح", tagline_en="Description",
+            fictional_brand_fa="فرضی", fictional_brand_en="FICTIONAL",
+            style_key="luxury", default_features=["catalog"],
+        )
+        response = self.client.get(reverse("projects:demo_preview", args=[demo.slug]))
+        self.assertContains(response, 'data-config-toggle', html=False)
+        self.assertContains(response, 'aria-controls="demo-config-body"', html=False)
+        self.assertContains(response, 'data-config-backdrop', html=False)
+        self.assertContains(response, 'data-config-open', html=False)
+        self.assertContains(response, 'data-demo-personality="industrial"', html=False)
+        self.assertContains(response, "demo-scene-jewelry")
+        self.assertContains(response, "demo-jewel-ring")
+        css = (Path(settings.BASE_DIR) / "projects/static/projects/css/demo-gallery.css").read_text(encoding="utf-8")
+        self.assertIn(".demo-config.is-mobile-open", css)
+        self.assertIn("prefers-reduced-motion:reduce", css)
+        script = (Path(settings.BASE_DIR) / "projects/static/projects/js/demo-configurator.js").read_text(encoding="utf-8")
+        self.assertIn('setAttribute("aria-modal", "true")', script)
+        self.assertIn('event.key === "Escape"', script)
+        self.assertIn('announceChange(control.dataset.featureLabel', script)
+
     def test_preview_page_embeds_a_fresh_submission_token_on_every_render(self):
         demo = DemoTemplate.objects.create(
             slug="fresh-token", category="portfolio", title_fa="تست", title_en="Test",

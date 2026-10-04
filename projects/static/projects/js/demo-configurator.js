@@ -6,10 +6,11 @@
     midnight: ["#2c3042", "#7c92ff", "#eef1ff"],
     sage: ["#527263", "#c78f45", "#edf4ef"],
     plum: ["#6c3f72", "#e09a71", "#f7edf8"],
+    gold: ["#825f23", "#dfbd70", "#f6efdf"],
   };
-  const STYLE_THEME = {minimal: "warm", editorial: "midnight", luxury: "sage", bold: "plum", sage: "sage", plum: "plum"};
-  const ALLOWED_THEMES = new Set(["warm", "midnight", "sage", "plum", "custom"]);
-  const ALLOWED_PERSONALITIES = new Set(["minimal", "editorial", "luxury", "bold"]);
+  const STYLE_THEME = {minimal: "warm", modern: "midnight", editorial: "midnight", luxury: "sage", bold: "plum", industrial: "midnight", sage: "sage", plum: "plum"};
+  const ALLOWED_THEMES = new Set(["warm", "midnight", "sage", "plum", "gold", "custom"]);
+  const ALLOWED_PERSONALITIES = new Set(["minimal", "modern", "editorial", "luxury", "bold", "industrial"]);
   const ALLOWED_FEATURES = new Set(["payment", "booking", "catalog", "blog", "membership", "multilingual"]);
 
   const validHex = (value) => /^#[0-9a-f]{6}$/i.test(value || "");
@@ -41,9 +42,9 @@
     const defaultStyle = root.dataset.defaultStyle || "minimal";
     const defaults = {
       brand: root.dataset.defaultBrand || "RVION DEMO",
-      theme: STYLE_THEME[defaultStyle] || "warm",
-      customColor: "#2563eb",
-      personality: ALLOWED_PERSONALITIES.has(defaultStyle) ? defaultStyle : "minimal",
+      theme: root.dataset.defaultTheme || STYLE_THEME[defaultStyle] || "warm",
+      customColor: root.dataset.defaultCustomColor || "#2563eb",
+      personality: root.dataset.defaultPersonality || (ALLOWED_PERSONALITIES.has(defaultStyle) ? defaultStyle : "minimal"),
       features: (root.dataset.defaultFeatures || "").split(",").filter((item) => ALLOWED_FEATURES.has(item)),
       view: "desktop",
     };
@@ -68,6 +69,11 @@
     const featureLabels = {};
     root.querySelectorAll("[data-feature-label]").forEach((input) => { featureLabels[input.value] = input.dataset.featureLabel; });
     root.querySelectorAll("[data-feature-key]").forEach((item) => { featureLabels[item.dataset.featureKey] = item.textContent.trim(); });
+    const categoryFeatures = new Set(Object.keys(featureLabels));
+    // A stale tab/session or hand-edited URL may contain features from a
+    // different category. Keep the live summary aligned with this sample;
+    // the server independently applies the same category boundary on POST.
+    state.features = Array.isArray(state.features) ? state.features.filter((item) => categoryFeatures.has(item)).slice(0, 6) : defaults.features.filter((item) => categoryFeatures.has(item));
 
     const controlValue = (name, value) => {
       root.querySelectorAll(`[name="${name}"]`).forEach((control) => {
@@ -92,6 +98,15 @@
       return query.toString();
     };
     const buildUrl = (path, hash) => `${path}?${stateQuery()}${hash || ""}`;
+    const liveFeedback = root.querySelector("[data-live-edit-feedback]");
+    const announceChange = (label, detail) => {
+      if (!liveFeedback) return;
+      liveFeedback.textContent = `${label}${detail ? ` · ${detail}` : ""}`;
+      liveFeedback.classList.remove("is-changed");
+      // Re-trigger a short visual confirmation without making every edit a
+      // distracting animation. The text remains available to assistive tech.
+      requestAnimationFrame(() => liveFeedback.classList.add("is-changed"));
+    };
 
     function render() {
       if (brandInput && document.activeElement !== brandInput) brandInput.value = state.brand;
@@ -113,11 +128,14 @@
         site.style.setProperty("--demo-b", palette[1]);
         site.dataset.personality = state.personality;
         site.dataset.category = root.dataset.demoCategory || "generic";
+        site.classList.toggle("demo-site-jewelry", root.dataset.demoCategory === "jewelry");
       });
       root.querySelectorAll("[data-demo-brand]").forEach((item) => { item.textContent = state.brand; });
       root.querySelectorAll("[data-demo-initial]").forEach((item) => { item.textContent = state.brand.charAt(0).toUpperCase(); });
       root.querySelectorAll("[data-demo-stage]").forEach((stage) => { stage.dataset.view = state.view; });
       root.querySelectorAll("[data-demo-view]").forEach((button) => { button.setAttribute("aria-pressed", String(button.dataset.demoView === state.view)); });
+      root.querySelectorAll("[data-demo-theme]").forEach((button) => { button.setAttribute("aria-pressed", String(button.dataset.demoTheme === state.theme)); });
+      root.querySelectorAll("[data-demo-personality]").forEach((button) => { button.setAttribute("aria-pressed", String(button.dataset.demoPersonality === state.personality)); });
       root.querySelectorAll("[data-demo-hex]").forEach((output) => { output.textContent = state.customColor.toUpperCase(); });
 
       root.querySelectorAll("[data-demo-feature-summary]").forEach((container) => {
@@ -146,14 +164,16 @@
     }
 
     brandInput?.addEventListener("input", () => { state.brand = brandInput.value.trim().slice(0, 48) || defaults.brand; render(); });
-    root.querySelectorAll('[name="theme"]').forEach((control) => control.addEventListener("change", () => { state.theme = control.value; render(); }));
+    brandInput?.addEventListener("change", () => announceChange(document.documentElement.lang === "fa" ? "نام پیش‌نمایش تغییر کرد" : "Preview name updated"));
+    root.querySelectorAll('[name="theme"]').forEach((control) => control.addEventListener("change", () => { state.theme = control.value; render(); announceChange(selectedLabel("theme", state.theme), document.documentElement.lang === "fa" ? "روی نمونه اعمال شد" : "applied to the sample"); }));
     colourInput?.addEventListener("input", () => {
       if (!validHex(colourInput.value)) return;
-      state.customColor = colourInput.value.toLowerCase(); state.theme = "custom"; render();
+      state.customColor = colourInput.value.toLowerCase(); state.theme = "custom"; render(); announceChange(state.customColor.toUpperCase(), document.documentElement.lang === "fa" ? "رنگ دلخواه اعمال شد" : "custom colour applied");
     });
-    root.querySelectorAll('[name="personality"]').forEach((control) => control.addEventListener("change", () => { state.personality = control.value; render(); }));
+    root.querySelectorAll('[name="personality"]').forEach((control) => control.addEventListener("change", () => { state.personality = control.value; render(); announceChange(selectedLabel("personality", state.personality), document.documentElement.lang === "fa" ? "شخصیت بصری تغییر کرد" : "design mood updated"); }));
     root.querySelectorAll('[name="features"]').forEach((control) => control.addEventListener("change", () => {
-      state.features = Array.from(root.querySelectorAll('[name="features"]:checked')).map((item) => item.value).filter((item) => ALLOWED_FEATURES.has(item)); render();
+      state.features = Array.from(root.querySelectorAll('[name="features"]:checked')).map((item) => item.value).filter((item) => categoryFeatures.has(item)); render();
+      announceChange(control.dataset.featureLabel || control.value, document.documentElement.lang === "fa" ? (control.checked ? "به امکانات نمونه اضافه شد" : "از امکانات نمونه برداشته شد") : (control.checked ? "added to the sample" : "removed from the sample"));
     }));
     root.querySelectorAll("[data-demo-view]").forEach((button) => button.addEventListener("click", () => { state.view = button.dataset.demoView; render(); }));
     root.querySelectorAll("[data-demo-reset]").forEach((button) => button.addEventListener("click", () => {
@@ -177,16 +197,66 @@
 
     const mobileConfig = root.querySelector("[data-mobile-config]");
     const configToggle = root.querySelector("[data-config-toggle]");
+    const configBackdrop = root.querySelector("[data-config-backdrop]");
+    const mobileViewport = window.matchMedia("(max-width: 760px)");
     if (mobileConfig && configToggle) {
       const setConfigOpen = (open) => {
-        mobileConfig.classList.toggle("is-mobile-open", open);
-        configToggle.setAttribute("aria-expanded", String(open));
+        const isMobile = mobileViewport.matches;
+        const nextOpen = Boolean(open && isMobile);
+        mobileConfig.classList.toggle("is-mobile-open", nextOpen);
+        configToggle.setAttribute("aria-expanded", String(nextOpen));
+        if (configBackdrop) configBackdrop.hidden = !nextOpen;
+        document.body.classList.toggle("demo-config-open", nextOpen);
+        if (isMobile && nextOpen) {
+          mobileConfig.setAttribute("role", "dialog");
+          mobileConfig.setAttribute("aria-modal", "true");
+        } else {
+          mobileConfig.setAttribute("role", "region");
+          mobileConfig.removeAttribute("aria-modal");
+        }
+        if (nextOpen) mobileConfig.querySelector("input:not([type=hidden]), button:not([data-config-toggle]), a")?.focus({preventScroll: true});
+        else if (isMobile && mobileConfig.contains(document.activeElement)) configToggle.focus({preventScroll: true});
       };
       configToggle.addEventListener("click", () => setConfigOpen(!mobileConfig.classList.contains("is-mobile-open")));
+      root.querySelectorAll("[data-config-open]").forEach((button) => button.addEventListener("click", () => setConfigOpen(true)));
+      configBackdrop?.addEventListener("click", () => setConfigOpen(false));
+      document.addEventListener("keydown", (event) => {
+        if (!mobileViewport.matches || !mobileConfig.classList.contains("is-mobile-open")) return;
+        if (event.key === "Escape") { event.preventDefault(); setConfigOpen(false); return; }
+        if (event.key !== "Tab") return;
+        const items = Array.from(mobileConfig.querySelectorAll("button:not([disabled]), input:not([disabled]):not([type=hidden]), a[href], select:not([disabled]), textarea:not([disabled])")).filter((item) => item.getClientRects().length);
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      });
+      mobileViewport.addEventListener("change", () => setConfigOpen(false));
       root.querySelectorAll("[data-demo-submit], [data-demo-full-link]").forEach((control) => {
         control.addEventListener("click", () => setConfigOpen(false));
       });
+      mobileConfig.setAttribute("role", mobileViewport.matches ? "region" : "region");
+      root.querySelectorAll("[data-demo-theme]").forEach((button) => button.addEventListener("click", () => {
+        state.theme = button.dataset.demoTheme;
+        render();
+        announceChange(button.dataset.themeLabel || button.dataset.demoTheme, document.documentElement.lang === "fa" ? "روی نمونه اعمال شد" : "applied to your sample");
+      }));
+      root.querySelectorAll("[data-demo-personality]").forEach((button) => button.addEventListener("click", () => {
+        state.personality = button.dataset.demoPersonality;
+        render();
+        announceChange(button.textContent.trim(), document.documentElement.lang === "fa" ? "سبک نمونه تغییر کرد" : "sample style updated");
+      }));
     }
+
+    root.querySelectorAll("[data-demo-action]").forEach((button) => button.addEventListener("click", () => {
+      const parentGroup = button.closest("[data-demo-action-group]");
+      if (parentGroup) parentGroup.querySelectorAll("[data-demo-action]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      else button.setAttribute("aria-pressed", String(button.getAttribute("aria-pressed") !== "true"));
+      const status = root.querySelector("[data-demo-action-status]");
+      if (status) {
+        status.textContent = button.dataset.actionMessage || (document.documentElement.lang === "fa" ? "این تعامل فقط پیش‌نمایش است؛ جزئیات واقعی پس از نیازسنجی مشخص می‌شود." : "This is a preview interaction; final behaviour is defined during discovery.");
+        status.hidden = false;
+      }
+    }));
 
     render();
   });

@@ -2,7 +2,27 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** V2.1-E2 corrective and production release.
+- **Current phase:** Category-specific live demo designer and order hand-off.
+  **`VERIFIED` (local).** The public gallery now has seven business categories
+  and a seeded fictional jewellery atelier. Each category has its own bilingual
+  sample scene and relevant illustrative action. Brand, palette, exact colour,
+  design personality and category-specific capabilities update one live sample;
+  the settings stay in the same page and become an accessible mobile bottom
+  sheet only when opened. Jewelry hand-off maps to the existing e-commerce
+  enquiry flow. Fake review counts and unsupported price claims are avoided.
+  Migration `projects.0007` adds the category choice and `projects.0008` seeds
+  the fictional sample. Both ran in the isolated test database only; neither
+  `db.sqlite3` nor production was migrated. Evidence: 418 tests across
+  `projects`, `leads` and `management_portal` passed (16 existing skips); live
+  Chrome checks at 1200px and 390px confirmed no horizontal overflow, live
+  palette/personality updates, category-specific jewelry feedback, and the
+  settings open/close path. Django checks, migration drift, JavaScript syntax
+  and whitespace checks passed. No push or deploy was performed.
+- **Next action:** final diff/release review, record the local commit, then
+  report that production still needs an explicitly authorized deployment and
+  migration.
+- **Last verified production release before this phase:** V2.1-E2 corrective
+  and production release.
   **`VERIFIED` and deployed.** The release audit's sole P1 blocker is
   closed: the login signal no longer physically deletes a competing
   session while its response may still be saving. `ActiveSession` remains

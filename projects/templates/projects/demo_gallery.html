@@ -10,7 +10,7 @@
       <span class="eyebrow">{% if lang == 'fa' %}انتخاب و شخصی‌سازی{% else %}CHOOSE & CUSTOMISE{% endif %}</span>
       <h1 id="demo-gallery-title">{% if lang == 'fa' %}قبل از سفارش، چیزی نزدیک به خواسته‌تان ببینید.{% else %}See something close to your idea before you enquire.{% endif %}</h1>
       <p>{% if lang == 'fa' %}نیازی به آماده‌کردن محتوا یا ثبت‌نام ندارید. یک دمو را باز کنید، نام و رنگ دلخواه‌تان را روی آن بگذارید و تجربه موبایل و دسکتاپ را همان لحظه مقایسه کنید.{% else %}No brief, content or account is required. Open a demo, add your name and colour, then compare mobile and desktop instantly.{% endif %}</p>
-      <div class="demo-hero-actions"><a class="button" href="#demo-options">{% if lang == 'fa' %}انتخاب نمونه{% else %}Choose a demo{% endif %}</a><span>{% if lang == 'fa' %}۱۰ نمونه · ۶ کاربرد · بدون ثبت‌نام{% else %}10 demos · 6 use cases · no sign-in{% endif %}</span></div>
+      <div class="demo-hero-actions"><a class="button" href="#demo-options">{% if lang == 'fa' %}انتخاب نمونه{% else %}Choose a demo{% endif %}</a><span>{% if lang == 'fa' %}{{ demo_count }} نمونه · {{ category_count }} حوزه · بدون ثبت‌نام{% else %}{{ demo_count }} demos · {{ category_count }} use cases · no sign-in{% endif %}</span></div>
     </div>
     <aside class="demo-how-card" aria-label="{% if lang == 'fa' %}روش استفاده{% else %}How it works{% endif %}">
       <strong>{% if lang == 'fa' %}سه قدم تا تصمیم روشن‌تر{% else %}Three steps to a clearer decision{% endif %}</strong>
@@ -29,7 +29,7 @@
       <header><span>{{ forloop.counter|stringformat:'02d' }}</span><div><h2>{{ category.title }}</h2><small>{{ category.items|length }} {% if lang == 'fa' %}مسیر قابل تست{% else %}testable directions{% endif %}</small></div></header>
       <div class="demo-grid">
         {% for demo in category.items %}
-          <article class="demo-card style-{{ demo.style_key }}">
+          <article class="demo-card style-{{ demo.style_key }}" data-category="{{ demo.category }}">
             <a class="demo-card-main" href="{% url 'projects:demo_preview' demo.slug %}">
               <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}</span></div>
               <div class="demo-card-scene" aria-hidden="true"><span></span><span></span><span></span><b></b></div>

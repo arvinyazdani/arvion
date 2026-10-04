@@ -8,6 +8,7 @@ class DemoTemplate(models.Model):
         ("ecommerce", "فروشگاه اینترنتی"), ("restaurant", "رستوران و کافه"),
         ("portfolio", "پورتفولیو"), ("corporate", "وب‌سایت شرکتی"),
         ("clinic", "کلینیک"), ("education", "آموزش"),
+        ("jewelry", "طلافروشی و جواهرات"),
     )
 
     slug = models.SlugField(unique=True)
