@@ -9,8 +9,8 @@
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=38">
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=3">
-  <script src="{% static 'projects/js/demo-configurator.js' %}?v=2" defer></script>
+  <link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=7">
+  <script src="{% static 'projects/js/demo-configurator.js' %}?v=5" defer></script>
 </head>
 <body class="demo-full-body">
   <main class="demo-full" data-demo-configurator data-demo-full data-demo-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}" data-default-brand="{% if lang == 'fa' %}{{ demo.fictional_brand_fa|escape }}{% else %}{{ demo.fictional_brand_en|escape }}{% endif %}" data-default-style="{{ demo.style_key }}" data-default-theme="{{ demo.default_theme }}" data-default-personality="{{ demo.default_personality }}" data-default-custom-color="{{ demo.default_custom_color }}" data-default-features="{{ demo.default_features|join:',' }}" data-preview-url="{% url 'projects:demo_preview' demo.slug %}" data-full-url="{% url 'projects:demo_full' demo.slug %}">

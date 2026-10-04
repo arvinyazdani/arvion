@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{% if lang == 'fa' %}{{ demo.title_fa }} | شخصی‌سازی دمو آرویون{% else %}{{ demo.title_en }} | Customise a Rvion demo{% endif %}{% endblock %}
 {% block meta_description %}{{ demo.fit_label }}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=3"><script src="{% static 'projects/js/demo-configurator.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=7"><script src="{% static 'projects/js/demo-configurator.js' %}?v=5" defer></script>{% endblock %}
 {% block content %}
 <section class="shell demo-preview" data-demo-configurator data-demo-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}" data-default-brand="{% if lang == 'fa' %}{{ demo.fictional_brand_fa|escape }}{% else %}{{ demo.fictional_brand_en|escape }}{% endif %}" data-default-style="{{ demo.style_key }}" data-default-theme="{{ demo.default_theme }}" data-default-personality="{{ demo.default_personality }}" data-default-custom-color="{{ demo.default_custom_color }}" data-default-features="{{ demo.default_features|join:',' }}" data-preview-url="{% url 'projects:demo_preview' demo.slug %}" data-full-url="{% url 'projects:demo_full' demo.slug %}">
   <nav class="demo-breadcrumb" aria-label="{% if lang == 'fa' %}مسیر صفحه{% else %}Breadcrumb{% endif %}"><a href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}انتخاب نمونه‌ها{% else %}Choose a demo{% endif %}</a><span aria-hidden="true">/</span><span>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</span></nav>

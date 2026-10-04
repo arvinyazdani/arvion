@@ -46,7 +46,7 @@
       customColor: root.dataset.defaultCustomColor || "#2563eb",
       personality: root.dataset.defaultPersonality || (ALLOWED_PERSONALITIES.has(defaultStyle) ? defaultStyle : "minimal"),
       features: (root.dataset.defaultFeatures || "").split(",").filter((item) => ALLOWED_FEATURES.has(item)),
-      view: "desktop",
+      view: window.matchMedia("(max-width: 760px)").matches ? "mobile" : "desktop",
     };
     let stored = null;
     try { stored = readJson(sessionStorage.getItem(storageKey)); } catch (error) { stored = null; }
@@ -129,6 +129,11 @@
         site.dataset.personality = state.personality;
         site.dataset.category = root.dataset.demoCategory || "generic";
         site.classList.toggle("demo-site-jewelry", root.dataset.demoCategory === "jewelry");
+      });
+      root.querySelectorAll("[data-feature-module]").forEach((module) => {
+        const enabled = state.features.includes(module.dataset.featureModule);
+        module.hidden = !enabled;
+        module.setAttribute("aria-hidden", String(!enabled));
       });
       root.querySelectorAll("[data-demo-brand]").forEach((item) => { item.textContent = state.brand; });
       root.querySelectorAll("[data-demo-initial]").forEach((item) => { item.textContent = state.brand.charAt(0).toUpperCase(); });
@@ -248,12 +253,101 @@
     }
 
     root.querySelectorAll("[data-demo-action]").forEach((button) => button.addEventListener("click", () => {
-      const parentGroup = button.closest("[data-demo-action-group]");
+      const parentGroup = button.closest("[data-demo-action-group], [data-demo-choice-group]");
       if (parentGroup) parentGroup.querySelectorAll("[data-demo-action]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
       else button.setAttribute("aria-pressed", String(button.getAttribute("aria-pressed") !== "true"));
       const status = root.querySelector("[data-demo-action-status]");
+      const choiceSummary = root.querySelector("[data-demo-choice-summary]");
+      const groupSummary = parentGroup?.querySelector("[data-demo-group-summary]");
+      const selectedTime = button.textContent.trim();
+      if (groupSummary) {
+        groupSummary.textContent = document.documentElement.lang === "fa"
+          ? `موضوع انتخابی شما: ${selectedTime} · این انتخاب هنوز ارسال نشده است.`
+          : `Your selected topic: ${selectedTime} · this choice has not been sent.`;
+      }
+      if (choiceSummary && (button.closest("[data-demo-choice-group]") || button.closest("[data-demo-choice-day-group]"))) refreshChoiceSummary();
       if (status) {
         status.textContent = button.dataset.actionMessage || (document.documentElement.lang === "fa" ? "این تعامل فقط پیش‌نمایش است؛ جزئیات واقعی پس از نیازسنجی مشخص می‌شود." : "This is a preview interaction; final behaviour is defined during discovery.");
+        status.hidden = false;
+      }
+    }));
+
+    function refreshChoiceSummary() {
+      const group = root.querySelector("[data-demo-choice-group]");
+      const selectedTime = group?.querySelector('[aria-pressed="true"]')?.textContent.trim();
+      const dayGroup = root.querySelector("[data-demo-choice-day-group]");
+      const selectedDay = dayGroup?.querySelector('[aria-pressed="true"]')?.textContent.trim();
+      const select = root.querySelector("[data-demo-choice-select]");
+      const visitType = select?.selectedOptions?.[0]?.textContent.trim();
+      const summary = root.querySelector("[data-demo-choice-summary]");
+      if (!summary) return;
+      const parts = [selectedDay, selectedTime, visitType].filter(Boolean);
+      const isPersian = document.documentElement.lang === "fa";
+      summary.textContent = parts.length
+        ? `${parts.join(" · ")} · ${isPersian ? "رزرو فقط در حد پیش‌نمایش" : "preview only"}`
+        : (isPersian ? "برای تکمیل خلاصه نمونه، روز و ساعت را انتخاب کنید." : "Choose a sample day and time to complete the preview summary.");
+    }
+    root.querySelectorAll("[data-demo-choice-select]").forEach((select) => select.addEventListener("change", refreshChoiceSummary));
+
+    const updateAttributeSummary = () => {
+      const values = Array.from(root.querySelectorAll("[data-demo-attribute]")).map((field) => {
+        const value = field.selectedOptions?.[0]?.textContent.trim() || field.value.trim();
+        return value ? `${field.dataset.demoAttributeLabel || ""} ${value}`.trim() : "";
+      }).filter(Boolean);
+      root.querySelectorAll("[data-demo-attribute-summary]").forEach((summary) => {
+        summary.textContent = values.length
+          ? `${document.documentElement.lang === "fa" ? "انتخاب نمایشی شما" : "Your sample choices"}: ${values.join(" · ")}`
+          : (document.documentElement.lang === "fa" ? "جزئیات موردنظر را انتخاب کنید." : "Choose the details that matter to you.");
+      });
+    };
+    root.querySelectorAll("[data-demo-attribute]").forEach((field) => field.addEventListener("change", updateAttributeSummary));
+    updateAttributeSummary();
+
+    const activeFilters = new Map();
+    root.querySelectorAll("[data-demo-filter]").forEach((button) => button.addEventListener("click", () => {
+      const group = button.closest("[data-demo-filter-group]");
+      if (!group) return;
+      const groupKey = group.dataset.demoFilterGroup;
+      activeFilters.set(groupKey, button.dataset.demoFilter);
+      group.querySelectorAll("[data-demo-filter]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      applyFilters(groupKey);
+    }));
+
+    function applyFilters(groupKey) {
+      const selected = activeFilters.get(groupKey) || "all";
+      const query = Array.from(root.querySelectorAll("[data-demo-search]"))
+        .find((input) => (input.dataset.filterGroup || "shop") === groupKey)?.value.trim().toLocaleLowerCase() || "";
+      root.querySelectorAll("[data-filter-item]").forEach((item) => {
+        if (item.dataset.filterGroup !== groupKey) return;
+        const categoryMatches = selected === "all" || item.dataset.filterItem === selected;
+        const textMatches = !query || (item.dataset.searchItem || item.textContent).toLocaleLowerCase().includes(query);
+        item.hidden = !categoryMatches || !textMatches;
+      });
+      updateFilteredEmptyState(groupKey);
+    }
+
+    function updateFilteredEmptyState(groupKey) {
+      const items = Array.from(root.querySelectorAll("[data-filter-item]")).filter((item) => item.dataset.filterGroup === groupKey);
+      const empty = root.querySelector(`[data-demo-empty-filter][data-filter-group="${groupKey}"]`);
+      if (empty) empty.hidden = !items.length || items.some((item) => !item.hidden);
+    }
+
+    root.querySelectorAll("[data-demo-search]").forEach((input) => input.addEventListener("input", () => {
+      const group = input.dataset.filterGroup || "shop";
+      applyFilters(group);
+    }));
+
+    let sampleBasketCount = 0;
+    const formatCount = (value) => new Intl.NumberFormat(document.documentElement.lang === "fa" ? "fa-IR" : "en-US").format(value);
+    root.querySelectorAll("[data-demo-cart-add]").forEach((button) => button.addEventListener("click", () => {
+      sampleBasketCount += 1;
+      root.querySelectorAll("[data-demo-cart-count]").forEach((counter) => { counter.textContent = formatCount(sampleBasketCount); });
+      const status = root.querySelector("[data-demo-action-status]");
+      const name = button.closest("[data-product-name]")?.dataset.productName || "";
+      if (status) {
+        status.textContent = document.documentElement.lang === "fa"
+          ? `${name} به سبد نمایشی اضافه شد؛ هیچ سفارش یا پرداخت واقعی ثبت نمی‌شود.`
+          : `${name} was added to the sample basket. No real order or payment was created.`;
         status.hidden = false;
       }
     }));

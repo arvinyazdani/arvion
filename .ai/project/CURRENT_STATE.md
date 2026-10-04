@@ -2,27 +2,31 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** Category-specific live demo designer and order hand-off.
-  **`VERIFIED` (local).** The public gallery now has seven business categories
-  and a seeded fictional jewellery atelier. Each category has its own bilingual
-  sample scene and relevant illustrative action. Brand, palette, exact colour,
-  design personality and category-specific capabilities update one live sample;
-  the settings stay in the same page and become an accessible mobile bottom
-  sheet only when opened. Jewelry hand-off maps to the existing e-commerce
-  enquiry flow. Fake review counts and unsupported price claims are avoided.
-  Migration `projects.0007` adds the category choice and `projects.0008` seeds
-  the fictional sample. Both ran in the isolated test database only; neither
-  `db.sqlite3` nor production was migrated. Evidence: 418 tests across
-  `projects`, `leads` and `management_portal` passed (16 existing skips); live
-  Chrome checks at 1200px and 390px confirmed no horizontal overflow, live
-  palette/personality updates, category-specific jewelry feedback, and the
-  settings open/close path. Django checks, migration drift, JavaScript syntax
-  and whitespace checks passed. No push or deploy was performed.
-- **Checkpoint:** committed locally as `f737d88` (`feat: build live
-  category-specific demo order designer`); working tree clean, `main` is one
-  commit ahead of `origin/main`. No push, production migration or deployment.
-- **Next action:** if the user requests release, run the standard production
-  release gate, review the two migrations/data seed, then deploy and smoke-test.
+- **Current phase:** Complete the seven category demos, create a genuinely
+  separate phone layout, and release online. **`PARTIAL` (local verification
+  complete; publish/deploy pending).** User has explicitly requested richer
+  category-specific samples, a dedicated mobile design, and online release.
+  The mobile experience uses the phone's full width, places the order control
+  before the sample, and opens settings in an accessible independently
+  scrolling sheet; the fixed overlay that covered content at 320px was removed.
+  Desktop framing remains intact.
+- **Last verified local phase:** Category-specific demo designer and mobile
+  refinement. **`VERIFIED` (local).** All seven business topics retain distinct
+  interactions and shared live configuration. The local release gate passed:
+  831 tests, 20 existing skips; editorial question-bank audit (200 English +
+  200 Python, zero warnings); Django checks, migration drift,
+  `collectstatic --noinput --dry-run`, dependency check, JavaScript syntax,
+  diff whitespace and 100-attempt benchmark. Live Chrome checks at 320, 390 and
+  1200px found no horizontal overflow; each category defaults to a full-width
+  mobile preview; the settings sheet opens and has its own scroll region. Full
+  suite used temporary SQLite; no personal or production database was touched.
+- **Checkpoint:** mobile refinement is uncommitted. The preceding commits
+  `f737d88` and `d1a211e` are local; `main` is two commits ahead of
+  `origin/main`. No push or production migration/deployment has occurred for
+  this phase.
+- **Next action:** review and commit this phase, push the queued commits, verify
+  GitHub CI, then use the snapshot-backed release procedure and smoke-test
+  public routes. Stop if CI or production safety checks fail.
 - **Last verified production release before this phase:** V2.1-E2 corrective
   and production release.
   **`VERIFIED` and deployed.** The release audit's sole P1 blocker is

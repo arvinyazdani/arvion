@@ -130,7 +130,7 @@ class ProjectTests(TestCase):
             "restaurant": ("demo-scene-restaurant", "پاستای زعفرانی", "Saffron butter pasta"),
             "portfolio": ("demo-scene-portfolio", "بازآفرینی تجربه خرید روزمره", "Reframing the everyday shop"),
             "corporate": ("demo-scene-corporate", "تحلیل و مشاوره", "Discovery & advisory"),
-            "clinic": ("demo-scene-clinic", "نوبت‌های نمونه", "SAMPLE AVAILABILITY"),
+            "clinic": ("demo-scene-clinic", "انتخاب نوبت · نمایشی و غیرقابل رزرو", "APPOINTMENT PICKER · PREVIEW ONLY"),
             "education": ("demo-scene-education", "مبانی طراحی محصول", "Product design essentials"),
             "jewelry": ("demo-scene-jewelry", "انگشتر آفتاب", "Aftab signet ring"),
         }
@@ -165,8 +165,8 @@ class ProjectTests(TestCase):
             default_features=["catalog", "booking"],
         )
         preview = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
-        self.assertContains(preview, "استعلام روز")
-        self.assertContains(preview, "وزن، عیار، اجرت و قیمت نهایی")
+        self.assertContains(preview, "قیمت روز · نیازمند استعلام")
+        self.assertContains(preview, "عیار، وزن، اجرت ساخت، موجودی و قیمت روز")
         self.assertContains(preview, 'value="gold" checked', html=False)
         token = preview.context["submission_token"]
         response = self.client.post(reverse("projects:demo_configure", args=[demo.slug]), {
@@ -204,6 +204,45 @@ class ProjectTests(TestCase):
         self.assertIn('setAttribute("aria-modal", "true")', script)
         self.assertIn('event.key === "Escape"', script)
         self.assertIn('announceChange(control.dataset.featureLabel', script)
+
+    def test_each_category_has_a_distinct_working_preview_flow_and_feature_modules(self):
+        markers = {
+            "ecommerce": ('data-demo-cart-add', 'data-demo-filter-group="shop"', "data-feature-module=\"payment\""),
+            "restaurant": ('data-demo-choice-group="reservation"', 'data-demo-filter-group="menu"', "data-feature-module=\"booking\""),
+            "portfolio": ('data-demo-filter-group="portfolio"', "نقش و روند طراحی", "data-feature-module=\"blog\""),
+            "corporate": ("data-demo-group-summary", "اولویت زمانی", "data-feature-module=\"booking\""),
+            "clinic": ('data-demo-choice-select', 'data-demo-choice-day-group', "حریم مراجعه‌کننده", "data-feature-module=\"payment\""),
+            "education": ("سرفصل‌ها", "درس صوتی کوتاه", "data-feature-module=\"membership\""),
+            "jewelry": ('data-demo-attribute-summary', "عیار پیشنهادی", "data-feature-module=\"payment\""),
+        }
+        for category, expected_markers in markers.items():
+            with self.subTest(category=category):
+                demo = DemoTemplate.objects.create(
+                    slug=f"working-flow-{category}", category=category,
+                    title_fa="نمونه تست", title_en="Test sample",
+                    tagline_fa="روایت نمونه", tagline_en="A sample story",
+                    fictional_brand_fa="برند فرضی", fictional_brand_en="FICTIONAL BRAND",
+                    style_key="modern", default_features=[],
+                )
+                fa_response = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
+                self.assertEqual(fa_response.status_code, 200)
+                for marker in expected_markers:
+                    self.assertContains(fa_response, marker, html=False)
+                en_response = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=en")
+                self.assertEqual(en_response.status_code, 200)
+                self.assertContains(en_response, "data-demo-configurator", html=False)
+
+        script = (Path(settings.BASE_DIR) / "projects/static/projects/js/demo-configurator.js").read_text(encoding="utf-8")
+        self.assertIn("module.hidden = !enabled", script)
+        self.assertIn("sampleBasketCount += 1", script)
+        self.assertIn("activeFilters.set(groupKey, button.dataset.demoFilter)", script)
+        self.assertIn("parts.join(\" · \")", script)
+        self.assertIn('window.matchMedia("(max-width: 760px)").matches ? "mobile" : "desktop"', script)
+
+        stylesheet = (Path(settings.BASE_DIR) / "projects/static/projects/css/demo-gallery.css").read_text(encoding="utf-8")
+        self.assertIn('.demo-stage[data-view="mobile"] .demo-site{width:100%;max-width:none', stylesheet)
+        self.assertIn(".demo-editor-strip{order:1}", stylesheet)
+        self.assertIn(".demo-open-config{position:static", stylesheet)
 
     def test_preview_page_embeds_a_fresh_submission_token_on_every_render(self):
         demo = DemoTemplate.objects.create(
