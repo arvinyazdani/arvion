@@ -12,6 +12,7 @@
 - الهام معماری تعاملی: [OpenPage روی GitHub](https://github.com/buildingopen/openpage) برای پیش‌نمایش زنده و تنظیمات ساخت‌یافته؛ راهنمای [Shopify sections/blocks](https://shopify.dev/docs/storefronts/themes/best-practices/editor/integrate-sections-and-blocks) برای تنظیمات مستقل و قابل‌ترکیب. برای دسترس‌پذیری موبایل و حرکت تعاملی هم [راهنمای W3C برای موبایل](https://www.w3.org/WAI/standards-guidelines/mobile/) و [توصیه‌ی W3C درباره حرکت ناشی از تعامل](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions) مبنا بود. این‌ها الگوی تصمیم‌گیری‌اند؛ کد یا وابستگی پروژه‌های دیگر کپی نشده است.
 - تست: ۴۱۸ تست `projects + leads + management_portal`، ۱۶ مورد skip موجود؛ Django check، migration drift، `node --check` و `git diff --check` پاس شدند. Chrome محلی: فارسی، عرض ۱۲۰۰ و ۳۹۰ پیکسل؛ تغییر رنگ/شخصیت، اقدام نمونه، پنل موبایل و نبود اسکرول افقی بررسی شد.
 - دو migration افزایشی ساخته و در دیتابیس موقت تست اجرا شد. پایگاه داده‌ی محلی کاربر و production دست‌نخورده‌اند. این مرحله هنوز push/deploy نشده و نمونه طلافروشی تا اجرای migration در production ظاهر نمی‌شود.
+- ثبت محلی: `f737d88` (`feat: build live category-specific demo order designer`)، شاخه‌ی `main` یک کامیت جلوتر از `origin/main` و working tree پاک است. برای انتشار آنلاین، push/deploy و اجرای migrationها لازم است.
 
 ## هدف و درک پروژه
 

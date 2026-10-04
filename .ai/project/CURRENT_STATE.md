@@ -18,9 +18,11 @@
   palette/personality updates, category-specific jewelry feedback, and the
   settings open/close path. Django checks, migration drift, JavaScript syntax
   and whitespace checks passed. No push or deploy was performed.
-- **Next action:** final diff/release review, record the local commit, then
-  report that production still needs an explicitly authorized deployment and
-  migration.
+- **Checkpoint:** committed locally as `f737d88` (`feat: build live
+  category-specific demo order designer`); working tree clean, `main` is one
+  commit ahead of `origin/main`. No push, production migration or deployment.
+- **Next action:** if the user requests release, run the standard production
+  release gate, review the two migrations/data seed, then deploy and smoke-test.
 - **Last verified production release before this phase:** V2.1-E2 corrective
   and production release.
   **`VERIFIED` and deployed.** The release audit's sole P1 blocker is
