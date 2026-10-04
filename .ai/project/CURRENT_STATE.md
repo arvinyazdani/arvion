@@ -3,13 +3,13 @@
 - **Project:** Rvion
 - **Workflow:** single primary agent
 - **Current phase:** Complete the seven category demos, create a genuinely
-  separate phone layout, and release online. **`PARTIAL` (local verification
-  complete; publish/deploy pending).** User has explicitly requested richer
-  category-specific samples, a dedicated mobile design, and online release.
-  The mobile experience uses the phone's full width, places the order control
+  separate phone layout, and release online. **`VERIFIED / DEPLOYED`.** The
+  mobile experience uses the phone's full width, places the order control
   before the sample, and opens settings in an accessible independently
   scrolling sheet; the fixed overlay that covered content at 320px was removed.
-  Desktop framing remains intact.
+  Desktop framing remains intact. Production release `5fe87ec` completed with
+  a pre-migration PostgreSQL snapshot, both demo migrations, and public smoke
+  checks for health plus all seven demo routes.
 - **Last verified local phase:** Category-specific demo designer and mobile
   refinement. **`VERIFIED` (local).** All seven business topics retain distinct
   interactions and shared live configuration. The local release gate passed:
@@ -20,13 +20,16 @@
   1200px found no horizontal overflow; each category defaults to a full-width
   mobile preview; the settings sheet opens and has its own scroll region. Full
   suite used temporary SQLite; no personal or production database was touched.
-- **Checkpoint:** mobile refinement is uncommitted. The preceding commits
-  `f737d88` and `d1a211e` are local; `main` is two commits ahead of
-  `origin/main`. No push or production migration/deployment has occurred for
-  this phase.
-- **Next action:** review and commit this phase, push the queued commits, verify
-  GitHub CI, then use the snapshot-backed release procedure and smoke-test
-  public routes. Stop if CI or production safety checks fail.
+- **Release evidence:** implementation commit `5fe87ec` is on `origin/main`;
+  GitHub Actions run `37231381871` passed on Python 3.11 and 3.12. Production
+  snapshot: `/srv/arvion/backups/pre-release-20261004-202213.dump` (3.0 MB).
+  Release log records `health=ok`; systemd `arvion` and Nginx are active. Public
+  `/health/` and each seeded demo route returned HTTP 200. Live production
+  Chrome at 390px confirmed the full-width mobile preview, versioned CSS v7,
+  no horizontal overflow, and the working order/settings sheet. `main` is
+  clean and even with `origin/main` after the documentation checkpoint.
+- **Next action:** continue only with the next project priority; no remaining
+  work for this demo/mobile release.
 - **Last verified production release before this phase:** V2.1-E2 corrective
   and production release.
   **`VERIFIED` and deployed.** The release audit's sole P1 blocker is
@@ -3586,3 +3589,4 @@
 | V2.1-E2 — Release Candidate gate audit (29→30 commits ahead of `origin/main`) | `BLOCKED` | See "V2.1-E2 — Release Candidate gate audit" above for full detail. Full local gate (`release-check.sh`), the exact CI steps (`compileall`, parallel test, strict question-bank audit, `node --check`, `bash -n`, `git diff --check`), the 5 release migrations reviewed and PostgreSQL-rehearsed forward/backward/forward-again, a production-settings `check --deploy` with fake credentials, and a live browser UAT of every reachable critical flow (funnel, no-duplicate resubmit, no-OTP registration, second-device session eviction, cross-device server draft, dashboard fa/en, admin exam-access revocation and its enforcement) all passed. One small, low-risk test-isolation bug (missing `cache.clear()` in `leads.test_contact_server_draft_ui.ErrorRerenderStepMarkerTests`, exposed only by the exact CI shuffle seed) was found and fixed. Blocking finding: `accounts.tests.SingleSessionPostgresRaceTests.test_two_simultaneous_logins_converge_to_exactly_one_active_session` fails intermittently (~10–15%) on real PostgreSQL on both Python 3.9 and 3.12 — a genuine, narrow, pre-existing real-thread-race in `accounts/signals.py`'s single-session login handling (`UpdateError` from Django's own session backend when a session row is deleted by a second concurrent login between the first login's own commit and its later `request.session.save()`). Low real-world impact (no data loss, no security-guarantee bypass, self-recovers on retry) but not fixed in this phase — deliberately left for a dedicated hardening phase rather than rushed into security-critical session code during an audit. Python 3.11 unavailable on this machine (3.12 was exercised in a disposable venv against real PostgreSQL, all green except the same Finding #2). Migration rollback of this release is confirmed destructive to new data (`FormDraft`/`ActiveSession`/token tables/columns dropped) — documented in `docs/OPERATIONS_RUNBOOK_FA.md`, which was also corrected to stop describing registration as requiring OTP. Not pushed, deployed, or connected to production; no `--apply`/migration was run outside disposable databases. |
 | V2.1-E2 corrective — concurrent login response-save race | `VERIFIED` (local) | Removed physical `Session` deletion from the login signal. The locked `ActiveSession` pointer is authoritative; middleware rejects and flushes the loser before any protected view. This closes the intermittent Django `UpdateError` without allowing two valid devices. Evidence: focused SQLite 21/21; PostgreSQL race 30/30 repeated plus both concurrency cases; full PostgreSQL accounts suite 73/73. No migration. |
 | Push/deploy of `06812d2` through `79ad24d` | `VERIFIED / DEPLOYED` | GitHub Actions run `34958047474` passed for Python 3.11 and 3.12 on PostgreSQL. Production snapshot `pre-release-20260915-103509.dump` was validated with `pg_restore --list`; release script applied all five queued migrations and completed health checks. Public health/home fa+en/demo/contact/login returned 200; no recent application error or 5xx. |
+| Category demo scenes and dedicated responsive mobile order design (`f737d88` + `d1a211e` + `5fe87ec`) | `VERIFIED / DEPLOYED` | Local full suite 831 passed / 20 existing skips, strict editorial audit clean, 100-attempt benchmark passed. GitHub Actions run `37231381871` passed Python 3.11 and 3.12 (PostgreSQL). Snapshot-backed production release applied `projects.0007` and `projects.0008`; release log confirms `5fe87ec` and `health=ok`. Public health and all seven demo routes returned 200. Production visual QA at 390px confirmed new mobile layout/settings sheet and no horizontal overflow. |
