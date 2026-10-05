@@ -13,6 +13,10 @@ from projects.models import DemoTemplate, Project
 
 
 class CorePagesTests(TestCase):
+    def setUp(self):
+        translation.activate("fa")
+        self.addCleanup(translation.deactivate_all)
+
     def test_mobile_shell_has_accessible_menu_and_quick_navigation(self):
         response = self.client.get("/fa/")
         self.assertContains(response, 'aria-controls="site-nav"', html=False)
@@ -125,7 +129,7 @@ class CorePagesTests(TestCase):
     def test_component_foundation_loads_after_legacy_site_styles(self):
         response = self.client.get("/fa/")
         html = response.content.decode()
-        tokens = html.index("core/css/tokens.css?v=4")
+        tokens = html.index("core/css/tokens.css?v=5")
         legacy = html.index("core/css/site.css?v=39")
         components = html.index("core/css/components.css?v=5")
         self.assertLess(tokens, legacy)
@@ -174,23 +178,23 @@ class CorePagesTests(TestCase):
     def test_global_brand_and_legal_footer_use_rvion(self):
         response = self.client.get(reverse("home") + "?lang=fa")
         self.assertContains(response, ">RVION<", html=False)
-        self.assertContains(response, "آرویون | طراحی و توسعه محصول دیجیتال")
+        self.assertContains(response, "طراحی و سفارش وب‌سایت اختصاصی | آرویون")
         self.assertContains(response, "شناسه ملی 14015444540")
         self.assertNotContains(response, ">ARVION<", html=False)
         self.assertNotContains(response, ">رویون<", html=False)
 
     def test_delivery_card_is_fully_localized_and_public_email_is_hidden(self):
         fa_response = self.client.get("/fa/")
-        self.assertContains(fa_response, "از مسئله تا محصول قابل استفاده")
-        self.assertContains(fa_response, "قرارداد شفاف")
+        self.assertContains(fa_response, "از نمونه تا سایت شما")
+        self.assertContains(fa_response, "توافق و ساخت")
         self.assertNotContains(fa_response, "hello@rvin-tech.com")
 
         en_response = self.client.get("/en/")
-        self.assertContains(en_response, "From problem to a usable product")
-        self.assertContains(en_response, "Agree scope and terms")
-        self.assertContains(en_response, "Build, launch and support")
-        delivery_html = en_response.content.decode().split('class="delivery-brief"', 1)[1].split("</aside>", 1)[0]
-        self.assertNotRegex(delivery_html, r"[۰-۹]")
+        self.assertContains(en_response, "FROM SAMPLE TO YOUR WEBSITE")
+        self.assertContains(en_response, "Agree & build")
+        self.assertContains(en_response, "Launch & support")
+        process_html = en_response.content.decode().split('class="website-process shell"', 1)[1].split("</section>", 1)[0]
+        self.assertNotRegex(process_html, r"[\u0600-\u06ff]")
         self.assertNotIn("hello@rvin-tech.com", en_response.content.decode())
 
     def test_company_page_does_not_claim_an_unissued_trust_seal(self):
@@ -214,21 +218,42 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
-        self.assertContains(response, "فرآیند پیچیده")
-        self.assertContains(response, "راهکارهای آرویون")
-        self.assertContains(response, "چه کاری انجام می‌دهیم")
-        self.assertContains(response, "هویت حقوقی و اطلاعات قابل استعلام")
+        self.assertContains(response, "سایت شما،")
+        self.assertContains(response, "نمونه مناسب من را پیدا کن")
+        self.assertContains(response, "سفارش ساده. مسیر روشن.")
+        self.assertContains(response, "شروع آزمون زبان انگلیسی")
         self.assertNotContains(response, "۲۴ پروژه")
 
     def test_home_replaces_project_showcase_with_zero_data_demo_choices(self):
         Project.objects.create(title_fa="نمونه واقعی", title_en="Real case", slug="real-case", is_active=True)
         response = self.client.get(reverse("home"))
-        self.assertContains(response, "بدون نیاز به اطلاعات قبلی")
-        self.assertContains(response, "دموی قابل تست و شخصی‌سازی")
+        self.assertContains(response, "بدون ثبت‌نام امتحان کنید")
+        self.assertContains(response, "پروژه‌های واقعی مشتریان نیستند")
         self.assertContains(response, 'href="/fa/projects/demos/"', html=False)
         self.assertNotContains(response, "نمونه واقعی")
         self.assertNotContains(response, "منتخب پروژه‌ها")
         self.assertEqual(response.context["available_demo_count"], DemoTemplate.objects.filter(is_active=True).count())
+
+    def test_home_covers_each_business_type_and_hides_inactive_samples(self):
+        response = self.client.get("/en/")
+        demos = response.context["featured_demos"]
+        self.assertEqual({demo.category for demo in demos},
+                         {key for key, _ in DemoTemplate.CATEGORY_CHOICES})
+        for demo in demos:
+            self.assertContains(response, reverse("projects:demo_preview", args=[demo.slug]))
+            self.assertNotRegex(demo.category_label, r"[\u0600-\u06ff]")
+        demo = demos[0]
+        demo.is_active = False
+        demo.save(update_fields=["is_active"])
+        refreshed = self.client.get("/en/")
+        self.assertNotContains(refreshed, reverse("projects:demo_preview", args=[demo.slug]))
+
+    def test_home_still_offers_enquiry_when_no_samples_are_available(self):
+        DemoTemplate.objects.update(is_active=False)
+        response = self.client.get("/en/")
+        self.assertContains(response, "Samples are being prepared")
+        self.assertContains(response, reverse("leads:contact"))
+        self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
 
     def test_crm_product_overview_is_read_only_bilingual_and_internally_linked(self):
         persian = self.client.get("/fa/crm/")
@@ -244,7 +269,7 @@ class CorePagesTests(TestCase):
         self.assertContains(persian, 'href="/fa/crm-order/"', html=False)
 
         home = self.client.get("/fa/")
-        self.assertContains(home, "معرفی کامل راهکار")
+        self.assertContains(home, "CRM سازمانی")
         self.assertContains(home, 'href="/fa/crm/"', html=False)
 
     def test_service_worker_is_served_from_root_for_full_app_scope(self):

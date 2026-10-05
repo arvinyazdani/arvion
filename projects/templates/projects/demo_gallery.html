@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{% if lang == 'fa' %}انتخاب و شخصی‌سازی دمو | آرویون{% else %}Choose and customise a demo | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}دموی وب‌سایت دلخواه‌تان را بدون ثبت‌نام انتخاب کنید، رنگ و سبک آن را تغییر دهید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Choose a website demo without signing in, customise its colour and style, and test mobile and desktop views.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=2">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=1">{% endblock %}
 {% block content %}
 <section class="demo-hero" aria-labelledby="demo-gallery-title">
   <div class="shell demo-hero-grid">
@@ -15,15 +15,16 @@
     <aside class="demo-how-card" aria-label="{% if lang == 'fa' %}روش استفاده{% else %}How it works{% endif %}">
       <strong>{% if lang == 'fa' %}سه قدم تا تصمیم روشن‌تر{% else %}Three steps to a clearer decision{% endif %}</strong>
       <ol>
-        <li><span>۱</span><div><b>{% if lang == 'fa' %}یک کاربرد را انتخاب کنید{% else %}Choose a use case{% endif %}</b><small>{% if lang == 'fa' %}فروشگاه، شرکتی، کلینیک و بیشتر{% else %}Commerce, corporate, clinic and more{% endif %}</small></div></li>
-        <li><span>۲</span><div><b>{% if lang == 'fa' %}همان‌جا تغییر دهید{% else %}Customise it live{% endif %}</b><small>{% if lang == 'fa' %}نام، رنگ، شخصیت و امکانات{% else %}Name, colour, personality and features{% endif %}</small></div></li>
-        <li><span>۳</span><div><b>{% if lang == 'fa' %}دموی کامل را تست کنید{% else %}Test the full demo{% endif %}</b><small>{% if lang == 'fa' %}موبایل، دسکتاپ و مسیر بازگشت{% else %}Mobile, desktop and a safe return path{% endif %}</small></div></li>
+        <li><span>{% if lang == 'fa' %}۱{% else %}1{% endif %}</span><div><b>{% if lang == 'fa' %}یک کاربرد را انتخاب کنید{% else %}Choose a use case{% endif %}</b><small>{% if lang == 'fa' %}فروشگاه، شرکتی، کلینیک و بیشتر{% else %}Commerce, corporate, clinic and more{% endif %}</small></div></li>
+        <li><span>{% if lang == 'fa' %}۲{% else %}2{% endif %}</span><div><b>{% if lang == 'fa' %}همان‌جا تغییر دهید{% else %}Customise it live{% endif %}</b><small>{% if lang == 'fa' %}نام، رنگ، شخصیت و امکانات{% else %}Name, colour, personality and features{% endif %}</small></div></li>
+        <li><span>{% if lang == 'fa' %}۳{% else %}3{% endif %}</span><div><b>{% if lang == 'fa' %}دموی کامل را تست کنید{% else %}Test the full demo{% endif %}</b><small>{% if lang == 'fa' %}موبایل، دسکتاپ و مسیر بازگشت{% else %}Mobile, desktop and a safe return path{% endif %}</small></div></li>
       </ol>
     </aside>
   </div>
 </section>
 
 <section class="shell demo-categories" id="demo-options" aria-label="{% if lang == 'fa' %}فهرست دموها{% else %}Demo list{% endif %}">
+  <nav class="demo-category-jump" aria-label="{% if lang == 'fa' %}رفتن به موضوع نمونه{% else %}Jump to a business type{% endif %}">{% for category in categories %}<a href="#{{ category.key }}">{{ category.title }}</a>{% endfor %}</nav>
   {% for category in categories %}
     <section class="demo-category" id="{{ category.key }}">
       <header><span>{{ forloop.counter|stringformat:'02d' }}</span><div><h2>{{ category.title }}</h2><small>{{ category.items|length }} {% if lang == 'fa' %}مسیر قابل تست{% else %}testable directions{% endif %}</small></div></header>
@@ -32,7 +33,7 @@
           <article class="demo-card style-{{ demo.style_key }}" data-category="{{ demo.category }}">
             <a class="demo-card-main" href="{% url 'projects:demo_preview' demo.slug %}">
               <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}</span></div>
-              <div class="demo-card-scene" aria-hidden="true"><span></span><span></span><span></span><b></b></div>
+              {% include 'projects/demo_scenes/art.html' %}
               <div class="demo-card-copy"><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{{ demo.fit_label }}</strong></div>
             </a>
             <div class="demo-card-details">

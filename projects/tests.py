@@ -67,6 +67,8 @@ class ProjectTests(TestCase):
         self.assertContains(full, "بازگشت به انتخاب‌ها")
         self.assertContains(full, 'data-demo-view="desktop"', html=False)
         self.assertContains(full, 'data-demo-view="mobile"', html=False)
+        self.assertContains(full, '<h1>', html=False)
+        self.assertContains(full, 'id="sample-content"', html=False)
 
     def test_invalid_custom_colour_is_rejected_without_creating_selection(self):
         demo = DemoTemplate.objects.create(

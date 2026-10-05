@@ -1,148 +1,36 @@
 {% extends "core/base.html" %}
 {% load static %}
-
+{% block title %}{% if lang == 'fa' %}طراحی و سفارش وب‌سایت اختصاصی | آرویون{% else %}Website design & development | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}نمونه سایت متناسب با کسب‌وکارتان را ببینید، زنده شخصی‌سازی کنید و با انتخاب‌های خودتان درخواست ساخت سایت بدهید.{% else %}Explore website samples for your business, customise them live and start a project with your own choices.{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=1"><link rel="stylesheet" href="{% static 'core/css/home-studio.css' %}?v=1"><script src="{% static 'core/js/home-studio.js' %}?v=1" defer></script>{% endblock %}
 {% block content %}
-<section class="home-intro" aria-labelledby="home-title">
-  <div class="shell home-intro-grid">
-    <div class="home-intro-copy" data-ui-reveal>
-      <span class="eyebrow">{% if lang == 'fa' %}آرویون · محصولات دیجیتال{% else %}RVION · DIGITAL PRODUCTS{% endif %}</span>
-      <h1 id="home-title">
-        {% if lang == 'fa' %}فرآیند پیچیده را به محصولی روشن و قابل اتکا تبدیل می‌کنیم.{% else %}We turn complex workflows into clear, dependable products.{% endif %}
-      </h1>
-      <p class="lead">
-        {% if lang == 'fa' %}از شناخت مسئله تا طراحی، توسعه و پشتیبانی؛ سامانه‌ای می‌سازیم که تیم شما واقعاً بتواند با آن کار کند.{% else %}From discovery through design, development and support, we build systems your team can rely on every day.{% endif %}
-      </p>
-      <div class="home-intro-actions">
-        <div class="home-intro-action-stack">
-          <a class="button" href="{% url 'projects:demo_gallery' %}">
-            <span>{% if lang == 'fa' %}انتخاب و شخصی‌سازی نمونه{% else %}Choose and customise a demo{% endif %}</span>
-            <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
-          </a>
-          <a class="button" href="{% url 'assessments:briefing' 'english-placement-a1-c1' %}">
-            <span>{% if lang == 'fa' %}شروع آزمون زبان انگلیسی{% else %}Start the English assessment{% endif %}</span>
-            <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
-          </a>
-        </div>
-        <a class="home-inline-link" href="#solutions">{% if lang == 'fa' %}راهکارها را ببینید{% else %}Explore our solutions{% endif %}</a>
-      </div>
-      <ul class="home-proof-list" aria-label="{% if lang == 'fa' %}تعهدهای کاری آرویون{% else %}Rvion delivery commitments{% endif %}">
-        <li><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>{% if lang == 'fa' %}دامنه و هزینه شفاف پیش از شروع{% else %}Clear scope and cost before work begins{% endif %}</li>
-        <li><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>{% if lang == 'fa' %}تحویل مرحله‌ای و قابل بررسی{% else %}Reviewable, incremental delivery{% endif %}</li>
-        <li><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>{% if lang == 'fa' %}استقرار و پشتیبانی پس از تحویل{% else %}Launch and post-delivery support{% endif %}</li>
-      </ul>
-    </div>
-
-    <aside class="delivery-brief" aria-label="{% if lang == 'fa' %}مسیر تحویل پروژه{% else %}Project delivery path{% endif %}" data-ui-reveal>
-      <div class="delivery-brief-head">
-        <span>{% if lang == 'fa' %}آرویون / مسیر تحویل{% else %}RVION / DELIVERY{% endif %}</span>
-        <strong>{% if lang == 'fa' %}از مسئله تا محصول قابل استفاده{% else %}From problem to a usable product{% endif %}</strong>
-      </div>
-      <ol class="delivery-steps">
-        <li>
-          <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#forms"></use></svg>
-          <div><small>{% if lang == 'fa' %}مرحله ۱{% else %}Step 1{% endif %}</small><b>{% if lang == 'fa' %}نیازسنجی و اولویت‌بندی{% else %}Discover and prioritise{% endif %}</b></div>
-        </li>
-        <li>
-          <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contract"></use></svg>
-          <div><small>{% if lang == 'fa' %}مرحله ۲{% else %}Step 2{% endif %}</small><b>{% if lang == 'fa' %}پیشنهاد و قرارداد شفاف{% else %}Agree scope and terms{% endif %}</b></div>
-        </li>
-        <li>
-          <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg>
-          <div><small>{% if lang == 'fa' %}مرحله ۳{% else %}Step 3{% endif %}</small><b>{% if lang == 'fa' %}ساخت، استقرار و همراهی{% else %}Build, launch and support{% endif %}</b></div>
-        </li>
-      </ol>
-      <a href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}نمونه دلخواه‌تان را همین حالا بسازید{% else %}Build your preferred demo now{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
-    </aside>
+<section class="website-hero shell" aria-labelledby="home-title">
+  <div class="website-hero-copy">
+    <span class="eyebrow">{% if lang == 'fa' %}آرویون · طراحی و توسعه وب{% else %}RVION · WEB DESIGN & DEVELOPMENT{% endif %}</span>
+    <h1 id="home-title">{% if lang == 'fa' %}سایت شما،<br>با امضای <em>خود شما.</em>{% else %}Your website.<br>Unmistakably <em>yours.</em>{% endif %}</h1>
+    <p>{% if lang == 'fa' %}قبل از سفارش، ایده‌تان را ببینید. یک نمونه انتخاب کنید، رنگ و حال‌وهوایش را تغییر دهید؛ ما آن را به وب‌سایتی متناسب با کار شما تبدیل می‌کنیم.{% else %}See your idea before you commit. Choose a sample, shape its colour and character, and let us build a website around your business.{% endif %}</p>
+    <div class="website-hero-actions"><a class="button" href="#choose-demo">{% if lang == 'fa' %}نمونه مناسب من را پیدا کن{% else %}Find my starting point{% endif %}<span aria-hidden="true">↗</span></a><a class="website-text-link" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}ایده متفاوتی دارم{% else %}I have a different idea{% endif %}</a></div>
+    <div class="website-hero-note"><span aria-hidden="true">✦</span>{% if lang == 'fa' %}بدون ثبت‌نام امتحان کنید. با انتخاب‌هایتان سفارش دهید.{% else %}Explore without an account. Enquire with your choices intact.{% endif %}</div>
+  </div>
+  <div class="website-showcase" data-home-showcase>
+    <div class="website-showcase-bar"><span aria-hidden="true">● ● ●</span><strong>{% if lang == 'fa' %}پیش از ساخت، تصور کنید{% else %}PICTURE IT BEFORE WE BUILD IT{% endif %}</strong></div>
+    {% for demo in featured_demos %}<a class="website-showcase-scene" href="{% url 'projects:demo_preview' demo.slug %}" data-home-scene="{{ demo.slug }}"{% if not forloop.first %} hidden{% endif %}>{% include 'projects/demo_scenes/art.html' %}<div><small>{{ demo.category_label }} · {% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}</small><h2>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</h2><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{% if lang == 'fa' %}باز کن و تغییر بده{% else %}Open it. Make it yours.{% endif %}<span aria-hidden="true">↗</span></strong></div></a>{% empty %}<a class="website-showcase-empty" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}ایده‌تان را با ما در میان بگذارید{% else %}Tell us about your idea{% endif %}</a>{% endfor %}
+    <div class="website-showcase-choices" role="group" aria-label="{% if lang == 'fa' %}تغییر نمونه نمایشی{% else %}Switch the featured sample{% endif %}" hidden>{% for demo in featured_demos %}<button type="button" data-home-choice="{{ demo.slug }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ demo.category_label }}</button>{% endfor %}</div>
   </div>
 </section>
-
-<section class="home-trust" aria-label="{% if lang == 'fa' %}دلایل اعتماد{% else %}Trust signals{% endif %}" data-ui-reveal>
-  <div class="shell home-trust-grid">
-    {% if available_demo_count %}
-      <a href="{% url 'projects:demo_gallery' %}"><strong>{{ available_demo_count }}</strong><span>{% if lang == 'fa' %}دموی قابل تست و شخصی‌سازی{% else %}Demos ready to test and customise{% endif %}</span></a>
-    {% endif %}
-    <a href="{% url 'company_info' %}"><strong>{% if lang == 'fa' %}ثبت‌شده{% else %}Registered{% endif %}</strong><span>{% if lang == 'fa' %}هویت حقوقی و اطلاعات قابل استعلام{% else %}Verifiable legal identity{% endif %}</span></a>
-    <a href="{% url 'service_terms' %}"><strong>{% if lang == 'fa' %}۳ ماه{% else %}3 months{% endif %}</strong><span>{% if lang == 'fa' %}پشتیبانی رایگان کد تحویلی{% else %}Included code support{% endif %}</span></a>
-    <a href="{% url 'service_terms' %}"><strong>{% if lang == 'fa' %}۵۰/۵۰{% else %}50/50{% endif %}</strong><span>{% if lang == 'fa' %}پرداخت مرحله‌ای شروع و تحویل{% else %}Milestone-based payment{% endif %}</span></a>
-  </div>
+<div class="website-promises shell"><span>{% if lang == 'fa' %}طراحی برای موبایل و دسکتاپ{% else %}Designed for phone & desktop{% endif %}</span><span>{% if lang == 'fa' %}محدوده و هزینه روشن{% else %}Clear scope & cost{% endif %}</span><span>{% if lang == 'fa' %}تحویل مرحله‌ای{% else %}Incremental delivery{% endif %}</span><span>{% if lang == 'fa' %}همراهی بعد از انتشار{% else %}Support after launch{% endif %}</span></div>
+<section class="website-library shell" id="choose-demo" aria-labelledby="demo-picker-title">
+  <header class="website-section-head"><div><span class="eyebrow">{% if lang == 'fa' %}از جنس کسب‌وکار شما{% else %}BUILT AROUND YOUR BUSINESS{% endif %}</span><h2 id="demo-picker-title">{% if lang == 'fa' %}یک نمونه، هزار امکان برای شما.{% else %}A starting point. A world of possibilities.{% endif %}</h2></div><p>{% if lang == 'fa' %}این‌ها پروژه‌های واقعی مشتریان نیستند؛ نمونه‌های تعاملی‌اند تا سبک، ساختار و امکانات سایت آینده‌تان را راحت‌تر انتخاب کنید.{% else %}These are fictional, interactive samples—not client projects. Explore the style, structure and features of your future website.{% endif %}</p></header>
+  <div class="website-demo-grid">{% for demo in featured_demos %}<a class="website-demo-card" href="{% url 'projects:demo_preview' demo.slug %}">{% include 'projects/demo_scenes/art.html' %}<div><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{% if lang == 'fa' %}مشاهده و شخصی‌سازی{% else %}Explore & customise{% endif %}<span aria-hidden="true">↗</span></strong></div></a>{% empty %}<p>{% if lang == 'fa' %}نمونه‌ها در حال آماده‌سازی هستند؛ می‌توانید مستقیم درخواست بدهید.{% else %}Samples are being prepared. You can still enquire directly.{% endif %}</p>{% endfor %}</div>
+  <div class="website-library-footer"><span>{% if lang == 'fa' %}نام برند، رنگ، سبک و امکانات؛ انتخاب با شماست.{% else %}Your brand, palette, style and features. Your choices.{% endif %}</span><a class="button secondary" href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}همه نمونه‌ها و سبک‌ها{% else %}All samples & styles{% endif %}</a></div>
 </section>
-
-<section class="section home-solutions-v2" id="solutions" aria-labelledby="solutions-title">
-  <div class="shell">
-    <header class="home-section-head" data-ui-reveal>
-      <div><span class="eyebrow">{% if lang == 'fa' %}راهکارهای آرویون{% else %}Rvion solutions{% endif %}</span><h2 id="solutions-title">{% if lang == 'fa' %}مسیر مناسب برای مسئله شما{% else %}The right path for your problem{% endif %}</h2></div>
-      <p>{% if lang == 'fa' %}اگر انتخاب قطعی ندارید، مسئله را تعریف کنید تا نقطه شروع مناسب را پیشنهاد کنیم.{% else %}If you are unsure which route fits, describe the problem and we will recommend a starting point.{% endif %}</p>
-    </header>
-    <div class="home-solution-grid">
-      <article class="home-solution-card home-solution-primary" data-ui-reveal>
-        <div class="home-solution-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#customers"></use></svg></div>
-        <span>{% if lang == 'fa' %}۰۱ / CRM{% else %}01 / CRM{% endif %}</span>
-        <h3>{% if lang == 'fa' %}CRM سازمانی اختصاصی{% else %}Custom enterprise CRM{% endif %}</h3>
-        <p>{% if lang == 'fa' %}مشتری، فروش، خدمات و عملیات در یک جریان متناسب با سازمان شما.{% else %}Customers, sales, service and operations in one workflow shaped around your organisation.{% endif %}</p>
-        <div class="home-card-actions"><a class="button" href="{% url 'crm_orders:create' %}">{% if lang == 'fa' %}شروع نیازسنجی CRM{% else %}Start CRM discovery{% endif %}</a><a class="home-inline-link" href="{% url 'crm_product' %}">{% if lang == 'fa' %}معرفی کامل راهکار{% else %}Explore the solution{% endif %}</a></div>
-      </article>
-      <article class="home-solution-card" data-ui-reveal>
-        <div class="home-solution-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg></div>
-        <span>{% if lang == 'fa' %}۰۲ / کلینیک{% else %}02 / CLINIC{% endif %}</span>
-        <h3>{% if lang == 'fa' %}پلتفرم کلینیک و نوبت‌دهی{% else %}Clinic and booking platform{% endif %}</h3>
-        <p>{% if lang == 'fa' %}نوبت، پرداخت، محتوای آموزشی و وبینار در یک محصول قابل توسعه.{% else %}Booking, payments, education and webinars in one extensible product.{% endif %}</p>
-        <a class="button secondary" href="{% url 'clinic_orders:create' %}">{% if lang == 'fa' %}نیازسنجی کلینیک{% else %}Clinic discovery{% endif %}</a>
-      </article>
-      <article class="home-solution-card" data-ui-reveal>
-        <div class="home-solution-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg></div>
-        <span>{% if lang == 'fa' %}۰۳ / اختصاصی{% else %}03 / CUSTOM{% endif %}</span>
-        <h3>{% if lang == 'fa' %}سامانه اختصاصی کسب‌وکار{% else %}Custom business system{% endif %}</h3>
-        <p>{% if lang == 'fa' %}برای فرآیندهایی که نرم‌افزار آماده پاسخ‌گو نیست، نسخه اول قابل تست می‌سازیم.{% else %}For workflows off-the-shelf tools cannot solve, we build a testable first release.{% endif %}</p>
-        <a class="button secondary" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}مسئله را تعریف کنید{% else %}Describe the problem{% endif %}</a>
-      </article>
-    </div>
-    <div class="home-install-prompt" data-ui-reveal>
-      <div><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#plus"></use></svg><p><strong>{% if lang == 'fa' %}آرویون را مثل یک اپ باز کنید{% else %}Open Rvion like an app{% endif %}</strong><span>{% if lang == 'fa' %}دسترسی سریع روی موبایل و دسکتاپ، بدون فروشگاه اپلیکیشن.{% else %}Quick access on mobile and desktop, without an app store.{% endif %}</span></p></div>
-      <button class="button secondary" type="button" data-install-guide>{% if lang == 'fa' %}راهنمای افزودن{% else %}Installation guide{% endif %}</button>
-    </div>
-  </div>
-</section>
-
-<section class="section home-process-v2" aria-labelledby="process-title">
-  <div class="shell">
-    <header class="home-section-head" data-ui-reveal>
-      <div><span class="eyebrow">{% if lang == 'fa' %}چه کاری انجام می‌دهیم{% else %}What we do{% endif %}</span><h2 id="process-title">{% if lang == 'fa' %}از تصمیم تا نتیجه، مرحله به مرحله{% else %}From decision to outcome, step by step{% endif %}</h2></div>
-      <p>{% if lang == 'fa' %}هر مرحله خروجی مشخص دارد؛ پیش از توسعه، زمان و معیار تحویل روشن است.{% else %}Every stage has a clear deliverable, timeline and acceptance criteria before development begins.{% endif %}</p>
-    </header>
-    <ol class="home-process-list">
-      <li data-ui-reveal><span>{% if lang == 'fa' %}۰۱{% else %}01{% endif %}</span><div><h3>{% if lang == 'fa' %}شناخت مسئله و کاربران{% else %}Discover the problem{% endif %}</h3><p>{% if lang == 'fa' %}فرآیند فعلی، نقاط اتلاف و اولویت نسخه اول را مشخص می‌کنیم.{% else %}We clarify current workflows, friction and first-release priorities.{% endif %}</p></div></li>
-      <li data-ui-reveal><span>{% if lang == 'fa' %}۰۲{% else %}02{% endif %}</span><div><h3>{% if lang == 'fa' %}طراحی راه‌حل قابل تست{% else %}Design a testable solution{% endif %}</h3><p>{% if lang == 'fa' %}ساختار و تجربه موبایل و دسکتاپ پیش از ساخت بررسی می‌شود.{% else %}Structure and mobile/desktop experience are reviewed before build.{% endif %}</p></div></li>
-      <li data-ui-reveal><span>{% if lang == 'fa' %}۰۳{% else %}03{% endif %}</span><div><h3>{% if lang == 'fa' %}توسعه مرحله‌ای{% else %}Build in increments{% endif %}</h3><p>{% if lang == 'fa' %}قابلیت‌ها در نسخه‌های قابل تست تحویل می‌شوند.{% else %}Features arrive in reviewable, testable increments.{% endif %}</p></div></li>
-      <li data-ui-reveal><span>{% if lang == 'fa' %}۰۴{% else %}04{% endif %}</span><div><h3>{% if lang == 'fa' %}استقرار و همراهی{% else %}Launch and support{% endif %}</h3><p>{% if lang == 'fa' %}راه‌اندازی، آموزش و پشتیبانی بخشی از تحویل است.{% else %}Deployment, training and support are part of delivery.{% endif %}</p></div></li>
-    </ol>
-  </div>
-</section>
-
-<section class="section home-demo-picker" id="choose-demo" aria-labelledby="demo-picker-title">
-  <div class="shell">
-    <header class="home-section-head" data-ui-reveal>
-      <div><span class="eyebrow">{% if lang == 'fa' %}بدون نیاز به اطلاعات قبلی{% else %}NO BRIEF REQUIRED{% endif %}</span><h2 id="demo-picker-title">{% if lang == 'fa' %}انتخاب کنید، تغییر دهید و نتیجه را ببینید.{% else %}Choose, change and see the result.{% endif %}</h2></div>
-      <p>{% if lang == 'fa' %}از یکی از مسیرهای آماده شروع کنید؛ نام برند، رنگ، شخصیت طراحی و امکانات را همان‌جا عوض کنید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Start with a ready direction, then change the brand, colour, personality and features while previewing mobile and desktop.{% endif %}</p>
-    </header>
-    <div class="home-demo-grid">
-      {% for demo in featured_demos %}
-        <a class="home-demo-card style-{{ demo.style_key }}" href="{% url 'projects:demo_preview' demo.slug %}" data-ui-reveal>
-          <div class="home-demo-scene" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div class="home-demo-card-copy"><small>{% if lang == 'fa' %}{{ demo.get_category_display }}{% else %}Interactive demo{% endif %}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p></div>
-          <strong>{% if lang == 'fa' %}شخصی‌سازی این نمونه{% else %}Customise this demo{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></strong>
-        </a>
-      {% empty %}
-        <p class="empty">{% if lang == 'fa' %}دموها در حال آماده‌سازی هستند.{% else %}Demos are being prepared.{% endif %}</p>
-      {% endfor %}
-    </div>
-    <div class="home-demo-cta" data-ui-reveal><div><strong>{% if lang == 'fa' %}هنوز مطمئن نیستید؟{% else %}Still deciding?{% endif %}</strong><span>{% if lang == 'fa' %}۱۰ مسیر آماده را بدون ثبت‌نام امتحان کنید؛ انتخاب‌ها تا زمان ارسال درخواست فقط در مرورگر شما می‌ماند.{% else %}Try 10 ready directions without signing in; choices stay in your browser until you submit an enquiry.{% endif %}</span></div><a class="button" href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}مشاهده همه و شروع شخصی‌سازی{% else %}See all and start customising{% endif %}</a></div>
-  </div>
-</section>
-
-<section class="home-assessment" data-ui-reveal>
-  <div class="shell home-assessment-inner">
-    <div><span class="eyebrow">{% if lang == 'fa' %}ارزیابی آرویون{% else %}RVION ASSESSMENT{% endif %}</span><h2>{% if lang == 'fa' %}مهارت را با یک ارزیابی روشن بسنجید.{% else %}Measure skills with a clear assessment.{% endif %}</h2><p>{% if lang == 'fa' %}آزمون تعیین سطح زبان و ارزیابی تخصصی Python و Django، همراه نتیجه و تحلیل مهارتی.{% else %}English placement and professional Python/Django assessments, with results and skill analysis.{% endif %}</p></div>
-    <a class="button" href="{% url 'assessments:list' %}"><span>{% if lang == 'fa' %}مشاهده آزمون‌ها{% else %}Browse assessments{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#assessment"></use></svg></a>
-  </div>
-</section>
+<section class="website-process shell" aria-labelledby="process-title"><header class="website-section-head"><div><span class="eyebrow">{% if lang == 'fa' %}از نمونه تا سایت شما{% else %}FROM SAMPLE TO YOUR WEBSITE{% endif %}</span><h2 id="process-title">{% if lang == 'fa' %}سفارش ساده. مسیر روشن.{% else %}A simple start. A clear path.{% endif %}</h2></div></header><ol>
+  <li><span>01</span><h3>{% if lang == 'fa' %}انتخاب و تجربه{% else %}Choose & explore{% endif %}</h3><p>{% if lang == 'fa' %}نمونه را باز کنید و تغییراتتان را زنده ببینید.{% else %}Open a sample and see your changes live.{% endif %}</p></li>
+  <li><span>02</span><h3>{% if lang == 'fa' %}تعریف نیاز{% else %}Define the brief{% endif %}</h3><p>{% if lang == 'fa' %}انتخاب‌ها همراه فرم ارسال می‌شود؛ درباره نیاز واقعی شما گفت‌وگو می‌کنیم.{% else %}Your choices travel with your enquiry. We discuss your actual needs.{% endif %}</p></li>
+  <li><span>03</span><h3>{% if lang == 'fa' %}توافق و ساخت{% else %}Agree & build{% endif %}</h3><p>{% if lang == 'fa' %}محدوده، هزینه و مراحل تحویل پیش از توسعه مشخص می‌شود.{% else %}Scope, cost and milestones are agreed before development.{% endif %}</p></li>
+  <li><span>04</span><h3>{% if lang == 'fa' %}انتشار و همراهی{% else %}Launch & support{% endif %}</h3><p>{% if lang == 'fa' %}سایت تست می‌شود، آنلاین می‌شود و مسیر پشتیبانی مشخص است.{% else %}Your site is tested, launched and supported through an agreed plan.{% endif %}</p></li>
+</ol></section>
+<section class="website-beyond shell" id="solutions"><div><span class="eyebrow">{% if lang == 'fa' %}بیشتر از یک وب‌سایت{% else %}MORE THAN A WEBSITE{% endif %}</span><h2>{% if lang == 'fa' %}فرایند اختصاصی دارید؟{% else %}Need a tailored workflow?{% endif %}</h2><p>{% if lang == 'fa' %}برای مدیریت مشتریان، نوبت‌دهی یا یک سامانه اختصاصی، از نیازسنجی تخصصی شروع کنید.{% else %}For customer management, clinic bookings or a custom system, start with specialist discovery.{% endif %}</p></div><div class="website-service-links"><a href="{% url 'crm_orders:create' %}"><strong>{% if lang == 'fa' %}CRM سازمانی{% else %}Enterprise CRM{% endif %}</strong><span>{% if lang == 'fa' %}مشتری، فروش و عملیات{% else %}Customers, sales & operations{% endif %}</span><b aria-hidden="true">↗</b></a><a href="{% url 'clinic_orders:create' %}"><strong>{% if lang == 'fa' %}سامانه کلینیک{% else %}Clinic platform{% endif %}</strong><span>{% if lang == 'fa' %}نوبت، پرداخت و آموزش{% else %}Bookings, payments & learning{% endif %}</span><b aria-hidden="true">↗</b></a><a href="{% url 'leads:contact' %}"><strong>{% if lang == 'fa' %}پروژه اختصاصی{% else %}Custom project{% endif %}</strong><span>{% if lang == 'fa' %}متناسب با فرایند شما{% else %}Built around your workflow{% endif %}</span><b aria-hidden="true">↗</b></a></div></section>
+<section class="website-assessments shell" aria-labelledby="assessment-title"><div><span class="eyebrow">{% if lang == 'fa' %}مسیر مستقل ارزیابی{% else %}A SEPARATE PATH TO ASSESSMENT{% endif %}</span><h2 id="assessment-title">{% if lang == 'fa' %}برای آزمون آمده‌اید؟ اینجا شروع کنید.{% else %}Here for an assessment? Start here.{% endif %}</h2><p>{% if lang == 'fa' %}ارزیابی زبان انگلیسی و مهارت‌های Python و Django، همراه نتیجه و تحلیل عملکرد.{% else %}English and Python/Django assessments, with results and performance analysis.{% endif %}</p></div><div><a class="button" href="{% url 'assessments:briefing' 'english-placement-a1-c1' %}">{% if lang == 'fa' %}شروع آزمون زبان انگلیسی{% else %}Start the English assessment{% endif %}</a><a class="website-text-link" href="{% url 'assessments:list' %}">{% if lang == 'fa' %}مشاهده همه آزمون‌ها{% else %}Browse all assessments{% endif %}</a></div></section>
+<div class="website-library-footer shell"><a class="website-text-link" href="{% url 'crm_product' %}">{% if lang == 'fa' %}معرفی کامل راهکار CRM{% else %}Explore the CRM solution{% endif %}</a><button class="button secondary" type="button" data-install-guide>{% if lang == 'fa' %}راهنمای افزودن آرویون به دستگاه{% else %}Add Rvion to your device{% endif %}</button></div>
 {% endblock %}

@@ -1,0 +1,81 @@
+{# Original vector artwork: decorative, local and independent of network images. #}
+<div class="sample-art sample-art-{{ demo.category }}" aria-hidden="true">
+  <svg viewBox="0 0 600 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {% if demo.category == 'jewelry' %}
+      <path d="M0 0H600V500H0Z" fill="#20231f"/>
+      <path d="M0 380Q300 240 600 380V500H0Z" fill="#31382e"/>
+      <ellipse cx="305" cy="397" rx="173" ry="24" fill="#111510"/>
+      <ellipse cx="300" cy="266" rx="113" ry="132" transform="rotate(-28 300 266)" stroke="#59421f" stroke-width="33"/>
+      <ellipse cx="296" cy="257" rx="113" ry="132" transform="rotate(-28 296 257)" stroke="#d3ad5e" stroke-width="23"/>
+      <ellipse cx="296" cy="257" rx="113" ry="132" transform="rotate(-28 296 257)" stroke="#f0d49b" stroke-width="3"/>
+      <path d="m234 130 31-59 56-9 45 41-18 58-55 23Z" fill="#d1e5df" stroke="#f8faf2" stroke-width="3"/>
+      <path d="m234 130 52-19 35-49m-35 49 80-8m-80 8 7 73m-7-73 62 50" stroke="#769c8d" stroke-width="2"/>
+      <path d="m455 89 5 14 14 5-14 5-5 14-5-14-14-5 14-5Z" fill="#f0d49b"/>
+    {% elif demo.category == 'ecommerce' %}
+      <path d="M0 0H600V500H0Z" fill="#e5e3d8"/>
+      <path d="M0 370 600 300V500H0Z" fill="#d3d0bd"/>
+      <path d="M355 0H600V310H355Z" fill="#b8c2ac"/>
+      <path d="M380 0V310M448 0V310M515 0V310" stroke="#dce2d4" stroke-width="5"/>
+      <ellipse cx="279" cy="405" rx="166" ry="21" fill="#b8b6a0"/>
+      <path d="M187 178Q187 149 218 149H258Q289 149 289 178L306 279Q337 385 240 391Q143 385 171 279Z" fill="#bd704d"/>
+      <ellipse cx="239" cy="154" rx="30" ry="8" fill="#75452e"/>
+      <path d="M204 174Q174 284 207 367" stroke="#d59168" stroke-width="9"/>
+      <path d="M358 387V200M312 387H403" stroke="#39463b" stroke-width="10"/>
+      <path d="M285 212 315 107H397L428 212Z" fill="#f3eee0"/>
+      <path d="M307 212H409" stroke="#c7b996" stroke-width="3"/>
+    {% elif demo.category == 'restaurant' %}
+      <path d="M0 0H600V500H0Z" fill="#293b2f"/>
+      <path d="M0 72 600 385M0 270 470 500" stroke="#3b4c3a" stroke-width="80"/>
+      <circle cx="300" cy="249" r="183" fill="#12271d"/>
+      <circle cx="293" cy="240" r="178" fill="#e7dcc2"/>
+      <circle cx="293" cy="240" r="146" stroke="#c5b594" stroke-width="2"/>
+      <path d="m211 144 146 35-34 145-146-35Z" fill="#d9a355"/>
+      <path d="m222 169 110 24m-117 7 110 24m-117 7 110 24m-117 7 110 24" stroke="#8e582d" stroke-width="7"/>
+      <ellipse cx="376" cy="290" rx="25" ry="48" transform="rotate(35 376 290)" fill="#748e4c"/>
+      <ellipse cx="175" cy="183" rx="23" ry="40" transform="rotate(-42 175 183)" fill="#94a35c"/>
+      <circle cx="370" cy="158" r="20" fill="#b7553a"/><circle cx="171" cy="316" r="22" fill="#b7553a"/>
+      <path d="M530 110V376M546 110V160M514 110V160" stroke="#d3c5a0" stroke-width="6" stroke-linecap="round"/>
+    {% elif demo.category == 'portfolio' %}
+      <path d="M0 0H600V500H0Z" fill="#d5d8ef"/>
+      <path d="M0 320 600 220V500H0Z" fill="#a8afdb"/>
+      <path d="m100 172 226-69 176 123-226 71Z" fill="#f6eedc"/>
+      <path d="m100 172 176 125v127L100 299Z" fill="#5b617d"/>
+      <path d="m276 297 226-71v127l-226 71Z" fill="#313950"/>
+      <circle cx="310" cy="184" r="68" fill="#ec7950"/>
+      <circle cx="310" cy="184" r="33" fill="#f6eedc"/>
+      <path d="m346 259 125-38" stroke="#e7b85d" stroke-width="16"/>
+      <path d="m137 211 89 65" stroke="#e7b85d" stroke-width="7"/>
+    {% elif demo.category == 'corporate' %}
+      <path d="M0 0H600V500H0Z" fill="#d9e6ed"/>
+      <path d="M0 380 600 285V500H0Z" fill="#b2c9d5"/>
+      <path d="m122 161 115-53 107 64-117 56Z" fill="#6b879b"/>
+      <path d="m122 161 105 67v202l-105-64Z" fill="#25475e"/>
+      <path d="m227 228 117-56v202l-117 56Z" fill="#3d657b"/>
+      <path d="m298 77 88-44 90 57-89 45Z" fill="#e5eef2"/>
+      <path d="m298 77 89 58v198l-89-57Z" fill="#7595a7"/>
+      <path d="m387 135 89-45v198l-89 45Z" fill="#507187"/>
+      <path d="m138 204 73 44m-73 0 73 44m-73 0 73 44m-73 0 73 44m103-254 57 36m-57 0 57 36m-57 0 57 36" stroke="#a8ccda" stroke-width="4"/>
+    {% elif demo.category == 'clinic' %}
+      <path d="M0 0H600V500H0Z" fill="#e2ece4"/>
+      <path d="M90 400V194a117 117 0 0 1 234 0v206Z" fill="#bed1c3"/>
+      <path d="M127 400V198a80 80 0 0 1 160 0v202Z" fill="#f4f5ea"/>
+      <path d="M0 400H600V500H0Z" fill="#cad4bc"/>
+      <path d="M407 401V210" stroke="#697e58" stroke-width="8"/>
+      <ellipse cx="367" cy="223" rx="25" ry="63" transform="rotate(-40 367 223)" fill="#789065"/>
+      <ellipse cx="442" cy="274" rx="26" ry="63" transform="rotate(40 442 274)" fill="#506f50"/>
+      <path d="M357 349H457L443 431H371Z" fill="#ba9b7c"/>
+      <path d="M137 339H297V367H137Z" fill="#dfc4a9"/><path d="M153 367V423M281 367V423" stroke="#b19478" stroke-width="12"/>
+    {% else %}
+      <path d="M0 0H600V500H0Z" fill="#e3dff2"/>
+      <path d="M0 370 600 288V500H0Z" fill="#c2b7df"/>
+      <path d="m87 203 168-70 249 149-168 69Z" fill="#faf2dd"/>
+      <path d="m87 203 249 148v42L87 245Z" fill="#706095"/>
+      <path d="m336 351 168-69v42l-168 69Z" fill="#47385f"/>
+      <path d="m140 180 107-41 182 106-107 43Z" fill="#cf8b56"/>
+      <path d="m140 180 182 108v22L140 202Z" fill="#a85e3c"/>
+      <circle cx="437" cy="132" r="57" fill="#6d5b93"/>
+      <path d="m423 111 35 21-35 22Z" fill="#f4e4bb"/>
+      <path d="m175 146 63-24 112 63-63 23Z" fill="#fff6e3"/>
+    {% endif %}
+  </svg>
+</div>

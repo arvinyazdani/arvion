@@ -1,0 +1,16 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["projects/templates/projects", "projects/static/projects"],
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Select/Listbox", "Form", "Scrollbar", "CRUD"],
+  "ownership": {"Select/Listbox": "native"},
+  "requiredCommands": ["unit", "syntax"],
+  "commands": {
+    "unit": ".venv/bin/python manage.py test core projects leads.tests --verbosity 1",
+    "syntax": "node --check projects/static/projects/js/demo-configurator.js"
+  },
+  "evidence": {
+    "crudFullFlow": "projects/tests.py",
+    "failurePaths": "leads/tests.py"
+  }
+}

@@ -2,7 +2,34 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** Complete the seven category demos, create a genuinely
+- **Current phase:** Website-first homepage and seven-domain design showroom,
+  using Frontend Design Premium. **`VERIFIED` locally for the implemented
+  UI scope; premium static-audit gate `PARTIAL`; release `NOT_STARTED`.**
+  Original category illustrations, consumer-facing sample heroes, live
+  personality/colour controls, a separate mobile settings sheet, and a clear
+  independent assessment entry replace the previous homepage composition.
+  Server ownership, submission idempotency and draft contracts are unchanged.
+  No production data, migrations, push or deployment in this phase.
+- **Current verification (2026-10-05):** Full suite: 833 tests, OK, 20 existing
+  PostgreSQL-only skips on temporary SQLite. Final targeted core/projects/
+  leads.tests: 114 tests, OK. Django check, migration drift, static collection
+  dry-run, JavaScript syntax and whitespace checks passed. Browser verification
+  used the in-app browser against a disposable local QA database (not real
+  customer data): seven domains at 320/390/1200px without horizontal overflow;
+  Persian/English and light/dark views; brand/style/colour updates; search
+  empty/clear; adjacent action feedback; settings background isolation,
+  keyboard trap/Escape and opener focus; reduced motion; full-sample heading;
+  seven gallery anchors; and order hand-off preserving the chosen configuration.
+  Native iPhone/Safari and current CI/production have not been tested.
+- **Premium tooling limits:** Canonical token resolver MATCH. DESIGN.md lint:
+  0 errors, 2 unused mirrored-token warnings. Strict premium audit recorded in
+  `.ai/project/premium-audit.json`: 53 actionless-button findings, attributable
+  to its inline-handler-only parser; actual handlers live in external
+  `demo-configurator.js`. Not waived or represented as a passing gate.
+  Core handler families were verified through real browser interactions;
+  this is self-review, not independent review. DESIGN.md and UX-CONTRACT.md
+  document the durable design direction and control ownership.
+- **Previous completed release:** Complete the seven category demos, create a genuinely
   separate phone layout, and release online. **`VERIFIED / DEPLOYED`.** The
   mobile experience uses the phone's full width, places the order control
   before the sample, and opens settings in an accessible independently
@@ -28,8 +55,10 @@
   Chrome at 390px confirmed the full-width mobile preview, versioned CSS v7,
   no horizontal overflow, and the working order/settings sheet. `main` is
   clean and even with `origin/main` after the documentation checkpoint.
-- **Next action:** continue only with the next project priority; no remaining
-  work for this demo/mobile release.
+- **Next action:** Show the local design for customer acceptance. Push and
+  deployment of this new homepage/showroom require explicit release instruction;
+  retain the previous production release until then. A compatible external-
+  handler audit check remains a tooling follow-up, not a claimed strict pass.
 - **Last verified production release before this phase:** V2.1-E2 corrective
   and production release.
   **`VERIFIED` and deployed.** The release audit's sole P1 blocker is

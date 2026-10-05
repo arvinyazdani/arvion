@@ -22,7 +22,12 @@
     const linear = channels.map((channel) => channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
   };
-  const contrastColour = (hex) => relativeLuminance(hex) > 0.42 ? "#171717" : "#ffffff";
+  const contrastColour = (hex) => {
+    const luminance = relativeLuminance(hex);
+    const whiteContrast = 1.05 / (luminance + 0.05);
+    const darkContrast = (luminance + 0.05) / (relativeLuminance("#171717") + 0.05);
+    return darkContrast >= whiteContrast ? "#171717" : "#ffffff";
+  };
   const readableAccent = (hex) => ((1.05 / (relativeLuminance(hex) + 0.05)) >= 4.5 ? hex : "#374151");
 
   // A page restored from the back-forward cache keeps the exact DOM it left
@@ -63,6 +68,8 @@
     state.personality = ALLOWED_PERSONALITIES.has(state.personality) ? state.personality : defaults.personality;
     state.features = Array.isArray(state.features) ? state.features.filter((item) => ALLOWED_FEATURES.has(item)).slice(0, 6) : defaults.features;
     state.view = state.view === "mobile" ? "mobile" : "desktop";
+    // On phones, never revive a desktop-sized frame from a previous visit.
+    if (window.matchMedia("(max-width: 760px)").matches) state.view = "mobile";
 
     const brandInput = root.querySelector('[name="brand_preview"]');
     const colourInput = root.querySelector('[name="custom_color"]');
@@ -158,7 +165,8 @@
           });
         }
       });
-      const summary = `${state.brand} · ${selectedLabel("theme", state.theme)} · ${selectedLabel("personality", state.personality)} · ${state.features.length}`;
+      const featureCount = new Intl.NumberFormat(document.documentElement.lang === "fa" ? "fa" : "en").format(state.features.length);
+      const summary = `${state.brand} · ${selectedLabel("theme", state.theme)} · ${selectedLabel("personality", state.personality)} · ${featureCount}`;
       root.querySelectorAll("[data-demo-summary]").forEach((item) => { item.textContent = summary; });
 
       try { sessionStorage.setItem(storageKey, JSON.stringify(state)); } catch (error) {}
@@ -205,14 +213,27 @@
     const configBackdrop = root.querySelector("[data-config-backdrop]");
     const mobileViewport = window.matchMedia("(max-width: 760px)");
     if (mobileConfig && configToggle) {
-      const setConfigOpen = (open) => {
+      let opener = configToggle;
+      let isolated = [];
+      const setConfigOpen = (open, trigger) => {
         const isMobile = mobileViewport.matches;
         const nextOpen = Boolean(open && isMobile);
         mobileConfig.classList.toggle("is-mobile-open", nextOpen);
         configToggle.setAttribute("aria-expanded", String(nextOpen));
         if (configBackdrop) configBackdrop.hidden = !nextOpen;
         document.body.classList.toggle("demo-config-open", nextOpen);
+        isolated.forEach(([element, wasInert]) => { element.inert = wasInert; });
+        isolated = [];
         if (isMobile && nextOpen) {
+          opener = trigger || opener;
+          // Isolate siblings at each level without disabling the sheet itself.
+          for (let branch = mobileConfig; branch.parentElement && branch !== document.body; branch = branch.parentElement) {
+            Array.from(branch.parentElement.children).forEach((element) => {
+              if (element === branch || element === configBackdrop || ["SCRIPT", "STYLE", "LINK"].includes(element.tagName)) return;
+              isolated.push([element, element.inert]);
+              element.inert = true;
+            });
+          }
           mobileConfig.setAttribute("role", "dialog");
           mobileConfig.setAttribute("aria-modal", "true");
         } else {
@@ -220,10 +241,10 @@
           mobileConfig.removeAttribute("aria-modal");
         }
         if (nextOpen) mobileConfig.querySelector("input:not([type=hidden]), button:not([data-config-toggle]), a")?.focus({preventScroll: true});
-        else if (isMobile && mobileConfig.contains(document.activeElement)) configToggle.focus({preventScroll: true});
+        else if (isMobile && mobileConfig.contains(document.activeElement)) opener.focus({preventScroll: true});
       };
-      configToggle.addEventListener("click", () => setConfigOpen(!mobileConfig.classList.contains("is-mobile-open")));
-      root.querySelectorAll("[data-config-open]").forEach((button) => button.addEventListener("click", () => setConfigOpen(true)));
+      configToggle.addEventListener("click", () => setConfigOpen(!mobileConfig.classList.contains("is-mobile-open"), configToggle));
+      root.querySelectorAll("[data-config-open]").forEach((button) => button.addEventListener("click", () => setConfigOpen(true, button)));
       configBackdrop?.addEventListener("click", () => setConfigOpen(false));
       document.addEventListener("keydown", (event) => {
         if (!mobileViewport.matches || !mobileConfig.classList.contains("is-mobile-open")) return;
@@ -235,11 +256,14 @@
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
       });
-      mobileViewport.addEventListener("change", () => setConfigOpen(false));
+      mobileViewport.addEventListener("change", () => {
+        setConfigOpen(false);
+        if (mobileViewport.matches) { state.view = "mobile"; render(); }
+      });
       root.querySelectorAll("[data-demo-submit], [data-demo-full-link]").forEach((control) => {
         control.addEventListener("click", () => setConfigOpen(false));
       });
-      mobileConfig.setAttribute("role", mobileViewport.matches ? "region" : "region");
+      mobileConfig.setAttribute("role", "region");
       root.querySelectorAll("[data-demo-theme]").forEach((button) => button.addEventListener("click", () => {
         state.theme = button.dataset.demoTheme;
         render();
@@ -256,7 +280,15 @@
       const parentGroup = button.closest("[data-demo-action-group], [data-demo-choice-group]");
       if (parentGroup) parentGroup.querySelectorAll("[data-demo-action]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
       else button.setAttribute("aria-pressed", String(button.getAttribute("aria-pressed") !== "true"));
-      const status = root.querySelector("[data-demo-action-status]");
+      const feedbackHost = parentGroup || button.parentElement;
+      let status = feedbackHost.querySelector(":scope > [data-inline-demo-status]");
+      if (!status) {
+        status = document.createElement("p");
+        status.className = "demo-action-status";
+        status.dataset.inlineDemoStatus = "";
+        status.setAttribute("role", "status");
+        feedbackHost.appendChild(status);
+      }
       const choiceSummary = root.querySelector("[data-demo-choice-summary]");
       const groupSummary = parentGroup?.querySelector("[data-demo-group-summary]");
       const selectedTime = button.textContent.trim();
@@ -332,10 +364,21 @@
       if (empty) empty.hidden = !items.length || items.some((item) => !item.hidden);
     }
 
-    root.querySelectorAll("[data-demo-search]").forEach((input) => input.addEventListener("input", () => {
-      const group = input.dataset.filterGroup || "shop";
-      applyFilters(group);
-    }));
+    root.querySelectorAll("[data-demo-search]").forEach((input) => {
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "demo-search-clear";
+      clear.textContent = document.documentElement.lang === "fa" ? "پاک کردن" : "Clear";
+      clear.hidden = !input.value;
+      input.parentElement.appendChild(clear);
+      const update = () => {
+        clear.hidden = !input.value;
+        applyFilters(input.dataset.filterGroup || "shop");
+      };
+      input.addEventListener("input", (event) => { if (!event.isComposing) update(); });
+      input.addEventListener("compositionend", update);
+      clear.addEventListener("click", () => { input.value = ""; update(); input.focus(); });
+    });
 
     let sampleBasketCount = 0;
     const formatCount = (value) => new Intl.NumberFormat(document.documentElement.lang === "fa" ? "fa-IR" : "en-US").format(value);

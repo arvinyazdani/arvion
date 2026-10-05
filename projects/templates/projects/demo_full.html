@@ -6,11 +6,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>{% if lang == 'fa' %}دموی کامل {{ demo.title_fa }}{% else %}Full demo — {{ demo.title_en }}{% endif %}</title>
-  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=38">
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=7">
-  <script src="{% static 'projects/js/demo-configurator.js' %}?v=5" defer></script>
+  <link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8">
+  <link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=1">
+  <script src="{% static 'projects/js/demo-configurator.js' %}?v=6" defer></script>
 </head>
 <body class="demo-full-body">
   <main class="demo-full" data-demo-configurator data-demo-full data-demo-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}" data-default-brand="{% if lang == 'fa' %}{{ demo.fictional_brand_fa|escape }}{% else %}{{ demo.fictional_brand_en|escape }}{% endif %}" data-default-style="{{ demo.style_key }}" data-default-theme="{{ demo.default_theme }}" data-default-personality="{{ demo.default_personality }}" data-default-custom-color="{{ demo.default_custom_color }}" data-default-features="{{ demo.default_features|join:',' }}" data-preview-url="{% url 'projects:demo_preview' demo.slug %}" data-full-url="{% url 'projects:demo_full' demo.slug %}">
@@ -41,15 +42,10 @@
       <article class="demo-site demo-site-full style-{{ demo.style_key }}{% if demo.category == 'jewelry' %} demo-site-jewelry{% endif %}" data-demo-site data-category="{{ demo.category }}">
         <header>
           <div class="demo-logo"><i data-demo-initial>{{ demo.fictional_brand_en|slice:':1' }}</i><b data-demo-brand>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</b></div>
-          <nav aria-label="{% if lang == 'fa' %}پیمایش دموی فرضی{% else %}Fictional demo navigation{% endif %}"><a href="#demo-offer">{% if lang == 'fa' %}خدمات{% else %}Offer{% endif %}</a><a href="#demo-proof">{% if lang == 'fa' %}چرا ما{% else %}Why us{% endif %}</a><a href="#demo-contact">{% if lang == 'fa' %}تماس{% else %}Contact{% endif %}</a></nav>
+          <nav aria-label="{% if lang == 'fa' %}پیمایش دموی فرضی{% else %}Fictional demo navigation{% endif %}"><a href="#sample-content">{% if lang == 'fa' %}خدمات{% else %}Offer{% endif %}</a><a href="#demo-proof">{% if lang == 'fa' %}چرا ما{% else %}Why us{% endif %}</a><a href="#demo-contact">{% if lang == 'fa' %}تماس{% else %}Contact{% endif %}</a></nav>
         </header>
-        <main>
-          <span>{% if lang == 'fa' %}دموی تعاملی · محتوای فرضی{% else %}INTERACTIVE DEMO · FICTIONAL CONTENT{% endif %}</span>
-          <h1>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</h1>
-          <p>{{ demo.detail_text }}</p>
-          <a href="#demo-offer">{% if lang == 'fa' %}دیدن بخش‌ها{% else %}Explore the page{% endif %}</a>
-        </main>
-        <section class="demo-full-offer" id="demo-offer">
+        <main class="sample-main">{% include 'projects/demo_scenes/hero.html' with full_sample=True %}</main>
+        <section class="demo-full-offer" id="sample-content">
           <header><small>{% if lang == 'fa' %}ساختار پیشنهادی{% else %}SUGGESTED STRUCTURE{% endif %}</small><h2>{% if lang == 'fa' %}مسیرهای اصلی این تجربه{% else %}The main paths in this experience{% endif %}</h2></header>
           {% include 'projects/demo_scenes/scene.html' %}
           <p class="demo-action-status" data-demo-action-status aria-live="polite" hidden></p>

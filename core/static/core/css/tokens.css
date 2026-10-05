@@ -1,4 +1,12 @@
 @font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+/* Shared scrollbar baseline for every application-owned scroll surface. */
+html{scrollbar-color:var(--color-muted) var(--color-surface-2);scrollbar-width:thin}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track{background:var(--color-surface-2)}
+*::-webkit-scrollbar-thumb{background:var(--color-muted);border:2px solid var(--color-surface-2);border-radius:8px}
+*::-webkit-scrollbar-thumb:hover{background:var(--color-ink-2)}
+*::-webkit-scrollbar-thumb:active{background:var(--color-brand-orange-text)}
+@media(forced-colors:active){html{scrollbar-color:auto;scrollbar-width:auto}}
 @font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Bold.woff2") format("woff2");font-weight:700 800;font-style:normal;font-display:swap}
 @font-face{font-family:Vazirmatn;src:url("../fonts/Vazirmatn-Black.woff2") format("woff2");font-weight:900;font-style:normal;font-display:swap}
 :root{

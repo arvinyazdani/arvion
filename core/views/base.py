@@ -5,6 +5,7 @@
 from django.views.generic import TemplateView
 from blog.models import Post
 from projects.models import DemoTemplate
+from projects.demo_labels import CATEGORY_LABELS_EN
 from .lang import LanguageViewMixin  # میکسین مدیریت زبان
 
 # ==== ویو خانه ====
@@ -24,13 +25,17 @@ class HomeView(LanguageViewMixin, TemplateView):
 
         # آخرین ۳ پست منتشر شده
         posts = list(Post.objects.published()[:3])
-        # چهار مسیر متفاوت برای تصمیم‌گیری سریع در صفحه اصلی
-        featured_slugs = ("nava-market", "linea-studio", "parsa-advisory", "roshna-clinic")
+        # One active representative per business type; no dead demo links.
+        featured_slugs = ("nava-market", "sarvin-atelier", "saffron-table", "linea-studio",
+                          "parsa-advisory", "roshna-clinic", "ariana-academy")
         demo_by_slug = {
             demo.slug: demo
             for demo in DemoTemplate.objects.filter(is_active=True, slug__in=featured_slugs)
         }
         demos = [demo_by_slug[slug] for slug in featured_slugs if slug in demo_by_slug]
+        for demo in demos:
+            demo.category_label = (demo.get_category_display() if self.lang == "fa"
+                                   else CATEGORY_LABELS_EN[demo.category])
 
         # اگر مدل‌ها چندزبانه هستند (مثلاً با django-parler) این قسمت زبان را اعمال می‌کند
         for p in posts:
