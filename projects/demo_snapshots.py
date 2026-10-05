@@ -10,6 +10,7 @@ account-facing record.
 """
 
 from .demo_labels import CATEGORY_LABELS_EN, demo_config_labels
+from .demo_briefs import brief_labels
 from .models import DemoTemplate
 
 DASH = "—"
@@ -55,7 +56,7 @@ def build_demo_selection_snapshot(selection):
     feature_lookup_en = dict(labels_en["features"])
     raw_brand = values.get("brand")
     brand = raw_brand.strip()[:_MAX_BRAND_LENGTH] if isinstance(raw_brand, str) else ""
-    return {
+    snapshot = {
         "template_title_fa": template.title_fa,
         "template_title_en": template.title_en,
         "category_fa": dict(DemoTemplate.CATEGORY_CHOICES).get(template.category, template.category),
@@ -69,3 +70,8 @@ def build_demo_selection_snapshot(selection):
         "features_en": [feature_lookup_en.get(key, key) for key in feature_keys],
         "demo_template_slug": template.slug,
     }
+    brief_fa = brief_labels(values.get("brief"), template.category, "fa")
+    if brief_fa:
+        snapshot["brief_fa"] = brief_fa
+        snapshot["brief_en"] = brief_labels(values.get("brief"), template.category, "en")
+    return snapshot

@@ -894,6 +894,7 @@ def _demo_selection_card(item, lang):
     feature_lookup = dict(labels["features"])
     feature_labels = [feature_lookup.get(key, key) for key in (values.get("features") or [])]
     dash = "—"
+    from projects.demo_briefs import brief_labels
     return {
         "template_title": template.title_fa if lang == "fa" else template.title_en,
         "category_label": _demo_category_label(template.category, lang),
@@ -902,6 +903,7 @@ def _demo_selection_card(item, lang):
         "personality_label": personality_label or dash,
         "features_display": ("، " if lang == "fa" else ", ").join(feature_labels) if feature_labels else dash,
         "public_url": reverse("projects:demo_preview", args=[template.slug]),
+        "brief_rows": brief_labels(values.get("brief"), template.category, lang),
     }
 
 
@@ -919,6 +921,7 @@ def _demo_selection_report_lines(item):
     feature_lookup = dict(labels["features"])
     feature_labels = [feature_lookup.get(key, key) for key in (values.get("features") or [])]
     brand = values.get("brand") or template.fictional_brand_fa
+    from projects.demo_briefs import brief_labels
     return [
         "", "انتخاب دمو", "-" * 20,
         f"دمو: {template.title_fa}",
@@ -927,7 +930,7 @@ def _demo_selection_report_lines(item):
         f"رنگ: {theme_label}",
         f"شخصیت طراحی: {personality_label}",
         f"امکانات: {'، '.join(feature_labels) if feature_labels else '—'}",
-    ]
+    ] + [f"{row['label']}: {row['value']}" for row in brief_labels(values.get("brief"), template.category, "fa")]
 
 
 @staff_member_required(login_url="accounts:login")

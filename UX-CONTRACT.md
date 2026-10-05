@@ -32,6 +32,18 @@ assessment, contract, authentication or admin workflows. Visual context:
   picker, authored combobox, toast provider or destructive operation is added.
 - Mobile settings: modal sheet, inert background, bounded scroll, Escape,
   focus trap and return to the actual opener; desktop is a nonmodal region.
+  Native disclosure summaries participate in the focus trap. Colour/style is
+  initially expanded; capabilities and enquiry details can be opened separately.
+- Enquiry preferences are optional bounded choices: category-specific goal,
+  scope, content readiness and preferred timeline. Native select popups remain
+  platform-owned. A timeline is a preference, not a delivery promise. Unknown
+  values are rejected by the server; free text/contact data is never stored in
+  this preference object. Older submissions retain their original JSON shape.
+- Preferences survive full-preview/return and changed-token recovery. They are
+  resolved into bilingual frozen labels on the case and shown in manager detail
+  and plaintext export. Account-bound snapshots accept the optional bilingual
+  label pair with strict row-count, key and length validation; legacy snapshots
+  remain valid. Session ownership and submission tokens are unchanged.
 - Persian and English use the active page locale. Customer brand values are
   user content, not interface translation. Fictional sample art is decorative.
 - No changes to permissions, billing, legal text, account concurrency or

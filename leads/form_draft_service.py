@@ -78,6 +78,7 @@ _DEMO_SNAPSHOT_TEXT_KEYS = (
 )
 _DEMO_SNAPSHOT_FEATURE_KEYS = ("features_fa", "features_en")
 _DEMO_SNAPSHOT_ALLOWED_KEYS = frozenset(_DEMO_SNAPSHOT_TEXT_KEYS + _DEMO_SNAPSHOT_FEATURE_KEYS)
+_DEMO_SNAPSHOT_BRIEF_KEYS = frozenset(("brief_fa", "brief_en"))
 _MAX_SNAPSHOT_TEXT_LENGTH = 300
 _MAX_SNAPSHOT_FEATURE_LENGTH = 200
 _MAX_SNAPSHOT_FEATURE_COUNT = 20
@@ -206,7 +207,10 @@ def _validate_snapshot_shape(snapshot):
     bytes, number, or bool), both feature lists must be length-bounded
     lists of length-bounded strings, and the two feature lists must be the
     same length. Never reveals the offending value in its error message."""
-    if not isinstance(snapshot, dict) or set(snapshot) != _DEMO_SNAPSHOT_ALLOWED_KEYS:
+    if not isinstance(snapshot, dict) or set(snapshot) not in (
+        _DEMO_SNAPSHOT_ALLOWED_KEYS,
+        _DEMO_SNAPSHOT_ALLOWED_KEYS | _DEMO_SNAPSHOT_BRIEF_KEYS,
+    ):
         _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
     for key in _DEMO_SNAPSHOT_TEXT_KEYS:
         if not _is_safe_snapshot_string(snapshot[key]):
@@ -216,6 +220,17 @@ def _validate_snapshot_shape(snapshot):
             _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
     if len(snapshot["features_fa"]) != len(snapshot["features_en"]):
         _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+    if "brief_fa" in snapshot:
+        for key in _DEMO_SNAPSHOT_BRIEF_KEYS:
+            rows = snapshot[key]
+            if not isinstance(rows, list) or not 1 <= len(rows) <= 4:
+                _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+            for row in rows:
+                if (not isinstance(row, dict) or set(row) != {"label", "value"}
+                        or not all(_is_safe_snapshot_string(value) for value in row.values())):
+                    _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
+        if len(snapshot["brief_fa"]) != len(snapshot["brief_en"]):
+            _reject("invalid_snapshot_shape", "Demo snapshot has an unexpected shape.")
 
 
 def _get_active_draft_locked(locked_owner, form_type, now):

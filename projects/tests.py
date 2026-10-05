@@ -196,7 +196,7 @@ class ProjectTests(TestCase):
         self.assertContains(response, 'aria-controls="demo-config-body"', html=False)
         self.assertContains(response, 'data-config-backdrop', html=False)
         self.assertContains(response, 'data-config-open', html=False)
-        self.assertContains(response, 'data-demo-personality="industrial"', html=False)
+        self.assertContains(response, 'name="personality" value="industrial"', html=False)
         self.assertContains(response, "demo-scene-jewelry")
         self.assertContains(response, "demo-jewel-ring")
         css = (Path(settings.BASE_DIR) / "projects/static/projects/css/demo-gallery.css").read_text(encoding="utf-8")

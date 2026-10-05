@@ -61,6 +61,13 @@
       view: params.get("view"),
     };
     const state = Object.assign({}, defaults, stored || {});
+    const storedBrief = state.brief || {};
+    state.brief = {};
+    root.querySelectorAll('[data-brief-key]').forEach((control) => {
+      const key = control.dataset.briefKey;
+      const value = params.get(`brief_${key}`) ?? storedBrief[key] ?? "";
+      state.brief[key] = Array.from(control.options).some((option) => option.value === value) ? value : "";
+    });
     Object.keys(fromUrl).forEach((key) => { if (fromUrl[key] !== null) state[key] = fromUrl[key]; });
     state.brand = String(state.brand || defaults.brand).trim().slice(0, 48) || defaults.brand;
     state.theme = ALLOWED_THEMES.has(state.theme) ? state.theme : defaults.theme;
@@ -102,6 +109,7 @@
       query.set("personality", state.personality);
       query.set("features", state.features.join(","));
       query.set("view", state.view);
+      Object.entries(state.brief).forEach(([key, value]) => { if (value) query.set(`brief_${key}`, value); });
       return query.toString();
     };
     const buildUrl = (path, hash) => `${path}?${stateQuery()}${hash || ""}`;
@@ -120,11 +128,16 @@
       if (colourInput) colourInput.value = state.customColor;
       controlValue("theme", state.theme);
       controlValue("personality", state.personality);
+      root.querySelectorAll('[data-brief-key]').forEach((control) => { control.value = state.brief[control.dataset.briefKey] || ""; });
       root.querySelectorAll('[name="features"]').forEach((input) => { input.checked = state.features.includes(input.value); });
 
       const palette = state.theme === "custom"
         ? [state.customColor, state.customColor, `color-mix(in srgb, ${state.customColor} 12%, white)`]
         : PALETTES[state.theme];
+      if (document.body.classList.contains("demo-designer-page")) {
+        document.body.style.setProperty("--studio-accent", palette[0]);
+        document.body.style.setProperty("--studio-on-accent", contrastColour(palette[0]));
+      }
       root.querySelectorAll("[data-demo-site]").forEach((site) => {
         site.style.setProperty("--demo-primary", palette[0]);
         site.style.setProperty("--demo-accent", palette[1]);
@@ -178,6 +191,11 @@
 
     brandInput?.addEventListener("input", () => { state.brand = brandInput.value.trim().slice(0, 48) || defaults.brand; render(); });
     brandInput?.addEventListener("change", () => announceChange(document.documentElement.lang === "fa" ? "نام پیش‌نمایش تغییر کرد" : "Preview name updated"));
+    root.querySelectorAll('[data-brief-key]').forEach((control) => control.addEventListener("change", () => {
+      state.brief[control.dataset.briefKey] = control.value;
+      render();
+      announceChange(document.documentElement.lang === "fa" ? "جزئیات سفارش به‌روز شد" : "Order details updated");
+    }));
     root.querySelectorAll('[name="theme"]').forEach((control) => control.addEventListener("change", () => { state.theme = control.value; render(); announceChange(selectedLabel("theme", state.theme), document.documentElement.lang === "fa" ? "روی نمونه اعمال شد" : "applied to the sample"); }));
     colourInput?.addEventListener("input", () => {
       if (!validHex(colourInput.value)) return;
@@ -190,7 +208,7 @@
     }));
     root.querySelectorAll("[data-demo-view]").forEach((button) => button.addEventListener("click", () => { state.view = button.dataset.demoView; render(); }));
     root.querySelectorAll("[data-demo-reset]").forEach((button) => button.addEventListener("click", () => {
-      Object.assign(state, defaults); try { sessionStorage.removeItem(storageKey); } catch (error) {} render();
+      Object.assign(state, defaults, {brief: {}}); try { sessionStorage.removeItem(storageKey); } catch (error) {} render();
     }));
 
     // Reduce accidental double submits by disabling the button once the
@@ -218,6 +236,10 @@
       const setConfigOpen = (open, trigger) => {
         const isMobile = mobileViewport.matches;
         const nextOpen = Boolean(open && isMobile);
+        if (open && !isMobile) {
+          mobileConfig.scrollIntoView({block: "nearest"});
+          mobileConfig.querySelector("input:not([type=hidden])")?.focus({preventScroll: true});
+        }
         mobileConfig.classList.toggle("is-mobile-open", nextOpen);
         configToggle.setAttribute("aria-expanded", String(nextOpen));
         if (configBackdrop) configBackdrop.hidden = !nextOpen;
@@ -250,7 +272,7 @@
         if (!mobileViewport.matches || !mobileConfig.classList.contains("is-mobile-open")) return;
         if (event.key === "Escape") { event.preventDefault(); setConfigOpen(false); return; }
         if (event.key !== "Tab") return;
-        const items = Array.from(mobileConfig.querySelectorAll("button:not([disabled]), input:not([disabled]):not([type=hidden]), a[href], select:not([disabled]), textarea:not([disabled])")).filter((item) => item.getClientRects().length);
+        const items = Array.from(mobileConfig.querySelectorAll("button:not([disabled]), input:not([disabled]):not([type=hidden]), a[href], select:not([disabled]), textarea:not([disabled]), summary")).filter((item) => item.getClientRects().length);
         if (!items.length) return;
         const first = items[0], last = items[items.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }

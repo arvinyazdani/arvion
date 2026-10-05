@@ -1,0 +1,5 @@
+<footer class="sample-footer" id="sample-contact">
+  <div><b data-demo-brand>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</b><p>{% if lang == 'fa' %}این هویت فرضی است؛ سایت نهایی با اطلاعات کسب‌وکار شما ساخته می‌شود.{% else %}A fictional identity. Your final site uses your own business content.{% endif %}</p></div>
+  <nav aria-label="{% if lang == 'fa' %}پیمایش نمونه{% else %}Sample navigation{% endif %}"><a href="#sample-content">{{ demo.page_labels.1 }}</a><a href="#sample-story">{% if lang == 'fa' %}داستان و جزئیات{% else %}Story & details{% endif %}</a><a href="#sample-faq">{% if lang == 'fa' %}پرسش‌های رایج{% else %}Common questions{% endif %}</a></nav>
+  {% if full_sample %}<a class="sample-main-action" href="{% url 'projects:demo_preview' demo.slug %}#configurator" data-demo-back>{% if lang == 'fa' %}بازگشت و ادامه{% else %}Return & continue{% endif %}</a>{% else %}<button type="button" class="sample-main-action" data-config-open>{% if lang == 'fa' %}سایت من را با این سبک بساز{% else %}Make this direction mine{% endif %}</button>{% endif %}
+</footer>

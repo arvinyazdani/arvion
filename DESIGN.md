@@ -63,7 +63,9 @@ or a change to our Django stack.
 ## Colors
 
 Orange is the action accent, ink the primary text, paper the light canvas.
-Shared semantic tokens remap dark mode. Live demo palettes are separately owned
+Shared semantic tokens remap dark mode. On detail pages the chosen demo accent
+tints the whole studio canvas; the site header, page and global footer share
+that same canvas, while the Rvion logo keeps its brand orange. Live demo palettes are separately owned
 by `PALETTES` in `demo-configurator.js`; their light sample canvases deliberately
 stay light inside dark studio chrome, making the prospective site legible.
 Vector art uses fixed illustrative materials; a restrained tint follows the
@@ -78,13 +80,21 @@ line-height 1.9–2, hero headings 1.3. Italic styling is not applied to Persian
 
 ## Layout
 
-Reuse the existing shell (1160px max). Home: two-column introduction/showroom,
+Reuse the existing shell (1160px max; editor expands to 1400px). Home: two-column introduction/showroom,
 then a three-column library; phones get stacked introduction and full-width
-samples. Editor: sample plus 320px settings on desktop; at 760px and below the
+samples. Editor: sample plus a compact settings rail on desktop; at 760px and below the
 existing modal sheet is the canonical editor. Samples use container queries
 so their layout follows their actual width, not the outer viewport alone.
 Marketing sections use 80px desktop/42px phone rhythm. Existing data and
 session-bound order handoff remain authoritative.
+
+Detail pages prioritise the sample, not repeated studio titles. Phones receive
+an edge-to-edge sample, a five-colour quick strip and one obvious settings
+action. Settings are native disclosures: colour/style, capabilities and enquiry
+details. Seven categories have two domain-specific editorial sections, an
+expandable FAQ and a sample footer with real anchors. The public footer has
+one owner (`footer-studio.css`), compact navigation, contact and preserved legal
+links; it is not a second marketing landing page.
 
 ## Elevation & Depth
 
@@ -108,6 +118,9 @@ and restrained buttons. These are sample variants, not global rebrands.
 | Demo theme/personality | demo-configurator.js | preview and full sample |
 | Sample hero | projects/demo_scenes/hero.html | editor/full |
 | Settings sheet | demo-configurator.js | phone editor |
+| Category detail content | projects/demo_briefs.py + demo_scenes/story.html | preview/full |
+| Order preferences | projects/demo_briefs.py | server validation, manager export/case |
+| Public footer | core/includes/footer.html + footer-studio.css | public shell |
 
 Actions are semantic links/buttons with hover, pressed and visible focus.
 Theme/personality are radio-like choices; features remain checkboxes.

@@ -116,6 +116,7 @@ def _demo_selection_card(document, case, lang):
         "theme_label": data.get(f"theme_{lang}", DASH),
         "personality_label": data.get(f"personality_{lang}", DASH),
         "features_display": ("، " if lang == "fa" else ", ").join(features) if features else DASH,
+        "brief_rows": data.get(f"brief_{lang}") or [],
         "public_url": reverse("projects:demo_preview", args=[slug]) if slug else "",
         "request_url": reverse("management_portal:request_detail", args=["lead", case.source_object_id]) if case.kind == "lead" and case.source_object_id else "",
     }

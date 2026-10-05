@@ -1,0 +1,16 @@
+<section id="sample-story" class="sample-story" aria-label="{% if lang == 'fa' %}جزئیات تجربه{% else %}Experience details{% endif %}">
+  {% for section in demo.story_sections %}
+  <article class="sample-story-section">
+    <div class="sample-story-art" aria-hidden="true">{% if forloop.first %}{% include 'projects/demo_scenes/art.html' with category=demo.category %}{% else %}<div class="sample-story-board"><small>{{ section.eyebrow }}</small>{% for point in section.points %}<span><i>{{ forloop.counter|stringformat:'02d' }}</i>{{ point }}</span>{% endfor %}<b data-demo-brand>Rvion</b></div>{% endif %}</div>
+    <div class="sample-story-copy"><small>{{ section.eyebrow }}</small><h2>{{ section.title }}</h2><p>{{ section.text }}</p><ul>{% for point in section.points %}<li>{{ point }}</li>{% endfor %}</ul></div>
+  </article>
+  {% endfor %}
+</section>
+<section class="sample-faq" id="sample-faq">
+  <header><small>{% if lang == 'fa' %}پیش از تصمیم{% else %}BEFORE YOU DECIDE{% endif %}</small><h2>{% if lang == 'fa' %}پاسخ‌هایی برای قدم بعدی{% else %}Answers for your next step{% endif %}</h2></header>
+  <div>
+    <details><summary>{% if lang == 'fa' %}این انتخاب، سفارش واقعی ثبت می‌کند؟{% else %}Does this place a real order?{% endif %}</summary><p>{% if lang == 'fa' %}خیر؛ تمام محتوا و تعامل‌ها نمونه‌اند. دکمه «ادامه با این طراحی» انتخاب‌های شما را به فرم درخواست طراحی سایت می‌برد، نه به پرداخت یا رزرو واقعی.{% else %}No. All content and interactions are illustrative. Continue with this design carries your choices into a website enquiry, not a live payment or booking.{% endif %}</p></details>
+    <details><summary>{% if lang == 'fa' %}آیا بخش‌های سایت قابل تغییرند؟{% else %}Can the website sections change?{% endif %}</summary><p>{% if lang == 'fa' %}بله. امکانات و هدف را در تنظیمات سفارش انتخاب کنید. در نیازسنجی بعدی، صفحات، فرایندها و اتصال‌های لازم با کسب‌وکار شما تطبیق داده می‌شوند.{% else %}Yes. Select capabilities and your goal in the order settings. Discovery then adapts pages, workflows and integrations to your business.{% endif %}</p></details>
+    <details><summary>{% if lang == 'fa' %}هزینه و زمان نهایی چه زمانی مشخص می‌شود؟{% else %}When are cost and delivery confirmed?{% endif %}</summary><p>{% if lang == 'fa' %}بعد از بررسی درخواست و تعریف محدوده. انتخاب زمان در این صفحه ترجیح شماست، نه تعهد تحویل؛ پیشنهاد نهایی پیش از شروع کار ارائه می‌شود.{% else %}After reviewing your enquiry and defining scope. A timeline here is your preference, not a delivery commitment. The final proposal comes before work begins.{% endif %}</p></details>
+  </div>
+</section>

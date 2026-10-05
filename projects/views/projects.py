@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import DetailView, ListView, RedirectView
 from projects.demo_labels import CATEGORY_LABELS_EN, demo_config_labels as _labels
+from projects.demo_briefs import brief_fields, story_sections
 from projects.models import DemoSelection, DemoTemplate
 from projects.models.projects import Project
 from core.views.lang import LanguageViewMixin
@@ -125,6 +126,8 @@ def _decorate_demo(demo, lang):
     demo.default_theme = "gold" if demo.category == "jewelry" else STYLE_THEMES.get(demo.style_key, "warm")
     demo.default_personality = STYLE_PERSONALITIES.get(demo.style_key, "minimal")
     demo.default_custom_color = "#b88b3c" if demo.category == "jewelry" else "#2563eb"
+    demo.brief_fields = brief_fields(demo.category, lang)
+    demo.story_sections = story_sections(demo.category, lang)
     return demo
 
 
@@ -193,6 +196,13 @@ class DemoConfigureView(LanguageViewMixin, View):
         features = [item for item in request.POST.getlist("features") if item in allowed_features and item in FEATURES]
         brand_preview = request.POST.get("brand_preview", "").strip()[:48]
         custom_color = request.POST.get("custom_color", "").strip().lower()
+        brief = {}
+        for field in brief_fields(demo.category, self.lang):
+            value = request.POST.get("brief_" + field["key"], "")
+            if value:
+                if value not in dict(field["options"]):
+                    return redirect(invalid_url)
+                brief[field["key"]] = value
         # The token is minted server-side by DemoPreviewView on every GET, so a
         # missing one means the form was not rendered by that view — reject it
         # the same way as any other malformed submission.
@@ -211,6 +221,8 @@ class DemoConfigureView(LanguageViewMixin, View):
             "custom_color": custom_color if theme == "custom" else "",
             "brand": brand_preview or (demo.fictional_brand_fa if self.lang == "fa" else demo.fictional_brand_en),
         }
+        if brief:
+            selections_payload["brief"] = brief
 
         def matches_this_submission(row):
             return row.session_key == session_key and row.template_id == demo.pk and row.selections == selections_payload
@@ -269,6 +281,7 @@ class DemoConfigureView(LanguageViewMixin, View):
                 query["features"] = ",".join(features)
             if theme == "custom":
                 query["color"] = custom_color
+            query.update({"brief_" + key: value for key, value in brief.items()})
             return redirect(f"{reverse('projects:demo_preview', args=[demo.slug])}?{urlencode(query)}")
         request.session["demo_selection_token"] = str(selection.public_token)
         request.session.modified = True

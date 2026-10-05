@@ -2,7 +2,42 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** Website-first homepage and seven-domain design showroom,
+- **Current phase:** Demo detail/order refinement after customer rejection of
+  the previous local design (2026-10-05). `VERIFIED` for local implementation;
+  customer aesthetic acceptance pending, premium static gate `PARTIAL`, release
+  `NOT_STARTED`. Whole-page theme tint now includes header/footer, phone samples
+  are edge-to-edge, desktop keeps a compact settings rail, and colour/style,
+  capabilities and enquiry preferences use native disclosures. Each category
+  adds two editorial sections, FAQ and a useful sample footer. The public
+  footer was replaced with one compact responsive owner, preserving contact
+  and legal destinations.
+- **Data integration:** Optional category goal, scope, content readiness and
+  timeline preferences are server-allowlisted, stored in existing selection
+  JSON, preserved in full-preview/return and changed-token recovery, frozen in
+  bilingual case/draft snapshots, and shown in manager detail/export. Legacy
+  submissions keep their old shape. Self-review caught the shared draft
+  validator's strict 12-key contract; extended it only for an optional bounded
+  bilingual brief pair, with rejection tests for malformed/oversized values.
+  No schema/migration, token, ownership or retention change.
+- **Verification:** 841-test full-suite baseline passed with 20 existing
+  PostgreSQL-only skips before the final draft-validator addition. The final
+  targeted 190-test draft/finalize/handoff/brief run passed (14 PostgreSQL-only
+  skips). Final full suite passed: 843 tests, 20 existing PostgreSQL-only skips.
+  Django check, migration drift (none), static dry-run, JS syntax and diff checks
+  passed. No failed tests were skipped to make the result pass.
+  Browser: seven domains at 320px and 1200px with no horizontal overflow;
+  actual desktop sample width 812px, phone sample width 320/390px; fa/en,
+  light/dark, header/body/footer computed colour equality, disclosure/keyboard
+  and Escape/opener, full-preview return retaining all four preferences, and
+  Continue reaching the existing enquiry form. Only disposable local QA data;
+  no real iPhone/Safari, PostgreSQL, current CI or production proof this phase.
+- **Tooling:** DESIGN lint 0 errors, 2 unused-token mirror warnings. Strict
+  premium audit still reports 53 actionless-button errors; its static parser
+  does not resolve external addEventListener bindings. No artificial pass or
+  inline-handler workaround. Runtime checks do not replace this PARTIAL gate.
+- **Next action for this phase:** Customer review of the local demo. No push,
+  deploy, production migration or customer-data mutation was authorized here.
+- **Previous local phase (not customer accepted):** Website-first homepage and seven-domain design showroom,
   using Frontend Design Premium. **`VERIFIED` locally for the implemented
   UI scope; premium static-audit gate `PARTIAL`; release `NOT_STARTED`.**
   Original category illustrations, consumer-facing sample heroes, live
@@ -10,7 +45,7 @@
   independent assessment entry replace the previous homepage composition.
   Server ownership, submission idempotency and draft contracts are unchanged.
   No production data, migrations, push or deployment in this phase.
-- **Current verification (2026-10-05):** Full suite: 833 tests, OK, 20 existing
+- **Previous verification (2026-10-05):** Full suite: 833 tests, OK, 20 existing
   PostgreSQL-only skips on temporary SQLite. Final targeted core/projects/
   leads.tests: 114 tests, OK. Django check, migration drift, static collection
   dry-run, JavaScript syntax and whitespace checks passed. Browser verification
