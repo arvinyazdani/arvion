@@ -9,7 +9,7 @@ from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from leads.models import Lead
 from .models import DemoSelection, DemoTemplate, Project
@@ -17,6 +17,8 @@ from .models import DemoSelection, DemoTemplate, Project
 
 class ProjectTests(TestCase):
     def setUp(self):
+        translation.activate("fa")
+        self.addCleanup(translation.deactivate_all)
         self.project = Project.objects.create(title_fa="پروژه", title_en="Project", slug="project", is_active=True)
 
     def test_project_uses_slug_url(self):

@@ -1,5 +1,22 @@
 # Rvion current state
 
+## Publication checkpoint — 2026-10-05
+
+- User explicitly authorized publication of the current UI (`f1211e0`).
+  Three local UI commits pushed; production remains `5fe87ec` until CI passes.
+- Local `release-check.sh`: 844 tests passed, 20 existing PostgreSQL-only skips;
+  dependency/check/migration-drift/editorial/static/benchmark gates passed.
+- GitHub quality run `37291498336`: Python 3.11 passed; Python 3.12 failed
+  the demo race test because an inherited English thread language disagreed
+  with its Persian winner fixture. Reproduced both race tests failing by
+  activating English immediately before each test's original setup.
+- Narrow corrective change: reset ProjectTests language to Persian in setUp
+  and deactivate in cleanup; no runtime code, assertion, workflow or data change.
+  SQLite projects + leads.tests: 38/38 passed. Real isolated PostgreSQL:
+  same 38/38 passed, with English injected before each ProjectTests setup
+  to exercise the original leak. Refreshed CI pending; release remains
+  PARTIAL, not deployed.
+
 - **Project:** Rvion
 - **Workflow:** single primary agent
 - **Current phase (2026-10-05):** Local button/readability correction and
