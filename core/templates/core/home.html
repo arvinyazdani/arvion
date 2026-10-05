@@ -2,8 +2,13 @@
 {% load static %}
 {% block title %}{% if lang == 'fa' %}طراحی و سفارش وب‌سایت اختصاصی | آرویون{% else %}Website design & development | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}نمونه سایت متناسب با کسب‌وکارتان را ببینید، زنده شخصی‌سازی کنید و با انتخاب‌های خودتان درخواست ساخت سایت بدهید.{% else %}Explore website samples for your business, customise them live and start a project with your own choices.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=2"><link rel="stylesheet" href="{% static 'core/css/home-studio.css' %}?v=1"><script src="{% static 'core/js/home-studio.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><link rel="stylesheet" href="{% static 'core/css/home-studio.css' %}?v=3"><script src="{% static 'core/js/home-studio.js' %}?v=2" defer></script>{% endblock %}
 {% block content %}
+<nav class="home-paths shell" aria-label="{% if lang == 'fa' %}مسیرهای آرویون{% else %}Explore Rvion{% endif %}">
+  <a href="#choose-demo">{% if lang == 'fa' %}طراحی وب‌سایت{% else %}Website design{% endif %}<span aria-hidden="true">↗</span></a>
+  <a href="#solutions">{% if lang == 'fa' %}CRM و کلینیک{% else %}CRM & clinics{% endif %}<span aria-hidden="true">↗</span></a>
+  <a href="{% url 'assessments:briefing' 'english-placement-a1-c1' %}">{% if lang == 'fa' %}آزمون زبان{% else %}English assessment{% endif %}<span aria-hidden="true">↗</span></a>
+</nav>
 <section class="website-hero shell" aria-labelledby="home-title">
   <div class="website-hero-copy">
     <span class="eyebrow">{% if lang == 'fa' %}آرویون · طراحی و توسعه وب{% else %}RVION · WEB DESIGN & DEVELOPMENT{% endif %}</span>
@@ -19,6 +24,7 @@
   </div>
 </section>
 <div class="website-promises shell"><span>{% if lang == 'fa' %}طراحی برای موبایل و دسکتاپ{% else %}Designed for phone & desktop{% endif %}</span><span>{% if lang == 'fa' %}محدوده و هزینه روشن{% else %}Clear scope & cost{% endif %}</span><span>{% if lang == 'fa' %}تحویل مرحله‌ای{% else %}Incremental delivery{% endif %}</span><span>{% if lang == 'fa' %}همراهی بعد از انتشار{% else %}Support after launch{% endif %}</span></div>
+{% include 'core/includes/home_journey.html' %}
 <section class="website-library shell" id="choose-demo" aria-labelledby="demo-picker-title">
   <header class="website-section-head"><div><span class="eyebrow">{% if lang == 'fa' %}از جنس کسب‌وکار شما{% else %}BUILT AROUND YOUR BUSINESS{% endif %}</span><h2 id="demo-picker-title">{% if lang == 'fa' %}یک نمونه، هزار امکان برای شما.{% else %}A starting point. A world of possibilities.{% endif %}</h2></div><p>{% if lang == 'fa' %}این‌ها پروژه‌های واقعی مشتریان نیستند؛ نمونه‌های تعاملی‌اند تا سبک، ساختار و امکانات سایت آینده‌تان را راحت‌تر انتخاب کنید.{% else %}These are fictional, interactive samples—not client projects. Explore the style, structure and features of your future website.{% endif %}</p></header>
   <div class="website-demo-grid">{% for demo in featured_demos %}<a class="website-demo-card" href="{% url 'projects:demo_preview' demo.slug %}">{% include 'projects/demo_scenes/art.html' %}<div><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{% if lang == 'fa' %}مشاهده و شخصی‌سازی{% else %}Explore & customise{% endif %}<span aria-hidden="true">↗</span></strong></div></a>{% empty %}<p>{% if lang == 'fa' %}نمونه‌ها در حال آماده‌سازی هستند؛ می‌توانید مستقیم درخواست بدهید.{% else %}Samples are being prepared. You can still enquire directly.{% endif %}</p>{% endfor %}</div>

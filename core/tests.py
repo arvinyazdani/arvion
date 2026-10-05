@@ -224,6 +224,19 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "شروع آزمون زبان انگلیسی")
         self.assertNotContains(response, "۲۴ پروژه")
 
+    def test_home_journey_keeps_all_three_paths_localized_and_reachable(self):
+        for language in ("fa", "en"):
+            response = self.client.get(f"/{language}/")
+            self.assertContains(response, 'data-home-journey', count=1)
+            for topic in ("site", "system", "exam"):
+                self.assertContains(response, f'data-home-chapter="{topic}"', count=1)
+            self.assertContains(response, reverse("crm_orders:create"))
+            self.assertContains(response, reverse("clinic_orders:create"))
+            self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
+            if language == "en":
+                journey = response.content.decode().split('data-home-journey>', 1)[1].split('</section>', 1)[0]
+                self.assertNotRegex(journey, r"[\u0600-\u06ff]")
+
     def test_home_replaces_project_showcase_with_zero_data_demo_choices(self):
         Project.objects.create(title_fa="نمونه واقعی", title_en="Real case", slug="real-case", is_active=True)
         response = self.client.get(reverse("home"))

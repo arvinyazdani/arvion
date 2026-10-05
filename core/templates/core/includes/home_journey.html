@@ -1,0 +1,34 @@
+<section class="home-journey shell" aria-labelledby="journey-title" data-home-journey>
+  <header class="website-section-head"><div><span class="eyebrow">{% if lang == 'fa' %}یک انتخاب روشن{% else %}A CLEAR STARTING POINT{% endif %}</span><h2 id="journey-title">{% if lang == 'fa' %}برای هدف شما،<br>مسیر خودش را داریم.{% else %}Different ambitions.<br>The right path for each.{% endif %}</h2></div><p>{% if lang == 'fa' %}سایت می‌خواهید، فرایند کاری دارید یا برای آزمون آمده‌اید؟ از مسیر مناسب شروع کنید.{% else %}Launching a website, organising a workflow or taking an assessment? Start with the path that fits.{% endif %}</p></header>
+  <div class="home-journey-layout">
+    <div class="home-journey-stage" aria-hidden="true">
+      {% include 'core/includes/home_journey_art.html' with topic='site' %}
+      {% include 'core/includes/home_journey_art.html' with topic='system' %}
+      {% include 'core/includes/home_journey_art.html' with topic='exam' %}
+      <div class="home-journey-dots"><i class="is-active"></i><i></i><i></i></div>
+    </div>
+    <div class="home-journey-chapters">
+      <article class="home-chapter" id="journey-site" data-home-chapter="site">
+        <div class="home-chapter-mobile" aria-hidden="true">{% include 'core/includes/home_journey_art.html' with topic='site' %}</div>
+        <span class="eyebrow">{% if lang == 'fa' %}۰۱ · وب‌سایت شما{% else %}01 · YOUR WEBSITE{% endif %}</span>
+        <h3>{% if lang == 'fa' %}فقط تصور نکنید.<br>امتحانش کنید.{% else %}Don't just imagine it.<br>Try it.{% endif %}</h3>
+        <p>{% if lang == 'fa' %}از فروشگاه و طلافروشی تا منوی رستوران؛ رنگ و سبک نمونه را زنده تغییر دهید و درخواستتان را با همان انتخاب‌ها بفرستید.{% else %}From shops and jewellery to restaurant menus: change a sample's colour and style live, then enquire with those choices intact.{% endif %}</p>
+        <a class="button" href="#choose-demo">{% if lang == 'fa' %}انتخاب و ساخت ظاهر سایت{% else %}Shape your website{% endif %}<span aria-hidden="true">↗</span></a>
+      </article>
+      <article class="home-chapter" id="journey-system" data-home-chapter="system">
+        <div class="home-chapter-mobile" aria-hidden="true">{% include 'core/includes/home_journey_art.html' with topic='system' %}</div>
+        <span class="eyebrow">{% if lang == 'fa' %}۰۲ · سامانه اختصاصی{% else %}02 · TAILORED SYSTEMS{% endif %}</span>
+        <h3>{% if lang == 'fa' %}کارهای مرتبط،<br>در یک جریان.{% else %}Connected tasks.<br>One clear workflow.{% endif %}</h3>
+        <p>{% if lang == 'fa' %}مدیریت مشتری و فروش، نوبت‌دهی یا آموزش کلینیک؛ ابتدا نیازهای واقعی شما را می‌شناسیم، سپس محدوده ساخت را مشخص می‌کنیم.{% else %}Customer management, sales, clinic bookings or learning: we discover your real needs before defining what to build.{% endif %}</p>
+        <div class="home-chapter-actions"><a class="button" href="{% url 'crm_orders:create' %}">{% if lang == 'fa' %}نیازسنجی CRM{% else %}CRM discovery{% endif %}</a><a class="button secondary" href="{% url 'clinic_orders:create' %}">{% if lang == 'fa' %}نیازسنجی کلینیک{% else %}Clinic discovery{% endif %}</a></div>
+      </article>
+      <article class="home-chapter" id="journey-exam" data-home-chapter="exam">
+        <div class="home-chapter-mobile" aria-hidden="true">{% include 'core/includes/home_journey_art.html' with topic='exam' %}</div>
+        <span class="eyebrow">{% if lang == 'fa' %}۰۳ · ارزیابی مهارت{% else %}03 · SKILL ASSESSMENT{% endif %}</span>
+        <h3>{% if lang == 'fa' %}مهارت را بسنجید.<br>مسیرتان را بشناسید.{% else %}Assess your skills.<br>Know your next step.{% endif %}</h3>
+        <p>{% if lang == 'fa' %}آزمون زبان انگلیسی و مهارت‌های برنامه‌نویسی مسیر مستقلی دارند. پیش از ثبت‌نام و پرداخت، راهنما و شیوه ارزیابی را بخوانید.{% else %}English and programming assessments have their own path. Read the assessment guide before signing up and paying.{% endif %}</p>
+        <div class="home-chapter-actions"><a class="button" href="{% url 'assessments:briefing' 'english-placement-a1-c1' %}">{% if lang == 'fa' %}راهنما و شروع آزمون زبان{% else %}English assessment guide{% endif %}</a><a class="button secondary" href="{% url 'assessments:list' %}">{% if lang == 'fa' %}همه آزمون‌ها{% else %}All assessments{% endif %}</a></div>
+      </article>
+    </div>
+  </div>
+</section>

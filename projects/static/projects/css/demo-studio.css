@@ -50,6 +50,25 @@ a:hover>.sample-art svg,.sample-hero:hover>.sample-art svg{transform:scale(1.025
 .demo-scene .demo-product-card>strong,.demo-scene .demo-jewel-card>p strong{font-size:.8rem}
 .demo-scene .demo-product-art,.demo-scene .demo-jewel-art{min-height:180px;border-radius:4px}
 .demo-scene .demo-product-card>button,.demo-scene .demo-jewel-card>button{font-size:.75rem}
+/* Scene collections own their tracks. Historical mini-preview alignment must
+   not shrink an implicit grid track to its contents. */
+.demo-scene .demo-menu-items{grid-template-columns:minmax(0,1fr);justify-content:stretch;align-items:stretch;width:100%}
+.demo-scene .demo-dish-card{width:100%;min-width:0;grid-template-columns:78px minmax(0,1fr) auto;align-items:center;padding:16px;gap:16px}
+.demo-scene .demo-dish-card>div:nth-child(2){min-width:0}.demo-scene .demo-dish-card p{font-size:.85rem;line-height:1.9}.demo-scene .demo-dish-card small{font-size:.72rem}.demo-scene .demo-dish-card>strong{grid-column:auto;grid-row:auto;font-size:.85rem;align-self:center}
+.demo-scene :is(button,[role=button]){border:1px solid var(--demo-primary-text);background:#fff;color:var(--demo-primary-text);border-radius:10px;padding:10px 14px;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;min-height:44px;transition:background 180ms,color 180ms,transform 180ms}
+.demo-scene button:hover{background:var(--demo-soft);transform:translateY(-1px)}
+.demo-scene button[aria-pressed=true],.demo-scene button[data-demo-add-cart],.demo-scene button[data-demo-action]:not([aria-pressed]){background:var(--demo-primary);color:var(--demo-on-primary);border-color:var(--demo-primary)}
+.demo-scene button:active{transform:translateY(1px)}.demo-scene button:disabled{opacity:.55;cursor:wait;transform:none}
+.demo-scene-heading a,.demo-corporate-lead a{display:inline-flex;align-items:center;justify-content:center;justify-self:start;gap:8px;padding:10px 16px;min-height:44px;border:1px solid var(--demo-primary-text);border-radius:10px;background:#fff;color:var(--demo-primary-text);font-size:.82rem;font-weight:700}
+.demo-scene :is(.demo-menu-heading,.demo-shop-toolbar){align-items:start}.demo-menu-heading>span{max-width:110px;line-height:1.8}
+.demo-scene :is(.demo-practitioner>b,.demo-appointment>b,.demo-course-list b,.demo-service-list b,.demo-case-copy h3){font-size:1rem;line-height:1.8}
+.demo-scene :is(.demo-practitioner p,.demo-practitioner>span,.demo-course-list small,.demo-resource-grid small,.demo-case-copy p,.demo-consultation p){font-size:.82rem;line-height:1.9}
+.demo-scene :is(.demo-resource-grid b,.demo-consultation b,.demo-learning-resources-title b,.demo-jewel-builder b){font-size:.92rem;line-height:1.8}
+.demo-scene p{font-size:.85rem;line-height:1.9}
+.demo-scene small{font-size:.72rem;line-height:1.8}
+.demo-scene details>summary{min-height:44px;padding:10px 14px;border:1px solid currentColor;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer}
+.demo-scene details[open]>summary{margin-bottom:12px}
+@media(prefers-reduced-motion:reduce){.demo-scene button{transition:none}.demo-scene button:hover,.demo-scene button:active{transform:none}}
 .sample-hero-jewelry{background:var(--demo-soft)}
 .sample-hero-jewelry .sample-hero-copy{padding-block:50px}
 .sample-hero-restaurant,.sample-hero-portfolio,.sample-hero-corporate,.sample-hero-clinic,.sample-hero-education{background:var(--demo-soft)}
@@ -60,7 +79,7 @@ a:hover>.sample-art svg,.sample-hero:hover>.sample-art svg{transform:scale(1.025
 .demo-site[data-personality="luxury"] .sample-main-action{border-radius:0}
 .demo-site[data-personality="bold"] .sample-hero{background:var(--demo-primary)}
 .demo-site[data-personality="bold"]>.sample-main .sample-hero-copy>*{color:var(--demo-on-primary)}
-.demo-site[data-personality="bold"] .sample-main-action{background:var(--demo-on-primary);color:var(--demo-primary)}
+.demo-site[data-personality="bold"]>.sample-main .sample-hero-copy>.sample-main-action{background:var(--demo-on-primary);color:var(--demo-primary)}
 .demo-site[data-personality="industrial"] .sample-hero{background:#e7e8e3;grid-template-columns:1fr 1fr;border-bottom:4px solid var(--demo-primary)}
 .demo-site[data-personality="industrial"] .sample-main-action{border-radius:0;box-shadow:4px 4px 0 #202820}
 .demo-site[data-personality="modern"] .sample-hero>.sample-art{margin:18px;border-radius:24px;height:calc(100% - 36px)}
@@ -126,6 +145,16 @@ a:hover>.sample-art svg,.sample-hero:hover>.sample-art svg{transform:scale(1.025
 .demo-config-section>fieldset{border:0;margin:8px 0 16px;padding:0}
 .demo-config-section>fieldset>legend{font-size:.78rem;color:var(--text-secondary);margin-bottom:8px}
 @container(max-width:600px){
+  .demo-scene :is(.demo-product-grid,.demo-practitioner-grid,.demo-resource-grid,.demo-jewel-grid,.demo-jewel-options,.demo-corporate-grid,.demo-clinic-grid,.demo-learning-grid,.demo-course-feature,.demo-portfolio-grid,.demo-jewel-intro){grid-template-columns:minmax(0,1fr)}
+  .demo-scene .demo-dish-card{grid-template-columns:64px minmax(0,1fr);gap:8px 14px;padding:14px}
+  .demo-scene .demo-dish-card>div:first-child{grid-column:1;grid-row:1/3;width:64px;height:72px}
+  .demo-scene .demo-dish-card>div:nth-child(2){grid-column:2;grid-row:1}
+  .demo-scene .demo-dish-card>strong{grid-column:2;grid-row:2;justify-self:start}
+  .demo-scene .demo-menu-heading{display:block}.demo-menu-heading>span{display:block;max-width:none;margin-top:6px;font-size:.72rem}
+  .demo-scene .demo-filter-row{gap:6px}.demo-scene .demo-filter-row button{font-size:.76rem;padding:8px 10px}
+  .demo-scene .demo-case-card{grid-template-columns:minmax(0,1fr)}
+  .demo-scene .demo-service-list>article{grid-template-columns:24px minmax(0,1fr)}
+  .demo-scene .demo-service-list details{grid-column:1/-1}
   .sample-hero{grid-template-columns:1fr;min-height:0}
   .sample-hero>.sample-art{order:-1;aspect-ratio:6/4;height:auto;max-height:260px}
   .sample-hero-copy{padding:26px}

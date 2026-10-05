@@ -2,7 +2,38 @@
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
-- **Current phase:** Demo detail/order refinement after customer rejection of
+- **Current phase (2026-10-05):** Local button/readability correction and
+  Apple-informed homepage journey. `VERIFIED` for bounded local implementation
+  and targeted runtime checks; customer aesthetic acceptance pending, existing
+  premium static gate `PARTIAL`, push/deploy `NOT_STARTED`.
+  Fixed the restaurant's shrink-wrapped implicit grid track (full-width explicit
+  track; phone image/name/price placement), readable scene descriptions, 44px
+  outlined/filled buttons and disclosures, and the bold hero's invisible action
+  caused by text-rule specificity. Home has immediate website/CRM-clinic/exam
+  routes plus three illustrated scroll chapters: bounded sticky stage on desktop,
+  in-flow per-chapter graphics on phones. No scroll interception or dependency.
+- **Current evidence:** core + projects + leads.tests: 125 tests, all passing;
+  check 0 issues, migration drift none, both JS syntax checks and diff check
+  clean. Seven sample interior sections visually checked at 390px; 320px DOM
+  checks found no overflow and no visible scene button shorter than 44px.
+  Restaurant filter and store search were exercised. Desktop restaurant card
+  equals its 736px menu track. Home fa/en, 320/390/1200px, light/dark checked;
+  desktop stage switched to system/exam; reduced motion yields 0s transitions;
+  with JS disabled all five journey CTAs still have valid destinations/48px
+  height. Temporary browser overrides restored. Disposable QA DB only.
+  Screenshots: /tmp/rvion-design-proof/restaurant-buttons-mobile.jpg and
+  /tmp/rvion-design-proof/home-journey-mobile.jpg. Premium audit remains 53
+  external-listener action-detection errors, unchanged, NOT a passed gate.
+  Its retained JSON: /tmp/rvion-design-proof/premium-audit-20261005.json.
+  DESIGN lint: 0 errors, 2 existing unused-token mirror warnings.
+  Prior no-page-overflow checks did not prove internal card readability; this
+  phase's restaurant defect corrects that earlier visual-verification limit.
+  No real iPhone/Safari, current CI, PostgreSQL or production proof this phase.
+- **Current next action:** Customer review of local homepage/sample buttons;
+  publication requires explicit authorization and release checks. Self-review
+  only, not independent review. No customer, contract, authentication, draft,
+  payment, schema or production data changed.
+- **Previous phase:** Demo detail/order refinement after customer rejection of
   the previous local design (2026-10-05). `VERIFIED` for local implementation;
   customer aesthetic acceptance pending, premium static gate `PARTIAL`, release
   `NOT_STARTED`. Whole-page theme tint now includes header/footer, phone samples

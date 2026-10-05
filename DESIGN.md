@@ -60,6 +60,15 @@ settings; [Framer's template marketplace](https://www.framer.com/marketplace/tem
 informed browse/preview separation. These are design references, not copied code
 or a change to our Django stack.
 
+Homepage journey reference (2026-10-05): [Apple's iPhone landing page](https://www.apple.com/iphone/)
+was read and visually inspected for focused chapters, large graphical subjects
+and clearly differentiated actions, not copied assets or typography.
+[WebKit's scroll animation guide](https://webkit.org/blog/17101/a-guide-to-scroll-driven-animations-with-just-css/)
+informed progressive enhancement and reduced-motion behavior. Rvion uses its
+own lightweight illustrations and an IntersectionObserver, not scroll hijacking,
+video downloads or a new animation dependency. Three paths remain distinct:
+website design (primary), tailored CRM/clinic systems, and assessments.
+
 ## Colors
 
 Orange is the action accent, ink the primary text, paper the light canvas.
@@ -87,6 +96,14 @@ existing modal sheet is the canonical editor. Samples use container queries
 so their layout follows their actual width, not the outer viewport alone.
 Marketing sections use 80px desktop/42px phone rhythm. Existing data and
 session-bound order handoff remain authoritative.
+
+The homepage offers immediate route buttons before its hero. Its three-chapter
+journey uses a bounded sticky graphical stage on desktop; phones receive one
+in-flow graphic per chapter with no sticky obstruction. All copy and real links
+are available without JavaScript. Reduced motion disables graphical transitions.
+Demo collections own explicit grid tracks; phone dish names and prices occupy
+separate rows, and all scene buttons/disclosure triggers have a 44px minimum
+height, visible borders and an explicit selected state.
 
 Detail pages prioritise the sample, not repeated studio titles. Phones receive
 an edge-to-edge sample, a five-colour quick strip and one obvious settings

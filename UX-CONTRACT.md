@@ -17,6 +17,15 @@ assessment, contract, authentication or admin workflows. Visual context:
 
 ## Outcomes and recovery
 
+- Homepage journey: `home-studio.js` owns only decorative chapter switching;
+  `home_journey.html` owns real navigation and copy. No scroll interception,
+  account mutation or submission. Desktop stage follows the visible chapter;
+  mobile graphics stay in normal document flow. JavaScript failure leaves
+  every real link usable; reduced motion removes transitions.
+- Scene button affordance: visible border/fill and minimum 44px height. Native
+  disclosure summaries use the same touch target; bold hero actions must retain
+  inverse text contrast despite the hero's higher-specificity text rules.
+
 - Home sample switch is transient browsing, not an order mutation. No account
   or storage is required. No JS leaves the first sample and full library usable.
 - Demo choices use the existing query/sessionStorage state. Server POST remains
