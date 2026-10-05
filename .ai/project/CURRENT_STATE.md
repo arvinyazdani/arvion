@@ -15,7 +15,36 @@
   SQLite projects + leads.tests: 38/38 passed. Real isolated PostgreSQL:
   same 38/38 passed, with English injected before each ProjectTests setup
   to exercise the original leak. Refreshed CI pending; release remains
-  PARTIAL, not deployed.
+  PARTIAL, not deployed at that checkpoint; superseded by completion below.
+
+### Publication completed
+
+- `dde5808` pushed and deployed. GitHub quality run `37292386133` passed
+  both Python 3.11 and 3.12 PostgreSQL jobs, including parallel and shuffled
+  sequential full suites. No failed test was skipped or assertion weakened.
+- First fast-forward stopped on root-owned source directories. Initial
+  server checkout was clean; the only partial writes were this release's
+  incoming files. Corrected ownership of the four named source directories
+  and restored only the incoming diff's paths to the exact green revision,
+  then completed fast-forward. No reset/clean or secret/media removal.
+- Approved `ops/release.sh` completed: production `dde5808`, health=ok,
+  no migrations to apply; question banks already existed with no changes.
+  Backup `/srv/arvion/backups/pre-release-20261005-095604.dump` validated
+  using `pg_restore --list` as its filesystem owner. Service and Nginx active;
+  production Git clean. Prior source revision remains `5fe87ec` for rollback.
+- Public health returned status=ok; fa/en home, seven demo routes and the
+  user's corporate full preview returned HTTP 200. Production browser at
+  390px: home/corporate/restaurant had no horizontal overflow; restaurant
+  drinks filter leaves one full-width 332px item, settings opens and Escape
+  restores focus. Temporary viewport and browser tab restored/closed.
+  One transient browser offline response recovered via its retry control.
+- Proof: `/tmp/rvion-design-proof/production-home-20261005.png` and
+  `/tmp/rvion-design-proof/production-parsa-mobile-20261005.png`.
+  No customer form was submitted, no real iPhone/Safari test claimed.
+  Premium static parser's previously documented 53 external-listener
+  detection reports remain PARTIAL, not misrepresented as passed.
+- Next action: customer review on the public domain. Older NOT_STARTED
+  publication statements below are historical, superseded by this checkpoint.
 
 - **Project:** Rvion
 - **Workflow:** single primary agent
