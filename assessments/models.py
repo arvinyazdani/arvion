@@ -110,6 +110,14 @@ class Order(models.Model):
         return f"{self.user_id} / {self.exam_id} / {self.status}"
 
 
+class WelcomeAssessmentCredit(models.Model):
+    """One non-renewable assessment credit issued by public registration."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="welcome_assessment_credit")
+    order = models.OneToOneField(Order, on_delete=models.PROTECT, blank=True, null=True, related_name="welcome_credit")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class PaymentTransaction(models.Model):
     STATUSES = (("initiated", "Initiated"), ("verified", "Verified"), ("failed", "Failed"))
 

@@ -1,5 +1,56 @@
 # Rvion current state
 
+## Welcome assessment gift (2026-10-06)
+
+- VERIFIED locally. Public registration alone issues
+  one WelcomeAssessmentCredit atomically with a genuinely new account. No
+  backfill for old accounts, legacy OTP recovery, staff creation or login.
+- A customer chooses one active exam, explicitly accepts assessment terms and
+  redeems their credit using the existing purchase POST. A locked credit row
+  creates a zero-amount welcome_trial order/transaction and one entitlement;
+  same-exam replay reuses it, a different exam cannot redeem again. Existing
+  pending/paid orders and submitted payment evidence are never rewritten.
+  Consumption occurs at activation, not completion; normal interrupted-attempt
+  recovery stays available. Revocation/refund does not replenish the gift.
+- Bilingual account and detail-page discovery reuse the existing mobile button,
+  theme and form owners. Ordinary paid checkout remains available if a customer
+  wants to save the gift for a different exam. No external email/SMS sent.
+- New additive migration assessments.0026 creates an empty credit table; no
+  production or permanent local SQLite migration was run. Test DBs and isolated
+  /tmp/rvion-phase4-IWtoof/qa.sqlite3 only. Rollback after release would lose new
+  credit/redemption records: use snapshot/forward repair, not blind rollback.
+- 235 accounts/assessments tests passed / 5 PostgreSQL-specific skips before
+  the final small copy change; 10 welcome-credit tests passed on real isolated
+  PostgreSQL, including two competing exams, rollback, replay, one actual start
+  and revocation preservation. Final full suite: 884 tests, OK / 21 existing
+  backend-specific skips (252.595s). The earlier full-run privacy failure was
+  corrected without weakening its assertion; see the regression entry below.
+  System check: zero issues; migration drift: none; final diff whitespace clean.
+- Browser: disposable account, FA 390px, global free-checkout disabled. Account
+  gift → list → briefing → detail → consent → activation → exactly one ready
+  attempt; offer disappears. No horizontal overflow. English rendering covered
+  by automated tests, not a real iPhone/Safari claim. Evidence:
+  /tmp/rvion-phase4-IWtoof/welcome-credit-fa-mobile.png. Frontend Design helped
+  distinguish primary free activation from secondary paid checkout.
+- Preserve unrelated gallery files. No push/deploy authorized in this request.
+- Scope is per account, not verified real-world identity: registration currently
+  has no SMS verification, so this does not prevent a person creating multiple
+  distinct accounts. Existing paid-order funnels count zero-amount fulfilled
+  gift orders as paid status, but monetary revenue remains zero; no analytics
+  redesign is claimed.
+
+## Phase 4 privacy regression found by the welcome-gift full gate
+
+- The first full run failed the existing session privacy assertion:
+  test_anonymous_visit_with_valid_demo_stores_a_pending_marker. The language
+  continuation map introduced in Phase 4 stored the demo public token.
+- Corrected its internal values to selection IDs; resolution still requires
+  the current session key and unknown/legacy references remain invalid. Raw
+  public tokens are no longer copied into the session continuation map.
+  No assertion was weakened and no customer record was changed.
+- 60 targeted handoff/order-path/leads tests passed (3 PostgreSQL-only skips).
+  Final full-suite evidence is recorded in the welcome-gift section above.
+
 ## Phase 4 — exact demo-to-order handoff (2026-10-06)
 
 - VERIFIED locally for the bounded path. Commit/push follows the authorized

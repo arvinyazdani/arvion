@@ -31,7 +31,7 @@ from .forms import EmailAuthenticationForm, PhoneVerificationForm, ProfileIdenti
 from .models import PhoneVerification, User
 from .services import issue_phone_verification
 from .security import AttemptThrottle
-from assessments.models import AttemptResult, Order
+from assessments.models import AttemptResult, Order, WelcomeAssessmentCredit
 from leads.draft_dashboard import build_draft_dashboard_card
 from leads.form_draft_service import get_active_draft
 
@@ -112,7 +112,11 @@ class RegisterView(LanguageViewMixin, FormView):
         provider was unreliable and blocked real customers from registering.
         The OTP machinery is still available for staff-initiated verification.
         """
-        user = form.save()
+        with transaction.atomic():
+            is_new_account = not getattr(form, "resume_user", None)
+            user = form.save()
+            if is_new_account:
+                WelcomeAssessmentCredit.objects.create(user=user)
         login(self.request, user)
         destination, continues_purchase = _safe_auth_destination(
             self.request, self.request.POST.get("next", "")
@@ -132,6 +136,8 @@ class RegisterView(LanguageViewMixin, FormView):
             ),
         )
         if destination:
+            if is_new_account:
+                messages.info(self.request, "هدیه ثبت‌نام شما یک نوبت آزمون رایگان است؛ می‌توانید آن را برای یکی از آزمون‌ها فعال کنید." if self.lang == "fa" else "Your welcome gift is one free assessment attempt. You can activate it for one assessment of your choice.")
             return redirect(destination)
         return redirect(f"{reverse('accounts:dashboard')}?lang={self.lang}")
 
@@ -521,5 +527,6 @@ def dashboard(request):
             group["ready_entitlement"] = group["ready_entitlement"] or entitlement
     order_draft = build_draft_dashboard_card(get_active_draft(request.user, "leads_contact"))
     return render(request, "accounts/dashboard.html", {
+        "welcome_credit_available": WelcomeAssessmentCredit.objects.filter(user=request.user, order__isnull=True).exists(),
         "lang": lang, "assessment_groups": list(grouped.values()), "order_draft": order_draft,
     })

@@ -13,6 +13,7 @@ from .integrity import pace_risk_points
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, ExamEntitlement,
     ExamVersion, ManualPaymentSubmission, Order, PaymentTransaction, Question, SkillResult,
+    WelcomeAssessmentCredit,
 )
 
 
@@ -26,6 +27,38 @@ class AttemptLimitError(Exception):
 
 class PaymentVerificationError(Exception):
     pass
+
+
+@transaction.atomic
+def redeem_welcome_assessment(*, user, exam, customer=None):
+    """Redeem once across all exams; same-exam replay returns the same order.
+
+    Caller must explicitly collect terms acceptance. Never converts an existing
+    paid/pending order or payment receipt into a free order.
+    """
+    credit = WelcomeAssessmentCredit.objects.select_for_update().filter(user=user).first()
+    if credit is None or not user.is_active or user.is_staff or user.is_superuser or not exam.is_active:
+        raise PaymentVerificationError("Welcome credit is unavailable")
+    if credit.order_id:
+        order = Order.objects.get(pk=credit.order_id)
+        if order.exam_id != exam.pk:
+            raise PaymentVerificationError("Welcome credit has already been used")
+        return order, False
+    order = Order.objects.create(
+        user=user, customer=customer, exam=exam, subtotal_irr=exam.price_irr,
+        discount_irr=exam.price_irr, discount_percent=100, amount_irr=0,
+        gateway="welcome_trial", terms_version=settings.ASSESSMENT_TERMS_VERSION,
+        terms_accepted_at=timezone.now(), status="paid", paid_at=timezone.now(),
+    )
+    PaymentTransaction.objects.create(
+        order=order, gateway="welcome_trial", external_id=f"welcome-{order.pk}",
+        amount_irr=0, status="verified", verified_at=timezone.now(),
+        raw_response={"welcome_credit": True, "payment_collected": False},
+    )
+    ExamEntitlement.objects.get_or_create(order=order, defaults={"user": user, "exam": exam, "attempts_remaining": 1})
+    credit.order = order
+    credit.save(update_fields=["order"])
+    return order, True
 
 
 class AssessmentAccessRevokedError(Exception):

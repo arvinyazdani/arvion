@@ -38,19 +38,20 @@ def _demo_summary(snapshot, lang):
     }
 
 
-def _requested_demo_token(request):
+def _demo_context_requested(request):
     if "demo" in request.GET:
-        return request.GET.get("demo", "")
-    reference = request.GET.get("resume_demo")
-    if reference:
-        # Unknown/expired references remain invalid, never a bare-form fallback.
-        return request.session.get("contact_demo_language_tokens", {}).get(reference, "invalid")
-    return ""
+        return bool(request.GET.get("demo", ""))
+    return bool(request.GET.get("resume_demo"))
 
 
 def _session_demo_selection(request):
     """Return a selected demo only when its public token is well formed and session-bound."""
-    token = _requested_demo_token(request)
+    if "demo" not in request.GET and request.GET.get("resume_demo"):
+        selection_id = request.session.get("contact_demo_language_tokens", {}).get(request.GET["resume_demo"])
+        if not isinstance(selection_id, int):
+            return None
+        return DemoSelection.objects.select_related("template").filter(pk=selection_id, session_key=request.session.session_key).first()
+    token = request.GET.get("demo", "")
     if not token:
         return None
     try:
@@ -105,7 +106,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             self._demo_selection_cache = selection
             if selection:
                 handle_resolved_demo_selection(self.request, selection)
-            elif not _requested_demo_token(self.request):
+            elif not _demo_context_requested(self.request):
                 maybe_retry_pending_demo_selection(self.request)
         return self._demo_selection_cache
 
@@ -169,7 +170,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
         # block or explain itself (that would leak whether the token exists
         # at all); it just surfaces a neutral, non-blocking notice.
         selection = self._resolved_demo_selection()
-        if _requested_demo_token(self.request) and not selection:
+        if _demo_context_requested(self.request) and not selection:
             context["demo_link_invalid"] = True
         elif selection:
             # Non-secret display data only — never public_token or
@@ -182,12 +183,11 @@ class LeadCreateView(LanguageViewMixin, FormView):
             snapshot = build_demo_selection_snapshot(selection)
             context["demo_summary"] = _demo_summary(snapshot, self.lang)
             pointers = self.request.session.get("contact_demo_language_tokens", {})
-            token = str(selection.public_token)
-            reference = next((key for key, value in pointers.items() if value == token), None)
+            reference = next((key for key, value in pointers.items() if value == selection.pk), None)
             if reference is None:
                 reference = secrets.token_urlsafe(12)
                 pointers = dict(list(pointers.items())[-9:])
-                pointers[reference] = token
+                pointers[reference] = selection.pk
                 self.request.session["contact_demo_language_tokens"] = pointers
             other_lang = "en" if self.lang == "fa" else "fa"
             context["language_switch_url"] = "/" + other_lang + reverse("leads:contact")[3:] + "?" + urlencode({"resume_demo": reference})
@@ -214,7 +214,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             context["demo_edit_url"] = reverse("projects:demo_preview", args=[selection.template.slug]) + "?" + urlencode(query) + "#configurator"
         user = self.request.user
         if user.is_authenticated and not user.is_staff and not user.is_superuser:
-            if not selection and not _requested_demo_token(self.request):
+            if not selection and not _demo_context_requested(self.request):
                 draft = get_active_draft(user, "leads_contact")
                 if draft and draft.demo_snapshot:
                     context["demo_summary"] = _demo_summary(draft.demo_snapshot, self.lang)
@@ -306,7 +306,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             lead, created = finalize_form_draft_to_lead(
                 owner=user, form=form, final_submission_token=token,
                 demo_selection=selection, allow_new_lead=allow_new_lead, on_created=notify,
-                use_saved_demo_snapshot=not bool(_requested_demo_token(self.request)),
+                use_saved_demo_snapshot=not _demo_context_requested(self.request),
             )
         except NewLeadRateLimitedError:
             form.add_error(None, "لطفاً کمی صبر کنید و دوباره تلاش کنید." if self.lang == "fa" else "Please wait before submitting another enquiry.")

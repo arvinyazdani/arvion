@@ -15,6 +15,16 @@
     </div>
     <aside class="purchase-card">
       <span class="card-number">{% if lang == 'fa' %}یک نوبت آزمون{% else %}ONE ATTEMPT{% endif %}</span>
+      {% if welcome_credit_available %}
+      <p>{% if lang == 'fa' %}هدیه ثبت‌نام: یک نوبت رایگان برای یکی از آزمون‌ها. با فعال‌سازی این آزمون، اعتبار استفاده می‌شود؛ آزمون‌های بعدی نیاز به پرداخت دارند.{% else %}Welcome gift: one free attempt for one assessment of your choice. Activating this assessment uses your credit; further attempts require payment.{% endif %}</p>
+      <form method="post" action="{% url 'assessments:create_order' exam.slug %}">
+        {% csrf_token %}<input type="hidden" name="use_welcome_credit" value="yes">
+        <label class="terms-check"><input type="checkbox" name="accept_terms" value="yes" required> {% if lang == 'fa' %}شرایط آزمون را خوانده‌ام و می‌پذیرم.{% else %}I have read and accept the assessment terms.{% endif %}</label>
+        <a href="{% url 'assessments:terms' %}" target="_blank" rel="noopener">{% if lang == 'fa' %}مطالعه شرایط (تب جدید){% else %}Read the terms (new tab){% endif %}</a>
+        <button class="button primary large" type="submit">{% if lang == 'fa' %}فعال‌سازی یک نوبت رایگان{% else %}Activate one free attempt{% endif %}</button>
+      </form>
+      <p>{% if lang == 'fa' %}یا اعتبار را برای آزمون دیگری نگه دارید و این نوبت را خریداری کنید:{% else %}Or save your credit for another assessment and purchase this attempt:{% endif %}</p>
+      {% endif %}
       {% if price_quote.promotion_is_active %}
       <div class="promotion-offer" data-promotion-seconds-left="{{ price_quote.promotion_seconds_left }}">
         <span class="promotion-badge">{% if lang == 'fa' %}پیشنهاد ۷۲ ساعته{% else %}72-hour offer{% endif %}</span>
@@ -34,7 +44,7 @@
       </div>
       <form method="post" action="{% url 'assessments:create_order' exam.slug %}?lang={{ lang }}">
         {% csrf_token %}
-        <button class="button primary large" type="submit">
+        <button class="button {% if welcome_credit_available %}secondary{% else %}primary{% endif %} large" type="submit">
           <span>{% if request.user.is_authenticated %}{% if assessment_free_checkout %}{% if lang == 'fa' %}فعال‌سازی نوبت رایگان{% else %}Activate free attempt{% endif %}{% elif lang == 'fa' %}ادامه به پرداخت{% else %}Continue to payment{% endif %}{% else %}{% if lang == 'fa' %}ورود و ادامه پرداخت{% else %}Sign in and continue to payment{% endif %}{% endif %}</span>
           <svg class="ui-icon ui-icon--directional" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>
         </button>

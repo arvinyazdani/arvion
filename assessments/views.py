@@ -25,8 +25,8 @@ from management_portal.models import Customer, CustomerContact
 from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
 from .integrity import assess_event, question_pace_rows
-from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket
-from .services import AssessmentAccessRevokedError, AttemptLimitError, ExamContentError, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
+from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket, WelcomeAssessmentCredit
+from .services import AssessmentAccessRevokedError, AttemptLimitError, ExamContentError, PaymentVerificationError, redeem_welcome_assessment, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
 
 
 logger = logging.getLogger(__name__)
@@ -113,6 +113,7 @@ class ExamDetailView(LanguageViewMixin, LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["price_quote"] = self.object.price_quote(timezone.now())
+        context["welcome_credit_available"] = WelcomeAssessmentCredit.objects.filter(user=self.request.user, order__isnull=True).exists() and not self.request.user.is_staff and not self.request.user.is_superuser
         return context
 
 
@@ -213,6 +214,18 @@ class CreateOrderView(LoginRequiredMixin, View):
 
     def post(self, request, slug):
         exam = get_object_or_404(Exam, slug=slug, is_active=True)
+        if request.POST.get("use_welcome_credit") == "yes":
+            lang = _request_language(request)
+            if request.POST.get("accept_terms") != "yes":
+                messages.error(request, "ابتدا شرایط آزمون را بپذیرید." if lang == "fa" else "Accept the assessment terms first.")
+                return redirect(reverse("assessments:detail", args=[exam.slug]))
+            try:
+                order, created = redeem_welcome_assessment(user=request.user, exam=exam, customer=_customer_for_user(request.user))
+            except PaymentVerificationError:
+                messages.error(request, "نوبت رایگان در دسترس نیست یا قبلاً استفاده شده؛ برای آزمون جدید از پرداخت استفاده کنید." if lang == "fa" else "Your free attempt is unavailable or already used. You can purchase another attempt.")
+                return redirect(reverse("assessments:detail", args=[exam.slug]))
+            messages.success(request, "نوبت رایگان فعال شد؛ از حساب خود آزمون را شروع کنید." if lang == "fa" else "Your free attempt is ready. Start it from your account.")
+            return redirect(reverse("accounts:dashboard"))
         is_free = settings.ASSESSMENT_FREE_CHECKOUT
         price_quote = exam.price_quote(timezone.now())
         customer = _customer_for_user(request.user)
