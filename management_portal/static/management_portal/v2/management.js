@@ -5,6 +5,8 @@
   const moreClose = document.querySelector(".m-more-close");
   const moreScrim = document.querySelector(".m-more-scrim");
   let lastMoreTrigger = null;
+  const moreBackground = [...document.querySelectorAll('.m-app,.m-bottom')];
+  let previousInert = [];
 
   const focusableSelector = [
     "a[href]",
@@ -24,6 +26,7 @@
     morePanel.setAttribute("aria-hidden", "true");
     morePanel.setAttribute("inert", "");
     moreShell.hidden = true;
+    moreBackground.forEach((element, index) => element.toggleAttribute('inert', previousInert[index] || false));
     document.body.classList.remove("m-overlay-open");
     setMoreExpanded(false);
     if (returnFocus && lastMoreTrigger instanceof HTMLElement) lastMoreTrigger.focus();
@@ -33,6 +36,8 @@
   const openMore = (trigger) => {
     if (!moreShell || !morePanel) return;
     lastMoreTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement;
+    previousInert = moreBackground.map(element => element.hasAttribute('inert'));
+    moreBackground.forEach(element => element.setAttribute('inert', ''));
     moreShell.hidden = false;
     morePanel.removeAttribute("inert");
     morePanel.setAttribute("aria-hidden", "false");

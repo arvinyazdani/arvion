@@ -1,5 +1,31 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 1 checkpoint (2026-10-07)
+
+- VERIFIED locally; user appearance acceptance pending. Stage 1 of 8: shared
+  role-aware desktop/mobile navigation, separate exam/payment/project routes,
+  customer GET search, visible mobile language switch, body-level fixed bottom
+  navigation and safe-area spacing. Existing server permissions unchanged.
+- More drawer makes shell/nav inert, traps keyboard focus, restores focus and
+  prior inert state on Escape/close. No customer/business policy or model changes.
+- Evidence: 92/92 targeted dashboard/navigation tests; final navigation recheck
+  7/7 after short search text; Django check 0, no migration drift, node syntax and
+  diff whitespace checks clean. Old combined-label test updated to verify actual
+  separate destinations; no skips/weakening. No full suite required for this scope.
+- Isolated browser FA/EN, light/dark, 320/390/1280 widths; no horizontal overflow
+  after fixing hidden table intrinsic width. Scrolled mobile nav bottom remained
+  844; keyboard focus loop/Escape/background inert and QA customer search passed.
+  CSS/DOM emulation is not real-iPhone keyboard/device evidence.
+- Plugin: 21st metadata search, free code quota exhausted; no code retrieved or
+  library installed. Frontend Design and UI/UX Pro Max guidance adapted to Django.
+- Preview loopback :8126 with phase4_settings and /tmp/rvion-phase4-IWtoof/qa.sqlite3;
+  synthetic admin only, no real customer actions. Proof images admin-stage1-mobile.png
+  and admin-stage1-desktop.png in that temporary directory. Preview retained for UAT.
+- Scope/review/tests recorded in ADMIN_PLATFORM_REBUILD_PLAN.md. Stage 2–8 remain
+  NOT_STARTED; pause for user review before stage 2. No push/deploy authorized.
+- Three pre-existing gallery edits remain excluded. This checkpoint belongs to
+  the scoped stage-1 commit; exact commit from Git (planning baseline 462cfd7).
+
 ## Admin decision-focused rebuild — planning checkpoint (2026-10-07)
 
 - Plan recorded in ADMIN_PLATFORM_REBUILD_PLAN.md, active section dated

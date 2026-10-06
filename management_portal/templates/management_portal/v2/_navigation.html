@@ -1,0 +1,5 @@
+{% load static %}
+{% for item in items %}
+<a href="{{ item.url }}"{% if item.active %} class="active" aria-current="page"{% endif %}><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#{{ item.icon }}"></use></svg><span>{{ item.label }}</span></a>
+{% endfor %}
+<button class="m-more-toggle{% if more_active %} active{% endif %}" type="button" aria-expanded="false" aria-controls="management-more-panel"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#more"></use></svg><span>{% if lang == 'fa' %}بیشتر{% else %}More{% endif %}</span></button>
