@@ -1,5 +1,29 @@
 # Rvion current state
 
+## Production release — welcome gift and committed design phases (2026-10-06)
+
+- VERIFIED release: 33d6b59 pushed and deployed via clean fast-forward from
+  dde5808 and ops/release.sh. Includes the previously committed design phases
+  1–4 as well as the welcome gift/copy; the three dirty gallery files were not
+  staged, pushed or deployed. Self-review, not independent approval.
+- GitHub quality run 37506471635: Python 3.11 and 3.12 jobs both success,
+  including parallel and shuffled tests on PostgreSQL. Local dependency,
+  strict question-bank audit, dry-run static collection and 100-attempt
+  rollback benchmark also passed; earlier full/local evidence above retained.
+- Snapshot /srv/arvion/backups/pre-release-20261006-175553.dump was created
+  before migration; pg_restore --list succeeded. Migration assessments.0026
+  applied once; empty credit table confirmed (no old-account backfill).
+  Published question banks already existed, no bank records changed.
+- Release health=ok at 2026-10-06T17:56:10+00:00; arvion/nginx active,
+  production checkout clean. Public /health/ OK, FA/EN English briefing
+  both contain the new gift explanation. Browser FA 390px dark mobile:
+  readable gift/registration links, document width 390px, no overflow.
+  Evidence /tmp/rvion-phase4-IWtoof/welcome-gift-production-mobile.png.
+- No production signup/payment/redemption was fabricated; full transactional
+  gift journey was tested in isolated DBs, not on a real customer account.
+  Observation is bounded release smoke, not a 15-minute APM audit. Post-use
+  rollback must preserve the credit table/redemptions; prefer forward repair.
+
 ## Welcome discount explanation (2026-10-06)
 
 - VERIFIED locally: the public briefing explains the 100% new-account gift,
