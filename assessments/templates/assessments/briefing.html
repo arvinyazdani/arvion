@@ -46,6 +46,12 @@
 
   </div>
 
+  <div class="shell">
+    <article class="card briefing-card">
+      <h2>{% if lang == 'fa' %}یک نوبت رایگان، هدیه ثبت‌نام{% else %}One free attempt, your welcome gift{% endif %}</h2>
+      <p>{% if lang == 'fa' %}هر حساب جدید یک نوبت آزمون با تخفیف ۱۰۰٪ می‌گیرد؛ برای این نوبت هیچ مبلغی پرداخت نمی‌کنید. پس از ثبت‌نام، در صفحه بعد «فعال‌سازی یک نوبت رایگان» را انتخاب کنید و شرایط آزمون را بپذیرید. می‌توانید هدیه را برای آزمون زبان یا یکی از آزمون‌های دیگر استفاده کنید، اما فقط یک بار در مجموع. نوبت‌های بعدی پولی‌اند و قیمت و تخفیف فعال آن‌ها در صفحه سفارش نمایش داده می‌شود.{% else %}Each new account receives one assessment attempt with a 100% welcome discount: no payment is required for that attempt. After registering, choose “Activate one free attempt” on the next page and accept the assessment terms. Use your gift for English or another assessment, once in total—not once per assessment. Further attempts are paid; their price and any active offer appear on the order page.{% endif %}</p>
+    </article>
+  </div>
   <div class="shell briefing-actions">
     {% if request.user.is_authenticated %}
     <a class="button primary" href="{{ pricing_url }}">{% if lang == 'fa' %}مشاهده قیمت و ادامه پرداخت{% else %}See the price and continue to payment{% endif %}</a>

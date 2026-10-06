@@ -1,4 +1,5 @@
 import threading
+from datetime import timedelta
 from unittest import skipUnless
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import translation
+from django.utils import timezone
 
 from .models import Attempt, Choice, Exam, ExamEntitlement, ExamSection, ExamVersion, Order, PaymentTransaction, Question, Skill, WelcomeAssessmentCredit
 from .services import PaymentVerificationError, redeem_welcome_assessment, start_attempt
@@ -151,6 +153,24 @@ class WelcomeAssessmentTests(TestCase):
             self.assertContains(self.client.get(f"/{lang}/assessments/{self.exam.slug}/"), label)
         redeem_welcome_assessment(user=self.user, exam=self.exam)
         self.assertNotContains(self.client.get(f"/en/assessments/{self.exam.slug}/"), "Activate one free attempt")
+
+    def test_briefing_explains_welcome_gift_without_revealing_the_price(self):
+        for lang, label in (("fa", "تخفیف ۱۰۰٪"), ("en", "100% welcome discount")):
+            response = self.client.get(f"/{lang}/assessments/{self.exam.slug}/about/")
+            self.assertContains(response, label)
+            self.assertNotContains(response, "2,000,000")
+            self.assertNotContains(response, "فعال‌سازی یک نوبت رایگان</button>")
+
+    def test_paid_promotion_explanation_matches_server_quote_and_expires(self):
+        self.client.force_login(self.user)
+        with override_settings(ASSESSMENT_PROMOTION_SLUG=self.exam.slug,
+                               ASSESSMENT_PROMOTION_PRICE_IRR=900_000,
+                               ASSESSMENT_PROMOTION_ENDS_AT=timezone.now() + timedelta(hours=1)):
+            self.assertContains(self.client.get(f"/fa/assessments/{self.exam.slug}/"), "۵۵٪ کمتر")
+            self.assertContains(self.client.get(f"/en/assessments/{self.exam.slug}/"), "55% off")
+        with override_settings(ASSESSMENT_PROMOTION_SLUG=self.exam.slug,
+                               ASSESSMENT_PROMOTION_ENDS_AT=timezone.now() - timedelta(seconds=1)):
+            self.assertNotContains(self.client.get(f"/en/assessments/{self.exam.slug}/"), "Purchase offer:")
 
 
 @skipUnless(connection.vendor == "postgresql", "Requires PostgreSQL row locks")

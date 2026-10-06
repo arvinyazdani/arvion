@@ -1,5 +1,22 @@
 # Rvion current state
 
+## Welcome discount explanation (2026-10-06)
+
+- VERIFIED locally: the public briefing explains the 100% new-account gift,
+  where to activate it, once-across-exams scope and subsequent paid attempts.
+  It still reveals no monetary price before login. The available-credit order
+  panel explicitly says no payment; a paid promotion separately explains its
+  server-calculated percentage and expiry. No price, promotion date, access or
+  registration policy changed.
+- Targeted welcome-credit suite: 12 tests, OK / 1 PostgreSQL-only skip. The
+  two new copy tests cover FA/EN briefing, hidden price and active/expired paid
+  offer. No new locking logic; prior PostgreSQL evidence remains historical.
+- Browser: isolated QA, FA 390px briefing, heading/body/CTA readable and no
+  horizontal overflow. Evidence /tmp/rvion-phase4-IWtoof/welcome-discount-copy-mobile.png.
+  English covered by rendering tests, no real-device claim. UX Copy informed
+  the distinction between a welcome gift and a paid promotional offer.
+- No migration, push or deploy. Preserve the three pre-existing gallery edits.
+
 ## Welcome assessment gift (2026-10-06)
 
 - VERIFIED locally. Public registration alone issues
