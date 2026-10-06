@@ -1,5 +1,23 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — planning checkpoint (2026-10-07)
+
+- Plan recorded in ADMIN_PLATFORM_REBUILD_PLAN.md, active section dated
+  2026-10-07. Planning VERIFIED; implementation stages 1–8 NOT_STARTED.
+- Live superadmin review at desktop and 390px: page height 7310px; operational
+  queue begins at 3044px below long journey lists. Duplicate surfaces, ambiguous
+  navigation, mixed-language result labels and gift/payment semantics recorded.
+- User review checkpoint after EACH implementation phase: targeted tests,
+  self-review, local scoped commit, report and preview, then pause for user review.
+  Technical verification and user acceptance are separate. No push/deploy or
+  production migration authorized by this planning request.
+- Preserve all customer/contract/exam/payment records and existing business
+  policies. Three unrelated dirty gallery files remain excluded and untouched.
+- Next action: stage 1 shell/navigation, using relevant design plugins and
+  isolated QA data; no implementation or product tests run for this docs-only step.
+- Baseline HEAD 74408ce. This checkpoint is included in a docs-only local commit;
+  obtain its exact hash from Git rather than a forward/self-referential hash.
+
 ## Production release — pre-start guidance (2026-10-06)
 
 - VERIFIED deployment of 7c64527 via clean fast-forward from 33d6b59 and
