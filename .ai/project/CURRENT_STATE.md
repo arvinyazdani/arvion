@@ -1,5 +1,22 @@
 # Rvion current state
 
+## Production release — pre-start guidance (2026-10-06)
+
+- VERIFIED deployment of 7c64527 via clean fast-forward from 33d6b59 and
+  ops/release.sh. GitHub quality 37512098891: Python 3.11/3.12 both success,
+  including parallel/shuffled PostgreSQL suites and source/syntax audits.
+- Snapshot /srv/arvion/backups/pre-release-20261006-184002.dump created;
+  root pg_restore --list successful. No migrations to apply; assessment banks
+  unchanged. Production checkout clean, arvion/nginx active, release health=ok
+  at 2026-10-06T18:40:19+00:00. Public /health/ OK and anonymous pre-start GET
+  correctly redirects to login with next, not a 405/500.
+- Logged-in reading/checkbox/mobile evidence remains isolated QA evidence;
+  no production customer credentials or attempts were used for a fake journey.
+  Start POST and in-progress continuation remain unchanged. This is bounded
+  release smoke, not an APM observation interval or proof of actual reading.
+- Three unrelated gallery edits remain local and excluded. Deployment record
+  is a documentation-only follow-up commit; no further runtime change needed.
+
 ## Pre-start assessment guidance (2026-10-06)
 
 - VERIFIED locally. A ready-attempt dashboard action
