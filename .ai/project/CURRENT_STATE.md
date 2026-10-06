@@ -1,5 +1,27 @@
 # Rvion current state
 
+## Pre-start assessment guidance (2026-10-06)
+
+- VERIFIED locally. A ready-attempt dashboard action
+  opens an owner-only GET guide before the existing start POST. GET makes no
+  attempt or entitlement write. Continuing an in-progress attempt is unchanged.
+- FA/EN guidance covers independent answers/no copying or outside help,
+  page departures/time away, response time relative to difficulty, fair review
+  rather than conclusive cheating labels, and reconnection without clock pause.
+  UX Copy informed the clear warnings without overstating assessment quality.
+- The native required checkbox acknowledges guidance in the normal browser
+  flow. It is not stored as legal consent or server-enforced proof of reading;
+  existing POST/API compatibility and all access/revocation rules remain intact.
+- Initial tests caught incomplete fixtures (amount and unique email); visual
+  QA caught the missing render import. All fixed; fresh prestart/assessment/
+  account suite: 185 tests, OK / 4 PostgreSQL-specific skips (65.489s).
+  Check zero issues, no migration drift, diff whitespace clean.
+- Isolated FA mobile 390px: no overflow, unchecked submission stays on the
+  guide, not an attempt. No actual QA/prod attempt started in the browser.
+  Evidence /tmp/rvion-phase4-IWtoof/prestart-guidance-mobile.png. English
+  covered by template tests; no real-device or production claim.
+- No migration/push/deploy. Preserve unrelated gallery edits and active users.
+
 ## Production release — welcome gift and committed design phases (2026-10-06)
 
 - VERIFIED release: 33d6b59 pushed and deployed via clean fast-forward from

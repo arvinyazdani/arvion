@@ -1,0 +1,29 @@
+{% extends "assessments/base.html" %}
+{% block title %}{% if lang == 'fa' %}پیش از شروع آزمون{% else %}Before starting your assessment{% endif %} | Rvion{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="shell">
+    <article class="card briefing-card">
+      <span class="eyebrow">{% if lang == 'fa' %}لطفاً پیش از شروع مطالعه کنید{% else %}Please read before starting{% endif %}</span>
+      <h1>{% if lang == 'fa' %}{{ entitlement.exam.title_fa }}{% else %}{{ entitlement.exam.title_en }}{% endif %}</h1>
+      <p>{% if lang == 'fa' %}هدف آزمون، ارزیابی دقیق مهارت واقعی شماست. پاسخ‌های مستقل و روند طبیعی پاسخ‌گویی، برای کیفیت و قابل‌اعتمادبودن نتیجه مهم‌اند.{% else %}This assessment aims to evaluate your actual skills. Independent answers and a natural response pattern are important for a useful, reliable result.{% endif %}</p>
+      <ul class="briefing-list">
+        <li>{% if lang == 'fa' %}<strong>پاسخ مستقل:</strong> از کپی و جای‌گذاری، کمک دیگران، مترجم، موتور جست‌وجو یا ابزار هوش مصنوعی برای پاسخ‌دادن استفاده نکنید.{% else %}<strong>Answer independently:</strong> do not copy or paste answers or use another person's help, a translator, a search engine or AI tools to answer.{% endif %}</li>
+        <li>{% if lang == 'fa' %}<strong>در صفحه آزمون بمانید:</strong> جابه‌جایی به تب یا برنامه دیگر و مدت غیبت ثبت می‌شود. پیش از شروع، کارهای دیگر را تمام کنید و اعلان‌های مزاحم را خاموش کنید.{% else %}<strong>Stay on the assessment page:</strong> switching to another tab or app and time away are recorded. Finish other tasks and silence distracting notifications before starting.{% endif %}</li>
+        <li>{% if lang == 'fa' %}<strong>زمان پاسخ مهم است:</strong> زمان هر سؤال با سختی و زمان مورد انتظار آن بررسی می‌شود. با دقت و بدون عجله پاسخ بدهید؛ طولانی یا کوتاه‌بودن زمان به‌تنهایی اثبات تقلب نیست.{% else %}<strong>Response time matters:</strong> time per question is reviewed against its difficulty and expected response time. Answer carefully without rushing; a short or long response time alone does not prove cheating.{% endif %}</li>
+        <li>{% if lang == 'fa' %}<strong>پایش منصفانه:</strong> رخدادهای کپی، خروج از صفحه و زمان پاسخ برای بررسی ثبت می‌شوند، نه صدور خودکار حکم قطعی تقلب. دوربین و میکروفن استفاده نمی‌شود.{% else %}<strong>Fair monitoring:</strong> copying, leaving the page and response times are recorded for review, not an automatic conclusive cheating judgement. No camera or microphone is used.{% endif %}</li>
+        <li>{% if lang == 'fa' %}<strong>اگر اتصال قطع شد:</strong> از حساب خود «ادامه آزمون» را انتخاب کنید. پاسخ‌های ذخیره‌شده باقی می‌مانند، ولی زمان آزمون متوقف نمی‌شود.{% else %}<strong>If disconnected:</strong> choose “Continue” from your account. Saved answers remain, but the assessment clock does not pause.{% endif %}</li>
+      </ul>
+      <p>{% if lang == 'fa' %}زمان کل: {{ entitlement.exam.duration_minutes }} دقیقه. بازکردن این راهنما آزمون را شروع نمی‌کند؛ زمان پس از زدن دکمه زیر آغاز می‌شود.{% else %}Total time: {{ entitlement.exam.duration_minutes }} minutes. Opening this guide does not start the assessment; the clock starts after you press the button below.{% endif %}</p>
+      <form method="post" action="{% url 'assessments:start_attempt' entitlement.pk %}">
+        {% csrf_token %}
+        <label class="terms-check"><input type="checkbox" required name="guidance_read" value="yes"> {% if lang == 'fa' %}راهنما را خواندم و آماده پاسخ‌دادن مستقل هستم.{% else %}I have read the guidance and am ready to answer independently.{% endif %}</label>
+        <div class="briefing-actions">
+          <button class="button primary large" type="submit">{% if lang == 'fa' %}آماده‌ام؛ شروع آزمون{% else %}I'm ready; start assessment{% endif %}</button>
+          <a class="button secondary" href="{% url 'accounts:dashboard' %}">{% if lang == 'fa' %}فعلاً شروع نمی‌کنم؛ بازگشت به حساب{% else %}Not yet; return to account{% endif %}</a>
+        </div>
+      </form>
+    </article>
+  </div>
+</section>
+{% endblock %}

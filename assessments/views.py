@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import Http404
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
@@ -418,6 +418,10 @@ class SandboxPayView(LoginRequiredMixin, View):
 
 
 class StartAttemptView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        entitlement = get_object_or_404(ExamEntitlement.objects.select_related("exam"), pk=pk, user=request.user)
+        return render(request, "assessments/prestart.html", {"entitlement": entitlement, "lang": _request_language(request)})
+
     def post(self, request, pk):
         entitlement = get_object_or_404(ExamEntitlement, pk=pk, user=request.user)
         lang = _request_language(request)

@@ -111,7 +111,7 @@
                 {% if group.in_progress %}
                   <a class="button compact" href="{{ group.in_progress.get_absolute_url }}">{% if lang == 'fa' %}ادامه آزمون{% else %}Continue{% endif %}</a>
                 {% elif group.ready_entitlement %}
-                  <form method="post" action="{% url 'assessments:start_attempt' group.ready_entitlement.pk %}">{% csrf_token %}<button class="button compact" type="submit">{% if lang == 'fa' %}شروع آزمون{% else %}Start{% endif %}</button></form>
+                  <a class="button compact" href="{% url 'assessments:start_attempt' group.ready_entitlement.pk %}">{% if lang == 'fa' %}راهنما و شروع آزمون{% else %}Read guidance and start{% endif %}</a>
                 {% endif %}
                 {% for attempt in group.completed|slice:":1" %}<a class="button compact secondary" href="{% url 'assessments:result' attempt.result.pk %}">{% if lang == 'fa' %}آخرین نتیجه{% else %}Latest result{% endif %}</a>{% endfor %}
               </div>
