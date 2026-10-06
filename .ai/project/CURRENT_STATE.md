@@ -1,5 +1,50 @@
 # Rvion current state
 
+## Phase 4 — exact demo-to-order handoff (2026-10-06)
+
+- VERIFIED locally for the bounded path. Commit/push follows the authorized
+  phase-1/2/3 routine; deploy NOT_STARTED (not requested this turn).
+- Contact shows a bilingual read-only receipt: demo/category, brand, exact
+  custom hex colour, personality, sector-specific capabilities and four brief
+  choices. Jewellery maps to e-commerce; selected timing seeds the form.
+  A whitelisted editor link opens separately and explains how to replace the
+  selection. Empty capabilities remain explicit, including stale resubmits.
+  The language switch preserves the already session-authorized demo context.
+- Account continuation without the original browser session carries only the
+  owner's validated frozen snapshot into the new Lead's case, atomically;
+  no session-bound FK is reconstructed. Explicit invalid links do not attach
+  an older snapshot. Detail, export and FA/EN list filters include these orders.
+  Category text extraction is database-portable; receipt hex codes stay ASCII.
+- Full local suite: 873 tests, OK / 20 existing backend-specific skips, before
+  the final list-filter/language-switch delta; that delta is tested separately.
+  11 new journey tests cover all seven categories, validation, empty options,
+  isolation, replay and injected rollback. Targeted 257-test suite passed;
+  final SQLite leads/path suite: 23 passing. Real isolated PostgreSQL
+  path/dashboard/case suite: 27 passing, no skips; includes rollback, replay,
+  ownership, frozen-only list filters and tab-specific language references.
+  No new lock/race policy was introduced. Check/migration drift/JS syntax/diff
+  clean; official DESIGN lint zero errors, two existing orphan-token warnings.
+  Required Premium unit command (core/projects/leads.tests) and Node sector /
+  store model tests pass. Fault-injection error logs are intentional test
+  evidence, not an ignored application failure. No new CI/release claim.
+- Browser: isolated SQLite QA only at 8125. FA restaurant 390px completed all
+  three steps, validation/back navigation and successful submission; persisted
+  choices matched its case snapshot. EN jewellery 320px correctly retained
+  zero capabilities and e-commerce; dark/light and desktop 1280px receipt
+  geometry checked, no horizontal overflow. No real iPhone/Safari claim.
+  Browser language round-trip and separate settings tab retained all four
+  brief fields, style and explicitly empty capabilities. Session language
+  references are opaque, capped at ten and rechecked against session ownership;
+  older evicted references show the same neutral invalid-context notice.
+  Evidence: /tmp/rvion-phase4-IWtoof/. No production/customer records touched;
+  no migration/model change; permanent local SQLite migrations untouched.
+- Premium static audit remains PARTIAL: 55 existing handler-detection findings,
+  zero unresolved ownership. No audit suppression or false passing claim.
+  Frontend/Premium guided the readable receipt, native fields, existing token
+  palette and recovery copy. Self-review is not independent review.
+- Preserve/exclude pre-existing gallery CSS/template and the two gallery-view
+  hunks. No new draft retention, authentication or contract policy.
+
 ## Phase 3 — sector-specific live goals (2026-10-06)
 
 - Status: VERIFIED locally for the scoped implementation; commit/push authorized

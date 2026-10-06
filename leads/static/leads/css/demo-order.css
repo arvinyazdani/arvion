@@ -1,0 +1,11 @@
+/* Read-only handoff receipt, using the existing public form/theme owners. */
+.demo-order-summary {padding: 20px; margin-bottom: 24px; border: 1px solid var(--border-default); border-inline-start: 4px solid var(--action-brand-bg); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-primary);}
+.demo-order-summary header {display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px;}
+.demo-order-summary h2 {font-size: 20px; line-height: 1.6; margin: 0 0 8px;}
+.demo-order-summary p {font-size: 14px; line-height: 1.9; margin: 0; color: var(--text-secondary); overflow-wrap: anywhere;}
+.demo-order-summary dl {display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 20px 0;}
+.demo-order-summary dl > div {min-inline-size: 0;}
+.demo-order-summary dt {font-size: 13px; line-height: 1.9; color: var(--text-secondary);}
+.demo-order-summary dd {font-size: 16px; line-height: 1.9; margin: 4px 0 0; overflow-wrap: anywhere;}
+.demo-order-summary .button {white-space: normal; text-align: center; min-height: 48px;}
+@media (max-width:600px) {.demo-order-summary {padding: 16px;} .demo-order-summary dl {grid-template-columns: minmax(0,1fr);} .demo-order-summary header,.demo-order-summary .button {width: 100%;}}

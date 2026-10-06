@@ -1,5 +1,23 @@
 # Public demo ordering UI contract
 
+## Exact enquiry receipt (phase 4)
+
+`LeadCreateView` renders a read-only selection receipt outside the wizard's
+step panels, using the shared bilingual snapshot builder. It stays present
+on validation errors. A public, whitelisted settings link opens a new tab;
+it contains no contact data or session/submission identifier. Copy explains
+that submitting the changed design starts its own enquiry; the existing form
+continues to submit its displayed choice. Empty capabilities are explicit.
+The contact language switch uses a bounded session-only map and opaque query reference;
+it never exposes the token in markup and rechecks the original session binding.
+It does not make a foreign token usable. Authenticated account continuation uses only
+that owner's stored snapshot, never reconstructs a browser-bound FK, and
+records it on the new Lead's case within the finalize transaction. An explicit
+invalid link cannot silently select an older account draft. Staff filters,
+detail and export resolve the live selection or Lead-anchored frozen document.
+Native form validation/back controls remain authoritative. Technical colour
+codes are ASCII even in FA. Illustrative content/prices are not a contract.
+
 ## Reference storefront variant (phase 2)
 
 One fixture catalog/transient basket serves preview/full: product detail →

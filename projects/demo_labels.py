@@ -56,6 +56,24 @@ def demo_config_labels(lang, category=None):
     }
 
 
+def demo_theme_label(values, lang):
+    """Resolve a stored colour without echoing arbitrary stored input."""
+    label = dict(demo_config_labels(lang)["themes"]).get(values.get("theme"), "—")
+    colour = values.get("custom_color")
+    if (values.get("theme") == "custom" and isinstance(colour, str)
+            and len(colour) == 7 and colour.startswith("#")
+            and all(char in "0123456789abcdefABCDEF" for char in colour[1:])):
+        return f"{label} ({colour.lower()})"
+    return label
+
+
+def demo_selection_feature_labels(lang, category):
+    """Category wording, with generic labels for valid legacy capabilities."""
+    labels = dict(demo_config_labels(lang)["features"])
+    labels.update(demo_config_labels(lang, category)["features"])
+    return labels
+
+
 def _category_features(lang, category):
     fa = lang == "fa"
     base = {

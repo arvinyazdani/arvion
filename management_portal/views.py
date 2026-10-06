@@ -10,7 +10,8 @@ from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Max, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, CharField, Count, IntegerField, Max, OuterRef, Q, Subquery, Value, When
+from django.db.models.fields.json import KeyTextTransform
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -34,7 +35,7 @@ from traffic.models import ActiveVisitor, TrafficDay
 from contracts.models import ContractProposal
 from blog.models import Post
 from core.models import Page
-from projects.demo_labels import CATEGORY_LABELS_EN as DEMO_CATEGORY_LABELS_EN, demo_config_labels as _demo_config_labels
+from projects.demo_labels import CATEGORY_LABELS_EN as DEMO_CATEGORY_LABELS_EN
 from projects.models import DemoTemplate, Project
 from services.models import Service
 from accounts.staff_roles import STAFF_ROLES, group_name
@@ -46,7 +47,7 @@ from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
 from .customer_events import record_customer_event
 from assessments.services import AssessmentAccessRevokedError, PaymentVerificationError, approve_manual_payment, revoke_assessment_access
-from .models import CaseActivity, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
+from .models import CaseActivity, CaseDocument, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
 from .customer_segments import CASE_STAGE_CHOICES, JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
 from .customer_analytics import build_customer_funnel
@@ -883,54 +884,38 @@ def _demo_selection_card(item, lang):
     view. `public_url` only ever points at the public, unconfigured demo
     template — never at the customer's saved choices.
     """
-    if not getattr(item, "demo_selection_id", None):
+    from .cases import lead_demo_snapshot
+    data = lead_demo_snapshot(item)
+    if not data:
         return None
-    selection = item.demo_selection
-    template = selection.template
-    values = selection.selections or {}
-    labels = _demo_config_labels(lang)
-    theme_label = dict(labels["themes"]).get(values.get("theme", ""))
-    personality_label = dict(labels["personalities"]).get(values.get("personality", ""))
-    feature_lookup = dict(labels["features"])
-    feature_labels = [feature_lookup.get(key, key) for key in (values.get("features") or [])]
     dash = "—"
-    from projects.demo_briefs import brief_labels
     return {
-        "template_title": template.title_fa if lang == "fa" else template.title_en,
-        "category_label": _demo_category_label(template.category, lang),
-        "brand": values.get("brand") or (template.fictional_brand_fa if lang == "fa" else template.fictional_brand_en),
-        "theme_label": theme_label or dash,
-        "personality_label": personality_label or dash,
-        "features_display": ("، " if lang == "fa" else ", ").join(feature_labels) if feature_labels else dash,
-        "public_url": reverse("projects:demo_preview", args=[template.slug]),
-        "brief_rows": brief_labels(values.get("brief"), template.category, lang),
+        "template_title": data.get(f"template_title_{lang}", dash),
+        "category_label": data.get(f"category_{lang}", dash),
+        "brand": data.get("brand", dash),
+        "theme_label": data.get(f"theme_{lang}", dash),
+        "personality_label": data.get(f"personality_{lang}", dash),
+        "features_display": ("، " if lang == "fa" else ", ").join(data.get(f"features_{lang}", [])) or dash,
+        "public_url": reverse("projects:demo_preview", args=[data["demo_template_slug"]]),
+        "brief_rows": data.get(f"brief_{lang}", []),
     }
 
 
 def _demo_selection_report_lines(item):
     """Persian report lines describing a Lead's demo choice, for the plain-text
     export — matches the rest of that document, which is Persian-only."""
-    if not getattr(item, "demo_selection_id", None):
+    card = _demo_selection_card(item, "fa")
+    if not card:
         return []
-    selection = item.demo_selection
-    template = selection.template
-    values = selection.selections or {}
-    labels = _demo_config_labels("fa")
-    theme_label = dict(labels["themes"]).get(values.get("theme", "")) or "—"
-    personality_label = dict(labels["personalities"]).get(values.get("personality", "")) or "—"
-    feature_lookup = dict(labels["features"])
-    feature_labels = [feature_lookup.get(key, key) for key in (values.get("features") or [])]
-    brand = values.get("brand") or template.fictional_brand_fa
-    from projects.demo_briefs import brief_labels
     return [
         "", "انتخاب دمو", "-" * 20,
-        f"دمو: {template.title_fa}",
-        f"دسته: {_demo_category_label(template.category, 'fa')}",
-        f"برند انتخابی: {brand}",
-        f"رنگ: {theme_label}",
-        f"شخصیت طراحی: {personality_label}",
-        f"امکانات: {'، '.join(feature_labels) if feature_labels else '—'}",
-    ] + [f"{row['label']}: {row['value']}" for row in brief_labels(values.get("brief"), template.category, "fa")]
+        f"دمو: {card['template_title']}",
+        f"دسته: {card['category_label']}",
+        f"برند انتخابی: {card['brand']}",
+        f"رنگ: {card['theme_label']}",
+        f"شخصیت طراحی: {card['personality_label']}",
+        f"امکانات: {card['features_display']}",
+    ] + [f"{row['label']}: {row['value']}" for row in card["brief_rows"]]
 
 
 @staff_member_required(login_url="accounts:login")
@@ -951,17 +936,26 @@ def request_list(request):
     show_crm = kind in {"all", "crm"} and not demo_filter and (request.user.is_superuser or request.user.has_perm("crm_orders.view_crmorder"))
     show_clinic = kind in {"all", "clinic"} and not demo_filter and (request.user.is_superuser or request.user.has_perm("clinic_orders.view_clinicorder"))
     if show_leads:
-        qs = Lead.objects.select_related("demo_selection__template")
+        frozen = CaseDocument.objects.filter(
+            case__kind="lead", case__source_object_id=OuterRef("pk"),
+            content_type=ContentType.objects.get_for_model(Lead), object_id=OuterRef("pk"),
+            kind="attachment", title="انتخاب دمو",
+        ).annotate(category_label=KeyTextTransform(f"category_{lang}", "snapshot"))
+        qs = Lead.objects.select_related("demo_selection__template").annotate(
+            frozen_demo_category=Subquery(frozen.values("category_label")[:1], output_field=CharField()),
+        )
         if query: qs = qs.filter(name__icontains=query)
         if demo_filter == "only":
-            qs = qs.filter(demo_selection__isnull=False)
+            qs = qs.filter(Q(demo_selection__isnull=False) | Q(frozen_demo_category__isnull=False))
         elif demo_filter:
-            qs = qs.filter(demo_selection__template__category=demo_filter)
+            qs = qs.filter(Q(demo_selection__template__category=demo_filter) | Q(
+                demo_selection__isnull=True, frozen_demo_category=_demo_category_label(demo_filter, lang),
+            ))
         rows += [{
             "kind": "lead", "kind_label": "درخواست همکاری", "id": x.pk,
             "title": x.business_name or x.name, "contact": x.name, "code": x.tracking_code,
             "status": x.get_status_display(), "created_at": x.created_at,
-            "demo_category_label": _demo_category_label(x.demo_selection.template.category, lang) if x.demo_selection_id else None,
+            "demo_category_label": _demo_category_label(x.demo_selection.template.category, lang) if x.demo_selection_id else x.frozen_demo_category,
         } for x in qs[:100]]
     if show_crm:
         qs = CrmOrder.objects.all()

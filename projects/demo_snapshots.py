@@ -9,7 +9,7 @@ anonymous browser session/request and must never reach a staff- or
 account-facing record.
 """
 
-from .demo_labels import CATEGORY_LABELS_EN, demo_config_labels
+from .demo_labels import CATEGORY_LABELS_EN, demo_config_labels, demo_theme_label, demo_selection_feature_labels
 from .demo_briefs import brief_labels
 from .models import DemoTemplate
 
@@ -42,9 +42,9 @@ def build_demo_selection_snapshot(selection):
     record.
     """
     template = selection.template
-    values = selection.selections or {}
-    labels_fa = demo_config_labels("fa")
-    labels_en = demo_config_labels("en")
+    values = selection.selections if isinstance(selection.selections, dict) else {}
+    labels_fa = demo_config_labels("fa", template.category)
+    labels_en = demo_config_labels("en", template.category)
     theme_key = _safe_key(values.get("theme", ""))
     personality_key = _safe_key(values.get("personality", ""))
     raw_features = values.get("features")
@@ -52,8 +52,8 @@ def build_demo_selection_snapshot(selection):
         [key for key in raw_features if isinstance(key, str)][:_MAX_FEATURES]
         if isinstance(raw_features, list) else []
     )
-    feature_lookup_fa = dict(labels_fa["features"])
-    feature_lookup_en = dict(labels_en["features"])
+    feature_lookup_fa = demo_selection_feature_labels("fa", template.category)
+    feature_lookup_en = demo_selection_feature_labels("en", template.category)
     raw_brand = values.get("brand")
     brand = raw_brand.strip()[:_MAX_BRAND_LENGTH] if isinstance(raw_brand, str) else ""
     snapshot = {
@@ -62,8 +62,8 @@ def build_demo_selection_snapshot(selection):
         "category_fa": dict(DemoTemplate.CATEGORY_CHOICES).get(template.category, template.category),
         "category_en": CATEGORY_LABELS_EN.get(template.category, template.category),
         "brand": brand or template.fictional_brand_fa,
-        "theme_fa": dict(labels_fa["themes"]).get(theme_key) or DASH,
-        "theme_en": dict(labels_en["themes"]).get(theme_key) or DASH,
+        "theme_fa": demo_theme_label({**values, "theme": theme_key}, "fa"),
+        "theme_en": demo_theme_label({**values, "theme": theme_key}, "en"),
         "personality_fa": dict(labels_fa["personalities"]).get(personality_key) or DASH,
         "personality_en": dict(labels_en["personalities"]).get(personality_key) or DASH,
         "features_fa": [feature_lookup_fa.get(key, key) for key in feature_keys],

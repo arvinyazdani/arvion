@@ -34,6 +34,13 @@ components:
 ---
 # Rvion design context
 
+Phase 4 enquiry receipt uses existing card/border/text/action tokens, a
+two-column definition list on desktop and a single readable column on phones.
+Values wrap rather than hiding overflow; the separate-tab settings action has
+a 48px minimum target and explicit recovery instructions. FA/EN labels are
+resolved from shared sector data; technical hex colours remain ASCII. Light
+and dark palettes follow the global theme, not the sample's private palette.
+
 ## Overview
 
 North Star: a working design showroom, not a software feature brochure. The

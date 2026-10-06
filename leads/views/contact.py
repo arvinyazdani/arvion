@@ -1,4 +1,5 @@
 import secrets
+from urllib.parse import urlencode
 from uuid import UUID
 
 from django.conf import settings
@@ -17,16 +18,39 @@ from leads.form_draft_service import (
     NewLeadRateLimitedError,
     SubmissionConflictError,
     finalize_form_draft_to_lead,
+    get_active_draft,
 )
 from leads.forms import LeadForm
 from leads.models import Lead
 from services.models import Service
 from projects.models import DemoSelection
+from projects.demo_snapshots import build_demo_selection_snapshot
+from projects.demo_labels import demo_config_labels
+from projects.demo_briefs import brief_fields
+
+
+def _demo_summary(snapshot, lang):
+    return {
+        "title": snapshot[f"template_title_{lang}"],
+        "category": snapshot[f"category_{lang}"], "brand": snapshot["brand"],
+        "theme": snapshot[f"theme_{lang}"], "personality": snapshot[f"personality_{lang}"],
+        "features": snapshot[f"features_{lang}"], "brief": snapshot.get(f"brief_{lang}", []),
+    }
+
+
+def _requested_demo_token(request):
+    if "demo" in request.GET:
+        return request.GET.get("demo", "")
+    reference = request.GET.get("resume_demo")
+    if reference:
+        # Unknown/expired references remain invalid, never a bare-form fallback.
+        return request.session.get("contact_demo_language_tokens", {}).get(reference, "invalid")
+    return ""
 
 
 def _session_demo_selection(request):
     """Return a selected demo only when its public token is well formed and session-bound."""
-    token = request.GET.get("demo", "")
+    token = _requested_demo_token(request)
     if not token:
         return None
     try:
@@ -81,7 +105,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             self._demo_selection_cache = selection
             if selection:
                 handle_resolved_demo_selection(self.request, selection)
-            elif not self.request.GET.get("demo", ""):
+            elif not _requested_demo_token(self.request):
                 maybe_retry_pending_demo_selection(self.request)
         return self._demo_selection_cache
 
@@ -120,13 +144,17 @@ class LeadCreateView(LanguageViewMixin, FormView):
             }.get(service.slug, "consultation")
         selection = self._resolved_demo_selection()
         if selection:
+            values = selection.selections if isinstance(selection.selections, dict) else {}
+            brief = values.get("brief")
+            timing = brief.get("timing") if isinstance(brief, dict) else None
+            if timing in ("flexible", "month", "quarter"):
+                initial["timeline"] = {"flexible": "flexible", "month": "one_month", "quarter": "one_three"}[timing]
             initial["request_type"] = {
                 "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
-                "corporate": "website", "clinic": "webapp", "education": "webapp",
+                "corporate": "website", "clinic": "webapp", "education": "webapp", "jewelry": "ecommerce",
             }.get(selection.template.category, "consultation")
             initial["message"] = (
                 f"نمونه انتخاب‌شده: {selection.template.title_fa}\n"
-                f"سبک: {selection.selections.get('personality', '—')} · رنگ: {selection.selections.get('theme', '—')}\n"
                 "هدف و جزئیات پروژه را اینجا کامل می‌کنم: "
             ) if self.lang == "fa" else (
                 f"Selected demo: {selection.template.title_en}\n"
@@ -141,7 +169,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
         # block or explain itself (that would leak whether the token exists
         # at all); it just surfaces a neutral, non-blocking notice.
         selection = self._resolved_demo_selection()
-        if self.request.GET.get("demo", "") and not selection:
+        if _requested_demo_token(self.request) and not selection:
             context["demo_link_invalid"] = True
         elif selection:
             # Non-secret display data only — never public_token or
@@ -151,8 +179,45 @@ class LeadCreateView(LanguageViewMixin, FormView):
             context["demo_context"] = {
                 "label": selection.template.title_fa if self.lang == "fa" else selection.template.title_en,
             }
+            snapshot = build_demo_selection_snapshot(selection)
+            context["demo_summary"] = _demo_summary(snapshot, self.lang)
+            pointers = self.request.session.get("contact_demo_language_tokens", {})
+            token = str(selection.public_token)
+            reference = next((key for key, value in pointers.items() if value == token), None)
+            if reference is None:
+                reference = secrets.token_urlsafe(12)
+                pointers = dict(list(pointers.items())[-9:])
+                pointers[reference] = token
+                self.request.session["contact_demo_language_tokens"] = pointers
+            other_lang = "en" if self.lang == "fa" else "fa"
+            context["language_switch_url"] = "/" + other_lang + reverse("leads:contact")[3:] + "?" + urlencode({"resume_demo": reference})
+            # Only editor settings go into this public URL, never contact
+            # fields or any session/submission/public token. Explicitly empty
+            # features overrides a previous tab's stored defaults too.
+            values = selection.selections if isinstance(selection.selections, dict) else {}
+            labels = demo_config_labels(self.lang, selection.template.category)
+            query = {"brand": snapshot["brand"], "features": ""}
+            for key, group in (("theme", "themes"), ("personality", "personalities")):
+                if isinstance(values.get(key), str) and values[key] in dict(labels[group]):
+                    query[key] = values[key]
+            features = values.get("features")
+            if isinstance(features, list):
+                query["features"] = ",".join(key for key in features if isinstance(key, str) and key in dict(labels["features"]))
+            if query.get("theme") == "custom" and snapshot[f"theme_{self.lang}"].endswith(")"):
+                query["color"] = values["custom_color"].lower()
+            brief = values.get("brief")
+            if isinstance(brief, dict):
+                for field in brief_fields(selection.template.category, self.lang):
+                    value = brief.get(field["key"])
+                    if isinstance(value, str) and value in dict(field["options"]):
+                        query["brief_" + field["key"]] = value
+            context["demo_edit_url"] = reverse("projects:demo_preview", args=[selection.template.slug]) + "?" + urlencode(query) + "#configurator"
         user = self.request.user
         if user.is_authenticated and not user.is_staff and not user.is_superuser:
+            if not selection and not _requested_demo_token(self.request):
+                draft = get_active_draft(user, "leads_contact")
+                if draft and draft.demo_snapshot:
+                    context["demo_summary"] = _demo_summary(draft.demo_snapshot, self.lang)
             # Server-side account-bound draft mode (V2.1-C1): only ever
             # offered to a real, non-staff customer — never a guest, staff,
             # or superuser. Only plain, already-reversed URLs and a fixed
@@ -241,6 +306,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             lead, created = finalize_form_draft_to_lead(
                 owner=user, form=form, final_submission_token=token,
                 demo_selection=selection, allow_new_lead=allow_new_lead, on_created=notify,
+                use_saved_demo_snapshot=not bool(_requested_demo_token(self.request)),
             )
         except NewLeadRateLimitedError:
             form.add_error(None, "لطفاً کمی صبر کنید و دوباره تلاش کنید." if self.lang == "fa" else "Please wait before submitting another enquiry.")

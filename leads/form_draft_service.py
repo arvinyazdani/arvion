@@ -791,7 +791,7 @@ def _lead_matches_this_submission(lead, cleaned_data, demo_selection):
     return _lead_canonical_signature(lead) == _submission_canonical_signature(cleaned_data, demo_selection)
 
 
-def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_selection, allow_new_lead, on_created=None):
+def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_selection, allow_new_lead, on_created=None, use_saved_demo_snapshot=True):
     """The only sanctioned way to convert a customer's `leads_contact`
     `FormDraft` into a `Lead`, atomically and without ever creating a
     duplicate `Lead` for the same submission attempt. Called only from
@@ -815,6 +815,9 @@ def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_sel
     `DemoSelection` (or `None`) — resolved and authorized exactly the same
     way the pre-existing guest/staff/superuser path already does; this
     function never derives a live FK from a draft's frozen `demo_snapshot`.
+    When no live selection exists, `use_saved_demo_snapshot` preserves the
+    owner's validated frozen choice on the Lead's case in this transaction.
+    The caller disables that fallback for an explicit unresolved demo link.
 
     `allow_new_lead` is a zero-argument callable the caller supplies
     (normally wrapping its own IP-based rate limiter). It is called, and
@@ -947,6 +950,15 @@ def finalize_form_draft_to_lead(*, owner, form, final_submission_token, demo_sel
             lead.demo_selection = demo_selection
         lead.privacy_accepted_at = timezone.now()
         lead.save()
+        if demo_selection is None and use_saved_demo_snapshot and draft.demo_snapshot:
+            # Cross-device continuation has an authorized frozen snapshot,
+            # not a session-bound live FK. Preserve it on this new Lead's
+            # case inside the same transaction; never reconstruct the FK.
+            _validate_snapshot_shape(draft.demo_snapshot)
+            from management_portal.cases import sync_demo_snapshot_document
+            from management_portal.models import CustomerCase
+            case = CustomerCase.objects.get(kind="lead", source_object_id=lead.pk)
+            sync_demo_snapshot_document(case, lead, draft.demo_snapshot)
         created = True
 
         draft.submitted_lead = lead

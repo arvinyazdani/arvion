@@ -1071,8 +1071,8 @@ class DemoSnapshotExtractionTests(TestCase):
             "theme_en": "Calm sage",
             "personality_fa": "لوکس",
             "personality_en": "Luxury",
-            "features_fa": ["رزرو / نوبت‌دهی", "کاتالوگ و محصول"],
-            "features_en": ["Booking", "Catalogue"],
+            "features_fa": ["رزرو / نوبت‌دهی", "محصول، دسته‌بندی و فیلتر"],
+            "features_en": ["Booking", "Products, categories and filters"],
             "demo_template_slug": "snapshot-extraction-demo",
         })
 

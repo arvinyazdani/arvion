@@ -1660,7 +1660,7 @@ class DemoSelectionDashboardTests(TestCase):
         self.assertContains(detail, "سبز آرام")
         self.assertContains(detail, "لوکس")
         self.assertContains(detail, "رزرو / نوبت‌دهی")
-        self.assertContains(detail, "کاتالوگ و محصول")
+        self.assertContains(detail, "محصول، دسته‌بندی و فیلتر")
         self.assertContains(detail, reverse("projects:demo_preview", args=[self.template.slug]))
 
     def test_detail_without_demo_selection_has_no_demo_card_placeholder(self):
@@ -1697,7 +1697,7 @@ class DemoSelectionDashboardTests(TestCase):
         self.assertIn("Calm sage", card_html)
         self.assertIn("Luxury", card_html)
         self.assertIn("Booking", card_html)
-        self.assertIn("Catalogue", card_html)
+        self.assertIn("Products, categories and filters", card_html)
         self.assertNotIn("دموی فروشگاهی", card_html)
         self.assertNotIn("سبز آرام", card_html)
         self.assertNotIn("لوکس", card_html)

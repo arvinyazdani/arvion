@@ -255,9 +255,16 @@ def sync_demo_selection_document(case, lead, *, actor=None):
     """
     if not case or not lead.demo_selection_id:
         return None
+    return sync_demo_snapshot_document(case, lead, build_demo_selection_snapshot(lead.demo_selection), actor=actor)
+
+
+def sync_demo_snapshot_document(case, lead, data, *, actor=None):
+    """Record a trusted snapshot, including account continuation without a live FK."""
+    if not case or not data:
+        return None
     document, created = _upsert_document(
         case=case, instance=lead, kind="attachment", title=DEMO_SELECTION_DOCUMENT_TITLE,
-        actor=actor, data=build_demo_selection_snapshot(lead.demo_selection),
+        actor=actor, data=data,
     )
     if created:
         CaseActivity.objects.create(
@@ -266,6 +273,18 @@ def sync_demo_selection_document(case, lead, *, actor=None):
             actor=actor,
         )
     return document
+
+
+def lead_demo_snapshot(lead):
+    """Live selection or its Lead-anchored, frozen account-continuation record."""
+    if lead.demo_selection_id:
+        return build_demo_selection_snapshot(lead.demo_selection)
+    document = CaseDocument.objects.filter(
+        case__kind="lead", case__source_object_id=lead.pk,
+        content_type=ContentType.objects.get_for_model(lead), object_id=lead.pk,
+        kind="attachment", title=DEMO_SELECTION_DOCUMENT_TITLE,
+    ).first()
+    return document.snapshot if document else None
 
 
 def link_customer_event(customer, instance, *, kind, title, body="", actor=None, customer_name="", contact_name="", phone="", email=""):

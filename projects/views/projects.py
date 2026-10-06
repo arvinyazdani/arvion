@@ -277,8 +277,7 @@ class DemoConfigureView(LanguageViewMixin, View):
             # visitor can resubmit, so they already have a fresh token by the
             # time they click again.
             query = {"stale": "1", "brand": selections_payload["brand"], "theme": theme, "personality": personality}
-            if features:
-                query["features"] = ",".join(features)
+            query["features"] = ",".join(features)
             if theme == "custom":
                 query["color"] = custom_color
             query.update({"brief_" + key: value for key, value in brief.items()})
