@@ -1,111 +1,17 @@
 {% extends "management_portal/v2/base.html" %}
 {% load static management_i18n %}
-{% block title %}{% if lang == 'fa' %}مرکز عملیات{% else %}Operations center{% endif %} | Rvion{% endblock %}
-{% block page_title %}{% if lang == 'fa' %}خانه مدیریت{% else %}Overview{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/dashboard.css' %}?v=7">{% endblock %}
+{% block title %}{% if lang == 'fa' %}مرکز عملیات · امروز{% else %}Operations center · Today{% endif %} | Rvion{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}امروز{% else %}Today{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/today.css' %}?v=3">{% endblock %}
 {% block content %}
-<section class="m-dashboard-head">
-  <div>
-    <span class="m-eyebrow">{% if lang == 'fa' %}مرکز عملیات امروز{% else %}Today’s operations center{% endif %}</span>
-    <h1>{% if lang == 'fa' %}امروز چه چیزی نیاز به تصمیم شما دارد؟{% else %}What needs your decision today?{% endif %}</h1>
-    <p>{% if lang == 'fa' %}موارد تازه، کارهای عقب‌افتاده و مشتری‌های فعال را از یک صف روشن پیگیری کنید.{% else %}Handle new work, overdue items and active customers from one clear queue.{% endif %}</p>
-  </div>
-  <div class="m-dashboard-summary" aria-label="{% if lang == 'fa' %}خلاصه وضعیت{% else %}Status summary{% endif %}">
-    <span><i aria-hidden="true"></i><b>{{ online|default:0 }}</b>{% if lang == 'fa' %} آنلاین{% else %} online{% endif %}</span>
-    <a href="{% url 'management_portal:notification_list' %}"><b>{{ unread_count }}</b>{% if lang == 'fa' %} اعلان تازه{% else %} new alerts{% endif %}</a>
-  </div>
+<header class="today-head"><div><span class="m-eyebrow">RVION / {% if lang == 'fa' %}امروز{% else %}TODAY{% endif %}</span><h1>{% if lang == 'fa' %}امروز چه چیزی نیاز به تصمیم شما دارد؟{% else %}What needs your decision today?{% endif %}</h1><p>{% if lang == 'fa' %}اول کارهای فوری؛ سپس پیگیری مشتریان.{% else %}Urgent work first. Customer follow-ups next.{% endif %}</p></div><a class="m-btn" href="?view=reports">{% if lang == 'fa' %}گزارش و تنظیم اعلان{% else %}Reports & alert setup{% endif %}</a></header>
+<section class="today-stats" aria-label="{% if lang == 'fa' %}خلاصه امروز{% else %}Today at a glance{% endif %}">{% for item in today_summaries %}<a class="today-stat" href="{{ item.url }}"><span>{{ item.label }}</span><strong>{{ item.value }}</strong><small>{{ item.description }}</small></a>{% endfor %}</section>
+<section class="m-panel today-queue" aria-labelledby="work-queue-title"><header><h2 id="work-queue-title">{% if lang == 'fa' %}صندوق عملیاتی{% else %}Operational inbox{% endif %}</h2><span>{% if lang == 'fa' %}نمایش {{ queues|length }} از {{ queue_total }} مورد{% else %}Showing {{ queues|length }} of {{ queue_total }} items{% endif %}</span></header>
+<div>{% for item in queues %}<a class="today-row priority-{{ item.rank }}" href="{{ item.url }}"><span class="today-priority">{{ item.priority }} · {{ item.kind }}</span><span class="today-copy"><strong>{{ item.title }}</strong><small>{{ item.meta }}</small></span><time datetime="{{ item.date|date:'c' }}">{{ item.date|date:'Y/m/d H:i' }}</time><span class="today-open">{% if lang == 'fa' %}بررسی ←{% else %}Review →{% endif %}</span></a>{% empty %}<p class="m-empty">{% if lang == 'fa' %}کاری در صف تصمیم نیست. اعلان‌های تازه را از زنگ بالای صفحه ببینید.{% else %}No decisions waiting. Open the header bell for new alerts.{% endif %}</p>{% endfor %}</div>
+{% if sla_cards %}<details class="today-targets"><summary>{% if lang == 'fa' %}مواردی که از SLA عبور کرده‌اند{% else %}Response deadlines{% endif %}</summary>{% for item in sla_cards %}<a href="{{ item.url }}">{{ item.label }} <b>{{ item.value }}</b></a>{% endfor %}</details>{% endif %}
+{% if queue_total > 8 %}<a class="today-person" href="?view=reports">{% if lang == 'fa' %}دسترسی به همه صف‌ها{% else %}Open all work queues{% endif %} ←</a>{% endif %}
 </section>
-
-<nav class="m-quick-actions" aria-label="{% if lang == 'fa' %}اقدام‌های سریع{% else %}Quick actions{% endif %}">
-  <a class="primary" href="{% url 'management_portal:customer_workspace' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#customers"></use></svg><span><strong>{% if lang == 'fa' %}باز کردن مشتریان{% else %}Open customers{% endif %}</strong><small>{% if lang == 'fa' %}جست‌وجو و پرونده کامل{% else %}Search and full record{% endif %}</small></span></a>
-  {% if request.user.is_superuser or perms.leads.view_lead or perms.crm_orders.view_crmorder or perms.clinic_orders.view_clinicorder %}<a href="{% url 'management_portal:request_list' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#forms"></use></svg><span><strong>{% if lang == 'fa' %}فرم‌ها و نیازسنجی{% else %}Forms & discovery{% endif %}</strong><small>{% if lang == 'fa' %}ورودی‌های تازه مشتری{% else %}New customer submissions{% endif %}</small></span></a>{% endif %}
-  {% if request.user.is_staff %}<a href="{% url 'management_portal:workspace_list' %}"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contract"></use></svg><span><strong>{% if lang == 'fa' %}آماده‌سازی مشتری{% else %}Prepare customer package{% endif %}</strong><small>{% if lang == 'fa' %}فرم تخصصی، قرارداد و ارسال لینک{% else %}Specialist form, agreement and access link{% endif %}</small></span></a>{% endif %}
-</nav>
-
-<section class="m-journey-board" aria-labelledby="journey-board-title">
-  <header><div><span>{% if lang == 'fa' %}نقشه زنده مشتریان{% else %}LIVE CUSTOMER MAP{% endif %}</span><h2 id="journey-board-title">{% if lang == 'fa' %}هر مشتری الان در کدام مرحله است؟{% else %}Where is each customer now?{% endif %}</h2></div><p>{% if lang == 'fa' %}هر کارت یک اقدام مشخص دارد؛ وارد پرونده شوید و همان‌جا پیگیری کنید.{% else %}Every card has one clear action; open the record and follow up there.{% endif %}</p></header>
-  <div class="m-journey-lanes">
-    <article><header><i>1</i><div><strong>{% if lang == 'fa' %}عضو شده، بدون سفارش{% else %}Registered, no order{% endif %}</strong><small>{{ journey_queues.registered|length }} {% if lang == 'fa' %}نفر اخیر{% else %}recent{% endif %}</small></div></header>{% for account in journey_queues.registered %}<a href="{% url 'management_portal:customer_account_open' account.pk %}"><span><b>{{ account.get_full_name|default:account.email }}</b><small><bdi>{{ account.mobile }}</bdi></small></span><em>{% if lang == 'fa' %}پیگیری{% else %}Follow up{% endif %} ←</em></a>{% empty %}<p>{% if lang == 'fa' %}صف خالی است{% else %}Queue is clear{% endif %}</p>{% endfor %}</article>
-    <article><header><i>2</i><div><strong>{% if lang == 'fa' %}سفارش داده، پرداخت نکرده{% else %}Ordered, unpaid{% endif %}</strong><small>{{ journey_queues.pending|length }} {% if lang == 'fa' %}مورد اخیر{% else %}recent{% endif %}</small></div></header>{% for order in journey_queues.pending %}<a href="{% if order.customer_id %}{% url 'management_portal:customer_detail' order.customer_id %}{% else %}{% url 'management_portal:customer_account_open' order.user_id %}{% endif %}"><span><b>{{ order.user.get_full_name|default:order.user.email }}</b><small>{% if lang == 'fa' %}{{ order.exam.title_fa }}{% else %}{{ order.exam.title_en }}{% endif %}</small></span><em>{% if lang == 'fa' %}پیگیری مالی{% else %}Payment follow-up{% endif %} ←</em></a>{% empty %}<p>{% if lang == 'fa' %}صف خالی است{% else %}Queue is clear{% endif %}</p>{% endfor %}</article>
-    <article><header><i>3</i><div><strong>{% if lang == 'fa' %}پرداخت کرده، شروع نکرده{% else %}Paid, not started{% endif %}</strong><small>{{ journey_queues.ready|length }} {% if lang == 'fa' %}مورد اخیر{% else %}recent{% endif %}</small></div></header>{% for order in journey_queues.ready %}<a href="{% if order.customer_id %}{% url 'management_portal:customer_detail' order.customer_id %}{% else %}{% url 'management_portal:customer_account_open' order.user_id %}{% endif %}"><span><b>{{ order.user.get_full_name|default:order.user.email }}</b><small>{% if lang == 'fa' %}{{ order.exam.title_fa }}{% else %}{{ order.exam.title_en }}{% endif %}</small></span><em>{% if lang == 'fa' %}یادآوری شروع{% else %}Remind to start{% endif %} ←</em></a>{% empty %}<p>{% if lang == 'fa' %}صف خالی است{% else %}Queue is clear{% endif %}</p>{% endfor %}</article>
-    <article><header><i>✓</i><div><strong>{% if lang == 'fa' %}آزمون کامل شده{% else %}Assessment completed{% endif %}</strong><small>{{ journey_queues.completed|length }} {% if lang == 'fa' %}نتیجه اخیر{% else %}recent results{% endif %}</small></div></header>{% for attempt in journey_queues.completed %}<a href="{% if attempt.entitlement.order.customer_id %}{% url 'management_portal:customer_assessment_detail' attempt.entitlement.order.customer_id attempt.user_id %}#attempt-{{ attempt.pk }}{% else %}{% url 'management_portal:customer_account_open' attempt.user_id %}{% endif %}"><span><b>{{ attempt.user.get_full_name|default:attempt.user.email }}</b><small>{% if attempt.result %}{{ attempt.result.level_code }} · {{ attempt.result.percentage }}%{% else %}{% if lang == 'fa' %}نتیجه در حال آماده‌سازی{% else %}Result processing{% endif %}{% endif %}</small></span><em>{% if lang == 'fa' %}دیدن نتیجه{% else %}View result{% endif %} ←</em></a>{% empty %}<p>{% if lang == 'fa' %}نتیجه تازه‌ای نیست{% else %}No recent result{% endif %}</p>{% endfor %}</article>
-  </div>
-</section>
-
-<section class="m-action-board" aria-labelledby="work-queue-title">
-  <article class="m-panel m-priority-queue">
-    <header>
-      <div><span>{% if lang == 'fa' %}اولویت اکنون{% else %}Priority now{% endif %}</span><h2 id="work-queue-title">{% if lang == 'fa' %}صندوق عملیاتی{% else %}Operational inbox{% endif %}</h2></div>
-      <em>{{ queues|length }}</em>
-    </header>
-    <div class="m-work-list">
-      {% for item in queues %}
-        {% if item.url %}<a href="{{ item.url }}">{% else %}<article>{% endif %}
-          <b>{{ item.kind }}</b>
-          <span><strong>{{ item.title }}</strong><small>{{ item.meta }}</small></span>
-          <time datetime="{{ item.date|date:'c' }}">{{ item.date|date:"Y/m/d H:i" }}</time>
-          {% if item.url %}<svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg>{% endif %}
-        {% if item.url %}</a>{% else %}</article>{% endif %}
-      {% empty %}
-        <div class="m-empty m-empty-positive"><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#check"></use></svg><strong>{% if lang == 'fa' %}صف کار تازه‌ای ندارید{% else %}Your new-work queue is clear{% endif %}</strong><span>{% if lang == 'fa' %}رویداد بعدی همین‌جا نمایش داده می‌شود.{% else %}The next event will appear here.{% endif %}</span></div>
-      {% endfor %}
-    </div>
-  </article>
-
-  <div class="m-decision-rail">
-    {% if sla_cards %}
-    <article class="m-panel m-sla" aria-labelledby="sla-title">
-      <header><div><span>{% if lang == 'fa' %}کنترل زمان پاسخ{% else %}Response targets{% endif %}</span><h2 id="sla-title">{% if lang == 'fa' %}مواردی که از SLA عبور کرده‌اند{% else %}Items that have passed their SLA{% endif %}</h2></div></header>
-      <div>{% for item in sla_cards %}<a class="{{ item.tone }}" href="{{ item.url }}"><b>{{ item.value }}</b><span><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>{% endfor %}</div>
-    </article>
-    {% endif %}
-    <article class="m-panel m-live-inbox" aria-labelledby="live-inbox-title">
-      <header><div><span>{% if lang == 'fa' %}رویدادهای تازه{% else %}New events{% endif %}</span><h2 id="live-inbox-title">{% if lang == 'fa' %}آخرین اعلان‌ها{% else %}Latest alerts{% endif %}</h2></div><a href="{% url 'management_portal:notification_list' %}">{% if lang == 'fa' %}همه{% else %}All{% endif %}</a></header>
-      <div class="m-compact-list">{% for item in inbox_items %}<a href="{% url 'management_portal:notification_open' item.pk %}"><strong>{{ item.title|management_notification_title:lang }}</strong><small>{{ item.description|management_notification_description:lang|default:"—" }}</small></a>{% empty %}<div class="m-empty">{% if lang == 'fa' %}اعلان خوانده‌نشده‌ای ندارید.{% else %}You have no unread alerts.{% endif %}</div>{% endfor %}</div>
-    </article>
-  </div>
-</section>
-
-<section class="m-customer-work">
-  <article class="m-panel" aria-labelledby="recent-customers-title">
-    <header><div><span>{% if lang == 'fa' %}پرونده واحد مشتری{% else %}Unified customer record{% endif %}</span><h2 id="recent-customers-title">{% if lang == 'fa' %}مشتریان با فعالیت اخیر{% else %}Recently active customers{% endif %}</h2></div><a href="{% url 'management_portal:customer_workspace' %}">{% if lang == 'fa' %}همه مشتریان{% else %}All customers{% endif %}</a></header>
-    <div class="m-customer-list">
-      {% for customer in recent_customers %}<a href="{% url 'management_portal:customer_detail' customer.pk %}"><b aria-hidden="true">{{ customer.name|slice:":1" }}</b><span><strong>{{ customer.name }}</strong><small>{% if customer.contacts.count %}{{ customer.contacts.count }} {% if lang == 'fa' %}مخاطب ·{% else %}contacts ·{% endif %} {{ customer.cases.count }} {% if lang == 'fa' %}پرونده{% else %}cases{% endif %}{% else %}{% if lang == 'fa' %}اطلاعات تماس نیازمند تکمیل است{% else %}Contact information needs completion{% endif %}{% endif %}</small></span><time datetime="{{ customer.updated_at|date:'c' }}">{{ customer.updated_at|date:"Y/m/d H:i" }}</time><svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
-      {% empty %}<div class="m-empty">{% if lang == 'fa' %}هنوز پرونده مشتری برای نمایش وجود ندارد.{% else %}No customer records are available yet.{% endif %}</div>{% endfor %}
-    </div>
-  </article>
-  <article class="m-panel" aria-labelledby="open-tasks-title">
-    <header><div><span>{% if lang == 'fa' %}مسئولیت‌ها{% else %}Ownership{% endif %}</span><h2 id="open-tasks-title">{% if lang == 'fa' %}وظایف باز{% else %}Open tasks{% endif %}</h2></div><a href="{% url 'management_portal:crm_workspace' %}">{% if lang == 'fa' %}همه وظایف{% else %}All tasks{% endif %}</a></header>
-    <div class="m-task-list">{% for task in open_tasks %}<a href="{% url 'management_portal:crm_case_detail' task.case.pk %}"><span><strong>{{ task.title }}</strong><small>{{ task.case.customer.name|default:task.case.customer_name }}</small></span><time>{{ task.due_at|date:"Y/m/d H:i"|default:"—" }}</time></a>{% empty %}<div class="m-empty">{% if lang == 'fa' %}وظیفه بازی وجود ندارد.{% else %}There are no open tasks.{% endif %}</div>{% endfor %}</div>
-  </article>
-</section>
-
-{% if metrics %}
-<section class="m-status-section" aria-labelledby="business-status-title">
-  <header><div><span>{% if lang == 'fa' %}نمای کلی{% else %}Overview{% endif %}</span><h2 id="business-status-title">{% if lang == 'fa' %}وضعیت کسب‌وکار{% else %}Business status{% endif %}</h2></div></header>
-  <div class="m-metrics">{% for item in metrics %}{% if item.url %}<a class="m-metric {{ item.tone }}" href="{{ item.url }}">{% else %}<article class="m-metric {{ item.tone }}">{% endif %}<span>{{ item.label }}</span><strong>{{ item.value }}</strong><small>{{ item.description }}</small>{% if item.url %}<svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>{% else %}</article>{% endif %}{% endfor %}</div>
-</section>
-{% endif %}
-
-<section class="m-secondary-tools">
-  <article class="m-alert-setup" data-notification-panel>
-    <svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#bell"></use></svg>
-    <div><span>{% if lang == 'fa' %}اعلان این دستگاه{% else %}This device’s alerts{% endif %}</span><h2>{% if lang == 'fa' %}رویدادهای مهم را همان لحظه ببینید{% else %}See important events as they happen{% endif %}</h2><p id="notification-help" data-notification-help role="status" aria-live="polite" aria-atomic="true">{% if lang == 'fa' %}اعلان موبایل و دسکتاپ را بررسی یا یک پیام آزمایشی ارسال کنید.{% else %}Check mobile and desktop alerts or send a local test.{% endif %}</p></div>
-    <button class="m-alert-enable" type="button" aria-describedby="notification-help notification-status">{% if lang == 'fa' %}بررسی اعلان{% else %}Check alerts{% endif %}</button>
-  </article>
-  <article class="m-document-vault">
-    <svg aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#receipt"></use></svg>
-    <div><span>{% if lang == 'fa' %}بایگانی مشتری{% else %}Customer archive{% endif %}</span><h2>{% if lang == 'fa' %}اسناد قابل پیگیری و امن{% else %}Traceable, protected records{% endif %}</h2><p>{% if lang == 'fa' %}فرم‌ها، خروجی‌ها و قراردادها کنار پرونده مشتری نگهداری می‌شوند.{% else %}Forms, exports and contracts stay with the customer record.{% endif %}</p></div>
-    <a href="{% url 'management_portal:request_list' %}"><b>{{ document_counts.discoveries }}</b><span>{% if lang == 'fa' %}فرم{% else %}forms{% endif %}</span></a>
-    {% if request.user.is_superuser %}<a href="{% url 'management_portal:workspace_list' %}"><b>{{ document_counts.contracts }}</b><span>{% if lang == 'fa' %}فضای مشتری{% else %}customer workspaces{% endif %}</span></a>{% endif %}
-  </article>
-</section>
-
-{% if chart %}
-<section class="m-panel m-traffic" aria-labelledby="traffic-title">
-  <header><div><span>{% if lang == 'fa' %}هفت روز اخیر{% else %}Last 7 days{% endif %}</span><h2 id="traffic-title">{% if lang == 'fa' %}روند بازدید سایت{% else %}Traffic trend{% endif %}</h2></div><div class="m-chart-legend" aria-hidden="true"><span><i></i>{% if lang == 'fa' %}بازدید{% else %}Views{% endif %}</span><span><i class="visitor"></i>{% if lang == 'fa' %}بازدیدکننده{% else %}Visitors{% endif %}</span></div></header>
-  <div class="m-chart" aria-hidden="true">{% for item in chart %}<div><span><i style="--value:{{ item.views }}"></i><i class="visitor" style="--value:{{ item.visitors }}"></i></span><small>{{ item.label }}</small><b>{{ item.views }}</b></div>{% endfor %}</div>
-  <table class="m-sr-only m-chart-data"><caption>{% if lang == 'fa' %}جدول بازدید و بازدیدکنندگان هفت روز اخیر{% else %}Views and visitors during the last seven days{% endif %}</caption><thead><tr><th scope="col">{% if lang == 'fa' %}روز{% else %}Day{% endif %}</th><th scope="col">{% if lang == 'fa' %}بازدید{% else %}Views{% endif %}</th><th scope="col">{% if lang == 'fa' %}بازدیدکننده{% else %}Visitors{% endif %}</th></tr></thead><tbody>{% for item in chart %}<tr><th scope="row">{{ item.label }}</th><td>{{ item.views }}</td><td>{{ item.visitors }}</td></tr>{% endfor %}</tbody></table>
-</section>
-{% endif %}
+<section class="today-groups" aria-labelledby="today-groups-title"><h2 id="today-groups-title">{% if lang == 'fa' %}پیگیری مشتریان{% else %}Customer follow-ups{% endif %}</h2><p>{% if lang == 'fa' %}شمارنده کل گروه است؛ با باز کردن هر گروه، سه مورد اول را می‌بینید.{% else %}Counts cover the full group. Expand to see the first three records.{% endif %}</p>{% for group in today_groups %}{% include "management_portal/v2/_today_group.html" %}{% endfor %}</section>
+<details class="m-panel today-group"><summary><span>{% if lang == 'fa' %}آخرین فعالیت ثبت‌شده مشتریان{% else %}Latest recorded customer activity{% endif %}</span><span aria-hidden="true">＋</span></summary>{% for customer in recent_customers %}<a class="today-person" href="{% url 'management_portal:customer_detail' customer.pk %}"><strong>{{ customer.name }}</strong><time datetime="{{ customer.last_event_at|date:'c' }}">{{ customer.last_event_at|date:'Y/m/d H:i' }}</time></a>{% empty %}<p class="m-empty">{% if lang == 'fa' %}رویداد ثبت‌شده‌ای نیست.{% else %}No recorded events.{% endif %}</p>{% endfor %}</details>
+<details class="m-panel today-group"><summary><span>{% if lang == 'fa' %}آخرین اعلان‌ها{% else %}Latest alerts{% endif %}</span><b>{{ unread_count }}</b></summary>{% for item in inbox_items %}<a class="today-person" href="{% url 'management_portal:notification_open' item.pk %}"><strong>{{ item.title|management_notification_title:lang }}</strong></a>{% empty %}<p class="m-empty">{% if lang == 'fa' %}اعلان تازه‌ای نیست.{% else %}No new alerts.{% endif %}</p>{% endfor %}</details>
 {% endblock %}

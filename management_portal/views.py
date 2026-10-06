@@ -710,43 +710,47 @@ def dashboard(request):
     """Permission-aware command centre outside Django's model administration UI."""
     user = request.user
     now = timezone.now()
+    reports = request.GET.get("view") == "reports"
     metrics = []
     sla_cards = []
     queues = []
     if user.has_perm("accounts.change_user"):
         # Unverified mobiles are normal since signup dropped the SMS step, so
         # only genuinely deactivated accounts belong in the approval queue.
-        pending_users = User.objects.filter(is_staff=False, is_active=False).order_by("-date_joined")
+        pending_users = User.objects.filter(is_staff=False, is_active=False).order_by("date_joined", "pk")
         metrics.append(_metric("حساب نیازمند تأیید", pending_users.count(), "فعال‌سازی و کنترل ثبت‌نام", reverse("management_portal:approvals"), "warning"))
-        queues += [{"kind": "حساب", "title": item.email, "meta": "منتظر فعال‌سازی", "date": item.date_joined, "url": reverse("management_portal:approvals")} for item in pending_users[:4]]
+        queues += [{"kind": "حساب", "title": item.email, "meta": "منتظر فعال‌سازی", "date": item.date_joined, "url": reverse("management_portal:approvals") + f"?account={item.pk}"} for item in pending_users[:8]]
     if user.has_perm("leads.view_lead"):
-        new_leads = Lead.objects.filter(status="new").order_by("-created_at")
+        new_leads = Lead.objects.filter(status="new").order_by("created_at", "pk")
         metrics.append(_metric("درخواست همکاری جدید", new_leads.count(), "نیازمند اولین تماس", reverse("management_portal:request_list") + "?kind=lead", "warning"))
-        queues += [{"kind": "همکاری", "title": item.name, "meta": item.business_name or item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["lead", item.pk])} for item in new_leads[:4]]
+        queues += [{"kind": "همکاری", "title": item.name, "meta": item.business_name or item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["lead", item.pk])} for item in new_leads[:8]]
     if user.has_perm("crm_orders.view_crmorder"):
-        crm = CrmOrder.objects.filter(status="new").order_by("-created_at")
+        crm = CrmOrder.objects.filter(status="new").order_by("created_at", "pk")
         metrics.append(_metric("نیازسنجی CRM", crm.count(), "سفارش‌های تحلیل‌نشده", reverse("management_portal:request_list") + "?kind=crm", "warning"))
-        queues += [{"kind": "CRM", "title": item.organization_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["crm", item.pk])} for item in crm[:4]]
+        queues += [{"kind": "CRM", "title": item.organization_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["crm", item.pk])} for item in crm[:8]]
     if user.has_perm("clinic_orders.view_clinicorder"):
-        clinics = ClinicOrder.objects.filter(status="new").order_by("-created_at")
+        clinics = ClinicOrder.objects.filter(status="new").order_by("created_at", "pk")
         metrics.append(_metric("نیازسنجی کلینیک", clinics.count(), "درخواست‌های تحلیل‌نشده", reverse("management_portal:request_list") + "?kind=clinic", "warning"))
-        queues += [{"kind": "کلینیک", "title": item.clinic_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["clinic", item.pk])} for item in clinics[:4]]
+        queues += [{"kind": "کلینیک", "title": item.clinic_name, "meta": item.tracking_code, "date": item.created_at, "url": reverse("management_portal:request_detail", args=["clinic", item.pk])} for item in clinics[:8]]
     if user.has_perm("assessments.view_manualpaymentsubmission"):
-        payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("-updated_at")
+        payments = ManualPaymentSubmission.objects.filter(status="pending").select_related("order__user").order_by("updated_at", "pk")
         metrics.append(_metric("پرداخت منتظر بررسی", payments.count(), "تأیید بانکی و دسترسی آزمون", reverse("management_portal:approvals"), "danger"))
-        queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.created_at, "url": reverse("management_portal:approvals")} for item in payments[:4]]
+        queues += [{"kind": "پرداخت", "title": item.payer_name, "meta": item.reference_number, "date": item.updated_at, "url": reverse("management_portal:approvals") + f"?payment={item.pk}#payment-{item.pk}"} for item in payments[:8]]
         overdue_payments = payments.filter(updated_at__lte=now - timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS)).count()
         sla_cards.append(_metric("تأیید خودکار معطل", overdue_payments, "بیش از ۳ دقیقه در انتظار مانده", reverse("management_portal:approvals"), "danger"))
     if user.has_perm("assessments.view_supportticket"):
         metrics.append(_metric("تیکت باز", SupportTicket.objects.filter(status__in=("open", "in_review")).count(), "نیازمند پاسخ یا پیگیری", reverse("management_portal:assessment_support")))
         overdue_tickets = SupportTicket.objects.filter(status="open", created_at__lte=now - timedelta(seconds=settings.SUPPORT_FIRST_RESPONSE_SLA_SECONDS)).count()
         sla_cards.append(_metric("تیکت خارج از مهلت", overdue_tickets, "پاسخ اولیه بیش از ۴ ساعت عقب افتاده", reverse("management_portal:assessment_support"), "warning"))
-    if user.has_perm("assessments.view_attempt"):
+        support_queue = SupportTicket.objects.filter(status__in=("open", "in_review")).select_related("user").order_by(
+            Case(When(status="open", created_at__lte=now-timedelta(seconds=settings.SUPPORT_FIRST_RESPONSE_SLA_SECONDS), then=Value(0)), default=Value(1), output_field=IntegerField()), "created_at", "pk")
+        queues += [{"kind": "پشتیبانی", "title": item.subject, "meta": item.user.email, "date": item.created_at, "url": reverse("management_portal:assessment_support") + f"?ticket={item.pk}", "waiting_first_response": item.status == "open"} for item in support_queue[:8]]
+    if user.has_perm("assessments.view_exam"):
         metrics.append(_metric("آزمون در حال اجرا", Attempt.objects.filter(status="in_progress").count(), "نشست‌های فعال آزمون", reverse("management_portal:assessment_support")))
 
     chart = []
     online = None
-    if user.has_perm("traffic.view_trafficday"):
+    if reports and user.has_perm("traffic.view_trafficday"):
         online = ActiveVisitor.objects.filter(last_seen__gte=timezone.now() - timedelta(minutes=5)).count()
         for day in reversed(TrafficDay.objects.order_by("-date")[:7]):
             chart.append({"label": day.date.strftime("%m/%d"), "views": day.page_views, "visitors": day.unique_visitors})
@@ -755,7 +759,6 @@ def dashboard(request):
             _metric("بازدید امروز", today.page_views if today else 0, "نمایش صفحه‌های عمومی"),
             _metric("کاربر آنلاین", online, "فعال در پنج دقیقه اخیر", tone="positive"),
         ]
-    queues.sort(key=lambda item: item["date"], reverse=True)
     notifications = _visible_notifications(user)
     unread_notifications = notifications.filter(
         status__in=("unread", "read"),
@@ -784,7 +787,7 @@ def dashboard(request):
         overdue_tasks = CaseTask.objects.filter(status="open", due_at__lt=now).count()
         sla_cards.append(_metric("وظیفه CRM عقب‌افتاده", overdue_tasks, "موعد پیگیری مشتری گذشته است", reverse("management_portal:crm_workspace"), "danger"))
     metrics.insert(0, _metric("اعلان خوانده‌نشده", unread_count, "رویدادهای تازه مرتبط با مسئولیت شما", reverse("management_portal:notification_list"), "warning"))
-    if user.is_superuser:
+    if reports and user.is_superuser:
         metrics.insert(1, _metric("قراردادها", ContractProposal.objects.exclude(status__in=("expired", "revoked")).count(), "ساخت، ارسال و پیگیری پذیرش", reverse("management_portal:workspace_list"), "positive"))
         metrics.insert(2, _metric("مدیران و مسئولان", User.objects.filter(is_staff=True, is_superuser=False).count(), "ساخت همکار و تنظیم نقش‌ها", reverse("management_portal:staff_list")))
         metrics.insert(3, _metric("ارسال پیامک", SMSDispatch.objects.filter(status="sent").count(), "ارسال تکی یا گروهی و مشاهده سابقه", reverse("management_portal:sms_send")))
@@ -824,12 +827,12 @@ def dashboard(request):
             "بازدید امروز": ("Views today", "Public page views"), "کاربر آنلاین": ("Online users", "Active in the last five minutes"),
         }
         sla_labels = {
-            "پرداخت خارج از مهلت": ("Overdue payment reviews", "Waiting beyond the 30-minute review target"),
+            "تأیید خودکار معطل": ("Automatic approval delayed", "Still awaiting review after the automatic approval deadline"),
             "تیکت خارج از مهلت": ("Overdue support tickets", "Initial response is beyond the four-hour target"),
             "پیگیری فروش سررسیدشده": ("Overdue sales follow-ups", "A form or contract has waited more than one day"),
             "وظیفه CRM عقب‌افتاده": ("Overdue CRM tasks", "A customer follow-up date has passed"),
         }
-        kinds = {"حساب": "Account", "همکاری": "Enquiry", "کلینیک": "Clinic", "پرداخت": "Payment"}
+        kinds = {"حساب": "Account", "همکاری": "Enquiry", "کلینیک": "Clinic", "پرداخت": "Payment", "پشتیبانی": "Support"}
         for item in metrics:
             if item["label"] in labels:
                 item["label"], item["description"] = labels[item["label"]]
@@ -839,26 +842,17 @@ def dashboard(request):
         for item in queues:
             item["kind"] = kinds.get(item["kind"], item["kind"])
             if item["meta"] == "منتظر فعال‌سازی":
-                item["meta"] = "Awaiting verification"
-    recent_customers = Customer.objects.prefetch_related("contacts", "cases").order_by("-updated_at")[:8]
-    registered_without_order = User.objects.filter(is_staff=False, is_active=True, assessment_orders__isnull=True, mobile__isnull=False).exclude(mobile="").order_by("-date_joined")[:6]
-    pending_orders = Order.objects.filter(status="pending").select_related("user", "exam", "customer").order_by("-created_at")[:6]
-    paid_not_started = Order.objects.filter(status="paid", entitlement__attempt__isnull=True).select_related("user", "exam", "customer").order_by("-paid_at", "-updated_at")[:6]
-    completed_attempts = Attempt.objects.filter(status="completed").select_related("user", "exam", "entitlement__order__customer", "result").order_by("-submitted_at", "-updated_at")[:6]
-    open_tasks = CaseTask.objects.filter(status="open").select_related("case__customer", "assigned_to").order_by("due_at", "-created_at")[:8]
-    inbox_items = unread_notifications.select_related("owner").order_by("-created_at")[:6]
-    return render(request, "management_portal/v2/dashboard.html", {
-        "metrics": metrics, "queues": queues[:12], "chart": chart, "online": online, "lang": lang,
+                item["meta"] = "Awaiting activation"
+    from .today import prepare_today
+    today_context = prepare_today(user, now, lang, queues, metrics, request.GET.get("group", ""), request.GET.get("page", "1"))
+    recent_customers = Customer.objects.annotate(last_event_at=Max("events__occurred_at")).filter(last_event_at__isnull=False).order_by("-last_event_at", "pk")[:3]
+    inbox_items = unread_notifications.select_related("owner").order_by("-created_at")[:3]
+    return render(request, "management_portal/v2/dashboard_reports.html" if reports else "management_portal/v2/dashboard.html", {
+        "metrics": metrics, "chart": chart, "online": online, "lang": lang, "reports": reports,
         "unread_count": unread_count,
         "sla_cards": sla_cards,
-        "recent_customers": recent_customers, "open_tasks": open_tasks, "inbox_items": inbox_items,
-        "journey_queues": {
-            "registered": registered_without_order,
-            "pending": pending_orders,
-            "ready": paid_not_started,
-            "completed": completed_attempts,
-        },
-        "document_counts": {"discoveries": CrmOrder.objects.count() + ClinicOrder.objects.count(), "contracts": ContractProposal.objects.count() if user.is_superuser else 0},
+        "recent_customers": recent_customers, "inbox_items": inbox_items,
+        **today_context,
     })
 
 
@@ -1106,13 +1100,25 @@ def _require_account_or_payment_access(user):
         raise PermissionDenied
 
 
+def _drilldown_pk(request, key):
+    """Bound optional list drill-downs before passing client input to the ORM."""
+    value = request.GET.get(key, "")
+    return int(value) if value.isascii() and value.isdigit() and len(value) <= 18 else None
+
+
 @staff_member_required(login_url="accounts:login")
 def approvals(request):
     _require_account_or_payment_access(request.user)
-    users = User.objects.filter(
-        is_staff=False, is_active=False,
-    ).order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
-    payments = list(ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by").order_by("-created_at")[:100]) if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
+    account_rows = User.objects.filter(is_staff=False, is_active=False)
+    account_pk = _drilldown_pk(request, "account")
+    if account_pk is not None:
+        account_rows = account_rows.filter(pk=account_pk)
+    users = account_rows.order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
+    payment_rows = ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by")
+    payment_pk = _drilldown_pk(request, "payment")
+    if payment_pk is not None:
+        payment_rows = payment_rows.filter(pk=payment_pk)
+    payments = list(payment_rows.order_by("-created_at")[:100]) if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
     now = timezone.now()
     for payment in payments:
         payment.auto_approve_seconds = max(
@@ -1220,7 +1226,11 @@ def assessment_support(request):
             "result_count": AttemptResult.objects.count(), "certificate_count": Certificate.objects.filter(is_revoked=False).count(),
         })
     if user.is_superuser or user.has_perm("assessments.view_supportticket"):
-        context["tickets"] = SupportTicket.objects.select_related("user").order_by("status", "-created_at")[:100]
+        tickets = SupportTicket.objects.select_related("user")
+        ticket_pk = _drilldown_pk(request, "ticket")
+        if ticket_pk is not None:
+            tickets = tickets.filter(pk=ticket_pk)
+        context["tickets"] = tickets.order_by("status", "-created_at")[:100]
     return render(request, "management_portal/v2/assessment_support.html", context)
 
 

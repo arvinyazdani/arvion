@@ -1,5 +1,35 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 2 checkpoint (2026-10-07)
+
+- VERIFIED locally; user appearance review pending. Stage 2 of 8: compact Today,
+  at most four summaries, eight prioritized source items, exact totals distinct
+  from previews, expandable customer groups with three previews / 30-row pages.
+- Scope: accounts needing activation, new enquiries/discoveries, pending receipts,
+  open/in-review tickets, overdue tasks and superadmin overdue sent/review contracts.
+  Receipt urgency first; other due items next; oldest within each priority.
+  Current server permissions respected; no new business policy or writer.
+- Ready means a real unrevoked, unexpired unused entitlement. Free/gift, approved
+  receipt, verified gateway and unverified manual grant labels are separate.
+  Customer recency derives from CustomerEvent, not Customer.updated_at.
+- Reports/traffic chart/device alert setup retained under dashboard?view=reports.
+  Exact account/receipt/ticket GET drilldowns avoid the legacy 100-row list cutoff.
+  IDs bounded and existing destination permissions retained. No real approval sent.
+- Evidence: final targeted phase suite 107/107 passed (Today, navigation, CSS
+  contracts, ManagementDashboardTests); 13 new Today tests also separately passed.
+  Check 0 issues, migration dry-run "No changes detected", diff whitespace clean.
+  No full suite / PostgreSQL concurrency required for this read-only UI stage.
+- Browser isolated QA :8126: FA light 390/1280, EN dark 320; no horizontal overflow;
+  full seven-person group, exact receipt, secondary reports, native Enter summary,
+  fixed bottom nav after scroll. CSS/viewport emulation is not physical iPhone QA.
+  Images /tmp/rvion-phase4-IWtoof/admin-stage2-mobile.png and admin-stage2-desktop.png.
+- Own preview server retained for user UAT; fixture contacts/receipt only in the
+  disposable /tmp/rvion-phase4-IWtoof/qa.sqlite3 (console SMS/blank push credentials).
+  No production connection, schema change, push or deploy. Three pre-existing
+  gallery edits preserved/excluded. Commit is scoped local; exact hash from Git.
+- Next: pause for user review, then stage 3 inbox/action destinations. Six stages
+  remain NOT_STARTED. Stage 1 user requested continuation, not independent sign-off.
+
 ## Admin decision-focused rebuild — stage 1 checkpoint (2026-10-07)
 
 - VERIFIED locally; user appearance acceptance pending. Stage 1 of 8: shared

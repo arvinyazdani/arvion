@@ -1,0 +1,12 @@
+<details class="m-panel today-group"{% if group.selected %} open{% endif %}>
+  <summary><span>{{ group.label }}</span><b>{{ group.count }} <small>{{ group.unit }}</small></b><span aria-hidden="true">＋</span></summary>
+  {% for item in group.items %}
+    <a class="today-person" href="{% if group.key == 'registered' %}{% url 'management_portal:customer_account_open' item.pk %}{% else %}{% url 'management_portal:customer_account_open' item.user_id %}{% endif %}">
+      <strong>{% if group.key == 'registered' %}{{ item.get_full_name|default:item.email }}{% else %}{{ item.user.get_full_name|default:item.user.email }}{% endif %}</strong>
+      <small>{% if group.key == 'registered' %}<bdi>{{ item.mobile|default:item.email }}</bdi>{% elif lang == 'fa' %}{{ item.exam.title_fa }}{% else %}{{ item.exam.title_en }}{% endif %}{% if item.access_label %} · {{ item.access_label }}{% endif %}</small>
+    </a>
+  {% empty %}<p class="m-empty">{% if lang == 'fa' %}موردی نیست.{% else %}No records.{% endif %}</p>{% endfor %}
+  {% if group.count > 3 and not group.selected %}<a class="today-person" href="?group={{ group.key }}#today-groups-title">{% if lang == 'fa' %}مشاهده همه {{ group.count }} مورد{% else %}View all {{ group.count }} records{% endif %} ←</a>{% endif %}
+  {% if group.page.has_previous %}<a class="today-person" href="?group={{ group.key }}&page={{ group.page.previous_page_number }}#today-groups-title">{% if lang == 'fa' %}صفحه قبل{% else %}Previous page{% endif %}</a>{% endif %}
+  {% if group.page.has_next %}<a class="today-person" href="?group={{ group.key }}&page={{ group.page.next_page_number }}#today-groups-title">{% if lang == 'fa' %}صفحه بعد{% else %}Next page{% endif %}</a>{% endif %}
+</details>

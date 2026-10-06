@@ -781,7 +781,7 @@ class ManagementDashboardTests(TestCase):
         self.assertContains(response, "آزمون‌ها")
         self.assertContains(response, "پرداخت و تأیید")
         self.assertNotContains(response, "فرم‌ها و آزمون‌ها")
-        self.assertContains(response, "قراردادها")
+        self.assertContains(response, "سفارش و قرارداد")
         self.assertContains(response, 'aria-controls="management-more-panel"', count=2)
         self.assertContains(response, "core/icons/ui-sprite.svg#home")
         self.assertNotContains(response, 'class="m-menu"')

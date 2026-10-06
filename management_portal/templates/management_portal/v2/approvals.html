@@ -80,7 +80,7 @@
         </div>
       </header>
       {% for payment in payments %}
-        <article class="approval-row payment">
+        <article class="approval-row payment" id="payment-{{ payment.pk }}">
           <div class="approval-copy">
             <strong>{{ payment.payer_name }} · <bdi>{{ payment.reference_number }}</bdi></strong>
             <small><bdi>{{ payment.order.user.email }}</bdi> · {% if lang == 'fa' %}{{ payment.order.exam.title_fa }}{% else %}{{ payment.order.exam.title_en }}{% endif %} · <bdi>{{ payment.order.amount_irr|stringformat:"d" }}</bdi> {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</small>
