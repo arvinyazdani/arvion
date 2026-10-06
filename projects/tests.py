@@ -130,7 +130,7 @@ class ProjectTests(TestCase):
 
     def test_each_business_category_renders_its_own_bilingual_sample_scene(self):
         scenes = {
-            "ecommerce": ("demo-scene-shop", "گلدان آوید", "Avid sculpt vase"),
+            "ecommerce": ("demo-scene-shop", "گلدان آوید", "Avid sculptural vase"),
             "restaurant": ("demo-scene-restaurant", "پاستای زعفرانی", "Saffron butter pasta"),
             "portfolio": ("demo-scene-portfolio", "بازآفرینی تجربه خرید روزمره", "Reframing the everyday shop"),
             "corporate": ("demo-scene-corporate", "تحلیل و مشاوره", "Discovery & advisory"),
@@ -211,7 +211,7 @@ class ProjectTests(TestCase):
 
     def test_each_category_has_a_distinct_working_preview_flow_and_feature_modules(self):
         markers = {
-            "ecommerce": ('data-demo-cart-add', 'data-demo-filter-group="shop"', "data-feature-module=\"payment\""),
+            "ecommerce": ('data-store-add', 'data-demo-filter-group="shop"', "data-feature-module=\"payment\""),
             "restaurant": ('data-demo-choice-group="reservation"', 'data-demo-filter-group="menu"', "data-feature-module=\"booking\""),
             "portfolio": ('data-demo-filter-group="portfolio"', "نقش و روند طراحی", "data-feature-module=\"blog\""),
             "corporate": ("data-demo-group-summary", "اولویت زمانی", "data-feature-module=\"booking\""),

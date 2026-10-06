@@ -1,5 +1,42 @@
 # Rvion current state
 
+## Phase 2 — reference storefront (2026-10-06)
+
+- Status: VERIFIED locally. Commit/push follows the user's phase-1 routine;
+  deployment NOT_STARTED (not authorized here).
+- Six fictional home objects with material/dimensions/care, three finishes,
+  two sizes, variant prices and a deliberately unavailable finish. Native
+  product/basket dialogs share the preview/full scene. Quantity edits/removal,
+  empty recovery, delivery totals, editable review and sample completion lead
+  back to design settings. Real order handoff is unchanged.
+- Pure catalog/inclusion tag avoids modifying the pre-existing dirty view;
+  new JS/CSS loads only for ecommerce. Basket is memory-only: no storage,
+  address/card collection, network dispatch, payment, order or customer write.
+  No migration created/applied; six existing dev migrations remain unapplied.
+- Targeted `projects core leads.tests accounts.test_dashboard_draft`: 154 pass;
+  seven new Django tests. Permanent Node model checks cover stock/quantity,
+  merging, variant separation, delivery, isolation, edits/removal/reset.
+  Django check, migration-drift dry run, JS syntax and diff pass.
+  Official DESIGN.md lint: zero errors, two existing orphan-token warnings
+  (`muted`, `focus`); no global token source changed.
+- Browser: FA preview and EN full journeys, 320/390/1280px; unavailable stock,
+  invalid quantity, live totals, review/back/edit/empty, completion/settings,
+  search/clear/no-results and capability toggles. Escape restores opener;
+  native size popup opened/closed. Green theme reaches dialog actions; dark
+  shell keeps the deliberate light sample. Reduced motion: animation none.
+  Controls >=48px, inputs 16px; page/dialog horizontal widths match at 320/390.
+  QA found/fixed stale quantity totals and ratio-driven image overflow by
+  correcting dimensions, not hiding overflow. No real Safari/iPhone claim.
+- Plugins: 21st search returned Product Listing Card / Featured Product
+  Showcase; retrieval quota exhausted, no code generation/dependency added.
+  Frontend Design, UI UX Pro Max and Premium informed the native adaptation.
+  Strict Premium static audit remains PARTIAL: 55 actionless-button findings
+  (existing/new data-attribute handlers not recognized), zero unresolved
+  ownership. Checked bindings/browser actions; audit was not weakened.
+  Evidence JSON/screenshots: `/tmp/rvion-store-proof/`.
+- Preserved/excluded: previous gallery CSS/template and projects view.
+  No deploy/production connection. Next phase not started automatically.
+
 ## Phase 1 — public shell foundation (2026-10-06)
 
 - Status: VERIFIED locally; commit/push authorized by user; deployment NOT_STARTED.

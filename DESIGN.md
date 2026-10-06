@@ -155,6 +155,17 @@ second duplicate inset. No sample theme/personality or order data contract chang
 | Category detail content | projects/demo_briefs.py + demo_scenes/story.html | preview/full |
 | Order preferences | projects/demo_briefs.py | server validation, manager export/case |
 | Public footer | core/includes/footer.html + footer-studio.css | public shell |
+| Reference store | storefront_catalog.py + demo_store tag + storefront.css | ecommerce preview/full |
+| Sample basket | storefront-model.js + storefront.js | ecommerce, memory-only |
+
+Reference shop phase 2: six home objects with original material illustrations,
+not fake photography, ratings or discounts. Native product dialogs split art
+and specifications on desktop; phones get a full-width stacked sheet. Finishes
+and sizes update prices and dimensions. Cart/delivery/review/completion remain
+sample-only, separate from the real design enquiry. Dialog actions inherit the
+live sample palette and local fonts; the sample stays deliberately light in
+dark studio chrome. All products remain visible on phones. Select popup
+geometry is platform-owned; intrinsic selects/art must not expand the dialog.
 
 Actions are semantic links/buttons with hover, pressed and visible focus.
 Theme/personality are radio-like choices; features remain checkboxes.

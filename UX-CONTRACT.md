@@ -1,5 +1,22 @@
 # Public demo ordering UI contract
 
+## Reference storefront variant (phase 2)
+
+One fixture catalog/transient basket serves preview/full: product detail →
+finish/size/quantity → basket → delivery/review → sample completion → original
+design settings. No Lead, payment or real order is created. Cart never enters
+the design enquiry/storage; reload resets it and this boundary is visible.
+Native dialogs provide title/heading focus, inert background, Escape and
+opener restoration. Desktop splits; phones stack/scroll within viewport.
+Native selects retain the established platform-owned popup policy.
+Inline quantity errors are associated with their fields. Invalid edits cannot
+advance; stock checks include the basket's existing quantity. FA/EN copy and
+numbers use explicit Toman units. Empty/no-results/unavailable states offer
+recovery. Payment-off hides checkout and explains enabling it; catalog-off
+disables the basket opener and closes store dialogs. These local actions
+introduce no remote loading/offline/session workflow; real enquiry keeps its
+existing server/session/idempotency authority.
+
 Scope: home → gallery → live sample → enquiry. This does not redefine the
 assessment, contract, authentication or admin workflows. Visual context:
 `DESIGN.md`. Maintained domain evidence: `projects/models/demo.py`,
