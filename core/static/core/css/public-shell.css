@@ -1,0 +1,70 @@
+/* Public shell owner. Scoped away from standalone exams, contracts and admin. */
+[data-public-shell] {font-family:var(--font-family-base);font-size:var(--font-size-base)}
+html[lang="en"] [data-public-shell] {--font-family-base:var(--font-family-latin)}
+html[lang="fa"] [data-public-shell] {line-height:1.9}
+[data-public-shell] :is(button,input,select,textarea) {font-family:inherit}
+[data-public-shell] .button {min-height:48px;border-radius:var(--radius-md);padding:12px 20px;font-size:1rem;touch-action:manipulation}
+[data-public-shell] .button:hover {transform:none;box-shadow:var(--shadow-sm)}
+[data-public-shell] .button.secondary:hover {box-shadow:none}
+[data-public-shell] .button:active {box-shadow:none;opacity:.85}
+[data-public-shell] .field :is(input,select,textarea) {font-size:1rem;min-height:48px}
+[data-public-shell] .field-help {font-size:var(--font-size-sm);line-height:1.75}
+[data-public-shell] .site-header {background:var(--surface-page);backdrop-filter:none}
+[data-public-shell] .nav-wrap {height:80px;gap:24px}
+[data-public-shell] .site-nav {gap:16px}
+[data-public-shell] .nav-primary {gap:8px}
+[data-public-shell] .nav-primary>a,
+[data-public-shell] .nav-utilities>.nav-utility {font-size:var(--font-size-sm);font-weight:700;min-height:48px;padding-inline:12px}
+[data-public-shell] .nav-primary>a[aria-current="page"] {box-shadow:inset 0 -2px var(--action-brand-bg)}
+[data-public-shell] .nav-utilities {gap:8px}
+[data-public-shell] .nav-cta {min-height:48px;border-radius:var(--radius-md);font-size:var(--font-size-sm)}
+[data-public-shell] .nav-cta:hover {transform:none;box-shadow:none;background:var(--action-brand-bg-hover)}
+.nav-preferences {position:relative;font-size:var(--font-size-sm)}
+.nav-preferences>summary {display:flex;align-items:center;gap:8px;min-height:48px;padding:10px 12px;border:1px solid transparent;border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;list-style:none}
+.nav-preferences>summary::-webkit-details-marker {display:none}
+.nav-preferences[open]>summary {background:var(--surface-subtle);border-color:var(--border-default);color:var(--text-primary)}
+.nav-preferences-panel {position:absolute;inset-inline-end:0;top:calc(100% + 8px);z-index:var(--z-popover);width:240px;padding:12px;display:grid;gap:8px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-md)}
+.nav-preferences:not([open])>.nav-preferences-panel {display:none}
+[data-public-shell] .nav-preferences-panel :is(.nav-utility,.theme-toggle) {display:flex;align-items:center;justify-content:flex-start;width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--border-default);border-radius:var(--radius-sm);background:var(--surface-card);color:var(--text-primary);font:inherit;gap:10px;margin:0}
+[data-public-shell] .nav-preferences-panel .theme-toggle span {display:inline}
+[data-public-shell] .nav-preferences-panel .sound-toggle {justify-content:flex-start}
+.nav-preferences-panel [data-sound-state] {margin-inline-start:auto;color:var(--text-secondary);font-size:.8125rem}
+.nav-preferences-panel :is(a,button):hover {background:var(--surface-subtle)}
+@media(min-width:821px) {
+  [data-public-shell] .nav-primary .ui-icon {display:none}
+}
+@media(min-width:821px) and (max-width:1100px) {
+  [data-public-shell] .nav-wrap {gap:12px}
+  [data-public-shell] .site-nav {gap:8px}
+  [data-public-shell] .nav-primary,
+  [data-public-shell] .nav-utilities {gap:2px}
+  [data-public-shell] .nav-primary>a,
+  [data-public-shell] .nav-utilities>.nav-utility,
+  .nav-preferences>summary {padding-inline:8px;font-size:.8125rem}
+  .nav-preferences>summary span {display:none}
+}
+@media(max-width:820px) {
+  [data-public-shell] {padding-bottom:calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom,0px))}
+  [data-public-shell] .site-header {height:68px}
+  [data-public-shell] .nav-wrap {height:68px}
+  [data-public-shell] .menu-button {width:48px;height:48px}
+  [data-public-shell] .site-nav {inset:80px 14px auto;max-height:calc(100dvh - 104px - var(--mobile-tabbar-height) - env(safe-area-inset-bottom,0px));padding:16px;border-radius:var(--radius-lg);gap:16px}
+  [data-public-shell] .nav-primary {grid-template-columns:1fr;gap:8px}
+  [data-public-shell] .nav-primary>a {min-height:52px;font-size:1rem;background:var(--surface-subtle)}
+  [data-public-shell] .nav-utilities {grid-template-columns:1fr 1fr;gap:8px;padding-top:16px}
+  [data-public-shell] .nav-utilities>.nav-utility {grid-column:auto;font-size:.875rem;border:1px solid var(--border-default)}
+  [data-public-shell] .nav-preferences {grid-column:1/-1}
+  .nav-preferences>summary {border-color:var(--border-default);color:var(--text-primary);font-weight:700}
+  .nav-preferences>summary::after {content:"+";margin-inline-start:auto}
+  .nav-preferences[open]>summary::after {content:"−"}
+  .nav-preferences-panel {position:static;width:100%;box-shadow:none;margin-top:8px}
+  [data-public-shell] .nav-scrim {inset-block-start:68px}
+  [data-public-shell] .mobile-tabbar {background:var(--surface-page);backdrop-filter:none;padding-inline:8px;gap:4px}
+  [data-public-shell] .mobile-tabbar>a {font-size:.75rem;min-height:52px;line-height:1.4;color:var(--text-secondary)}
+  [data-public-shell] .mobile-tabbar>a[aria-current="page"] {background:var(--surface-subtle);color:var(--text-primary)}
+  [data-public-shell] .mobile-tabbar a[aria-current="page"]::before {top:0}
+  [data-public-shell] :is(input,select,textarea,a,button,summary) {scroll-margin-block:90px 100px}
+}
+@media(prefers-reduced-motion:reduce) {
+  [data-public-shell] :is(.button,.nav-cta,.site-nav,.nav-scrim) {transition:none;transform:none}
+}

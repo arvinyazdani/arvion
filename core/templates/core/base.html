@@ -36,10 +36,11 @@
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme);if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=40">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'core/css/public-shell.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=2">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=9" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=10" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
@@ -49,7 +50,7 @@
   {% block extra_head %}{% endblock %}
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-public-shell>
   {% include "core/_route_loader.html" %}
   {% include "core/_pull_to_refresh.html" %}
   <a class="skip-link" href="#main">{% if lang == 'fa' %}پرش به محتوا{% else %}Skip to content{% endif %}</a>
@@ -65,15 +66,20 @@
       <nav id="site-nav" class="site-nav" aria-label="{% if lang == 'fa' %}پیمایش اصلی{% else %}Main navigation{% endif %}">
         <div class="nav-primary">
           <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</span></a>
-          <a href="{% url 'projects:demo_gallery' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}انتخاب و شخصی‌سازی{% else %}Choose & customise{% endif %}</span></a>
+          <a href="{% url 'projects:demo_gallery' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}نمونه‌ها{% else %}Samples{% endif %}</span></a>
           <a href="{% url 'assessments:list' %}"{% if request.resolver_match.namespace == 'assessments' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#assessment"></use></svg><span>{% if lang == 'fa' %}آزمون‌ها{% else %}Assessments{% endif %}</span></a>
           <a href="{% url 'about' %}"{% if request.resolver_match.url_name == 'about' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#customers"></use></svg><span>{% if lang == 'fa' %}درباره آرویون{% else %}About Rvion{% endif %}</span></a>
         </div>
         <div class="nav-utilities">
           {% if request.user.is_staff %}<a class="nav-utility nav-management" href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Management{% endif %}</span></a>{% endif %}
           <a class="nav-utility nav-account" href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if request.user.is_authenticated %}{% if lang == 'fa' %}حساب من{% else %}My account{% endif %}{% else %}{% if lang == 'fa' %}ورود{% else %}Sign in{% endif %}{% endif %}</span></a>
-          <a class="nav-utility lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}" aria-label="{% if lang == 'fa' %}نمایش نسخه انگلیسی{% else %}View the Persian version{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#globe"></use></svg><span>{% if lang == 'fa' %}EN{% else %}فا{% endif %}</span></a>
-          <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg><span>{% if lang == 'fa' %}ظاهر{% else %}Theme{% endif %}</span></button><button class="theme-toggle sound-toggle" type="button" data-sound-toggle="all" aria-pressed="true" aria-label="{% if lang == 'fa' %}خاموش‌کردن صداهای برنامه{% else %}Turn app sounds off{% endif %}">♪</button>
+          <details class="nav-preferences">
+            <summary><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}تنظیمات{% else %}Settings{% endif %}</span></summary>
+            <div class="nav-preferences-panel">
+          <a class="nav-utility lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}" aria-label="{% if lang == 'fa' %}نمایش نسخه انگلیسی{% else %}View the Persian version{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#globe"></use></svg><span>{% if lang == 'fa' %}English{% else %}فارسی{% endif %}</span></a>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg><span>{% if lang == 'fa' %}ظاهر{% else %}Theme{% endif %}</span></button><button class="theme-toggle sound-toggle" type="button" data-sound-toggle="all" aria-pressed="true" aria-label="{% if lang == 'fa' %}خاموش‌کردن صداهای برنامه{% else %}Turn app sounds off{% endif %}"><b aria-hidden="true">♪</b><span>{% if lang == 'fa' %}صدا{% else %}Sound{% endif %}</span><span data-sound-state="all"></span></button>
+            </div>
+          </details>
           <a class="nav-cta" href="{% url 'project_start' %}"{% if request.resolver_match.url_name == 'project_start' %} aria-current="page"{% endif %}><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
         </div>
       </nav>

@@ -134,7 +134,8 @@ class UISystemFoundationTests(SimpleTestCase):
                 source = shell.read_text(encoding="utf-8")
                 self.assertIn('{% include "core/_pull_to_refresh.html" %}', source)
                 self.assertIn("core/js/pull-to-refresh.js' %}?v=1", source)
-                self.assertIn("core/css/components.css' %}?v=5", source)
+                version = 6 if shell == shells[0] else 5
+                self.assertIn(f"core/css/components.css' %}}?v={version}", source)
 
     def test_progressive_reveal_and_scrim_focus_recovery_are_real(self):
         self.assertIn('querySelectorAll("[data-ui-reveal]")', self.shell)

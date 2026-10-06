@@ -2,11 +2,27 @@
   const menuButton = document.querySelector(".menu-button");
   const nav = document.querySelector(".site-nav");
   const scrim = document.querySelector(".nav-scrim");
+  const preferences = document.querySelector(".nav-preferences");
+  const closePreferences = () => { if (preferences) preferences.open = false; };
+  document.addEventListener("click", event => {
+    if (preferences && !preferences.contains(event.target)) closePreferences();
+  });
+  document.addEventListener("focusin", event => {
+    if (preferences?.open && !preferences.contains(event.target)) closePreferences();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && preferences?.open) {
+      closePreferences();
+      preferences.querySelector("summary")?.focus();
+      event.stopImmediatePropagation();
+    }
+  });
 
   if (menuButton && nav && scrim) {
     const menuBackground = [...document.querySelectorAll("main,.mobile-tabbar,.site-footer")];
     const setMenuBackgroundInert = inert => menuBackground.forEach(item => item.toggleAttribute("inert", inert));
     const closeMenu = (restoreFocus = false) => {
+      closePreferences();
       nav.classList.remove("is-open");
       menuButton.classList.remove("is-open");
       scrim.classList.remove("is-open");
@@ -35,7 +51,8 @@
         closeMenu(true);
       }
       if (event.key === "Tab" && nav.classList.contains("is-open")) {
-        const focusable = [menuButton, ...nav.querySelectorAll("a,button:not([disabled])")];
+        const focusable = [menuButton, ...nav.querySelectorAll("a,summary,button:not([disabled])")]
+          .filter(item => item.getClientRects().length && getComputedStyle(item).visibility !== "hidden");
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {

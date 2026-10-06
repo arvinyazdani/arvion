@@ -1,19 +1,19 @@
 /* کامپوننت‌های پایه مشترک v3 — افزایشی و عقب‌سازگار با کلاس‌های فعلی. */
 
 .btn,.button,.button-ghost{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:var(--control-height-md);border:var(--border-width) solid var(--action-primary-bg);background:var(--action-primary-bg);color:var(--action-primary-text);padding:10px var(--control-padding-inline);border-radius:var(--radius-pill);font:inherit;font-size:var(--font-size-sm);font-weight:var(--font-weight-bold);line-height:1.45;cursor:pointer;text-decoration:none;transition:transform var(--motion-duration-normal) var(--motion-ease-standard),box-shadow var(--motion-duration-normal) var(--motion-ease-standard),background-color var(--motion-duration-fast) var(--motion-ease-standard),border-color var(--motion-duration-fast) var(--motion-ease-standard),color var(--motion-duration-fast) var(--motion-ease-standard)}
-@media(hover:hover) and (pointer:fine){.btn:hover,.button:hover,.button-ghost:hover{transform:translateY(calc(-1 * var(--motion-distance-sm)));box-shadow:0 var(--motion-distance-md) 0 var(--color-brand-orange)}}
+@media(hover:hover) and (pointer:fine){.btn:hover,.button:hover,.button-ghost:hover{transform:none;box-shadow:var(--shadow-sm);background:var(--action-primary-bg-hover);color:var(--action-brand-text)}}
 .btn:active,.button:active,.button-ghost:active{transform:translateY(0);box-shadow:none}
 .btn:disabled,.button:disabled,.button-ghost:disabled,.btn[aria-disabled="true"],.button[aria-disabled="true"],.button-ghost[aria-disabled="true"]{border-color:var(--action-disabled-border);background:var(--action-disabled-bg);color:var(--action-disabled-text);opacity:.65;cursor:not-allowed;pointer-events:none;transform:none;box-shadow:none}
 .btn[aria-busy="true"],.button[aria-busy="true"],.button-ghost[aria-busy="true"]{cursor:wait}
 .btn[aria-busy="true"]::after,.button[aria-busy="true"]::after,.button-ghost[aria-busy="true"]::after{width:var(--icon-size-sm);height:var(--icon-size-sm);border:2px solid currentColor;border-inline-start-color:transparent;border-radius:50%;content:"";animation:ui-spin var(--motion-duration-loop) linear infinite}
 .btn-primary,.button.primary{border-color:var(--action-brand-bg);background:var(--action-brand-bg);color:var(--action-brand-text)}
-@media(hover:hover) and (pointer:fine){.btn-primary:hover,.button.primary:hover{border-color:var(--action-brand-bg-hover);background:var(--action-brand-bg-hover);box-shadow:0 var(--motion-distance-md) 0 var(--color-ink)}}
+@media(hover:hover) and (pointer:fine){.btn-primary:hover,.button.primary:hover{border-color:var(--action-brand-bg-hover);background:var(--action-brand-bg-hover);box-shadow:var(--shadow-sm)}}
 .btn-secondary,.button.secondary{border-color:var(--action-secondary-border);background:var(--action-secondary-bg);color:var(--action-secondary-text);box-shadow:none}
-@media(hover:hover) and (pointer:fine){.btn-secondary:hover,.button.secondary:hover{background:var(--action-secondary-bg-hover);box-shadow:none}}
+@media(hover:hover) and (pointer:fine){.btn-secondary:hover,.button.secondary:hover{background:var(--action-secondary-bg-hover);color:var(--action-secondary-text);box-shadow:none}}
 .btn-ghost,.button.ghost,.button-ghost{border-color:transparent;background:transparent;color:var(--action-secondary-text);box-shadow:none}
-@media(hover:hover) and (pointer:fine){.btn-ghost:hover,.button.ghost:hover,.button-ghost:hover{background:var(--action-secondary-bg-hover);box-shadow:none}}
+@media(hover:hover) and (pointer:fine){.btn-ghost:hover,.button.ghost:hover,.button-ghost:hover{background:var(--action-secondary-bg-hover);color:var(--action-secondary-text);box-shadow:none}}
 .btn-danger,.button.danger{border-color:var(--action-danger-bg);background:var(--action-danger-bg);color:var(--action-danger-text)}
-@media(hover:hover) and (pointer:fine){.btn-danger:hover,.button.danger:hover{border-color:var(--action-danger-bg-hover);background:var(--action-danger-bg-hover);box-shadow:none}}
+@media(hover:hover) and (pointer:fine){.btn-danger:hover,.button.danger:hover{border-color:var(--action-danger-bg-hover);background:var(--action-danger-bg-hover);color:var(--action-danger-text);box-shadow:none}}
 .btn-sm,.button.compact{min-height:var(--control-height-sm);padding:7px 14px;font-size:var(--font-size-xs)}
 .btn-lg,.button.large{min-height:var(--control-height-lg);padding:12px var(--space-5);font-size:var(--font-size-base)}
 .btn-icon,.button.icon-only{width:var(--control-height-md);min-width:var(--control-height-md);padding:0}

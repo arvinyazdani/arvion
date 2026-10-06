@@ -91,7 +91,11 @@ line-height 1.9–2, hero headings 1.3. Italic styling is not applied to Persian
 
 Reuse the existing shell (1160px max; editor expands to 1400px). Home: two-column introduction/showroom,
 then a three-column library; phones get stacked introduction and full-width
-samples. Editor: sample plus a compact settings rail on desktop; at 760px and below the
+samples. The public demo gallery is a single editorial showroom: a clear
+introduction, direct category anchors and an asymmetric, art-led concept grid
+that gives the website/storefront samples first attention. The grid becomes one
+legible column on phones, with category navigation remaining thumb-scrollable.
+Editor: sample plus a compact settings rail on desktop; at 760px and below the
 existing modal sheet is the canonical editor. Samples use container queries
 so their layout follows their actual width, not the outer viewport alone.
 Marketing sections use 80px desktop/42px phone rhythm. Existing data and
@@ -127,11 +131,24 @@ and restrained buttons. These are sample variants, not global rebrands.
 
 ## Components
 
+Public shell phase 1 (2026-10-06): header actions use a quiet navigation row,
+one orange project CTA, and native collapsible preferences (language/theme/sound).
+Phones keep five quick destinations and an accessible menu with 52px primary
+rows; preferences expand in-flow rather than creating a second overlay.
+`public-shell.css` owns these public-shell refinements, scoped by
+`data-public-shell` so standalone contract/exam/management shells keep their
+geometry. Public actions share 48px controls and 14px corners, subtle colour
+feedback instead of jumping shadows, local fonts and 16px form inputs.
+The footer retains all legal/contact links, readable metadata and a full-width
+phone CTA. The body owns the bottom-bar safe inset; the footer does not add a
+second duplicate inset. No sample theme/personality or order data contract changes.
+
 | Role | Runtime owner | Consumers |
 |---|---|---|
 | Brand/action | tokens.css: --action-brand-* | home primary CTA |
 | Text/surface/focus | tokens.css semantic roles | home and editor chrome |
 | Art | projects/demo_scenes/art.html + demo-studio.css | home/gallery/editor/full |
+| Demo gallery | projects/demo_gallery.html + demo-gallery.css | public concept discovery |
 | Demo theme/personality | demo-configurator.js | preview and full sample |
 | Sample hero | projects/demo_scenes/hero.html | editor/full |
 | Settings sheet | demo-configurator.js | phone editor |

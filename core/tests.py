@@ -42,6 +42,22 @@ class CorePagesTests(TestCase):
         # The briefing explains scope, proctoring and the fee before the price.
         self.assertContains(response, 'href="/fa/assessments/english-placement-a1-c1/about/"', html=False)
 
+    def test_public_shell_groups_settings_and_keeps_legal_destinations(self):
+        for language in ("fa", "en"):
+            with self.subTest(language=language):
+                response = self.client.get(f"/{language}/")
+                self.assertContains(response, "core/css/public-shell.css")
+                self.assertContains(response, "data-public-shell")
+                html = response.content.decode()
+                preferences = html.split('<details class="nav-preferences">', 1)[1].split("</details>", 1)[0]
+                self.assertIn("<summary>", preferences)
+                self.assertIn("data-theme-toggle", preferences)
+                self.assertIn('data-sound-toggle="all"', preferences)
+                footer = html.split('<footer class="site-footer studio-footer">', 1)[1].split("</footer>", 1)[0]
+                for destination in ("privacy", "service-terms", "refund-policy"):
+                    self.assertIn(f'/{language}/{destination}/', footer)
+                self.assertIn('href="tel:+989333021100"', footer)
+
     def test_public_and_staff_mobile_navigation_always_has_five_destinations(self):
         response = self.client.get("/fa/")
         html = response.content.decode()
@@ -131,7 +147,7 @@ class CorePagesTests(TestCase):
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=5")
         legacy = html.index("core/css/site.css?v=40")
-        components = html.index("core/css/components.css?v=5")
+        components = html.index("core/css/components.css?v=6")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
 

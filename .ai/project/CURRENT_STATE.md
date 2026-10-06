@@ -1,5 +1,62 @@
 # Rvion current state
 
+## Phase 1 — public shell foundation (2026-10-06)
+
+- Status: VERIFIED locally; commit/push authorized by user; deployment NOT_STARTED.
+- Unified public header with a native language/theme/sound preferences disclosure,
+  quieter primary navigation and retained account/staff/project destinations.
+  Mobile menu has 52px rows, keyboard focus containment, nested Escape recovery,
+  and outside-click/focus dismissal for desktop preferences. Five bottom routes
+  remain unchanged. Removed jumping button-hover shadows; public controls use
+  48px minimums, 14px corners, semantic tokens, local fonts and 16px form inputs.
+  Footer metadata is readable and its mobile action is full width; bottom inset
+  is owned once by the body. No form/data/auth/payment/contract business changes.
+- Plugin evidence: direct 21st search returned Classic Header with Sheet Menu
+  and Simple Header. Usage reports 0/2 code retrievals and AI disabled; no code
+  retrieval/generation/dependency installed. UI UX Pro Max touch/navigation
+  search and Frontend Design guided the adapted Django implementation.
+- LEVEL 5: `manage.py test core projects leads.tests accounts.test_dashboard_draft`
+  passed 147 tests. Initial runs exposed two exact cache-version expectations;
+  updated them to the new public CSS version, retaining order/shared-shell
+  assertions; rerun passed. Earlier targeted run passed 70 tests. Django check,
+  migration-drift dry run, JS syntax and diff checks passed. No migration applied.
+- Browser: FA/EN; desktop 1280px plus 960/840px DOM geometry; mobile 320/390px,
+  and 371px capture. No horizontal overflow on tested home/contact/restaurant
+  surfaces. Contact visible inputs 16px, height >=48px. Menu background inert,
+  nested Escape and focus restoration passed. Bottom bar top stayed 772px before
+  and after scroll at 390x844. Explicit dark theme checked separately; reduced
+  motion yields 0s button transitions. No real Safari/iPhone or full-site visual
+  claim. No production/customer write. Proof: `/tmp/rvion-shell-proof/`.
+- Pre-existing gallery source changes are preserved but excluded from this
+  phase's code commit (projects view/template/CSS). Their prior checkpoint below
+  stays historical; a later gallery phase will commit them after its own review.
+- Next action: phase 2, complete one realistic interactive storefront. Publishing
+  production still requires explicit deployment authorization.
+
+## Local checkpoint — demo showroom refresh (2026-10-06)
+
+- Reworked the public customisable-sample gallery into one bilingual, art-led
+  showroom: direct category anchors, storefront-first asymmetric desktop grid,
+  full-width single-column phone cards, stronger sample-specific CTA and a
+  quieter trust section. The existing live demo editor, session-bound order
+  handoff and sample interactions are unchanged.
+- The 21st.dev catalog search informed the asymmetric portfolio/showcase and
+  live-preview patterns. Its free code-retrieval quota was exhausted, so no
+  third-party component code was copied; implementation uses existing Django
+  templates, local vector art, semantic links and project tokens.
+- Verification: `manage.py check` passed; `git diff --check` passed. Browser
+  review covered Persian at desktop, 390px and 320px: 10 samples rendered;
+  category anchors resolve; document width matches both mobile viewports;
+  storefront cards lead the grid; primary sample CTA is 48px tall and the page
+  retains exactly one main landmark. English accessibility-tree
+  review confirmed fully localized headings, navigation and cards. `DESIGN.md`
+  lint: 0 errors and 2 existing unused-token warnings (`colors.muted` and
+  `colors.focus`). The Django test suite was not run. No migration, data write,
+  commit, push or deployment was performed. The local development database
+  reports six unapplied migrations; they were deliberately left untouched.
+- Current status: local implementation ready for review; visual acceptance
+  pending. The production site remains on the previous published revision.
+
 ## Publication checkpoint — 2026-10-05
 
 - User explicitly authorized publication of the current UI (`f1211e0`).
