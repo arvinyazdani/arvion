@@ -1,6 +1,23 @@
 (function () {
   "use strict";
 
+  function renderSectorExperience(experience, goal) {
+    const panels = Array.from(experience.querySelectorAll('[data-sector-panel]'));
+    const selected = panels.find((panel) => panel.dataset.sectorPanel === goal);
+    panels.forEach((panel, index) => { panel.hidden = selected ? panel !== selected : index !== 0; });
+    experience.querySelectorAll('[data-sector-goal]').forEach((button) => {
+      button.disabled = false;
+      button.setAttribute('aria-pressed', String(Boolean(selected) && button.dataset.sectorGoal === goal));
+    });
+    experience.querySelector('[data-sector-unspecified]').hidden = Boolean(selected);
+    return selected || null;
+  }
+  // Exercise the same renderer in Node without bootstrapping browser UI.
+  if (typeof module !== 'undefined' && module.exports && typeof document === 'undefined') {
+    module.exports = {renderSectorExperience};
+    return;
+  }
+
   const PALETTES = {
     warm: ["#f16a3b", "#5b2833", "#fff0e8"],
     midnight: ["#2c3042", "#7c92ff", "#eef1ff"],
@@ -129,7 +146,19 @@
       controlValue("theme", state.theme);
       controlValue("personality", state.personality);
       root.querySelectorAll('[data-brief-key]').forEach((control) => { control.value = state.brief[control.dataset.briefKey] || ""; });
+      // The enquiry's validated goal owns both the settings and live scene.
+      root.querySelectorAll('[data-sector-experience]').forEach((experience) => {
+        // Keep the hero above the controls stable: changing its line count
+        // while the visitor edits a lower chapter would move the tap target.
+        renderSectorExperience(experience, state.brief.goal);
+      });
       root.querySelectorAll('[name="features"]').forEach((input) => { input.checked = state.features.includes(input.value); });
+      root.querySelectorAll('[data-sector-feature-status]').forEach((status) => {
+        const enabled = state.features.includes(status.dataset.sectorFeatureStatus);
+        const fa = document.documentElement.lang === 'fa';
+        status.textContent = enabled ? (fa ? 'در طراحی شما فعال' : 'Enabled in your design') : (fa ? 'هنوز انتخاب نشده' : 'Not selected yet');
+        status.dataset.enabled = String(enabled);
+      });
 
       const palette = state.theme === "custom"
         ? [state.customColor, state.customColor, `color-mix(in srgb, ${state.customColor} 12%, white)`]
@@ -195,6 +224,12 @@
       state.brief[control.dataset.briefKey] = control.value;
       render();
       announceChange(document.documentElement.lang === "fa" ? "جزئیات سفارش به‌روز شد" : "Order details updated");
+    }));
+    root.querySelectorAll('[data-sector-goal]').forEach((button) => button.addEventListener('click', () => {
+      const control = root.querySelector('[data-brief-key="goal"]');
+      if (!control || !Array.from(control.options).some((option) => option.value === button.dataset.sectorGoal)) return;
+      control.value = button.dataset.sectorGoal;
+      control.dispatchEvent(new Event('change', {bubbles: true}));
     }));
     root.querySelectorAll('[name="theme"]').forEach((control) => control.addEventListener("change", () => { state.theme = control.value; render(); announceChange(selectedLabel("theme", state.theme), document.documentElement.lang === "fa" ? "روی نمونه اعمال شد" : "applied to the sample"); }));
     colourInput?.addEventListener("input", () => {
@@ -266,7 +301,10 @@
         else if (isMobile && mobileConfig.contains(document.activeElement)) opener.focus({preventScroll: true});
       };
       configToggle.addEventListener("click", () => setConfigOpen(!mobileConfig.classList.contains("is-mobile-open"), configToggle));
-      root.querySelectorAll("[data-config-open]").forEach((button) => button.addEventListener("click", () => setConfigOpen(true, button)));
+      root.querySelectorAll("[data-config-open]").forEach((button) => {
+        button.disabled = false;
+        button.addEventListener("click", () => setConfigOpen(true, button));
+      });
       configBackdrop?.addEventListener("click", () => setConfigOpen(false));
       document.addEventListener("keydown", (event) => {
         if (!mobileViewport.matches || !mobileConfig.classList.contains("is-mobile-open")) return;

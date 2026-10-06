@@ -34,6 +34,21 @@ assessment, contract, authentication or admin workflows. Visual context:
 
 ## Outcomes and recovery
 
+- Sector goals: `sector_catalog.py` resolves six categories into three existing
+  `projects/demo_briefs.py` goal values each. The same canonical brief select
+  owns buttons, visible chapter, URL/session state and submitted enquiry.
+  With no chosen goal, an illustrative first chapter appears with a
+  visible undecided notice; it does not silently set a goal. Reset/clearing
+  restores that state. The hero above the controls is not rewritten (avoids
+  changing its height and moving the active controls). Unknown/foreign goals remain
+  rejected by the existing server. Recommendations are explanatory only and
+  show whether the existing feature checkbox is selected. They never mutate it.
+  Detail disclosures are native; goal buttons use pressed states and retain
+  focus. Without JS, all chapters/details remain readable, goal buttons remain
+  disabled and the existing order select stays authoritative. These previews
+  collect no health, address, payment or contact data and create no booking,
+  enrollment or product order. Only the unchanged design form submits.
+
 - Homepage journey: `home-studio.js` owns only decorative chapter switching;
   `home_journey.html` owns real navigation and copy. No scroll interception,
   account mutation or submission. Desktop stage follows the visible chapter;

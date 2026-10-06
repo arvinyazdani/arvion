@@ -1,0 +1,23 @@
+{% if sector %}
+<section class="sector-experience sector-{{ sector.category }}" data-sector-experience aria-labelledby="sector-title">
+  <header class="sector-toolbar"><div><small>{% if lang == 'fa' %}نمونه اختصاصی کسب‌وکار شما{% else %}A sample shaped around your business{% endif %}</small><h2 id="sector-title">{% if lang == 'fa' %}هدف سایت را تغییر دهید، تفاوت را ببینید{% else %}Change the goal. See the difference.{% endif %}</h2></div><p>{% if lang == 'fa' %}هدف انتخاب‌شده همراه درخواست طراحی ارسال می‌شود؛ محتوای زیر فرضی است.{% else %}Your selected goal accompanies the design enquiry. The content below is fictional.{% endif %}</p></header>
+  <div class="sector-goals" role="group" aria-label="{% if lang == 'fa' %}هدف سایت{% else %}Website goal{% endif %}">
+    {% for goal in sector.goals %}<button type="button" data-sector-goal="{{ goal.key }}" aria-pressed="false" aria-controls="sector-{{ goal.key }}" disabled>{{ goal.label }}</button>{% endfor %}
+  </div>
+  <p class="sector-unspecified" data-sector-unspecified>{% if lang == 'fa' %}نمای اول فقط پیشنهاد است؛ هنوز هدفی برای سفارش انتخاب نشده. یک گزینه بزنید یا در تنظیمات با مشاوره تصمیم بگیرید.{% else %}The first view is illustrative; no enquiry goal has been chosen yet. Pick an option or decide during discovery in settings.{% endif %}</p>
+  {% for goal in sector.goals %}
+  <div id="sector-{{ goal.key }}" class="sector-panel" data-sector-panel="{{ goal.key }}">
+    <div class="sector-art"><span aria-hidden="true">{{ goal.number }}</span><i aria-hidden="true"></i><b>{{ goal.label }}</b><dl>{% for fact in goal.facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>{% endfor %}</dl></div>
+    <article class="sector-copy"><small>{{ goal.summary }}</small><h3>{{ goal.title }}</h3>
+      <details><summary>{% if lang == 'fa' %}جزئیات این تجربه{% else %}Explore this experience{% endif %}<span aria-hidden="true">＋</span></summary><p>{{ goal.detail }}</p></details>
+      <div class="sector-recommendations"><h4>{% if lang == 'fa' %}امکانات پیشنهادی برای این هدف{% else %}Suggested capabilities for this goal{% endif %}</h4>
+        <ul>{% for feature in goal.features %}<li><b>{{ feature.label }}</b><span data-sector-feature-status="{{ feature.key }}"></span></li>{% endfor %}</ul>
+        <p>{% if lang == 'fa' %}این‌ها پیشنهادند؛ انتخاب امکانات بدون اجازه شما تغییر نمی‌کند.{% else %}These are suggestions; your selected capabilities do not change automatically.{% endif %}</p>
+        {% if full_sample %}<a href="{% url 'projects:demo_preview' demo.slug %}#configurator" data-demo-back>{% if lang == 'fa' %}بازگشت به تنظیمات سفارش{% else %}Back to design settings{% endif %}</a>{% else %}<button type="button" data-config-open disabled>{% if lang == 'fa' %}تنظیم امکانات و جزئیات سفارش{% else %}Edit capabilities and enquiry details{% endif %}</button>{% endif %}
+      </div>
+    </article>
+  </div>
+  {% endfor %}
+  <noscript><p>{% if lang == 'fa' %}همه مسیرها نمایش داده شده‌اند. هدف سفارش را از بخش تنظیمات انتخاب کنید.{% else %}All paths are shown. Choose the enquiry goal in design settings.{% endif %}</p></noscript>
+</section>
+{% endif %}

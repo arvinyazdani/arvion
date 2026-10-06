@@ -1,5 +1,43 @@
 # Rvion current state
 
+## Phase 3 — sector-specific live goals (2026-10-06)
+
+- Status: VERIFIED locally for the scoped implementation; commit/push authorized
+  by the phase-1/2 routine. Deployment NOT_STARTED, not authorized this turn.
+- Restaurant, portfolio, corporate, clinic, education and jewellery each have
+  three bilingual goal chapters, detailed content, three facts per goal and
+  bounded feature recommendations: 18 goals / 54 facts. Distinct sector motifs
+  and mobile layouts inherit the chosen palette. The reference store is intact.
+- Goal buttons update the existing canonical brief-goal field and therefore its
+  existing URL/order handoff. Hero geometry stays stable. Recommendations show
+  current capability state, never silently enable features. Native disclosures,
+  an undecided/reset notice and readable no-JS chapters provide recovery;
+  JS-only buttons remain disabled until their controller attaches.
+- Fictional business examples are explicitly illustrative; no real appointment,
+  enrolment, payment, medical advice or customer-data write was added. No model,
+  migration, authentication or customer-contract change. Existing six local dev
+  migrations remain unapplied. One disposable jewellery fixture was used for QA
+  and removed afterward; no customer records were touched.
+- Targeted projects/core/leads.tests/accounts.test_dashboard_draft: 165 passing;
+  11 new sector tests. Final focused suite: 11 passing. Permanent Node sector
+  renderer and reference-store model tests, JS syntax, Django check, migration
+  drift and diff checks pass. Official DESIGN lint: zero errors, two existing
+  orphan-token warnings. No full-suite, new CI or PostgreSQL claim this phase.
+- Browser: six sectors at 320/1280px, FA preview / EN full (24 bounded cases),
+  plus representative 390px flows. No horizontal overflow; live goal selection,
+  recommended feature status, settings sheet/Escape/focus restoration,
+  preview/full/back/reload, reset, keyboard, no-JS, reduced motion and explicit
+  dark theme checked. No real Safari/iPhone or complete-site acceptance claim.
+  Evidence: /tmp/rvion-sector-proof/ (restaurant mobile, portfolio desktop).
+- Frontend Design, Premium and UI UX Pro Max guided the native adaptation;
+  21st search returned tab patterns, but retrieval quota is exhausted. No copied
+  component code or new dependency. Strict static Premium audit remains PARTIAL:
+  55 handler-detection findings, zero unresolved ownership; actual controls were
+  checked separately. Audit was not weakened or represented as passing.
+- Preserve/exclude pre-existing demo-gallery.css, demo_gallery.html and
+  projects/views/projects.py changes. Next: user visual acceptance; publication
+  requires a separate explicit deployment request.
+
 ## Phase 2 — reference storefront (2026-10-06)
 
 - Status: VERIFIED locally. Commit/push follows the user's phase-1 routine;

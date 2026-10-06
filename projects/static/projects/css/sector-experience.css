@@ -1,0 +1,54 @@
+/* Category chapters inherit the sample palette, not dark studio chrome. */
+.sector-experience {margin: 32px 0; padding: clamp(20px,4cqi,48px); background: var(--demo-soft,#f4f1ea); color: #171717; border: 1px solid #d6d3cd; border-radius: 22px; container-type: inline-size;}
+.sector-experience * {box-sizing: border-box; min-inline-size: 0;}
+.sector-experience [hidden] {display: none;}
+.sector-toolbar {display: grid; gap: 16px; border-bottom: 1px solid #c9c5be; padding-bottom: 24px;}
+.sector-toolbar small {font-size: 12px; font-weight: 700; color: var(--demo-primary-text,#374151);}
+.sector-toolbar h2 {font-size: clamp(20px,3cqi,28px); line-height: 1.6; margin: 8px 0 0; text-wrap: balance;}
+.sector-experience p {font-size: 16px; line-height: 1.9; margin: 0; overflow-wrap: anywhere;}
+.sector-goals {display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 16px;}
+.sector-goals button {flex: 1 1 160px; min-height: 48px; border: 1px solid #77736e; border-radius: 12px; padding: 12px 16px; background: #fff; color: #171717; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; transition: background .18s,color .18s;}
+.sector-goals button[aria-pressed="true"] {background: var(--demo-primary); color: var(--demo-on-primary); border-color: var(--demo-primary);}
+.sector-goals button:hover {box-shadow: inset 0 0 0 2px var(--demo-primary);}
+.sector-goals button:disabled {opacity: .5; cursor: not-allowed; box-shadow: none;}
+.sector-goals button:active {box-shadow: inset 0 0 0 2px var(--demo-primary);}
+.sector-experience :is(button,summary,a):focus-visible {outline: 3px solid #171717; outline-offset: 4px;}
+.sector-experience .sector-unspecified {font-size: 14px; padding-inline-start: 12px; border-inline-start: 3px solid var(--demo-primary); margin-bottom: 20px;}
+.sector-panel {display: grid; gap: 24px; padding-top: 16px; animation: sector-arrive .22s ease-out;}
+@keyframes sector-arrive {from {opacity: .35; transform: translateY(4px);} to {opacity: 1; transform: none;}}
+.sector-copy > small {font-size: 14px; line-height: 1.8; display: block; color: #555;}
+.sector-copy h3 {font-size: clamp(24px,4cqi,40px); line-height: 1.5; margin: 12px 0 20px; text-wrap: balance;}
+.sector-copy summary {display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 48px; padding: 12px 16px; border: 1px solid #aaa59c; border-radius: 12px; background: #fff; cursor: pointer; font-size: 16px; list-style: none;}
+.sector-copy summary::-webkit-details-marker {display: none;}
+.sector-copy summary:hover,.sector-copy details[open] summary {box-shadow: inset 0 0 0 1px var(--demo-primary);}
+.sector-copy details[open] summary span {transform: rotate(45deg);}
+.sector-copy details p {padding-top: 20px;}
+.sector-recommendations {margin-top: 24px; border-top: 1px solid #aaa59c; padding-top: 16px;}
+.sector-recommendations h4 {font-size: 16px; line-height: 1.8; margin: 0 0 12px;}
+.sector-recommendations ul {padding: 0; margin: 0 0 16px; list-style: none; display: grid; gap: 8px;}
+.sector-recommendations li {display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 14px; line-height: 1.8;}
+.sector-recommendations [data-enabled="true"] {font-weight: 700;}
+.sector-experience .sector-recommendations p {font-size: 14px;}
+.sector-recommendations :is(button,a) {display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 12px; margin-top: 16px; border: 1px solid #77736e; border-radius: 12px; background: #fff; color: #171717; font: inherit; font-size: 16px; font-weight: 600; text-decoration: none; cursor: pointer;}
+.sector-recommendations :is(button,a):hover {background: var(--demo-primary); color: var(--demo-on-primary);}
+.sector-recommendations button:disabled {background: #fff; color: #171717; opacity: .5; cursor: not-allowed;}
+.sector-art {position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 210px; padding: 24px; background: var(--demo-primary); color: var(--demo-on-primary); border-radius: 14px; isolation: isolate;}
+.sector-art span {font-size: 32px; font-variant-numeric: tabular-nums;}
+.sector-art b {font-size: 20px; max-inline-size: 18ch; line-height: 1.6; z-index: 1;}
+.sector-art dl {margin: 20px 0 0; position: relative; z-index: 1;}
+.sector-art dl > div {display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid currentColor;}
+.sector-art dt {font-size: 13px; line-height: 1.8;}
+.sector-art dd {font-size: 16px; font-weight: 600; line-height: 1.8; margin: 0; overflow-wrap: anywhere;}
+.sector-art i {position: absolute; inset-inline-end: 24px; top: 24px; width: 60px; height: 60px; border: 2px solid currentColor; border-radius: 50%; opacity: .35;}
+.sector-restaurant .sector-art i {border-width: 12px; box-shadow: 0 0 0 8px var(--demo-primary),0 0 0 9px currentColor;}
+.sector-portfolio .sector-art {border-radius: 0;}
+.sector-portfolio .sector-art i {border-radius: 0; transform: rotate(-12deg); border-width: 8px;}
+.sector-corporate .sector-art {background-image: linear-gradient(90deg,#ffffff18 1px,transparent 1px),linear-gradient(#ffffff18 1px,transparent 1px); background-size: 24px 24px;}
+.sector-corporate .sector-art i {border-radius: 0; border-width: 0 2px 2px 0; transform: rotate(-45deg); width: 44px; height: 44px;}
+.sector-clinic .sector-art i {border: 0; border-radius: 0; background: currentColor; clip-path: polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%);}
+.sector-education .sector-art i {border-radius: 8px; border-width: 2px 2px 2px 10px; transform: rotate(8deg);}
+.sector-jewelry .sector-art {border-radius: 0;}
+.sector-jewelry .sector-art i {border-radius: 0; transform: rotate(45deg); width: 44px; height: 44px; top: 28px; inset-inline-end: 28px;}
+[data-personality="industrial"] .sector-experience,[data-personality="industrial"] .sector-experience :is(button,summary,.sector-art) {border-radius: 0;}
+@container (min-width:640px) {.sector-toolbar {grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); align-items: end;} .sector-panel {grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); gap: 40px; align-items: start;} .sector-art {min-height: 300px;}}
+@media (prefers-reduced-motion:reduce) {.sector-experience * {transition: none; animation: none;}}

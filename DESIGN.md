@@ -157,6 +157,7 @@ second duplicate inset. No sample theme/personality or order data contract chang
 | Public footer | core/includes/footer.html + footer-studio.css | public shell |
 | Reference store | storefront_catalog.py + demo_store tag + storefront.css | ecommerce preview/full |
 | Sample basket | storefront-model.js + storefront.js | ecommerce, memory-only |
+| Sector goal chapters | sector_catalog.py + demo_sector tag + sector-experience.css | six non-store sectors, preview/full |
 
 Reference shop phase 2: six home objects with original material illustrations,
 not fake photography, ratings or discounts. Native product dialogs split art
@@ -166,6 +167,21 @@ sample-only, separate from the real design enquiry. Dialog actions inherit the
 live sample palette and local fonts; the sample stays deliberately light in
 dark studio chrome. All products remain visible on phones. Select popup
 geometry is platform-owned; intrinsic selects/art must not expand the dialog.
+
+Sector phase 3: restaurant, portfolio, corporate, clinic, learning and jewellery
+each expose three domain-specific directions, backed by the existing enquiry
+goal—not a second settings model. A plate, frame, blueprint, care cross, book
+and faceted mark accompany readable fictional specification panels; these
+are illustrations, not real assets/credentials. Fact labels, units, numbers,
+lesson copy and quotation boundaries follow the page locale. Desktop splits
+specifications/content; phones stack full-width, wrapping goal buttons with
+48px minimum targets. Native disclosures keep the detail density manageable.
+Selected goals update the chapter headline and direction immediately; the
+hero above the controls stays stable to avoid scroll jumps. Capability
+suggestions show current selection status and lead to the existing settings
+sheet (or back to preview from full mode), never silently enabling features.
+Live palette contrast remains owned by demo-configurator.js. Sector motion is
+a short opacity/4px arrival, disabled with reduced motion; no scroll hijack.
 
 Actions are semantic links/buttons with hover, pressed and visible focus.
 Theme/personality are radio-like choices; features remain checkboxes.

@@ -11,8 +11,8 @@
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8">
 <link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4">
-  <script src="{% static 'projects/js/demo-configurator.js' %}?v=7" defer></script>
-{% if demo.category == 'ecommerce' %}{% include 'projects/demo_scenes/store_assets.html' %}{% endif %}
+  <script src="{% static 'projects/js/demo-configurator.js' %}?v=8" defer></script>
+{% if demo.category == 'ecommerce' %}{% include 'projects/demo_scenes/store_assets.html' %}{% else %}{% include 'projects/demo_scenes/sector_assets.html' %}{% endif %}
 </head>
 <body class="demo-full-body">
   <main class="demo-full" data-demo-configurator data-demo-full data-demo-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}" data-default-brand="{% if lang == 'fa' %}{{ demo.fictional_brand_fa|escape }}{% else %}{{ demo.fictional_brand_en|escape }}{% endif %}" data-default-style="{{ demo.style_key }}" data-default-theme="{{ demo.default_theme }}" data-default-personality="{{ demo.default_personality }}" data-default-custom-color="{{ demo.default_custom_color }}" data-default-features="{{ demo.default_features|join:',' }}" data-preview-url="{% url 'projects:demo_preview' demo.slug %}" data-full-url="{% url 'projects:demo_full' demo.slug %}">
@@ -49,7 +49,7 @@
         <div class="sample-main">{% include 'projects/demo_scenes/hero.html' with full_sample=True %}</div>
         <section class="demo-full-offer" id="sample-content">
           <header><small>{% if lang == 'fa' %}ساختار پیشنهادی{% else %}SUGGESTED STRUCTURE{% endif %}</small><h2>{% if lang == 'fa' %}مسیرهای اصلی این تجربه{% else %}The main paths in this experience{% endif %}</h2></header>
-          {% include 'projects/demo_scenes/scene.html' %}
+          {% include 'projects/demo_scenes/scene.html' with full_sample=True %}
           <p class="demo-action-status" data-demo-action-status aria-live="polite" hidden></p>
         </section>
         {% include 'projects/demo_scenes/story.html' %}
