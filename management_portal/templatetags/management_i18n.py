@@ -36,6 +36,9 @@ NOTIFICATION_TITLES_EN = {
 }
 
 AUDIT_ACTIONS_EN = {
+    "followup_task_created": "Follow-up task created",
+    "followup_task_status": "Follow-up task status changed",
+    "sms_campaign_started": "SMS campaign started",
     "customer_merged": "Customer records merged",
     "customer_contact_created": "Customer contact added",
     "customer_followup_created": "Customer follow-up created",
@@ -54,6 +57,9 @@ AUDIT_ACTIONS_EN = {
 }
 
 AUDIT_ACTIONS_FA = {
+    "followup_task_created": "ساخت وظیفه پیگیری",
+    "followup_task_status": "تغییر وضعیت وظیفه پیگیری",
+    "sms_campaign_started": "آغاز ارسال کمپین پیامکی",
     "customer_merged": "ادغام سوابق مشتری",
     "customer_contact_created": "افزودن مخاطب مشتری",
     "customer_followup_created": "ساخت پیگیری مشتری",
@@ -72,6 +78,7 @@ AUDIT_ACTIONS_FA = {
 }
 
 TARGET_TYPES_EN = {
+    "case_task": "Case task",
     "customer": "Customer",
     "customer_case": "Customer case",
     "user": "Account",
@@ -89,6 +96,7 @@ TARGET_TYPES_EN = {
 }
 
 TARGET_TYPES_FA = {
+    "case_task": "وظیفه پرونده",
     "customer": "مشتری",
     "customer_case": "پرونده مشتری",
     "user": "حساب کاربری",

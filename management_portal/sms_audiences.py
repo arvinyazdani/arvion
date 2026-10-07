@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from django.db.models import Q
 
 from accounts.models import User
-from assessments.models import Attempt, ManualPaymentSubmission, Order
+from assessments.models import Attempt, ManualPaymentSubmission
 from core.sms.backends import normalize_iran_mobile
 from .followup_groups import ready_orders, unpaid_orders
 

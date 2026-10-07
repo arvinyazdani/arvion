@@ -779,7 +779,7 @@ def crm_workspace(request):
 @staff_member_required(login_url="accounts:login")
 def crm_case_detail(request, case_id):
     _require_sales_access(request.user); case = get_object_or_404(CustomerCase.objects.select_related("owner", "source_content_type"), pk=case_id); lang = getattr(request, "LANGUAGE_CODE", "fa")
-    return render(request, "management_portal/v2/crm_case_detail.html", {"case": case, "case_form": CustomerCaseForm(instance=case, lang=lang), "task_form": CaseTaskForm(lang=lang), "activity_form": CaseActivityForm(lang=lang), "lang": lang})
+    return render(request, "management_portal/v2/crm_case_detail.html", {"case": case, "case_form": CustomerCaseForm(instance=case, lang=lang), "activity_form": CaseActivityForm(lang=lang), "lang": lang})
 
 
 @staff_member_required(login_url="accounts:login")
@@ -796,16 +796,25 @@ def crm_case_update(request, case_id):
 @staff_member_required(login_url="accounts:login")
 @require_POST
 def crm_task_create(request, case_id):
-    _require_case_change(request.user); case = get_object_or_404(CustomerCase, pk=case_id); form = CaseTaskForm(request.POST, lang=getattr(request, "LANGUAGE_CODE", "fa"))
-    if form.is_valid():
-        task = form.save(commit=False); task.case, task.created_by = case, request.user; task.save(); CaseActivity.objects.create(case=case, actor=request.user, kind="task", title="وظیفه ساخته شد", body=task.title)
-    return redirect("management_portal:crm_case_detail", case_id=case.pk)
+    # Preserve old form URLs, but use the canonical validation and audit writer.
+    _require_case_change(request.user)
+    get_object_or_404(CustomerCase, pk=case_id)
+    payload = request.POST.copy()
+    payload["case"] = str(case_id)
+    request.POST = payload
+    return followup_list(request)
 
 
 @staff_member_required(login_url="accounts:login")
 @require_POST
 def crm_task_toggle(request, task_id):
-    _require_case_change(request.user); task = get_object_or_404(CaseTask, pk=task_id); task.status = "open" if task.status == "done" else "done"; task.completed_at = None if task.status == "open" else timezone.now(); task.save(update_fields=("status", "completed_at")); CaseActivity.objects.create(case=task.case, actor=request.user, kind="task", title="وضعیت وظیفه تغییر کرد", body=task.title); return redirect("management_portal:crm_case_detail", case_id=task.case_id)
+    _require_case_change(request.user)
+    get_object_or_404(CaseTask, pk=task_id)
+    if "status" in request.POST:
+        return followup_task_status(request, task_id)
+    # A stale toggle cannot distinguish a retry from an intentional reopening.
+    messages.info(request, "وضعیت موردنظر را در مرکز وظایف انتخاب کنید." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Choose the intended status in the task centre.")
+    return redirect("management_portal:followup_list")
 
 
 @staff_member_required(login_url="accounts:login")

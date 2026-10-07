@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from traffic.models import ActiveVisitor, TrafficDay
 
@@ -16,6 +16,9 @@ EVENT_CATEGORY_LABELS = {
     "contract": ("قرارداد", "Contract"),
     "support": ("پشتیبانی", "Support"),
     "sales": ("فروش و پیگیری", "Sales & follow-up"),
+    "communication": ("ارتباط با مشتری", "Communication"),
+    "task": ("وظیفه و پیگیری", "Tasks & follow-up"),
+    "system": ("رویداد سیستمی", "System event"),
 }
 
 
@@ -28,7 +31,13 @@ def build_customer_funnel():
     registered = cohort.count()
     ordered = cohort.filter(assessment_orders__isnull=False).distinct().count()
     paid = cohort.filter(assessment_orders__status="paid").distinct().count()
-    started = cohort.filter(assessment_orders__status="paid", assessment_orders__entitlement__attempt__started_at__isnull=False).distinct().count()
+    # A completed legacy attempt proves participation even without a start timestamp.
+    # Do not synthesize timing data: only include its customer in the funnel count.
+    started = cohort.filter(
+        Q(assessment_orders__entitlement__attempt__started_at__isnull=False)
+        | Q(assessment_orders__entitlement__attempt__status="completed"),
+        assessment_orders__status="paid",
+    ).distinct().count()
     completed = cohort.filter(assessment_orders__status="paid", assessment_orders__entitlement__attempt__status="completed").distinct().count()
     raw = (
         ("registered", "مشتری با حساب فعال", "Customer with active account", registered),

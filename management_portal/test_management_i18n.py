@@ -16,6 +16,20 @@ class ManagementPresentationTranslationTests(SimpleTestCase):
         )
         self.assertEqual(rendered, "Payment review is overdue / Reference: ABC-120")
 
+    def test_followup_and_campaign_audit_vocabulary_is_localized(self):
+        from .customer_analytics import EVENT_CATEGORY_LABELS
+        from .models import CustomerEvent
+        self.assertEqual(set(EVENT_CATEGORY_LABELS), {code for code, _ in CustomerEvent.CATEGORIES})
+        for code, fa, en in (
+            ("followup_task_created", "ساخت وظیفه پیگیری", "Follow-up task created"),
+            ("followup_task_status", "تغییر وضعیت وظیفه پیگیری", "Follow-up task status changed"),
+            ("sms_campaign_started", "آغاز ارسال کمپین پیامکی", "SMS campaign started"),
+        ):
+            for lang, expected in (("fa", fa), ("en", en)):
+                with self.subTest(code=code, lang=lang):
+                    self.assertEqual(self.render("{{ action|management_audit_action:lang }}", action=code, lang=lang), expected)
+        self.assertEqual(self.render("{{ target|management_target_type:lang }}", target="case_task", lang="fa"), "وظیفه پرونده")
+
     def test_audit_codes_and_generated_summary_are_readable_in_english(self):
         rendered = self.render(
             "{{ action|management_audit_action:lang }} / "

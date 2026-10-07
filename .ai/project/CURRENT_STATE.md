@@ -1,5 +1,88 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 8 checkpoint (2026-10-07)
+
+- VERIFIED locally; all eight stages technically complete, appearance acceptance
+  and production release pending. No known P0/P1 in this bounded rebuild gate.
+  SINGLE PRIMARY AGENT; self-review is not independent review. Baseline f9ca757.
+  Three pre-existing gallery edits are preserved and excluded from this milestone.
+  No push, deploy, production migration, real SMS/Push or customer-data mutation.
+- Removed 341-line legacy sms.css after repository-wide stylesheet-reference and
+  selector-consumer checks. Its obsolete layout classes have no consumers; the
+  shared manager-message selector still has its own staff.css definition.
+  Removed unused Order import and legacy task_form context. Recoverable from Git;
+  no models, customer documents, historical rows or contract text deleted.
+- Legacy task UI now links to the canonical follow-up centre with case/code
+  preselected. Compatibility create URL uses canonical validation and atomic Audit.
+  Legacy toggle without an explicit target cannot mutate a task; it guides the
+  manager to the centre. Explicit targets share the locked idempotent writer;
+  cancelled tasks stay cancelled. No new permission or business policy.
+- Final review also found a legacy completed attempt with no started_at counted
+  as completed but not participating. Funnel participation now includes completed
+  attempts linked to approved orders without synthesizing timing or changing data.
+  New finite task/campaign Audit vocabulary and case_task labels are bilingual;
+  reports now cover every CustomerEvent category, including task/communication/system.
+- Tests added: legacy create validation/Audit; stale toggle, cancelled-task safety
+  and repeated explicit completion; legacy completed-attempt funnel; Audit labels.
+  Initial targeted run: 107 tests, one fixture error (missing required created_by),
+  corrected rather than hidden. Python 3.9/PostgreSQL gates before final additions:
+  995/995 parallel OK (112.537s), 995/995 shuffled OK (346.840s), zero skips.
+  The first Python 3.12 gate hit the new category-coverage assertion while the
+  translation fix was being completed; that run is not a final PASS. Missing
+  categories fixed, code frozen, 28/28 targeted PostgreSQL tests OK (11.075s).
+  Final frozen Python 3.12.13/PostgreSQL parallel: 997/997 OK (60.988s), no skips.
+  Final frozen Python 3.12.13/PostgreSQL shuffled seed 58291: 997/997 OK
+  (215.430s), no skips. Commands mirror quality.yml: --parallel 4 --verbosity 1
+  and --shuffle=58291 --parallel 1 --verbosity 1, with --noinput for test DB setup.
+  Injected provider,
+  SMTP and database exception traces are expected negative tests, not hidden failures.
+- Checks so far: pip check, Django check, migration drift, compileall, strict
+  question-bank audit (200 questions per bank, zero warnings), all tracked JS
+  and operations shell syntax, git diff --check. Isolated collectstatic copied
+  228 files to a temporary directory, never the production asset directory.
+  Production compressed-manifest storage also passed: 228 copied/660 processed,
+  temporary output only. check --deploy with synthetic production environment
+  reports zero issues; no production credentials, services or database used.
+  Python 3.12 uses a fresh temporary venv from unchanged requirements.txt.
+- Browser: disposable SQLite QA only, localhost:8126. FA light mobile 390,
+  EN dark 320, desktop 1280. Receipt one click from Today; result two clicks
+  from primary Exams entry. Notification -> exact receipt -> return-to-inbox,
+  unread count 11 -> 10; no payment decision performed. Order -> case -> internal
+  specialist/general/private preview; no publication/signature/customer login.
+  Legacy task link selected case 3 and filtered its code; no old toggle form.
+  2,000 synthetic customers: header search -> exact row in 333ms locally,
+  not a production/network SLA. No horizontal overflow in sampled screens.
+  Bottom menu y=772 before/after scrollY=1134 at 390x844; y=740 at 320x812.
+  Reduced-motion menu animation 0.00001s, skip-link keyboard focus has outline.
+  Viewport/media emulation reset. Proof: /tmp/rvion-phase4-IWtoof/
+  stage8-today-mobile.png and stage8-followup-desktop.png. Physical iPhone/Safari,
+  device Push sound/delivery and aesthetic customer acceptance remain unverified.
+- Skills: primary-workflow for RELEASE_GATE and checkpoint/recovery boundaries;
+  deploy-checklist for conditional publication/rollback; Design Critique for
+  critical-path hierarchy, mobile/focus and usability self-review. No new UI
+  component required, so no 21st code retrieval or frontend dependency added.
+  User-authored content remains in its original language, not auto-translated.
+- Actual Git comparison with origin/main finds only pending schema change
+  management_portal.0020_sms_campaign_submission_token, already rehearsed by
+  the full PostgreSQL suite. No migration created/applied outside test DBs in
+  stage 8. Local permanent db.sqlite3 and production remain untouched.
+- Release boundary: local gate != remote CI or deployment. Following explicit
+  authorization, publish only the reviewed milestone commits (gallery work is
+  unrelated), require quality CI on Python 3.11/3.12, reconcile server checkout,
+  inspect migration plan, validate PostgreSQL snapshot with pg_restore --list,
+  then run the official ops/release.sh and read-only health/critical smoke checks.
+  Treat failure of health/login/receipt/result/contract-room as rollback trigger.
+  Code-only rollback keeps additive management_portal.0020 column and replay
+  markers; do NOT reverse it after real sends or restore an old DB over new
+  customer documents. Preserve .env.production/.secrets/media/backups/Norbinan.
+- Next: user reviews the local deliverable at http://localhost:8126/fa/management/.
+  Implementation stages remaining: zero. Await separate publication permission;
+  CI Python 3.11/3.12 and production snapshot/health/smoke are NOT_STARTED, not PASS.
+  Final scoped diff self-reviewed; commit this checkpoint with the stage-8 milestone
+  (subject: test(management): verify unified admin journeys and remove unused ui).
+  Git is the authority for its resulting hash; parent is f9ca757. Gallery edits
+  remain dirty and excluded, not reverted or silently bundled into a release.
+
 ## Admin decision-focused rebuild — stage 7 checkpoint (2026-10-07)
 
 - VERIFIED locally; user appearance acceptance pending. Stages 1–7 complete

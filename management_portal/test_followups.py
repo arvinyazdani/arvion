@@ -186,6 +186,49 @@ class FollowupTests(TestCase):
         staff.user_permissions.add(Permission.objects.get(codename="change_customercase"))
         self.assertEqual(self.client.post(reverse("management_portal:followup_task_status", args=[early.pk]), {"status": "done"}).status_code, 302)
 
+    def test_legacy_task_create_uses_canonical_validation_and_audit(self):
+        url = reverse("management_portal:crm_task_create", args=[self.case.pk])
+        response = self.client.post(url, {"title": "", "priority": "high"})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CaseTask.objects.exists())
+        self.client.post(url, {"title": "Legacy follow-up", "priority": "high"})
+        task = CaseTask.objects.get()
+        self.assertEqual(task.case, self.case)
+        self.assertEqual(OperationalAudit.objects.filter(action="followup_task_created", target_id=str(task.pk)).count(), 1)
+
+    def test_legacy_toggle_never_mutates_without_explicit_status(self):
+        task = CaseTask.objects.create(case=self.case, created_by=self.root, title="Legacy QA", status="cancelled")
+        url = reverse("management_portal:crm_task_toggle", args=[task.pk])
+        self.client.post(url)
+        self.client.post(url, {"status": "done"})
+        task.refresh_from_db()
+        self.assertEqual(task.status, "cancelled")
+        self.assertFalse(OperationalAudit.objects.filter(action="followup_task_status").exists())
+        task.status = "open"
+        task.save(update_fields=["status"])
+        self.client.post(url, {"status": "done"})
+        self.client.post(url, {"status": "done"})
+        task.refresh_from_db()
+        self.assertEqual(task.status, "done")
+        self.assertEqual(OperationalAudit.objects.filter(action="followup_task_status").count(), 1)
+
+
+    def test_completed_legacy_attempt_counts_as_participation_without_inventing_timing(self):
+        from .models import CustomerContact
+        user = User.objects.create_user(username="qa-legacy-funnel", email="qa-legacy-funnel@example.test")
+        customer = Customer.objects.create(name="Legacy result QA")
+        CustomerContact.objects.create(customer=customer, user=user, name="QA")
+        exam = Exam.objects.create(slug="qa-legacy-funnel", title_fa="QA", title_en="QA")
+        version = ExamVersion.objects.create(exam=exam, version=1)
+        order = Order.objects.create(user=user, customer=customer, exam=exam, status="paid", amount_irr=1)
+        entitlement = ExamEntitlement.objects.create(user=user, exam=exam, order=order)
+        attempt = Attempt.objects.create(user=user, exam=exam, version=version, entitlement=entitlement, status="completed")
+        stages = {row["key"]: row["count"] for row in build_customer_funnel()["stages"]}
+        self.assertEqual(stages["started"], 1)
+        self.assertEqual(stages["completed"], 1)
+        attempt.refresh_from_db()
+        self.assertIsNone(attempt.started_at)
+
     def test_ready_audience_requires_valid_unstarted_entitlement(self):
         exam = Exam.objects.create(slug="qa-ready", title_fa="QA", title_en="QA")
         users = []
