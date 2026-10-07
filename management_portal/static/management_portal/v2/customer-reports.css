@@ -2,3 +2,7 @@
 @media(max-width:1000px){.cr-funnel{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.cr-hero,.cr-grid{grid-template-columns:1fr}.cr-funnel{grid-template-columns:1fr 1fr}.cr-hero{padding:20px}.cr-hero>div:last-child{text-align:start}.cr-bottlenecks>a{grid-template-columns:minmax(0,1fr) auto}.cr-bottlenecks>a>em{grid-column:1/-1;justify-self:start}}
 @media(max-width:420px){.cr-funnel{grid-template-columns:1fr}.cr-cases{grid-template-columns:1fr}}
+.cr-hero span,.cr-panel header span,.cr-panel header>small,.cr-funnel header small,.cr-funnel footer,.cr-bottlenecks small,.cr-bottlenecks>a>em{font-size:.875rem;line-height:1.7}
+.cr-funnel header strong,.cr-cases>div,.cr-events>div>span{font-size:1rem}.cr-panel>header{flex-wrap:wrap}.cr-bottlenecks>a{min-height:64px}
+.cr-funnel article,.cr-panel{min-width:0}.cr-funnel header>div,.cr-bottlenecks>a>div{overflow-wrap:anywhere}.cr-events{margin-block:20px}.cr-bottlenecks>a:focus-visible{outline:3px solid var(--color-focus);outline-offset:3px}
+@media(min-width:761px) and (max-width:1200px){.cr-funnel{grid-template-columns:repeat(3,minmax(0,1fr))}}

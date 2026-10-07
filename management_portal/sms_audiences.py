@@ -5,13 +5,14 @@ from django.db.models import Q
 from accounts.models import User
 from assessments.models import Attempt, ManualPaymentSubmission, Order
 from core.sms.backends import normalize_iran_mobile
+from .followup_groups import ready_orders, unpaid_orders
 
 
 AUDIENCE_LABELS = {
     "registered": ("عضو بدون سفارش", "Registered without an order"),
     "unpaid": ("سفارش پرداخت‌نشده", "Order awaiting payment"),
     "payment_review": ("پرداخت منتظر بررسی", "Payment awaiting review"),
-    "ready": ("پرداخت‌شده و شروع‌نشده", "Paid and not started"),
+    "ready": ("دسترسی فعال و شروع‌نشده", "Active access, not started"),
     "completed": ("نتیجه آماده", "Result ready"),
 }
 
@@ -48,15 +49,13 @@ def resolve_sms_audience(key):
             is_staff=False, is_active=True, assessment_orders__isnull=True,
         ).exclude(Q(mobile__isnull=True) | Q(mobile="")).values_list("mobile", flat=True)
     elif key == "unpaid":
-        values = Order.objects.filter(status="pending").filter(
-            Q(manual_payment__isnull=True) | Q(manual_payment__status="rejected")
-        ).exclude(Q(user__mobile__isnull=True) | Q(user__mobile="")).values_list("user__mobile", flat=True)
+        values = unpaid_orders().exclude(Q(user__mobile__isnull=True) | Q(user__mobile="")).values_list("user__mobile", flat=True)
     elif key == "payment_review":
         values = ManualPaymentSubmission.objects.filter(status="pending").exclude(
             Q(order__user__mobile__isnull=True) | Q(order__user__mobile="")
         ).values_list("order__user__mobile", flat=True)
     elif key == "ready":
-        values = Order.objects.filter(status="paid", entitlement__attempt__isnull=True).exclude(
+        values = ready_orders().exclude(
             Q(user__mobile__isnull=True) | Q(user__mobile="")
         ).values_list("user__mobile", flat=True)
     else:

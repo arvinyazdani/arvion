@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
+from .followup_groups import ready_orders, unpaid_orders
 
 
 ALLOWED_SEGMENT_FILTERS = {"q", "journey", "case_stage", "inactive_days"}
@@ -9,7 +10,8 @@ JOURNEY_CHOICES = (
     ("registered", "عضو بدون سفارش", "Registered without order"),
     ("unpaid", "سفارش پرداخت‌نشده", "Unpaid order"),
     ("payment_review", "پرداخت منتظر بررسی", "Payment awaiting review"),
-    ("ready", "پرداخت‌شده و شروع‌نشده", "Paid, not started"),
+    ("ready", "دسترسی فعال و شروع‌نشده", "Active access, not started"),
+    ("in_progress", "آزمون نیمه‌تمام", "Incomplete assessment"),
     ("completed", "نتیجه آماده", "Result ready"),
 )
 CASE_STAGE_CHOICES = (
@@ -54,11 +56,13 @@ def apply_customer_filters(queryset, filters):
     if journey == "registered":
         queryset = queryset.filter(contacts__user__is_active=True).exclude(assessment_orders__isnull=False)
     elif journey == "unpaid":
-        queryset = queryset.filter(assessment_orders__status="pending").exclude(assessment_orders__manual_payment__status="pending")
+        queryset = queryset.filter(assessment_orders__in=unpaid_orders())
     elif journey == "payment_review":
         queryset = queryset.filter(assessment_orders__manual_payment__status="pending")
     elif journey == "ready":
-        queryset = queryset.filter(assessment_orders__status="paid").exclude(assessment_orders__user__exam_attempts__isnull=False)
+        queryset = queryset.filter(assessment_orders__in=ready_orders())
+    elif journey == "in_progress":
+        queryset = queryset.filter(assessment_orders__entitlement__attempt__status="in_progress")
     elif journey == "completed":
-        queryset = queryset.filter(assessment_orders__user__exam_attempts__status="completed")
+        queryset = queryset.filter(assessment_orders__entitlement__attempt__status="completed")
     return queryset.distinct()

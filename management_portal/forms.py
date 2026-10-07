@@ -92,9 +92,10 @@ class ManualSMSForm(forms.Form):
     )
     confirm = forms.BooleanField(label="شماره‌ها و متن را بررسی کرده‌ام و ارسال واقعی انجام شود")
 
-    def __init__(self, *args, lang="fa", **kwargs):
+    def __init__(self, *args, lang="fa", preview=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.lang = lang
+        self.fields["confirm"].required = not preview
         self.fields["audience"].choices = [("manual", "ورود دستی" if lang == "fa" else "Manual entry")] + [
             (key, labels[0 if lang == "fa" else 1]) for key, labels in AUDIENCE_LABELS.items()
         ]
@@ -104,9 +105,6 @@ class ManualSMSForm(forms.Form):
         self.fields["template"].label = "پیام آماده" if lang == "fa" else "Prepared message"
         self.fields["template"].empty_label = "متن دلخواه" if lang == "fa" else "Custom message"
         active_audience = self.data.get("audience") if self.is_bound else self.initial.get("audience", "manual")
-        if active_audience and active_audience != "manual":
-            self.fields["recipients"].label = "پیش‌نمایش گیرندگان" if lang == "fa" else "Recipient preview"
-            self.fields["recipients"].help_text = "این فهرست از وضعیت زنده سیستم ساخته می‌شود و هنگام ارسال دوباره کنترل خواهد شد؛ حداکثر ۵۰ نفر." if lang == "fa" else "This list comes from live system state and is checked again before delivery; maximum 50 recipients."
         if lang == "en":
             self.fields["recipients"].label = "Recipients"
             self.fields["recipients"].help_text = "Up to 20 Iranian mobile numbers; 09, +98 and 0098 formats are accepted."
@@ -115,9 +113,15 @@ class ManualSMSForm(forms.Form):
             self.fields["message"].help_text = "Final cost depends on message length and provider pricing."
             self.fields["message"].widget.attrs["placeholder"] = "Write the message..."
             self.fields["confirm"].label = "I reviewed the numbers and message and confirm real delivery"
+        if active_audience and active_audience != "manual":
+            self.fields["recipients"].label = "گیرندگان گروه" if lang == "fa" else "Segment recipients"
+            self.fields["recipients"].help_text = "فهرست از وضعیت زنده سیستم گرفته می‌شود؛ حداکثر ۵۰ گیرنده. شماره‌های واردشده در این کادر مبنای ارسال گروهی نیستند." if lang == "fa" else "Resolved from live system state; maximum 50 recipients. Typed numbers here do not override segment membership."
+            self.fields["recipients"].widget.attrs["readonly"] = True
         enhance_form_accessibility(self, autocomplete={"recipients": "off", "message": "off"})
 
     def clean_recipients(self):
+        if (self.data.get("audience") or "manual") != "manual":
+            return []  # Live audience membership is resolved only on the server.
         raw = self.cleaned_data["recipients"]
         values = [item.strip() for item in raw.replace("،", ",").replace(";", ",").replace("\n", ",").split(",") if item.strip()]
         if not values and (self.data.get("audience") or "manual") == "manual":
@@ -214,9 +218,11 @@ class CaseTaskForm(forms.ModelForm):
     def __init__(self, *args, lang="fa", **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["assigned_to"].queryset = User.objects.filter(is_staff=True, is_active=True)
+        self.fields["assigned_to"].empty_label = "بدون مسئول" if lang == "fa" else "Unassigned"
         labels = {"title": ("عنوان وظیفه", "Task title"), "description": ("توضیحات", "Description"), "priority": ("اولویت", "Priority"), "assigned_to": ("مسئول", "Assignee"), "due_at": ("مهلت", "Due date")}
         for name, pair in labels.items(): self.fields[name].label = pair[0 if lang == "fa" else 1]
         if lang == "en": self.fields["priority"].choices = (("low", "Low"), ("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"))
+        enhance_form_accessibility(self)
 
 
 class CaseActivityForm(forms.ModelForm):

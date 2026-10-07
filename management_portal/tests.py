@@ -1167,11 +1167,15 @@ class ManagementDashboardTests(TestCase):
         mocked_send.return_value = SMSResult(provider="test", reference="ref-1")
         root = User.objects.create_superuser(username="sms-root", email="sms-root@example.com", password="safe-password")
         self.client.force_login(root)
-        response = self.client.post(reverse("management_portal:sms_send"), {
+        payload = {
             "recipients": "09120373271\n+98 912 037 3271\n۰۹۱۲۱۱۱۲۲۳۳",
             "message": "پیام آزمایشی آرویون",
             "confirm": "on",
-        })
+            "action": "preview",
+        }
+        preview = self.client.post(reverse("management_portal:sms_send"), payload)
+        payload.update(action="send", preview_token=preview.context["preview"]["token"])
+        response = self.client.post(reverse("management_portal:sms_send"), payload)
         self.assertRedirects(response, reverse("management_portal:sms_send"))
         self.assertEqual(mocked_send.call_count, 2)
         self.assertEqual(SMSDispatch.objects.filter(status="sent").count(), 2)
@@ -1199,10 +1203,14 @@ class ManagementDashboardTests(TestCase):
         preview = self.client.get(reverse("management_portal:sms_send") + "?audience=registered")
         self.assertContains(preview, "عضو بدون سفارش")
         self.assertContains(preview, "989121110001")
-        response = self.client.post(reverse("management_portal:sms_send"), {
+        payload = {
             "audience": "registered", "expected_count": "2", "recipients": "",
             "message": "پیگیری ثبت سفارش آرویون", "confirm": "on",
-        })
+            "action": "preview",
+        }
+        preview = self.client.post(reverse("management_portal:sms_send"), payload)
+        payload.update(action="send", preview_token=preview.context["preview"]["token"])
+        response = self.client.post(reverse("management_portal:sms_send"), payload)
 
         self.assertRedirects(response, reverse("management_portal:sms_send"))
         self.assertEqual(mocked_send.call_count, 2)

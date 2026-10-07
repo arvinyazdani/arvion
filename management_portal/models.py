@@ -319,6 +319,7 @@ class SMSMessageTemplate(models.Model):
 
 
 class SMSCampaign(models.Model):
+    submission_token = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     audience = models.CharField(max_length=24, choices=SMSMessageTemplate.AUDIENCES, db_index=True)
     message = models.TextField(max_length=1000)
     recipient_count = models.PositiveIntegerField(default=0)

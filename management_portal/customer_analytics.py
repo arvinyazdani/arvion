@@ -1,12 +1,11 @@
 from datetime import timedelta
 
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.utils import timezone
-
-from assessments.models import Attempt, Order
+from traffic.models import ActiveVisitor, TrafficDay
 
 from .models import Customer, CustomerCase, CustomerEvent
-from .customer_segments import CASE_STAGE_CHOICES
+from .customer_segments import CASE_STAGE_CHOICES, apply_customer_filters
 
 
 EVENT_CATEGORY_LABELS = {
@@ -25,15 +24,16 @@ def _percent(value, base):
 
 
 def build_customer_funnel():
-    registered = Customer.objects.filter(contacts__user__is_active=True).distinct().count()
-    ordered = Customer.objects.filter(assessment_orders__isnull=False).distinct().count()
-    paid = Customer.objects.filter(assessment_orders__status="paid").distinct().count()
-    started = Customer.objects.filter(assessment_orders__user__exam_attempts__started_at__isnull=False).distinct().count()
-    completed = Customer.objects.filter(assessment_orders__user__exam_attempts__status="completed").distinct().count()
+    cohort = Customer.objects.filter(contacts__user__is_active=True).distinct()
+    registered = cohort.count()
+    ordered = cohort.filter(assessment_orders__isnull=False).distinct().count()
+    paid = cohort.filter(assessment_orders__status="paid").distinct().count()
+    started = cohort.filter(assessment_orders__status="paid", assessment_orders__entitlement__attempt__started_at__isnull=False).distinct().count()
+    completed = cohort.filter(assessment_orders__status="paid", assessment_orders__entitlement__attempt__status="completed").distinct().count()
     raw = (
-        ("registered", "عضویت فعال", "Active account", registered),
+        ("registered", "مشتری با حساب فعال", "Customer with active account", registered),
         ("ordered", "ثبت سفارش", "Order created", ordered),
-        ("paid", "پرداخت موفق", "Payment approved", paid),
+        ("paid", "سفارش تأییدشده", "Approved order", paid),
         ("started", "شروع آزمون", "Assessment started", started),
         ("completed", "نتیجه آماده", "Result ready", completed),
     )
@@ -49,13 +49,17 @@ def build_customer_funnel():
         previous = count
 
     now = timezone.now()
-    stale_cutoff = now - timedelta(days=7)
-    bottlenecks = (
-        {"key": "registered", "label_fa": "عضو بدون سفارش", "label_en": "Registered without order", "count": Customer.objects.filter(contacts__user__is_active=True).exclude(assessment_orders__isnull=False).distinct().count(), "stale": Customer.objects.filter(contacts__user__is_active=True, updated_at__lt=stale_cutoff).exclude(assessment_orders__isnull=False).distinct().count()},
-        {"key": "unpaid", "label_fa": "سفارش پرداخت‌نشده", "label_en": "Unpaid order", "count": Order.objects.filter(status="pending").exclude(manual_payment__status="pending").values("customer_id").distinct().count(), "stale": Order.objects.filter(status="pending", updated_at__lt=stale_cutoff).exclude(manual_payment__status="pending").values("customer_id").distinct().count()},
-        {"key": "ready", "label_fa": "پرداخت‌شده و شروع‌نشده", "label_en": "Paid, not started", "count": Order.objects.filter(status="paid").exclude(user__exam_attempts__isnull=False).values("customer_id").distinct().count(), "stale": Order.objects.filter(status="paid", updated_at__lt=stale_cutoff).exclude(user__exam_attempts__isnull=False).values("customer_id").distinct().count()},
-        {"key": "in_progress", "label_fa": "آزمون نیمه‌تمام", "label_en": "Incomplete assessment", "count": Attempt.objects.filter(status="in_progress").values("user_id").distinct().count(), "stale": Attempt.objects.filter(status="in_progress", updated_at__lt=stale_cutoff).values("user_id").distinct().count()},
+    labels = (
+        ("registered", "عضو بدون سفارش", "Registered without order"),
+        ("unpaid", "سفارش پرداخت‌نشده", "Unpaid order"),
+        ("ready", "دسترسی فعال و شروع‌نشده", "Active access, not started"),
+        ("in_progress", "آزمون نیمه‌تمام", "Incomplete assessment"),
     )
+    bottlenecks = []
+    for key, fa, en in labels:
+        members = apply_customer_filters(Customer.objects.all(), {"journey": key})
+        stale = apply_customer_filters(Customer.objects.all(), {"journey": key, "inactive_days": "7"})
+        bottlenecks.append({"key": key, "label_fa": fa, "label_en": en, "count": members.count(), "stale": stale.count()})
     case_counts = {row["stage"]: row["total"] for row in CustomerCase.objects.values("stage").annotate(total=Count("pk"))}
     cases = [
         {"key": key, "label_fa": label_fa, "label_en": label_en, "count": case_counts.get(key, 0)}
@@ -75,4 +79,7 @@ def build_customer_funnel():
         "customers": Customer.objects.count(),
         "overall_conversion": _percent(completed, registered),
         "generated_at": now,
+        "traffic_days": TrafficDay.objects.filter(date__gte=timezone.localdate() - timedelta(days=6)).order_by("-date"),
+        "traffic": TrafficDay.objects.filter(date__gte=timezone.localdate() - timedelta(days=6)).aggregate(views=Sum("page_views"), visitor_days=Sum("unique_visitors")),
+        "active_visitors": ActiveVisitor.objects.filter(last_seen__gte=now-timedelta(minutes=5)).count(),
     }

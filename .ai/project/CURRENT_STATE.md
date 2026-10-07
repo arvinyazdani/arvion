@@ -1,5 +1,104 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 7 checkpoint (2026-10-07)
+
+- VERIFIED locally; user appearance acceptance pending. Stages 1–7 complete
+  locally; stage 8 NOT_STARTED. Pause here for user review. This is the active
+  checkpoint; older stage records below describe their historical boundaries.
+  No push/deploy/production migration, real SMS/Push or customer mutation.
+  Norbinan room, contract terms, credentials and all business policies preserved.
+  Three unrelated existing gallery edits remain unstaged, outside this commit.
+- Messaging: five existing live audiences plus manual entry, prepared/custom
+  message, explicit preview of the exact normalized unique numbers and message.
+  Signed preview carries actor/nonce/digest only, expires after 15 minutes;
+  membership (not merely count) and text are rechecked at send. Confirmation
+  resets on a fresh preview. Existing superuser-only rule and 20 manual / 50
+  live limits remain. Existing tests now follow preview then send without
+  weakening normalization, campaign counts or Audit assertions.
+- Durable nullable-unique SMSCampaign.submission_token + non_atomic_requests
+  persist the claim before external calls. Concurrent/sequential replay of the
+  same preview cannot send twice. Per-number dispatches and progressive counts
+  are retained; known provider failure stores only the exception class, never
+  raw provider secrets. Campaign/history paginate 20 with real totals.
+  Provider acceptance is not a handset-delivery receipt.
+- Safety limit: this is at-most-once submission per preview, not a guarantee
+  of external exactly-once delivery. A process/provider interruption may leave
+  unknown outcomes and an error response; the durable claim prevents automatic
+  retry. History clearly says to check the provider before manually resending.
+  Unexpected exceptions remain observable rather than being silently hidden.
+  A deliberately new preview represents a new, explicitly approved send.
+- Follow-ups: existing CaseTask model, active staff assignment, deadline,
+  priority plus text, open/mine/overdue/today/done/cancelled filters, search,
+  deadline-first ordering (undated last), 20-row pagination and exact totals.
+  Case picker searches name/code, caps options at 100, retains an older selected
+  case on invalid POST. New create/status actions keep existing change-case
+  permissions, atomically write CaseActivity/Audit, lock only the task row,
+  and use explicit open/done targets; repeated completion does not toggle back
+  or add another audit. A stale cancelled task is not revived and gives guidance.
+  Native error summary/inline errors and focus preserve entered fields.
+- Shared ready/unpaid predicates align SMS/segments/report groups. Ready
+  excludes absent, revoked, expired, exhausted or already-used entitlements.
+  Another exam's attempt cannot hide this exam's ready access. The previously
+  ignored in_progress filter now resolves the linked attempt, not all customers.
+  Reports count customer records, while SMS counts unique valid phones; UI
+  explains the different units. Funnel uses the active-account customer cohort
+  and order-linked attempts; approved order is not evidence of bank transfer.
+  CSS percentages use unlocalized decimals. Seven-day public traffic shows
+  page views, summed daily visitors (not weekly unique people) and five-minute
+  active visitors; no sensitive paths or private-session records rendered.
+- Skills: primary-workflow, Frontend Design, UI/UX Pro Max, Design Critique;
+  targeted UIUX bulk-action/confirmation search, full relevant guides reviewed.
+  21st actual search returned collaborative request dropdown metadata #24840
+  (shadcnspace); usage showed 0/2 remaining retrievals and AI disabled. Patterns
+  informed review/action grouping only; no component code retrieved, dependency
+  installed, React migration or independent-review claim.
+- Automated evidence: related stage 1/3/4/5/6 + dashboard + stage-7 gate:
+  190 tests OK, 3 PostgreSQL-only skips. After picker/migration additions,
+  22 stage/legacy-send tests OK, 1 PostgreSQL-only skip. All 20 stage tests
+  passed on isolated real PostgreSQL via arvion.settings.ci, zero skips:
+  race claim, claim persisted outside transaction before provider calls,
+  injected interruption/replay, forward/back migration preserving legacy
+  campaign rows, consent, actor/expiry/membership/message rejection, caps,
+  permissions/CSRF, Audit, task filters/explicit status and group consistency.
+  Final copy/confirmation-reset tests: 3/3 OK; final cancelled-task/picker
+  guards tested separately. Check 0, no migration drift, JS syntax and whitespace
+  clean. Full product suite, remote CI and production acceptance belong to stage 8.
+- Test-run corrections recorded, not hidden: the initial legacy SMS run had
+  two expected failures because it submitted without the now-required preview;
+  those journeys were updated and their original assertions retained. One
+  broader invocation mistakenly named four nonexistent test_admin_* modules;
+  corrected to the actual test_inbox/customer_record/assessment_review/order_journey
+  files, yielding the successful 190-test gate above. Injected RuntimeError
+  traces are intentional assertions of interruption safety, not skipped failures.
+- Browser disposable QA database only (:8126): FA light 390, EN dark 320,
+  desktop light 1280; no horizontal overflow, primary buttons 50px. Group ->
+  template -> exact recipient/message preview; fresh preview clears confirmation;
+  charged-send confirmation cancelled with Escape, focus returns to submit.
+  Task invalid -> preserved/inline errors -> create -> done tested on a synthetic
+  case. English SMS and report labels/readability checked; no real sends.
+  The old 127.0.0.1 test session became unauthenticated mid-run and rejected the
+  stale POST by CSRF (no campaign created). Reauthenticated the synthetic QA
+  fixture on localhost and verified the same EN preview successfully. Cause
+  of the old session replacement not asserted. Fresh-host notification prompt
+  dismissed with Not now; no permissions/Push test enabled.
+  Proof: /tmp/rvion-phase4-IWtoof/admin-stage7-mobile.png,
+  admin-stage7-desktop.png and admin-stage7-en-dark.png (synthetic data only).
+- Migration: management_portal.0020_sms_campaign_submission_token generated.
+  Applied only to disposable QA SQLite and automatic test DBs; forward/back
+  rehearsal on SQLite/PostgreSQL preserves legacy messages/counters with NULL
+  markers. Main db.sqlite3 and production untouched. Future release must back up
+  and migrate before new code. Safe post-release rollback retains this additive
+  column: dropping it loses replay markers; do not reverse it after real sends
+  without a separate reviewed recovery plan.
+- P2 for stage 8: unused legacy sms.css consumer check/cleanup; older
+  crm_case_detail task-toggle/create presentation still uses its pre-existing
+  routes. The new follow-up center does not call them; review/consolidate during
+  the already-planned legacy UI gate. Existing hourly task/reminder and Push
+  policies were not changed, scheduled, or triggered for this QA.
+- Next: user reviews local messaging/follow-up/report screens; on request,
+  stage 8 final integrated acceptance, legacy cleanup and release readiness.
+  Commit this checkpoint with the stage-7 implementation; Git is commit authority.
+
 ## Admin decision-focused rebuild — stage 6 checkpoint (2026-10-07)
 
 - VERIFIED locally; user appearance acceptance pending. Stage 6 of 8:

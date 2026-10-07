@@ -8,11 +8,12 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from django.core import signing
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, CharField, Count, IntegerField, Max, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, CharField, Count, F, IntegerField, Max, OuterRef, Q, Subquery, Value, When
 from django.db.models.fields.json import KeyTextTransform
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -54,6 +55,7 @@ from .customer_events import record_customer_event
 from assessments.services import AssessmentAccessRevokedError, PaymentVerificationError, approve_manual_payment, revoke_assessment_access
 from .models import CaseActivity, CaseDocument, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
 from .sms_audiences import AUDIENCE_LABELS, resolve_sms_audience, sms_audience_overview
+from .sms_preview import make_preview, check_preview, claim_campaign
 from .customer_segments import CASE_STAGE_CHOICES, JOURNEY_CHOICES, apply_customer_filters, normalize_segment_filters
 from .customer_analytics import build_customer_funnel
 from .templatetags.management_i18n import management_notification_description, management_notification_title
@@ -140,6 +142,102 @@ def customer_reports(request):
     return render(request, "management_portal/v2/customer_reports.html", {
         "lang": lang, "report": build_customer_funnel(),
     })
+
+
+@staff_member_required(login_url="accounts:login")
+def followup_list(request):
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    can_change = request.user.is_superuser or any(request.user.has_perm(code) for code in (
+        "management_portal.change_customercase", "leads.change_lead",
+        "crm_orders.change_crmorder", "clinic_orders.change_clinicorder",
+    ))
+    form = CaseTaskForm(request.POST or None, lang=lang)
+    cases = CustomerCase.objects.order_by("-updated_at")
+    selected_case = request.POST.get("case", request.GET.get("case", ""))
+    selected_case_row = cases.filter(pk=int(selected_case)).first() if selected_case.isdecimal() and len(selected_case) < 19 else None
+    case_error = ""
+    if request.method == "POST":
+        _require_case_change(request.user)
+        case = selected_case_row
+        valid_form = form.is_valid()
+        if not case:
+            case_error = "یک پرونده معتبر انتخاب کنید." if lang == "fa" else "Choose a valid case."
+        if valid_form and case:
+            with transaction.atomic():
+                task = form.save(commit=False)
+                task.case, task.created_by = case, request.user
+                task.save()
+                CaseActivity.objects.create(case=case, actor=request.user, kind="task", title="وظیفه ساخته شد", body=task.title)
+                OperationalAudit.objects.create(actor=request.user, action="followup_task_created",
+                    target_type="case_task", target_id=str(task.pk), summary=task.title)
+            messages.success(request, "وظیفه ثبت شد." if lang == "fa" else "Task created.")
+            return redirect("management_portal:followup_list")
+    now = timezone.now()
+    state = request.GET.get("state", "open")
+    if state not in {"open", "mine", "overdue", "today", "done", "cancelled"}:
+        state = "open"
+    tasks = CaseTask.objects.select_related("case", "assigned_to")
+    tasks = tasks.filter(status=state if state in {"done", "cancelled"} else "open")
+    if state == "mine":
+        tasks = tasks.filter(assigned_to=request.user)
+    elif state == "overdue":
+        tasks = tasks.filter(due_at__lt=now)
+    elif state == "today":
+        tasks = tasks.filter(due_at__date=timezone.localdate())
+    query = request.GET.get("q", "").strip()[:100]
+    if query:
+        tasks = tasks.filter(Q(title__icontains=query) | Q(case__customer_name__icontains=query) | Q(case__code__icontains=query))
+    tasks = tasks.annotate(priority_rank=Case(
+        When(priority="urgent", then=Value(0)), When(priority="high", then=Value(1)),
+        When(priority="normal", then=Value(2)), default=Value(3), output_field=IntegerField(),
+    )).order_by(F("due_at").asc(nulls_last=True), "priority_rank", "-created_at")
+    page = review_page(tasks, request, "page", "tasks")
+    priority_en = {"low": "Low", "normal": "Normal", "high": "High", "urgent": "Urgent"}
+    for task in page:
+        task.priority_label = task.get_priority_display() if lang == "fa" else priority_en[task.priority]
+        task.overdue = task.status == "open" and task.due_at is not None and task.due_at < now
+    choices = (
+        ("open", "همه بازها", "All open"), ("mine", "وظایف من", "My tasks"),
+        ("overdue", "عقب‌افتاده", "Overdue"), ("today", "موعد امروز", "Due today"),
+        ("done", "انجام‌شده", "Done"), ("cancelled", "لغوشده", "Cancelled"),
+    )
+    case_query = request.GET.get("case_q", "").strip()[:100]
+    case_options = cases.filter(Q(customer_name__icontains=case_query) | Q(code__icontains=case_query)) if case_query else cases
+    if selected_case_row:
+        case_options = [selected_case_row, *case_options.exclude(pk=selected_case_row.pk).only("pk", "code", "customer_name")[:99]]
+    else:
+        case_options = case_options.only("pk", "code", "customer_name")[:100]
+    return render(request, "management_portal/v2/followups.html", {
+        "lang": lang, "tasks": page, "form": form, "cases": case_options, "case_query": case_query,
+        "selected_case": selected_case, "case_error": case_error, "can_change": can_change,
+        "state": state, "query": query, "state_choices": choices,
+        "open_count": CaseTask.objects.filter(status="open").count(),
+        "overdue_count": CaseTask.objects.filter(status="open", due_at__lt=now).count(),
+    })
+
+
+@staff_member_required(login_url="accounts:login")
+@require_POST
+def followup_task_status(request, task_id):
+    _require_case_change(request.user)
+    status = request.POST.get("status")
+    if status not in {"open", "done"}:
+        return HttpResponse(status=400)
+    with transaction.atomic():
+        task = get_object_or_404(CaseTask.objects.select_for_update(), pk=task_id)
+        if task.status == "cancelled":
+            messages.warning(request, "این وظیفه قبلاً لغو شده است؛ تغییری ثبت نشد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "This task was already cancelled; nothing was changed.")
+            return redirect("management_portal:followup_list")
+        if task.status != status:
+            task.status = status
+            task.completed_at = timezone.now() if status == "done" else None
+            task.save(update_fields=("status", "completed_at"))
+            CaseActivity.objects.create(case_id=task.case_id, actor=request.user, kind="task",
+                title="وضعیت وظیفه تغییر کرد", body=f"{task.title} → {status}")
+            OperationalAudit.objects.create(actor=request.user, action="followup_task_status",
+                target_type="case_task", target_id=str(task.pk), summary=task.title, metadata={"status": status})
+    messages.success(request, "وضعیت وظیفه ثبت شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Task status saved.")
+    return redirect("management_portal:followup_list")
 
 
 @staff_member_required(login_url="accounts:login")
@@ -1963,6 +2061,7 @@ def staff_edit(request, user_id):
     return render(request, "management_portal/staff_form.html", {"form": form, "title": "ویرایش مسئولیت‌ها" if lang == "fa" else "Edit responsibilities", "member": member, "lang": lang})
 
 
+@transaction.non_atomic_requests
 @staff_member_required(login_url="accounts:login")
 def sms_send(request):
     _require_superuser(request)
@@ -1984,7 +2083,8 @@ def sms_send(request):
                 "template": default_template,
                 "message": default_template.body_fa if lang == "fa" else default_template.body_en,
             })
-    form = ManualSMSForm(request.POST or None, initial=initial, lang=lang)
+    form = ManualSMSForm(request.POST or None, initial=initial, lang=lang,
+                         preview=request.POST.get("action") == "preview")
     if request.method == "POST" and form.is_valid():
         audience = form.cleaned_data["audience"]
         if audience == "manual":
@@ -1992,26 +2092,36 @@ def sms_send(request):
         else:
             snapshot = resolve_sms_audience(audience)
             recipients = list(snapshot.recipients)
-            if form.cleaned_data.get("expected_count") != snapshot.count:
+            if request.POST.get("action") == "preview":
+                form.data = form.data.copy()
+                form.data["expected_count"] = str(snapshot.count)
+                form.data["recipients"] = "\n".join(recipients)
+            elif form.cleaned_data.get("expected_count") != snapshot.count:
                 form.add_error(None, "اعضای گروه تغییر کرده‌اند؛ پیش‌نمایش را دوباره بازبینی کنید." if lang == "fa" else "The segment changed; review the preview again.")
             if snapshot.count > 50:
                 form.add_error(None, "برای امنیت ارسال، هر کمپین حداکثر ۵۰ گیرنده دارد." if lang == "fa" else "For delivery safety, each campaign is limited to 50 recipients.")
             if not recipients:
                 form.add_error(None, "این گروه در حال حاضر گیرنده معتبری ندارد." if lang == "fa" else "This segment currently has no valid recipients.")
         if form.errors:
-            return render(request, "management_portal/sms_send.html", {
-                "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50],
-                "campaigns": SMSCampaign.objects.select_related("created_by")[:20],
-                "audiences": sms_audience_overview(), "selected_audience": audience,
-                "template_payload": [{"id": item.pk, "body": item.body_fa if lang == "fa" else item.body_en} for item in SMSMessageTemplate.objects.filter(is_active=True)],
-                "lang": lang,
-            })
-        campaign = SMSCampaign.objects.create(
-            audience=audience,
-            message=form.cleaned_data["message"],
-            recipient_count=len(recipients),
-            created_by=request.user,
-        )
+            return _sms_render(request, form, audience)
+        message = form.cleaned_data["message"]
+        if request.POST.get("action") == "preview" or not request.POST.get("preview_token"):
+            form.data = form.data.copy()
+            form.data["confirm"] = ""
+            token = make_preview(request.user, audience, recipients, message)
+            return _sms_render(request, form, audience, {"token": token, "recipients": recipients,
+                               "message": message, "count": len(recipients)})
+        try:
+            token = check_preview(request.POST["preview_token"], request.user, audience, recipients, message)
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            form.add_error(None, "متن یا اعضای گروه تغییر کرده‌اند، یا پیش‌نمایش منقضی شده است؛ دوباره پیش‌نمایش بگیرید." if lang == "fa" else "Message or membership changed, or the preview expired. Review a new preview.")
+            return _sms_render(request, form, audience)
+        campaign, claimed = claim_campaign(token, request.user, audience, recipients, message)
+        if not claimed:
+            messages.info(request, "این ارسال قبلاً ثبت شده است؛ پیام دوباره ارسال نشد. نتیجه را در سابقه ببینید." if lang == "fa" else "This submission is already recorded; no message was sent again. Check history for its result.")
+            return redirect("management_portal:sms_send")
+        OperationalAudit.objects.create(actor=request.user, action="sms_campaign_started", target_type="sms_campaign",
+                                        target_id=str(campaign.pk), summary=f"{audience}: {len(recipients)}")
         sent = failed = 0
         for recipient in recipients:
             try:
@@ -2020,7 +2130,7 @@ def sms_send(request):
                 failed += 1
                 SMSDispatch.objects.create(
                     recipient=recipient, message=form.cleaned_data["message"], status="failed",
-                    error_message=str(exc)[:240], sent_by=request.user, campaign=campaign,
+                    error_message=type(exc).__name__, sent_by=request.user, campaign=campaign,
                 )
             else:
                 sent += 1
@@ -2028,6 +2138,8 @@ def sms_send(request):
                     recipient=recipient, message=form.cleaned_data["message"], status="sent",
                     provider=result.provider, provider_reference=result.reference, sent_by=request.user, campaign=campaign,
                 )
+            campaign.sent_count, campaign.failed_count = sent, failed
+            campaign.save(update_fields=("sent_count", "failed_count"))
         campaign.sent_count = sent
         campaign.failed_count = failed
         campaign.save(update_fields=("sent_count", "failed_count"))
@@ -2041,10 +2153,19 @@ def sms_send(request):
         if failed:
             messages.error(request, f"ارسال برای {failed} شماره ناموفق بود؛ جزئیات در سابقه ثبت شد." if lang == "fa" else f"Delivery failed for {failed} numbers; details were recorded in history.")
         return redirect("management_portal:sms_send")
+    return _sms_render(request, form, request.POST.get("audience", selected_audience))
+
+
+def _sms_render(request, form, audience, preview=None):
+    lang = getattr(request, "LANGUAGE_CODE", "fa")
+    campaigns = review_page(SMSCampaign.objects.select_related("created_by"), request, "campaign_page", "campaigns")
+    for campaign in campaigns:
+        campaign.label = (AUDIENCE_LABELS.get(campaign.audience, ("دستی", "Manual")))[0 if lang == "fa" else 1]
+        campaign.outstanding = max(0, campaign.recipient_count - campaign.sent_count - campaign.failed_count)
     return render(request, "management_portal/sms_send.html", {
-        "form": form, "history": SMSDispatch.objects.select_related("sent_by")[:50],
-        "campaigns": SMSCampaign.objects.select_related("created_by")[:20],
-        "audiences": sms_audience_overview(), "selected_audience": selected_audience,
+        "form": form, "history": review_page(SMSDispatch.objects.select_related("sent_by"), request, "history_page", "history"),
+        "campaigns": campaigns, "preview": preview,
+        "audiences": sms_audience_overview(), "selected_audience": audience,
         "template_payload": [{"id": item.pk, "body": item.body_fa if lang == "fa" else item.body_en} for item in SMSMessageTemplate.objects.filter(is_active=True)],
         "lang": lang,
     })

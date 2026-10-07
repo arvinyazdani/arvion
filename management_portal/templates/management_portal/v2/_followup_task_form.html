@@ -1,0 +1,35 @@
+{% if can_change %}
+<details class="fu-panel" id="new-task" {% if form.errors or case_error or case_query or selected_case %}open{% endif %}>
+  <summary>{% if lang == 'fa' %}ساخت وظیفه و تعیین مسئول{% else %}Create a task & assign an owner{% endif %}</summary>
+  <p>{% if lang == 'fa' %}ابتدا پرونده را پیدا کنید؛ سپس اطلاعات وظیفه را بنویسید. حداکثر ۱۰۰ پرونده در انتخاب‌گر نمایش داده می‌شود.{% else %}Find the case first, then enter task details. The selector shows up to 100 cases.{% endif %}</p>
+  <form method="get" class="fu-filters" action="#new-task">
+    <label>{% if lang == 'fa' %}پیداکردن پرونده با نام یا کد{% else %}Find case by name or code{% endif %}<input name="case_q" value="{{ case_query }}" maxlength="100"></label>
+    <button class="m-button secondary" type="submit">{% if lang == 'fa' %}پیداکردن پرونده{% else %}Find case{% endif %}</button>
+  </form>
+  <form method="post" novalidate>{% csrf_token %}
+    {% if form.errors or case_error %}
+    <div class="fu-error" role="alert" tabindex="-1">
+      {% if lang == 'fa' %}وظیفه ثبت نشد؛ موارد زیر را اصلاح کنید.{% else %}Task not created. Correct the fields below.{% endif %}{{ form.non_field_errors }}
+      <ul>{% if case_error %}<li><a href="#task-case">{{ case_error }}</a></li>{% endif %}{% for field in form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}</a>: {{ field.errors|striptags }}</li>{% endif %}{% endfor %}</ul>
+    </div>
+    {% endif %}
+    <div class="fu-fields">
+      <div class="fu-field fu-wide">
+        <label for="task-case">{% if lang == 'fa' %}پرونده مشتری{% else %}Customer case{% endif %}</label>
+        <select id="task-case" name="case" required {% if case_error %}aria-invalid="true" aria-describedby="task-case-errors"{% endif %}>
+          <option value="">{% if lang == 'fa' %}انتخاب پرونده{% else %}Choose case{% endif %}</option>
+          {% for case in cases %}<option value="{{ case.pk }}" {% if selected_case == case.pk|stringformat:'s' %}selected{% endif %}>{{ case.code }} · {{ case.customer_name }}</option>{% endfor %}
+        </select>
+        {% if case_error %}<div class="fu-error" id="task-case-errors">{{ case_error }}</div>{% endif %}
+      </div>
+      {% for field in form %}
+      <div class="fu-field {% if field.name == 'description' %}fu-wide{% endif %}">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% if field.errors %}<div class="fu-error" id="{{ field.id_for_label }}-errors">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="fu-actions"><button class="m-button" type="submit">{% if lang == 'fa' %}ثبت وظیفه{% else %}Create task{% endif %}</button></div>
+  </form>
+</details>
+{% endif %}
