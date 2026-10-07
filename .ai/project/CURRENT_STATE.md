@@ -19,7 +19,12 @@
 - P3-1..5 / P2-5 content proposals recorded, NOT implemented; exact owner copy,
   file/migration boundaries are in the canonical report. Constants need updating
   if seeded target slugs are disabled/renamed; no dynamic view changes authorized.
-- Next: run full project suite once and record final evidence; no release authorized.
+- Linking/proposal milestone 6f64d2a. Final full suite executed once: 1035 total,
+  1008 passed, 27 PostgreSQL-only skips, OK (98.918s); SQLite/Python 3.9 only.
+  Check 0 issues, migration drift none, diff clean. No production/CI/PG proof.
+- Authorized follow-up completed locally. SEO programme still PARTIAL: main-thread
+  optimization unresolved; content proposals await owner; P1-3/P4-1 BLOCKED.
+  No push/deploy/migration authorized. Next: owner decisions listed at report end.
 - Preserve three dirty gallery files; OWNER DECISION DEFERRED; local commits only.
 
 ## SEO continuation — PARTIAL (2026-10-07)

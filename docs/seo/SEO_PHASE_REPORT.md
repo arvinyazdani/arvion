@@ -128,11 +128,11 @@ because the audit describes an existing implementation.
 | P2-5 | NOT_STARTED | No blog schema/model/migration change; author and modification metadata approval remains needed. |
 | P2-6 | VERIFIED (local) | Template-only unique titles/descriptions use demo title/category/tagline/fit label; protected view untouched; contract passes. |
 | P2-7 | VERIFIED (local) | Whole-sitemap JSON parsing, unique IDs/absolute URLs/type safety; 5 actual rendered graphs below. |
-| P3-1 | NOT_STARTED | No blog publishing/content/TOC work, no article or permanent draft created. |
-| P3-2 | NOT_STARTED | No invented FAQ or audience copy; database/copy inventory deferred. |
-| P3-3 | NOT_STARTED | No unique demo introductions supplied/applied; no noindex change. |
-| P3-4 | NOT_STARTED | No entity page/footer edits. |
-| P3-5 | NOT_STARTED | H1 proposal deferred at stop boundary; homepage untouched. |
+| P3-1 | NOT_STARTED | Implementation not authorized; readiness design/file/migration checklist VERIFIED below, no article created. |
+| P3-2 | NOT_STARTED | Audience/FAQ proposal and existing-field inventory VERIFIED below; owner facts missing, no copy applied. |
+| P3-3 | NOT_STARTED | Unique intro slot proposal VERIFIED below; no intros/model changes applied. |
+| P3-4 | NOT_STARTED | Existing About/entity layout proposal VERIFIED below; no entity page/footer edits. |
+| P3-5 | NOT_STARTED | Proposed bilingual H1/lead VERIFIED below, wording not applied. Home changed only for preload/links. |
 | P4-1 | BLOCKED | OWNER DECISION DEFERRED; analytics, language session behavior and cache policy must not change. |
 | P4-2 | PARTIAL | Diagnosis VERIFIED: 24 runs, median/spread below. Home CLS fix verified; main-thread/audio cost unresolved, no production claim. |
 | P4-3 | NOT_STARTED | No first-paint PWA browser observation or change. |
@@ -754,7 +754,9 @@ identical between baseline and current code. Line numbers alone changed on previ
 because its redundant breadcrumb was removed; selectors/attributes did not.
 Counts: demo_full 3, demo_preview 7; scenes clinic 7, corporate 3, education 6,
 footer 1, jewelry 2, portfolio 7, restaurant 7, storefront 12. No finding introduced
-by 93132bc/e8a8aa2. Raw baseline premium-audit.json retained in temporary worktree;
+by 93132bc/e8a8aa2. Raw baseline audit retained at
+/tmp/rvion-seo-qa.3snpId/baseline-6977b30-premium-audit.json; the clean disposable
+baseline worktree was removed after moving that artifact, without force;
 previous raw audit retained under /tmp/rvion-seo-qa.3snpId/premium-audit.json.
 
 These are static action-detection false positives where a data attribute has an
@@ -825,7 +827,7 @@ P1-3/P4-1 stay BLOCKED and unchanged.
 
 ## Follow-up 4 — contextual linking VERIFIED (local); content proposals only
 
-Font milestone e367e39. Applied only template anchors in core/home.html,
+Font milestone e367e39; contextual-link milestone 6f64d2a. Applied only template anchors in core/home.html,
 services/detail.html + services/includes/related_demos.html, and
 projects/demo_preview.html + projects/includes/related_service.html.
 Uses existing button/layout classes, no new CSS/JS/view/model/migration or claims.
@@ -936,3 +938,79 @@ alone need no migration; safe Markdown/bleach heading ID policy needs targeted t
 Owner supplies author's public name/role/bio and identity URL if any, publication
 approval and factual last editorial update for existing articles (or omit updated).
 No article, schema author, model migration, FAQ or new wording applied this phase.
+
+## Final gate and continuation boundary
+
+`PYTHONPATH=/tmp/rvion-seo-qa.3snpId/test-deps .venv/bin/python manage.py test --parallel 4 --verbosity 1`
+ran exactly once at the end: 1035 total, 1008 passed, 27 PostgreSQL-only skipped,
+98.918s, OK, no failures. Log: /tmp/rvion-seo-final-suite.log. Expected injected
+SMTP/provider/database exceptions in resilience tests are logged, not test failures.
+Temporary tblib helper was already present from the previous gate; no dependency
+or workflow change made. PostgreSQL, CI, production smoke, and Python 3.11/3.12
+matrix were NOT run this phase; local pinned interpreter is Python 3.9.
+`manage.py check`: 0 issues; `makemigrations --check --dry-run`: no changes;
+`git diff --check`: clean. Tests create/destroy only temporary test databases.
+
+Local milestones in order: b431ad2 (telephone), 6ee23a1 (baseline comparison),
+e367e39 (font diagnosis/fix), 6f64d2a (contextual links/proposals).
+Phone snippet was read from actual rendered JSON-LD in the isolated browser:
+`{"@type":"Organization","telephone":"+989333021100"}`.
+Canonical report, CURRENT_STATE and PROJECT_STATUS stay the only live records.
+Premium instructions shaped the baseline-provenance and visual evidence checks,
+not a UI redesign. Self-review is not independent review/customer acceptance.
+Performance before/after belongs to the isolated font milestone; link additions
+were made afterward and are not covered by a new Lighthouse batch. No hidden
+claim that those local timings represent the final release or production.
+All three protected user gallery diffs are preserved/excluded from our commits.
+Disposable browser tab closed, viewport reset, agent's port-8142 process stopped;
+user's existing port-8126 and browser tabs were untouched. QA artifacts retained.
+No production/local permanent DB migration, push, deploy, SMS or customer write.
+P1-3/P4-1 remain BLOCKED (OWNER DECISION DEFERRED), optional crawler changes absent.
+The authorized independent work is done; entire SEO programme remains PARTIAL.
+Source rollback is by the individual scoped commits; no data/schema rollback.
+
+## Updated public HTML URLs (source changes, not deployed)
+
+Base domain for every path below: https://rvionai.com; `{fa,en}` means both
+localized versions, not a literal URL. Dynamic rows are active/published records,
+not newly invented pages or a claim of current production availability.
+
+- Font preloads/new contextual anchors: `/fa/`; home anchors also `/en/`.
+- Service detail anchors: `/{fa,en}/services/<active-slug>/`, seeded slugs
+  digital-product-consulting, corporate-website-design, custom-web-application,
+  ecommerce-platform, maintenance-and-growth.
+- Demo preview anchors: `/{fa,en}/projects/demos/<active-slug>/`, seeded slugs
+  nava-market, orbit-shop, saffron-table, mora-cafe, linea-studio, atlas-profile,
+  parsa-advisory, northline-group, roshna-clinic, ariana-academy, sarvin-atelier.
+- Telephone schema-only change additionally affects public allow-listed graphs:
+  `/{fa,en}/`, `/about/`, `/company/`, `/crm/`, `/services/`, `/projects/demos/`,
+  `/blog/`, `/assessments/`, `/contact/`, `/privacy/`, `/service-terms/`,
+  `/refund-policy/`, `/start/`, `/assessments/terms/` (each path after its language
+  prefix), `/fa/crm-order/`, `/fa/clinic-order/`, and localized active service/demo
+  details, published `/{fa,en}/blog/<localized-post-slug>/`, and
+  `/{fa,en}/assessments/<active-exam-slug>/about/`, whenever their graph is emitted.
+  Already international or absent company phones produce no changed telephone.
+- No account/private contract/assessment-attempt/full standalone demo changes.
+
+## Exact owner items waiting (nothing silently approved)
+
+1. Privacy/anonymous analytics session and cache policy: P1-3/P4-1 DEFERRED;
+   crawler exclusions require explicit approval, not implemented here.
+2. Approve FA/EN proposed home H1/lead; approve unique intros for the 11 demos.
+3. Confirm service-specific payment/support commitments; provide FA/EN hosting,
+   ownership, scope exclusions, support/SLA, revisions/acceptance and payment
+   exceptions for FAQ. Existing description/deliverables/process/duration need
+   only editorial approval, not invented answers.
+4. Verify company/leadership biography, experience, partner role, EN foundation
+   date; supply official public social/profile URLs for sameAs, or omit it.
+5. Supply author's public name, role, bio and optional identity URL; approve each
+   article and its real editorial update date, or leave modification date absent.
+6. Authorize proposed model migrations only if persistent demo intros, editable
+   FAQs, company biography/social fields, or Post author/updated metadata are
+   selected. None created/applied here. Protected projects/views/projects.py
+   needs a separate scope opening for the proposed intro context.
+7. Decide whether welcome-sound startup timing can change (lazy AudioContext)
+   given measured main-thread cost; sound behavior unchanged in this scope.
+8. If seeded services/demos will be disabled/renamed independently, authorize
+   dynamic published-only related associations rather than template constants.
+   Before any eventual release: verify these public targets on its real data.
