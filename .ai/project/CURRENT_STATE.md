@@ -1,5 +1,44 @@
 # Rvion current state
 
+## Copy deterrence — phase 3 completed checkpoint (2026-10-07)
+
+- VERIFIED locally for the bounded scope; single-primary self-review, not independent
+  review. Commit subject: `feat(assessments): explain copy policy in manager reports and verify recovery`.
+  Builds on phase 2 (`0f5a8eb`); all three implementation phases are locally complete.
+- Manager summary separates scoped, deduplicated copy attempts from legacy events,
+  shows acknowledgement/stop time and last affected question, and numbers each event.
+  Server policy acknowledgement and automatic stop are operation audit records, not
+  legacy telemetry. Stopped attempts no longer misleadingly wait for a final result.
+  Saved answers, live account, no certificate, and the general support destination
+  are explained. Existing permission and ownership filters remain intact; no clipboard
+  content or event identifiers are exposed. Prefetched legacy reports incur no policy query.
+- Tests: 185/185 impacted assessment + manager-report tests passed on isolated real
+  PostgreSQL before the final reload/query tests; final targeted PostgreSQL run passed
+  33/33, zero skips. Both lock orderings (stop-first and save-first) and injected audit
+  rollback pass. Node copy-warning tests 11/11 cover lost responses, same-ID retry,
+  total outage and timeout queue recovery. `check`, migration drift and diff checks pass.
+  An initial invocation named a nonexistent test module; corrected. A reload assertion
+  initially assumed adjacent HTML attributes; replaced with an input-scoped checked
+  attribute assertion and re-run successfully. Neither failure was skipped or hidden.
+- Browser: isolated disposable SQLite QA at `/tmp/rvion-copy-report-qa.EYUcXE`, port
+  8138; FA 390px light/dark, EN 320px light and EN 1200px light reviewed, no horizontal
+  overflow. Reload preserves selected answer and count 4; server-seeded fifth event
+  leads to the stopped page and report count 5. Keyboard/support target checked.
+  Real browser offline answer save remains on the question with an actionable error;
+  retry at 800ms latency succeeds, advances once, and retains the answer on return.
+  Network/viewport overrides restored and own QA server stopped after verification.
+  Evidence: `manager-copy-card-fa-mobile.png` and `manager-copy-report-fa-mobile.png`
+  inside that temporary directory. 21st timeline catalogue informed summary/timeline
+  hierarchy only; no React dependency or paid generation was added.
+- Limitations: IAB copy input did not emit a trusted browser copy event, so a native
+  fifth-copy gesture end-to-end is not claimed in this phase. Handler, server locking,
+  redirect and reload were tested separately. This is deterrence/behavioral evidence,
+  not proof of AI use; client telemetry is bypassable. Physical phone UAT remains open.
+- No new migration, push, deploy or production action. Phase-2 migration 0027 still
+  needs the authorized release process. Three unrelated gallery edits preserved and
+  excluded from this commit. Google ownership TXT remains prepared but unsaved;
+  DNS verification is a separate pending action, not completed by this checkpoint.
+
 ## Copy deterrence — phase 2 checkpoint (2026-10-07)
 
 - Status: VERIFIED locally for the bounded implementation. Single primary agent;

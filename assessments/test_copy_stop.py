@@ -3,7 +3,7 @@ import threading
 import time
 from unittest import skipUnless
 from unittest.mock import patch
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, transaction
 from django.test import RequestFactory, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -78,6 +78,26 @@ class WelcomeCopyStopTests(TestCase):
             self.assertFalse(self.copy(attempt,n).json().get('stopped',False))
         attempt.refresh_from_db()
         self.assertEqual(attempt.status,'in_progress')
+
+    def test_reload_restores_fourth_warning_and_saved_answer_then_stop(self):
+        attempt = self.gift()
+        self.client.force_login(self.user)
+        item = attempt.attempt_questions.first()
+        choice = item.choice_order[0]
+        self.client.post(reverse('assessments:save_answer', args=[attempt.pk, item.pk]), {'choice':choice})
+        for n in range(1, 5):
+            self.copy(attempt, n)
+        for lang in ('fa', 'en'):
+            url = attempt.get_absolute_url().replace('/fa/', f'/{lang}/')
+            response = self.client.get(url)
+            self.assertContains(response, 'data-count="4"')
+            self.assertContains(response, 'data-limit-enabled="true"')
+            self.assertRegex(response.content.decode(),
+                rf'<input\b[^>]*name="choice"[^>]*value="{choice}"[^>]*\bchecked\b')
+        self.copy(attempt, 5)
+        for _ in range(2):
+            self.assertContains(self.client.get(attempt.get_absolute_url()), 'copy-stop-title')
+        self.assertEqual(attempt.integrity_events.filter(event_type='copy').count(), 5)
 
     def test_existing_unacknowledged_gift_is_not_retroactively_stopped(self):
         attempt = self.gift(accepted=False)
@@ -260,3 +280,53 @@ class WelcomeCopyStopConcurrencyTests(TransactionTestCase):
         self.assertIsNotNone(self.item.effective_selected_choice_id)
         self.assertFalse(AttemptResult.objects.filter(attempt=self.attempt).exists())
         self.assertFalse(Certificate.objects.filter(result__attempt=self.attempt).exists())
+
+    def test_answer_committing_first_is_retained_when_fifth_copy_waits(self):
+        from .views import IntegrityEventView, SaveAnswerView
+        self.prepare()
+        outcomes, errors, pids = {}, [], []
+        ready = threading.Event()
+        def copy():
+            close_old_connections()
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute('SELECT pg_backend_pid()')
+                    pids.append(cursor.fetchone()[0])
+                ready.set()
+                request = RequestFactory().post('/', {'event_type':'copy', 'copy_scope':'question',
+                    'copy_event_id':'copy-after-save', 'item_id':self.item.pk})
+                request.user = self.user
+                outcomes['copy'] = IntegrityEventView.as_view()(request, pk=self.attempt.pk).status_code
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                close_old_connections()
+        thread = threading.Thread(target=copy)
+        waiting = False
+        choice = self.item.choice_order[0]
+        try:
+            with transaction.atomic():
+                request = RequestFactory().post('/', {'choice':choice})
+                request.user = self.user
+                self.assertEqual(SaveAnswerView.as_view()(request, pk=self.attempt.pk, item_pk=self.item.pk).status_code, 200)
+                thread.start()
+                self.assertTrue(ready.wait(5))
+                deadline = time.monotonic() + 3
+                while not waiting and time.monotonic() < deadline:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT wait_event_type = 'Lock' FROM pg_stat_activity WHERE pid = %s", [pids[0]])
+                        row = cursor.fetchone()
+                        waiting = bool(row and row[0])
+                    if not waiting:
+                        threading.Event().wait(.02)
+                self.assertTrue(waiting)
+        finally:
+            if thread.ident:
+                thread.join(10)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual(outcomes, {'copy':200})
+        self.attempt.refresh_from_db(); self.item.refresh_from_db()
+        self.assertEqual(self.attempt.completion_reason, 'copy_limit')
+        self.assertEqual(self.item.effective_selected_choice_id, choice)
+        self.assertEqual(self.attempt.integrity_events.filter(event_type='copy').count(), 5)

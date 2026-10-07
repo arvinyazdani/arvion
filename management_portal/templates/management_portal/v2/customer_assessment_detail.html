@@ -1,7 +1,7 @@
 {% extends "management_portal/v2/base.html" %}{% load static %}
 {% block title %}{% if lang == 'fa' %}جزئیات آزمون{% else %}Assessment details{% endif %} | Rvion{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}جزئیات آزمون مشتری{% else %}Customer assessment details{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/customer-operations.css' %}?v=8"><link rel="stylesheet" href="{% static 'management_portal/v2/assessment-review.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/customer-operations.css' %}?v=8"><link rel="stylesheet" href="{% static 'management_portal/v2/assessment-review.css' %}?v=4">{% endblock %}
 {% block content %}
 <div class="review-report">
 <section class="co-detail-hero">
@@ -25,10 +25,11 @@
       </div>
       <p>{% if lang == 'fa' %}این اعداد فقط شواهد رفتاری هستند، نه اثبات تقلب. نتیجه نهایی باید با بررسی انسانی اعلام شود و نتیجه آزمون، دشواری سؤال و احتمال اختلال فنی را هم در نظر بگیرد.{% else %}These are behavioral signals, not proof of cheating. A person must make the final decision after reviewing the result, question difficulty and possible technical interruptions.{% endif %}</p>
     </section>
+    {% include "management_portal/v2/_copy_policy_report.html" with policy=attempt.management_copy %}
     {% if attempt.result %}
       <section class="co-result-summary"><div><small>{% if lang == 'fa' %}امتیاز نهایی{% else %}Final score{% endif %}</small><strong>{{ attempt.result.percentage }}%</strong></div><div><small>{% if lang == 'fa' %}سطح{% else %}Level{% endif %}</small><strong>{{ attempt.result.level_code }}</strong><p>{% if lang == 'fa' %}{{ attempt.result.level_title_fa }}{% else %}{{ attempt.result.level_title_en }}{% endif %}</p></div><div><small>{% if lang == 'fa' %}پاسخ‌ها{% else %}Answers{% endif %}</small><p>{% if lang == 'fa' %}{{ attempt.result.correct_count }} درست · {{ attempt.result.incorrect_count }} نادرست · {{ attempt.result.unanswered_count }} بی‌پاسخ{% else %}{{ attempt.result.correct_count }} correct · {{ attempt.result.incorrect_count }} incorrect · {{ attempt.result.unanswered_count }} unanswered{% endif %}</p></div></section>
       <div class="co-skill-grid">{% for skill in attempt.result.skill_results.all %}<div><span>{% if lang == 'fa' %}{{ skill.skill.title_fa }}{% else %}{{ skill.skill.title_en }}{% endif %}</span><b>{{ skill.percentage }}%</b><i style="--progress:{{ skill.percentage }}%"></i></div>{% endfor %}</div>
-    {% else %}<div class="co-empty">{% if lang == 'fa' %}نتیجه نهایی هنوز تولید نشده است. موقعیت فعلی: سؤال {{ attempt.current_position }}{% else %}The final result is not ready. Current position: question {{ attempt.current_position }}{% endif %}</div>{% endif %}
+    {% elif not attempt.management_copy.stopped %}<div class="co-empty">{% if lang == 'fa' %}نتیجه نهایی هنوز تولید نشده است. موقعیت فعلی: سؤال {{ attempt.current_position }}{% else %}The final result is not ready. Current position: question {{ attempt.current_position }}{% endif %}</div>{% endif %}
     <details class="co-question-report" open>
       <summary>{% if lang == 'fa' %}گزارش سؤال‌به‌سؤال{% else %}Question-by-question report{% endif %}</summary>
       <div class="co-question-table">

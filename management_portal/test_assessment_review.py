@@ -11,7 +11,7 @@ from accounts.models import User
 from assessments.models import (
     Attempt, AttemptQuestion, AttemptResult, Exam, ExamEntitlement, ExamSection,
     ExamVersion, IntegrityEvent, ManualPaymentSubmission, Order, PaymentTransaction,
-    Question, Skill,
+    Question, Skill, WelcomeAssessmentCredit,
 )
 from .assessment_review import order_evidence
 from .models import Customer, CustomerContact, OperationalAudit
@@ -97,6 +97,57 @@ class AssessmentReviewTests(TestCase):
         self.assertContains(response, "برای تلاش‌های قدیمی ثبت نشده")
         self.assertContains(response, "بدون داده زمان")
         self.assertContains(response, "داده‌های پایش ناقص یا قدیمی")
+
+    def test_copy_report_separates_legacy_count_and_explains_stop_in_both_languages(self):
+        item = self.question()
+        self.order.gateway = "welcome_trial"
+        self.order.save(update_fields=["gateway"])
+        WelcomeAssessmentCredit.objects.create(user=self.buyer, order=self.order)
+        self.attempt.status = "invalidated"
+        self.attempt.completion_reason = "copy_limit"
+        self.attempt.submitted_at = timezone.now()
+        self.attempt.save()
+        AttemptResult.objects.filter(attempt=self.attempt).delete()
+        IntegrityEvent.objects.create(attempt=self.attempt, event_type="other", metadata={
+            "kind": "copy_policy_acceptance", "copy_policy_version": 2})
+        IntegrityEvent.objects.create(attempt=self.attempt, attempt_question=item, event_type="copy")
+        for n in range(5):
+            IntegrityEvent.objects.create(attempt=self.attempt, attempt_question=item, event_type="copy",
+                metadata={"copy_policy_version": 1, "copy_event_id": f"qa-copy-{n}"})
+        IntegrityEvent.objects.create(attempt=self.attempt, event_type="other", metadata={
+            "kind": "welcome_copy_stop", "reason_fa": "پاسخ‌ها محفوظ‌اند", "reason_en": "Answers retained"})
+        for lang in ("fa", "en"):
+            response = self.client.get(self.report_url.replace("/fa/", f"/{lang}/"))
+            policy = response.context["attempts"][0].management_copy
+            self.assertEqual((policy["count"], policy["legacy_count"], policy["last_question"]), (5, 1, 1))
+            self.assertTrue(policy["enabled"])
+            self.assertTrue(policy["stopped"])
+            self.assertIsNotNone(policy["acknowledged_at"])
+            self.assertContains(response, "تلاش کپی شماره 5" if lang == "fa" else "Copy attempt 5")
+            self.assertContains(response, "توقف خودکار آزمون هدیه" if lang == "fa" else "Automatic welcome assessment stop")
+            self.assertContains(response, "حساب مسدود نشده" if lang == "fa" else "account is not blocked")
+            self.assertContains(response, "سابقه قطعی عملیات سرور" if lang == "fa" else "Server operation audit")
+            self.assertNotContains(response, "نتیجه نهایی هنوز تولید نشده" if lang == "fa" else "The final result is not ready")
+            self.assertNotContains(response, "qa-copy-")
+
+    def test_paid_and_old_gifts_report_no_five_copy_stop(self):
+        item = self.question()
+        IntegrityEvent.objects.create(attempt=self.attempt, attempt_question=item, event_type="copy",
+            metadata={"copy_policy_version": 1})
+        for gateway in ("card_transfer", "welcome_trial"):
+            self.order.gateway = gateway
+            self.order.save(update_fields=["gateway"])
+            response = self.client.get(self.report_url)
+            self.assertFalse(response.context["attempts"][0].management_copy["enabled"])
+            self.assertContains(response, "بدون توقف پنج‌تلاشی")
+
+    def test_prefetched_legacy_copy_report_performs_no_policy_lookup(self):
+        from assessments.integrity import copy_policy_report
+        attempt = Attempt.objects.prefetch_related('integrity_events__attempt_question').get(pk=self.attempt.pk)
+        with self.assertNumQueries(0):
+            report = copy_policy_report(attempt)
+        self.assertFalse(report['enabled'])
+        self.assertEqual(report['count'], 0)
 
     def test_report_without_customer_is_read_only_and_available(self):
         CustomerContact.objects.filter(user=self.buyer).update(user=None)

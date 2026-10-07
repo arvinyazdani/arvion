@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../static/assessments/js/copy-warning.js'), 'utf8');
 
-function fixture({count=0, fa=true, selected=true, protectedText=true, failFirst=false, noCsrf=false, limit=false, stop=false}={}) {
+function fixture({count=0, fa=true, selected=true, protectedText=true, failFirst=false, noCsrf=false, limit=false, stop=false, transport, timers}={}) {
   const message={}, counter={}, dismiss={hidden:true, addEventListener() {}};
   const panel={dataset:{count:String(count),lang:fa?'fa':'en',limitEnabled:String(limit)},
     querySelector(s) {return s==='[data-copy-message]'?message:s==='[data-copy-counter]'?counter:dismiss;}};
@@ -22,8 +22,9 @@ function fixture({count=0, fa=true, selected=true, protectedText=true, failFirst
   vm.runInNewContext(source, {document, window:{location:{assign:url=>redirects.push(url)},getSelection:()=>({isCollapsed:!selected,
     rangeCount:1,getRangeAt:()=>({intersectsNode:()=>protectedText})})},
     navigator:{onLine:true},crypto:{randomUUID:()=>`event-${++sequence}`},URLSearchParams,
-    AbortController,setTimeout,clearTimeout,fetch:async (url,opts)=>{
+    AbortController,setTimeout:timers?.setTimeout || setTimeout,clearTimeout:timers?.clearTimeout || clearTimeout,fetch:async (url,opts)=>{
       requests.push(Object.fromEntries(opts.body));
+      if(transport)return transport(opts, requests.length);
       if(failFirst&&requests.length===1)throw new Error('network');
       return {ok:true,json:async()=>({copy_count:count+1,integrity_score:98,
         stopped:stop,stop_url:stop?'/stopped/':undefined})};
@@ -86,4 +87,44 @@ test('server stop redirects once and discards later queued copy requests',async(
   await new Promise(setImmediate);
   assert.deepEqual(f.redirects,['/stopped/']);
   assert.equal(f.requests.length,1);
+});
+
+test('lost response retries the same persisted action without double counting',async()=>{
+  const recorded=new Set();
+  const f=fixture({fa:false,transport:async(opts,n)=>{
+    recorded.add(opts.body.get('copy_event_id'));
+    if(n===1)throw new Error('response lost after commit');
+    return {ok:true,json:async()=>({copy_count:recorded.size,integrity_score:98})};
+  }});
+  f.handler(f.event); await new Promise(setImmediate);
+  assert.equal(recorded.size,1); assert.equal(f.requests.length,2);
+  assert.match(f.counter.textContent,/1$/);
+});
+
+test('total outage does not invent counts and the next copy can recover',async()=>{
+  let online=false;
+  const f=fixture({count:3,fa:false,transport:async()=>{
+    if(!online)throw new Error('offline');
+    return {ok:true,json:async()=>({copy_count:4,integrity_score:92})};
+  }});
+  f.handler(f.event); await new Promise(setImmediate);
+  assert.match(f.counter.textContent,/3$/);
+  assert.match(f.message.textContent,/Recording was not confirmed/);
+  online=true; f.handler(f.event); await new Promise(setImmediate);
+  assert.match(f.counter.textContent,/4$/);
+});
+
+test('slow network timeout aborts each request and releases the queue',async()=>{
+  const timers={setTimeout:fn=>setImmediate(fn),clearTimeout:clearImmediate};
+  const f=fixture({fa:false,timers,transport:opts=>new Promise((resolve,reject)=>{
+    opts.signal.addEventListener('abort',()=>reject(new Error('timeout')));
+  })});
+  f.handler(f.event);
+  for(let n=0;n<6;n++)await new Promise(setImmediate);
+  assert.equal(f.requests.length,2);
+  assert.match(f.message.textContent,/Recording was not confirmed/);
+  assert.match(f.counter.textContent,/0$/);
+  f.handler(f.event);
+  for(let n=0;n<6;n++)await new Promise(setImmediate);
+  assert.equal(f.requests.length,4);
 });

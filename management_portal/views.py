@@ -24,7 +24,7 @@ from django.views.decorators.http import require_POST
 
 from assessments.integrity import (
     DIFFICULTY_LABELS_EN, DIFFICULTY_LABELS_FA, assess_event, assess_pace,
-    expected_seconds, format_duration, integrity_evidence_summary,
+    expected_seconds, format_duration, integrity_evidence_summary, copy_policy_report,
 )
 
 from accounts.models import User
@@ -531,6 +531,7 @@ def _assessment_report(request, account, customer, attempt_id=None):
         status_pair = attempt_status_labels.get(attempt.status, (attempt.status, attempt.status))
         attempt.management_status = status_pair[0 if lang == "fa" else 1]
         attempt.management_integrity = integrity_evidence_summary(attempt, lang)
+        attempt.management_copy = copy_policy_report(attempt, lang)
         attempt.management_integrity["total_away"] = format_duration(
             attempt.management_integrity["total_away_ms"], lang,
         )
@@ -545,6 +546,22 @@ def _assessment_report(request, account, customer, attempt_id=None):
             metadata = event.metadata or {}
             labels = integrity_labels.get(event.event_type, integrity_labels["other"])
             event.management_label = labels[0 if lang == "fa" else 1]
+            if event.event_type == "copy":
+                ordinal = attempt.management_copy["ordinals"].get(event.pk)
+                event.management_label = (
+                    (f"تلاش کپی شماره {ordinal} از متن سؤال یا گزینه‌ها" if lang == "fa"
+                     else f"Copy attempt {ordinal} from question or choices") if ordinal else
+                    ("رخداد کپی قدیمی؛ خارج از شمارنده جدید" if lang == "fa"
+                     else "Legacy copy event; excluded from the new counter")
+                )
+            elif event.event_type == "other":
+                policy_labels = {
+                    "copy_policy_acceptance": ("مطالعه و پذیرش قانون آزمون هدیه", "Welcome copy policy acknowledged"),
+                    "welcome_copy_stop": ("توقف خودکار آزمون هدیه", "Automatic welcome assessment stop"),
+                }
+                pair = policy_labels.get(metadata.get("kind"))
+                if pair:
+                    event.management_label = pair[0 if lang == "fa" else 1]
             assessment = assess_event(
                 event.event_type,
                 event.duration_ms,
@@ -557,6 +574,12 @@ def _assessment_report(request, account, customer, attempt_id=None):
             event.management_reason = metadata.get(reason_key) or (
                 assessment.reason_fa if lang == "fa" else assessment.reason_en
             )
+            if event.event_type == "other" and metadata.get("kind") == "copy_policy_acceptance":
+                event.management_reason = (
+                    "قانون پیش از شروع توسط کاربر پذیرفته و در سرور ثبت شد؛ بدون امتیاز ریسک."
+                    if lang == "fa" else
+                    "The user acknowledged the policy before starting; recorded by the server with no risk points."
+                )
             event.management_severity = metadata.get("severity") or assessment.severity
             severity_labels = {
                 "info": ("اطلاعاتی", "Informational"),
@@ -573,6 +596,8 @@ def _assessment_report(request, account, customer, attempt_id=None):
                 if event.event_type == "visibility_returned" else ""
             )
             pairing = metadata.get("pairing_status", "")
+            if event.event_type == "other" and metadata.get("kind") in {"copy_policy_acceptance", "welcome_copy_stop"}:
+                pairing = "server_audit"
             if (
                 event.event_type == "visibility_hidden"
                 and metadata.get("transition_id") in returned_transition_ids
@@ -584,6 +609,7 @@ def _assessment_report(request, account, customer, attempt_id=None):
                     "The page exit was recorded and its matching return was confirmed using server time"
                 )
             pairing_labels = {
+                "server_audit": ("سابقه قطعی عملیات سرور", "Server operation audit"),
                 "server_paired": ("تأییدشده با زمان سرور", "Paired using server time"),
                 "client_only": ("داده ناقص؛ بدون جریمه", "Partial telemetry; no penalty"),
                 "awaiting_return": ("بازگشت ثبت نشده", "Return not recorded"),

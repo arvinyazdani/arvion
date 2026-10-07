@@ -1,0 +1,12 @@
+<section class="review-copy-policy{% if policy.stopped %} stopped{% endif %}" aria-label="{% if lang == 'fa' %}گزارش قانون کپی{% else %}Copy policy report{% endif %}">
+  <header><strong>{{ policy.label }}</strong><b>{{ policy.count }}{% if policy.enabled %} / 5{% endif %}</b></header>
+  <p>{% if lang == 'fa' %}شمارنده معتبر فقط تلاش‌های ثبت‌شده از متن سؤال و گزینه‌هاست؛ ارسال دوبارهٔ همان رخداد دوباره شمرده نمی‌شود. این گزارش اثبات استفاده از هوش مصنوعی یا تقلب نیست.{% else %}The authoritative counter includes recorded attempts from questions and choices only; replaying the same event does not count twice. This is not proof of AI use or cheating.{% endif %}</p>
+  <dl>
+    <div><dt>{% if lang == 'fa' %}پذیرش قانون هدیه{% else %}Welcome policy acknowledged{% endif %}</dt><dd>{{ policy.acknowledged_at|date:"Y/m/d H:i:s"|default:"—" }}</dd></div>
+    <div><dt>{% if lang == 'fa' %}آخرین سؤال با تلاش کپی{% else %}Last question with a copy attempt{% endif %}</dt><dd>{{ policy.last_question|default:"—" }}</dd></div>
+    <div><dt>{% if lang == 'fa' %}رخداد قدیمی، خارج از شمارنده{% else %}Legacy events excluded from counter{% endif %}</dt><dd>{{ policy.legacy_count }}</dd></div>
+    {% if policy.stopped %}<div><dt>{% if lang == 'fa' %}زمان توقف خودکار{% else %}Automatic stop time{% endif %}</dt><dd>{{ policy.stopped_at|date:"Y/m/d H:i:s"|default:"—" }}</dd></div>{% endif %}
+  </dl>
+  {% if policy.stopped %}<p><strong>{% if lang == 'fa' %}حساب مسدود نشده است.{% else %}The account is not blocked.{% endif %}</strong> {% if lang == 'fa' %}پاسخ‌های ذخیره‌شده در همین گزارش باقی‌اند؛ نتیجه یا گواهی برای این تلاش صادر نمی‌شود. مشتری می‌تواند درخواست بررسی بدهد یا آزمون جدید تهیه کند.{% else %}Saved answers remain in this report; this attempt receives no result or certificate. The customer can request a review or purchase a new attempt.{% endif %}</p>{% endif %}
+  {% if request.user.is_superuser or perms.assessments.view_supportticket %}<a class="review-link" href="{% url 'management_portal:assessment_support' %}#ticket-list">{% if lang == 'fa' %}بررسی درخواست‌های پشتیبانی{% else %}Review support requests{% endif %}</a>{% endif %}
+</section>

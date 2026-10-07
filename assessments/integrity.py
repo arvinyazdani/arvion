@@ -14,11 +14,18 @@ def copy_warning_state(attempt):
     }
 
 
-def copy_limit_enabled(attempt):
+def copy_limit_enabled(attempt, *, events=None):
     from .models import WelcomeAssessmentCredit
-    return (
+    acknowledged = (
+        any(event.event_type == "other"
+            and (event.metadata or {}).get("kind") == "copy_policy_acceptance"
+            and (event.metadata or {}).get("copy_policy_version") == 2 for event in events)
+        if events is not None else
         attempt.integrity_events.filter(event_type="other",
             metadata__kind="copy_policy_acceptance", metadata__copy_policy_version=2).exists()
+    )
+    return (
+        acknowledged
         and WelcomeAssessmentCredit.objects.filter(user_id=attempt.user_id,
             order_id=attempt.entitlement.order_id, order__gateway="welcome_trial").exists()
     )
@@ -26,6 +33,33 @@ def copy_limit_enabled(attempt):
 
 def is_copy_stopped(attempt):
     return attempt.status == "invalidated" and attempt.completion_reason == "copy_limit"
+
+
+def copy_policy_report(attempt, lang="fa"):
+    """Describe the enforced policy separately from unscoped historical signals."""
+    events = sorted(attempt.integrity_events.all(), key=lambda event: (event.created_at, event.pk))
+    copies = [event for event in events if event.event_type == "copy"]
+    scoped = [event for event in copies if (event.metadata or {}).get("copy_policy_version") == 1]
+    enabled = copy_limit_enabled(attempt, events=events)
+    stopped = is_copy_stopped(attempt)
+    fa = lang == "fa"
+    label = (
+        ("آزمون هدیه متوقف شد؛ پاسخ‌ها محفوظ‌اند" if fa else "Welcome assessment stopped; saved answers retained")
+        if stopped else
+        ("آزمون هدیه: توقف در تلاش پنجم" if fa else "Welcome assessment: stop at the fifth copy attempt")
+        if enabled else
+        ("اخطار و ثبت رفتار؛ بدون توقف پنج‌تلاشی" if fa else "Warnings and recording; no five-copy stop")
+    )
+    return {
+        "count": len(scoped), "legacy_count": len(copies) - len(scoped),
+        "enabled": enabled, "stopped": stopped, "label": label,
+        "acknowledged_at": next((event.created_at for event in events
+            if event.event_type == "other" and (event.metadata or {}).get("kind") == "copy_policy_acceptance"
+            and (event.metadata or {}).get("copy_policy_version") == 2), None),
+        "stopped_at": attempt.submitted_at if stopped else None,
+        "last_question": scoped[-1].attempt_question.position if scoped and scoped[-1].attempt_question else None,
+        "ordinals": {event.pk: index for index, event in enumerate(scoped, 1)},
+    }
 
 
 def stop_welcome_copy_attempt(attempt):
