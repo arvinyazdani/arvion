@@ -1,0 +1,7 @@
+{% if page.has_other_pages %}
+<nav class="review-pagination" aria-label="{% if lang == 'fa' %}صفحه‌بندی{% else %}Pagination{% endif %}">
+  {% if page.previous_url %}<a class="review-link" href="{{ page.previous_url }}">{% if lang == 'fa' %}قبلی{% else %}Previous{% endif %}</a>{% endif %}
+  <span>{{ page.number }} / {{ page.paginator.num_pages }} · {{ page.paginator.count }} {% if lang == 'fa' %}مورد{% else %}records{% endif %}</span>
+  {% if page.next_url %}<a class="review-link" href="{{ page.next_url }}">{% if lang == 'fa' %}بعدی{% else %}Next{% endif %}</a>{% endif %}
+</nav>
+{% endif %}

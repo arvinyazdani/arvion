@@ -68,11 +68,12 @@ def _event_links(events, customer, user_ids, user):
         rows = model.objects.filter(pk__in=uuid_ids(kind) if model is Attempt else ids(kind), **scope)
         fields = ("pk", "user_id", "exam__title_fa", "exam__title_en") if model is Attempt else ("pk", "attempt__user_id", "attempt_id")
         for row in rows.values_list(*fields):
-            links[(kind, str(row[0]))] = reverse("management_portal:customer_assessment_detail", args=[customer.pk, row[1]]) + f"#attempt-{row[0] if model is Attempt else row[2]}"
+            attempt_id = row[0] if model is Attempt else row[2]
+            links[(kind, str(row[0]))] = reverse("management_portal:customer_assessment_detail", args=[customer.pk, row[1]]) + f"?attempt={attempt_id}#attempt-{attempt_id}"
             if model is Attempt:
                 labels[(kind, str(row[0]))] = (row[2], row[3])
     for order in Order.objects.filter(pk__in=uuid_ids("assessments.order"), user_id__in=user_ids).select_related("exam"):
-        links[("assessments.order", str(order.pk))] = reverse("management_portal:customer_assessment_detail", args=[customer.pk, order.user_id]) + f"#order-{order.pk}"
+        links[("assessments.order", str(order.pk))] = reverse("management_portal:customer_assessment_detail", args=[customer.pk, order.user_id]) + f"?order={order.pk}#order-{order.pk}"
         labels[("assessments.order", str(order.pk))] = (order.exam.title_fa, order.exam.title_en)
     if user.has_perm("assessments.view_supportticket") or user.has_perm("assessments.view_exam"):
         for ticket in SupportTicket.objects.filter(pk__in=ids("assessments.supportticket"), user_id__in=user_ids):

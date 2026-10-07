@@ -13,6 +13,7 @@ from .workspace_views import (
     workspace_publish,
     workspace_questionnaire,
 )
+from .views import assessment_attempt_detail
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
@@ -76,6 +77,7 @@ urlpatterns = [
     path("approvals/accounts/<int:user_id>/<str:decision>/", account_approval, name="account_approval"),
     path("approvals/payments/<int:payment_id>/<str:decision>/", payment_review, name="payment_review"),
     path("assessment-support/", assessment_support, name="assessment_support"),
+    path("assessment-support/attempts/<uuid:attempt_id>/", assessment_attempt_detail, name="assessment_attempt_detail"),
     path("assessment-support/tickets/<int:ticket_id>/status/", ticket_status, name="ticket_status"),
     path("content/", content_center, name="content_center"),
     path("content/<str:kind>/<int:object_id>/toggle/", content_toggle, name="content_toggle"),

@@ -1,5 +1,56 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 5 checkpoint (2026-10-07)
+
+- VERIFIED locally; user appearance acceptance pending. Stage 5 of 8:
+  assessment list, question behavior review and complete receipt review.
+  Stages 6–8 remain NOT_STARTED. No assessment scoring, gift, pricing,
+  registration, three-minute auto-approval or notification policy changed.
+- Assessment search/status/exam filters and 20-row pages have actual counts.
+  Exact attempt route works for legacy accounts without creating a Customer.
+  Existing customer report URLs remain; new scoped attempt/order selectors
+  reach older records beyond pagination. Internal record/event links use these
+  selectors. A previously saved fragment-only link to an older off-page item
+  may require paging (P2; fragments are not sent to the server).
+- Result/behavior comes first, question cards show frozen correctness, difficulty,
+  active/expected time, visits, changes and localized event details. Full timeline
+  is collapsed. Missing legacy timing stays explicit; behavior is not proof of
+  cheating. Answer keys/explanations and raw gateway payloads are not rendered.
+- Receipt search/status/page controls, customer/contact/payer/order identity,
+  grouped subtotal/discount/final amount, declared and recorded times, reviewer,
+  notes and the latest 20 scoped audit entries (with actual total) are available.
+  Gift/no-cost, automatic approval, manager receipt approval, verified gateway,
+  sandbox, rejected/pending receipt and unknown historical source are distinct.
+  Missing actor never implies automatic approval or bank proof; issued access
+  is not labelled a currently usable entitlement. Existing decision writers,
+  permissions, CSRF, locks, notifications and Audit retained; safe server-built
+  redirect returns to the reviewed receipt. Stop-access confirmation now uses
+  the shared dialog's real data-confirm attribute.
+- Evidence: 144 related SQLite tests OK, 2 PostgreSQL-only skips. Same review
+  and inbox suites on isolated PostgreSQL: 36/36 OK, zero skips, including
+  existing payment/claim concurrency tests. After final access wording change:
+  16/16 stage tests OK. Check 0, no migration drift, whitespace clean.
+  Missing fixture question_count was corrected, not the DB constraint. FA
+  floatformat grouping returned ungrouped currency; presenter now groups digits
+  explicitly rather than weakening the amount assertion. No schema/migration.
+- Browser disposable :8126 QA: FA light 390/1280, EN dark 320, list/filter ->
+  exact report -> receipt -> exact order, legacy timing, question events and
+  reject dialog Escape/focus restoration. No receipt decision submitted in UI.
+  No horizontal overflow. Desktop receipt flex shrink was found visually and
+  replaced by full-width evidence/details and a separate decision area; CSS cache
+  key bumped. Phone-size decision controls stack; >=44px targets. Authored
+  customer names remain original language by design. Physical phone, full suite,
+  CI, real SMS/Push, bank reconciliation and production tests not claimed.
+- Plugins/skills: primary workflow, Frontend Design, UI/UX Pro Max fallback
+  checklist and Design Critique self-review. 21st Audit Log #25163 metadata used
+  for actor/time/event grouping; retrieval quota 0/2, AI disabled respected;
+  no retrieved component code, React dependency or independent review claimed.
+- Proof: /tmp/rvion-phase4-IWtoof/admin-stage5-report-mobile.png and
+  admin-stage5-payment-desktop.png. QA synthetic telemetry only on disposable
+  database. Three unrelated gallery edits preserved and excluded from commit.
+  No production write, push, deploy or migration. Milestone hash: Git authority.
+- Next: user review, then stage 6 orders/discovery/contract workspace.
+
 ## Admin decision-focused rebuild — stage 4 checkpoint (2026-10-07)
 
 - VERIFIED locally, appearance acceptance pending. Stage 4 of 8: unified

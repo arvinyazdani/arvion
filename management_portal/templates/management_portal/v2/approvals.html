@@ -3,7 +3,7 @@
 
 {% block title %}{% if lang == 'fa' %}تأییدها | آرویون{% else %}Approvals | Rvion{% endif %}{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}حساب و پرداخت{% else %}Accounts & Payments{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/approvals.css' %}?v=5">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/approvals.css' %}?v=5"><link rel="stylesheet" href="{% static 'management_portal/v2/assessment-review.css' %}?v=3">{% endblock %}
 
 {% block content %}
   <section class="m-page-head">
@@ -14,7 +14,7 @@
     </div>
   </section>
 
-  {% if request.user.is_superuser or perms.accounts.change_user %}
+  {% if not payment_selected %}{% if request.user.is_superuser or perms.accounts.change_user %}
     <section class="m-panel approval-section">
       <header>
         <div>
@@ -71,36 +71,48 @@
     </section>
   {% endif %}
 
+  {% endif %}
   {% if request.user.is_superuser or perms.assessments.view_manualpaymentsubmission %}
-    <section class="m-panel approval-section">
+    <section class="m-panel approval-section" id="payment-list">
       <header>
         <div>
           <span>{% if lang == 'fa' %}کارت‌به‌کارت{% else %}Card transfer{% endif %}</span>
           <h2>{% if lang == 'fa' %}رسیدهای پرداخت{% else %}Payment receipts{% endif %}</h2>
         </div>
       </header>
+      {% if payment_selected %}<a class="review-link" href="{% url 'management_portal:approvals' %}">{% if lang == 'fa' %}همه رسیدها{% else %}All receipts{% endif %}</a>{% else %}
+      <form method="get" class="review-filters"><label for="payment-search">{% if lang == 'fa' %}نام، شماره، ایمیل یا پیگیری{% else %}Name, phone, email or reference{% endif %}<input id="payment-search" type="search" name="q" value="{{ payment_query }}" maxlength="150"></label><label for="payment-status">{% if lang == 'fa' %}وضعیت رسید{% else %}Receipt status{% endif %}<select id="payment-status" name="payment_status"><option value="">{% if lang == 'fa' %}همه وضعیت‌ها{% else %}All statuses{% endif %}</option>{% for value,text in payment_statuses %}<option value="{{ value }}"{% if value == payment_status %} selected{% endif %}>{{ text }}</option>{% endfor %}</select></label><button class="review-link primary">{% if lang == 'fa' %}نمایش{% else %}Show{% endif %}</button></form>
+      <p class="review-note">{{ payment_page.paginator.count }} {% if lang == 'fa' %}رسید مطابق فیلتر{% else %}matching receipts{% endif %}</p>{% endif %}
       {% for payment in payments %}
         <article class="approval-row payment" id="payment-{{ payment.pk }}">
           <div class="approval-copy">
             <strong>{{ payment.payer_name }} · <bdi>{{ payment.reference_number }}</bdi></strong>
-            <small><bdi>{{ payment.order.user.email }}</bdi> · {% if lang == 'fa' %}{{ payment.order.exam.title_fa }}{% else %}{{ payment.order.exam.title_en }}{% endif %} · <bdi>{{ payment.order.amount_irr|stringformat:"d" }}</bdi> {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</small>
+            <small><bdi>{{ payment.order.user.email }}</bdi> · {% if lang == 'fa' %}{{ payment.order.exam.title_fa }}{% else %}{{ payment.order.exam.title_en }}{% endif %} · <bdi>{{ payment.evidence.amount }}</bdi> {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</small>
             <small>{% if lang == 'fa' %}{{ payment.paid_at|date:"Y/m/d H:i" }}{% else %}{{ payment.paid_at|date:"M j, Y H:i" }}{% endif %}</small>
             <span class="approval-state {% if payment.status == 'pending' %}is-pending{% elif payment.status == 'approved' %}is-live{% else %}is-hidden{% endif %}">
-              {% if lang == 'fa' %}{% if payment.status == 'pending' %}منتظر بررسی{% elif payment.status == 'approved' %}تأییدشده و دسترسی صادرشده{% else %}ردشده{% endif %}{% else %}{% if payment.status == 'pending' %}Awaiting review{% elif payment.status == 'approved' %}Approved; access granted{% else %}Rejected{% endif %}{% endif %}
+              {% if lang == 'fa' %}{% if payment.status == 'pending' %}منتظر بررسی{% elif payment.status == 'approved' %}رسید تأییدشده{% else %}ردشده{% endif %}{% else %}{% if payment.status == 'pending' %}Awaiting review{% elif payment.status == 'approved' %}Receipt approved{% else %}Rejected{% endif %}{% endif %}
             </span>
-            {% if payment.status == 'pending' %}<span class="payment-review-deadline">{% if lang == 'fa' %}فرصت بررسی مدیر{% else %}Manager review window{% endif %} · <b data-manager-payment-countdown data-seconds="{{ payment.auto_approve_seconds }}" dir="ltr">03:00</b></span>{% elif payment.status == 'approved' and not payment.reviewed_by %}<span class="payment-auto-approved">{% if lang == 'fa' %}تأیید خودکار سیستم{% else %}Automatically approved by system{% endif %}{% if payment.reviewed_at %} · {{ payment.reviewed_at|date:"Y/m/d H:i:s" }}{% endif %}</span>{% endif %}
+            {% if payment.status == 'pending' %}<span class="payment-review-deadline">{% if lang == 'fa' %}فرصت بررسی مدیر{% else %}Manager review window{% endif %} · <b data-manager-payment-countdown data-seconds="{{ payment.auto_approve_seconds }}" dir="ltr">03:00</b></span>{% endif %}
+            <div class="review-evidence"><strong>{{ payment.evidence.source }}</strong><span>{{ payment.evidence.access }}</span><p class="review-note">{% if lang == 'fa' %}مبلغ از سفارش سامانه است؛ نام و زمان واریز را مشتری اعلام کرده است؛ صدور دسترسی به‌تنهایی اثبات انتقال وجه نیست.{% else %}The amount comes from the order; the customer declared the payer and transfer time; issued access alone is not proof of a bank transfer.{% endif %}</p><div class="review-nav">{% if payment.customer_url %}<a class="review-link" href="{{ payment.customer_url }}">{% if lang == 'fa' %}پرونده مشتری{% else %}Customer record{% endif %}</a>{% endif %}{% if payment.report_url %}<a class="review-link" href="{{ payment.report_url }}">{% if lang == 'fa' %}آزمون و کنترل دسترسی{% else %}Assessment & access controls{% endif %}</a>{% endif %}{% if not payment_selected %}<a class="review-link" href="?payment={{ payment.pk }}#payment-{{ payment.pk }}">{% if lang == 'fa' %}رسید و سابقه تصمیم{% else %}Receipt & decision history{% endif %}</a>{% endif %}</div></div>
             <details class="payment-customer-details"{% if payment.status == 'pending' %} open{% endif %}>
               <summary>{% if lang == 'fa' %}مشخصات کامل سفارش و واریز{% else %}Full order and transfer details{% endif %}</summary>
               <dl>
                 <div><dt>{% if lang == 'fa' %}مشتری{% else %}Customer{% endif %}</dt><dd>{% if payment.order.customer %}{{ payment.order.customer.name }}{% else %}{{ payment.order.user.get_full_name|default:payment.order.user.email }}{% endif %}</dd></div>
                 <div><dt>{% if lang == 'fa' %}موبایل حساب{% else %}Account mobile{% endif %}</dt><dd>{% if payment.order.user.mobile %}<a dir="ltr" href="tel:+{{ payment.order.user.mobile }}">{{ payment.order.user.mobile }}</a>{% else %}—{% endif %}</dd></div>
                 <div><dt>{% if lang == 'fa' %}ایمیل حساب{% else %}Account email{% endif %}</dt><dd><bdi>{{ payment.order.user.email }}</bdi></dd></div>
+<div><dt>{% if lang == 'fa' %}مبلغ پایه سفارش{% else %}Order subtotal{% endif %}</dt><dd><bdi>{{ payment.evidence.subtotal }}</bdi> {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</dd></div><div><dt>{% if lang == 'fa' %}تخفیف ثبت‌شده{% else %}Recorded discount{% endif %}</dt><dd><bdi>{{ payment.evidence.discount }}</bdi> {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</dd></div>
+                <div><dt>{% if lang == 'fa' %}مبلغ نهایی سفارش{% else %}Final order amount{% endif %}</dt><dd><bdi>{{ payment.evidence.amount }}</bdi> {% if lang == 'fa' %}ریال{% else %}IRR{% endif %}</dd></div>
                 <div><dt>{% if lang == 'fa' %}شناسه سفارش{% else %}Order ID{% endif %}</dt><dd><bdi>{{ payment.order_id }}</bdi></dd></div>
                 <div><dt>{% if lang == 'fa' %}واریزکننده{% else %}Payer{% endif %}</dt><dd>{{ payment.payer_name }}</dd></div>
                 <div><dt>{% if lang == 'fa' %}تاریخ و ساعت واریز{% else %}Transfer time{% endif %}</dt><dd>{% if lang == 'fa' %}{{ payment.paid_at|date:"Y/m/d H:i" }}{% else %}{{ payment.paid_at|date:"M j, Y H:i" }}{% endif %}</dd></div>
                 {% if payment.note %}<div class="payment-note"><dt>{% if lang == 'fa' %}توضیح مشتری{% else %}Customer note{% endif %}</dt><dd>{{ payment.note }}</dd></div>{% endif %}
+                <div><dt>{% if lang == 'fa' %}ثبت رسید در سامانه{% else %}Receipt recorded{% endif %}</dt><dd>{{ payment.created_at|date:"Y/m/d H:i:s" }}</dd></div>
+                <div><dt>{% if lang == 'fa' %}آخرین به‌روزرسانی{% else %}Last updated{% endif %}</dt><dd>{{ payment.updated_at|date:"Y/m/d H:i:s" }}</dd></div>
+                {% if payment.reviewed_at %}<div><dt>{% if lang == 'fa' %}زمان تصمیم{% else %}Decision time{% endif %}</dt><dd>{{ payment.reviewed_at|date:"Y/m/d H:i:s" }}</dd></div><div><dt>{% if lang == 'fa' %}بررسی‌کننده{% else %}Reviewer{% endif %}</dt><dd>{% if payment.reviewed_by %}{{ payment.reviewed_by.get_full_name|default:payment.reviewed_by.email }}{% else %}{% if lang == 'fa' %}بررسی‌کننده انسانی ثبت نشده{% else %}No human reviewer recorded{% endif %}{% endif %}</dd></div>{% endif %}
+                {% if payment.review_note %}<div><dt>{% if lang == 'fa' %}یادداشت تصمیم{% else %}Decision note{% endif %}</dt><dd>{{ payment.review_note|linebreaksbr }}</dd></div>{% endif %}
               </dl>
             </details>
+            {% if payment_selected %}<details class="review-history" open><summary>{% if lang == 'fa' %}سابقه عملیات مدیران{% else %}Administrator action history{% endif %} ({{ payment.history_count }})</summary><p class="review-note">{% if lang == 'fa' %}۲۰ عملیات اخیر؛ تصمیم خودکار ممکن است سابقه مدیر نداشته باشد و از منبع دسترسی بالا مشخص می‌شود.{% else %}Latest 20 actions; automatic decisions may have no manager audit and are identified by the access source above.{% endif %}</p><ol>{% for event in payment.history %}<li><strong>{{ event.review_label }}</strong><small>{{ event.created_at|date:"Y/m/d H:i:s" }} · {% if event.actor %}{{ event.actor.get_full_name|default:event.actor.email }}{% else %}{% if lang == 'fa' %}ثبت‌کننده مشخص نیست{% else %}No actor recorded{% endif %}{% endif %}</small></li>{% empty %}<li>{% if lang == 'fa' %}عملیات مدیریتی ثبت نشده است؛ از نبود سابقه، تأیید بانکی نتیجه‌گیری نکنید.{% else %}No manager action recorded; missing history is not bank verification.{% endif %}</li>{% endfor %}</ol></details>{% endif %}
           </div>
           {% if payment.status == 'pending' and request.user.is_superuser or payment.status == 'pending' and perms.assessments.change_manualpaymentsubmission %}
             <form class="payment-review" method="post" action="{% url 'management_portal:payment_review' payment.pk 'approve' %}"
@@ -109,7 +121,8 @@
               data-confirm-approve="{% if lang == 'fa' %}تأیید پرداخت و صدور دسترسی{% else %}Approve & grant access{% endif %}"
               data-confirm-cancel="{% if lang == 'fa' %}انصراف و بررسی دوباره{% else %}Cancel and review{% endif %}">
               {% csrf_token %}
-              <label class="m-sr-only" for="review-note-{{ payment.pk }}">{% if lang == 'fa' %}یادداشت بررسی رسید {{ payment.reference_number }}{% else %}Review note for receipt {{ payment.reference_number }}{% endif %}</label>
+              <input type="hidden" name="return_payment" value="1"><input type="hidden" name="inbox_return" value="{{ inbox_return_url }}">
+              <label for="review-note-{{ payment.pk }}">{% if lang == 'fa' %}یادداشت بررسی رسید {{ payment.reference_number }}{% else %}Review note for receipt {{ payment.reference_number }}{% endif %}</label>
               <input id="review-note-{{ payment.pk }}" name="review_note" maxlength="500" autocomplete="off" placeholder="{% if lang == 'fa' %}یادداشت بررسی (اختیاری){% else %}Review note (optional){% endif %}">
               <button type="submit" class="approve" aria-label="{% if lang == 'fa' %}تأیید رسید {{ payment.reference_number }} و صدور دسترسی برای {{ payment.order.user.email }}{% else %}Approve receipt {{ payment.reference_number }} and grant access to {{ payment.order.user.email }}{% endif %}">
                 {% if lang == 'fa' %}تأیید و صدور دسترسی{% else %}Approve & grant access{% endif %}
@@ -127,8 +140,9 @@
           {% endif %}
         </article>
       {% empty %}
-        <div class="m-empty">{% if lang == 'fa' %}رسیدی ثبت نشده است.{% else %}No receipts found.{% endif %}</div>
+<div class="m-empty">{% if lang == 'fa' %}رسیدی مطابق این انتخاب پیدا نشد. به فهرست رسیدها برگردید یا فیلتر را تغییر دهید.{% else %}No matching receipt. Return to all receipts or change the filters.{% endif %}</div>
       {% endfor %}
+      {% include "management_portal/v2/_review_pagination.html" with page=payment_page %}
     </section>
   {% endif %}
 {% endblock %}

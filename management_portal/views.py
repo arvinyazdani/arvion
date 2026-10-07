@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from dataclasses import replace
 import json
 from urllib.parse import urlsplit, urlencode
+from uuid import UUID
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
@@ -48,6 +49,7 @@ from .inbox import payment_source_id, present_sources, safe_inbox_return, unique
 from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
 from .customer_record import customer_record
+from .assessment_review import assessment_list, payment_list, order_evidence, review_page
 from .customer_events import record_customer_event
 from assessments.services import AssessmentAccessRevokedError, PaymentVerificationError, approve_manual_payment, revoke_assessment_access
 from .models import CaseActivity, CaseDocument, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
@@ -370,8 +372,39 @@ def customer_assessment_detail(request, customer_id, user_id):
     if user_id not in linked_user_ids:
         raise Http404
     account = get_object_or_404(User, pk=user_id)
+    return _assessment_report(request, account, customer)
+
+
+@staff_member_required(login_url="accounts:login")
+def assessment_attempt_detail(request, attempt_id):
+    if not request.user.is_superuser and not request.user.has_perm("assessments.view_exam"):
+        raise PermissionDenied
+    attempt = get_object_or_404(Attempt.objects.select_related("user", "entitlement__order__customer"), pk=attempt_id)
+    customer = attempt.entitlement.order.customer
+    if customer is None:
+        contact = CustomerContact.objects.filter(user=attempt.user).select_related("customer").first()
+        customer = contact.customer if contact else None
+    return _assessment_report(request, attempt.user, customer, attempt.pk)
+
+
+def _assessment_report(request, account, customer, attempt_id=None):
+    order_id = None
+    try:
+        if attempt_id is None and request.GET.get("attempt"):
+            attempt_id = UUID(request.GET["attempt"])
+        if request.GET.get("order"):
+            order_id = UUID(request.GET["order"])
+    except (ValueError, AttributeError):
+        raise Http404
+    rows = Attempt.objects.filter(user=account)
+    if attempt_id is not None:
+        get_object_or_404(rows, pk=attempt_id)
+        rows = rows.filter(pk=attempt_id)
+    if order_id is not None:
+        rows = rows.filter(entitlement__order_id=order_id)
+    attempt_page = review_page(rows.order_by("-created_at", "-pk"), request, "attempts_page", "attempt-list")
     attempts = list(
-        Attempt.objects.filter(user=account)
+        rows.filter(pk__in=[a.pk for a in attempt_page])
         .select_related("exam", "entitlement__order", "result")
         .prefetch_related(
             "result__skill_results__skill",
@@ -475,6 +508,10 @@ def customer_assessment_detail(request, customer_id, user_id):
                 (choice for choice in item.choices_snapshot if choice.get("id") == selected_id),
                 None,
             )
+            answer_pair = ("بی‌پاسخ", "Unanswered") if not answered else (
+                ("پاسخ درست", "Correct answer") if selected and selected.get("is_correct") else ("پاسخ نادرست", "Incorrect answer")
+            )
+            item.management_answer = answer_pair[0 if lang == "fa" else 1]
             pace = assess_pace(
                 item.active_seconds, suggested, difficulty,
                 answered=answered, is_correct=bool(selected and selected.get("is_correct")),
@@ -509,17 +546,28 @@ def customer_assessment_detail(request, customer_id, user_id):
         attempt.has_open_absence = bool(
             attempt.management_integrity["open_absence_count"]
         )
-    orders = list(customer.assessment_orders.filter(user=account).select_related(
-        "exam", "manual_payment", "entitlement__revoked_by",
-    ).order_by("-created_at"))
+    order_rows = Order.objects.filter(user=account)
+    if customer is not None:
+        order_rows = order_rows.filter(Q(customer=customer) | Q(customer__isnull=True))
+    if attempt_id is not None:
+        order_rows = order_rows.filter(entitlement__attempt__pk=attempt_id)
+    if order_id is not None:
+        get_object_or_404(order_rows, pk=order_id)
+        order_rows = order_rows.filter(pk=order_id)
+    order_page = review_page(order_rows.order_by("-created_at", "-pk"), request, "orders_page", "access-control-title")
+    orders = list(order_rows.filter(pk__in=[o.pk for o in order_page]).select_related(
+        "exam", "manual_payment__reviewed_by", "entitlement__revoked_by",
+    ).prefetch_related("transactions").order_by("-created_at", "-pk"))
     for order in orders:
         try:
             order.assessment_entitlement = order.entitlement
         except Order.entitlement.RelatedObjectDoesNotExist:
             order.assessment_entitlement = None
+        order.evidence = order_evidence(order, lang)
     return render(request, "management_portal/v2/customer_assessment_detail.html", {
         "customer": customer, "account": account, "attempts": attempts, "orders": orders,
-        "can_revoke_assessment_access": _can_revoke_assessment_access(request.user), "lang": lang,
+        "attempt_page": attempt_page, "order_page": order_page, "single_attempt": attempt_id is not None,
+        "can_revoke_assessment_access": bool(customer) and _can_revoke_assessment_access(request.user), "lang": lang,
     })
 
 
@@ -1106,18 +1154,17 @@ def approvals(request):
     if account_pk is not None:
         account_rows = account_rows.filter(pk=account_pk)
     users = account_rows.order_by("-date_joined")[:100] if request.user.is_superuser or request.user.has_perm("accounts.change_user") else []
-    payment_rows = ManualPaymentSubmission.objects.select_related("order__user", "order__customer", "order__exam", "reviewed_by")
     payment_pk = _drilldown_pk(request, "payment")
-    if payment_pk is not None:
-        payment_rows = payment_rows.filter(pk=payment_pk)
-    payments = list(payment_rows.order_by("-created_at")[:100]) if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else []
+    context = payment_list(request, payment_pk) if request.user.is_superuser or request.user.has_perm("assessments.view_manualpaymentsubmission") else {"payments": []}
+    payments = context["payments"]
     now = timezone.now()
     for payment in payments:
         payment.auto_approve_seconds = max(
             0,
             int((payment.updated_at + timedelta(seconds=settings.PAYMENT_AUTO_APPROVE_SECONDS) - now).total_seconds()),
         )
-    return render(request, "management_portal/v2/approvals.html", {"pending_users": users, "payments": payments, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    context.update({"pending_users": users, "lang": getattr(request, "LANGUAGE_CODE", "fa")})
+    return render(request, "management_portal/v2/approvals.html", context)
 
 
 @staff_member_required(login_url="accounts:login")
@@ -1168,10 +1215,17 @@ def payment_review(request, payment_id, decision):
         raise PermissionDenied
     if decision not in {"approve", "reject"}:
         raise Http404
+    return_url = reverse("management_portal:approvals")
+    if request.POST.get("return_payment") == "1":
+        query = {"payment": payment_id}
+        back = safe_inbox_return(request.POST.get("inbox_return"))
+        if back:
+            query["inbox_return"] = back
+        return_url += "?" + urlencode(query) + f"#payment-{payment_id}"
     payment = get_object_or_404(ManualPaymentSubmission.objects.select_for_update().select_related("order__user", "order__exam"), pk=payment_id)
     if payment.status != "pending":
         messages.warning(request, "این رسید قبلاً بررسی شده است." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "This receipt has already been reviewed.")
-        return redirect("management_portal:approvals")
+        return redirect(return_url)
     note = request.POST.get("review_note", "").strip()[:500]
     if decision == "approve":
         try:
@@ -1180,10 +1234,10 @@ def payment_review(request, payment_id, decision):
             )
         except PaymentVerificationError as exc:
             messages.error(request, str(exc))
-            return redirect("management_portal:approvals")
+            return redirect(return_url)
         if not applied:
             messages.warning(request, "این رسید هم‌زمان توسط سیستم یا مدیر دیگری بررسی شد.")
-            return redirect("management_portal:approvals")
+            return redirect(return_url)
         if created:
             send_mail("پرداخت شما تأیید شد", f"پرداخت سفارش {order.pk} تأیید شد و دسترسی آزمون فعال است.\n{settings.SITE_URL}/fa/account/", settings.DEFAULT_FROM_EMAIL, [order.user.email], fail_silently=True)
     else:
@@ -1202,7 +1256,7 @@ def payment_review(request, payment_id, decision):
     )
     OperationalAudit.objects.create(actor=request.user, action=f"payment_{decision}", target_type="manual_payment", target_id=str(payment.pk), summary=f"رسید {payment.reference_number}: {payment.status}", metadata={"order": str(payment.order_id)})
     messages.success(request, "بررسی رسید ذخیره شد." if getattr(request, "LANGUAGE_CODE", "fa") == "fa" else "Payment review saved.")
-    return redirect("management_portal:approvals")
+    return redirect(return_url)
 
 
 @staff_member_required(login_url="accounts:login")
@@ -1212,9 +1266,8 @@ def assessment_support(request):
         raise PermissionDenied
     context = {"lang": getattr(request, "LANGUAGE_CODE", "fa")}
     if user.is_superuser or user.has_perm("assessments.view_exam"):
+        context.update(assessment_list(request))
         context.update({
-            "exams": Exam.objects.all()[:50],
-            "attempts": Attempt.objects.select_related("user", "exam").order_by("-created_at")[:30],
             "result_count": AttemptResult.objects.count(), "certificate_count": Certificate.objects.filter(is_revoked=False).count(),
         })
     if user.is_superuser or user.has_perm("assessments.view_supportticket"):
@@ -1222,7 +1275,7 @@ def assessment_support(request):
         ticket_pk = _drilldown_pk(request, "ticket")
         if ticket_pk is not None:
             tickets = tickets.filter(pk=ticket_pk)
-        context["tickets"] = tickets.order_by("status", "-created_at")[:100]
+        context["tickets"] = review_page(tickets.order_by("status", "-created_at", "-pk"), request, "tickets_page", "ticket-list")
     return render(request, "management_portal/v2/assessment_support.html", context)
 
 
