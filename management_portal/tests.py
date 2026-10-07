@@ -438,7 +438,9 @@ class ManagementDashboardTests(TestCase):
         response = self.client.get(reverse("management_portal:customer_assessment_detail", args=[customer.pk, account.pk]))
         self.assertContains(response, "84.00%")
         self.assertContains(response, "B2")
-        self.assertContains(response, "فرمان کپی در صفحه سؤال ثبت شد")
+        self.assertContains(response, "رخداد کپی قدیمی؛ خارج از شمارنده جدید")
+        policy = response.context["attempts"][0].management_copy
+        self.assertEqual((policy["count"], policy["legacy_count"]), (0, 1))
         self.assertContains(response, "جمع‌بندی شواهد")
         self.assertContains(response, "دارای شواهد قابل بررسی")
         self.assertContains(response, "متن دقیق سؤال برای بررسی مدیر")

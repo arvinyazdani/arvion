@@ -1,5 +1,38 @@
 # Rvion current state
 
+## Release attempt — production BLOCKED on SSH (2026-10-07)
+
+- Explicit deployment authorization received. Release source baseline `12e67bb`;
+  three unrelated gallery edits remain excluded. No production command, migration,
+  backup, restart or deployment has been executed in this attempt.
+- Clean source archive QA: `/tmp/rvion-release-12e67bb.B8l1l9`, not the dirty checkout.
+  Initial full SQLite suite: 1021 tests, 27 PostgreSQL-only skips, one failure: an old
+  manager test expected the superseded generic copy label. Updated that assertion to
+  the intended legacy label plus an explicit (scoped=0, legacy=1) check; all answer-key,
+  historical reason and result assertions retained. No product behavior was changed.
+  Corrected test + manager review: 20/20 passed on PostgreSQL.
+- Initial PostgreSQL parallel run encountered the same assertion, with missing local
+  tblib masking the failure traceback; sequential follow-up suite passed 23/23.
+  After the assertion correction, full PostgreSQL parallel suite: 1021/1021 passed,
+  zero skips, 62.623s. Full SQLite suite was not repeated; the stronger PostgreSQL
+  full run and targeted test cover the sole corrected surface. No failing test skipped.
+- Remaining local gates passed: check, migration drift, pip consistency, strict audit
+  (400 questions, zero editorial warnings), static dry-run, 100-attempt benchmark
+  (rollback=yes), Node copy warning 11/11 and repository diff check.
+- Real isolated migration rehearsal in `rvion_release_20261007_copy`: full forward,
+  assessments 0027 backward to 0026, management_portal 0020 backward to 0019,
+  then forward again, all successful. This is not a production backup or migration.
+  QA logs/temp database retained for inspection, no customer data involved.
+- Live public `/health/` HTTP 200. SSH to ubuntu@188.121.101.173 connects and matches
+  the known host key, but times out during authentication. Three bounded diagnostic
+  configurations failed, including modern alternative KEX/cipher; no security checks
+  disabled. Network/VPN change or the provider console is required before proceeding.
+- User asked to change network/open console via the clarification UI. Next action:
+  restore SSH, inspect exact server checkout/status, preserve any server changes,
+  snapshot using the approved release script before migrations, update to the tested
+  commit, verify release log/snapshot/service/public routes. Source push alone never
+  means deployed. Record the final remote revision and CI status when available.
+
 ## Copy deterrence — phase 3 completed checkpoint (2026-10-07)
 
 - VERIFIED locally for the bounded scope; single-primary self-review, not independent
