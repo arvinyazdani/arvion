@@ -4,7 +4,9 @@ Date: 2026-10-07. Overall status: **BLOCKED on an analytics/product decision**.
 Single primary agent; self-review, not independent review.
 Source request: `/Users/rwin/Documents/claud/rvionai.com-audit/AGENT-PROMPT.md`.
 Baseline: `6977b30`; production runtime remains `63abbcd`.
-Implementation commit: recorded after the local commit below is created.
+Implementation commit: `4d22cc1` (`fix(seo): publish public assessment briefings in sitemap`).
+This SHA applies to P1-1 and the partial P1-2/diagnostic evidence below. The report
+hash finalization is a separate documentation-only checkpoint, not further implementation.
 
 ## Scope and stop boundary
 
@@ -168,7 +170,7 @@ Nothing missing is labeled PASS. Previous release evidence is not SEO evidence.
 - New contract and diagnostic tests plus documentation; no model/migration,
   request/payment/assessment scoring/authorization changes.
 - Three user-dirty gallery files are preserved and excluded from staging/commit.
-- Roll back the local SEO implementation commit to restore the old sitemap target;
+- Roll back local SEO implementation commit `4d22cc1` to restore the old sitemap target;
   no database rollback required. That would reintroduce the indexing defect.
 - Session creation/cache bypass remains unresolved, and the full metadata/schema/
   content/performance programme remains incomplete. No ranking/traffic gain claimed.
