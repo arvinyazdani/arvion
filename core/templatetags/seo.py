@@ -42,6 +42,14 @@ def _json_for_script(value):
                      .replace('<', '\\u003c').replace('>', '\\u003e'))
 
 
+def _schema_phone(value):
+    """Normalize the public Iranian phone in schema only, never persisted copy."""
+    value = (value or '').strip()
+    if len(value) == 11 and value.startswith('09') and value.isascii() and value.isdigit():
+        return '+98' + value[1:]
+    return value
+
+
 @register.simple_tag(takes_context=True)
 def seo_documents(context):
     request = context.get('request')
@@ -66,7 +74,7 @@ def seo_documents(context):
     if company:
         for key, value in (
             ('legalName', getattr(company, 'legal_name_' + language)),
-            ('telephone', company.phone), ('identifier', company.national_id),
+            ('telephone', _schema_phone(company.phone)), ('identifier', company.national_id),
         ):
             if value:
                 organization[key] = value

@@ -726,3 +726,18 @@ No permanent dev or production database changes, external SMS, push or deploy.
 Three existing user gallery edits are preserved and excluded. Canonical report
 and CURRENT_STATE are the continuation source; historical checkpoints above remain
 history, not the current stage result.
+
+## Follow-up 1 — telephone regression VERIFIED (local)
+
+Starting HEAD 517211e; OWNER DECISION remains DEFERRED. Only schema serialization
+normalizes an 11-digit local Iranian mobile to +98; existing international values
+remain unchanged and empty values are omitted. CompanyProfile and visible text
+are never modified. Corrected rendered Organization fragment:
+`"@type":"Organization","telephone":"+989333021100"`.
+Files: core/templatetags/seo.py, core/tests_seo_contract.py and existing checkpoints.
+`.venv/bin/python manage.py test core.tests_seo_contract --verbosity 1`: 12/12 OK.
+Blank legacy-profile fixture uses a test-DB queryset update, since model full_clean
+correctly rejects new blank profiles; this does not change model validation.
+No migration, push, deploy, messaging or permanent DB writes. Rollback: revert
+the scoped telephone commit; stored company data needs no rollback.
+Next: baseline audit provenance and idle 3-run performance medians.

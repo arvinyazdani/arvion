@@ -199,6 +199,29 @@ class WholeSitemapContractTests(TestCase):
         response = self.client.get('/fa/account/login/')
         self.assertEqual(HeadParser(response.content.decode()).json_ld, [])
 
+    def test_organization_phone_normalization_is_render_only(self):
+        from core.models import CompanyProfile
+        company = CompanyProfile.objects.first()
+        for stored, expected in (
+            ('09333021100', '+989333021100'),
+            ('+989333021100', '+989333021100'),
+            ('', None),
+        ):
+            with self.subTest(phone=stored):
+                # Blank represents a legacy/incomplete profile; the model's
+                # current full_clean correctly disallows saving it via forms.
+                CompanyProfile.objects.filter(pk=company.pk).update(phone=stored)
+                response = self.client.get('/fa/company/')
+                graph = HeadParser(response.content.decode()).json_ld[0]['@graph']
+                org = next(node for node in graph if node['@type'] == 'Organization')
+                self.assertEqual(org.get('telephone'), expected)
+                if expected is None:
+                    self.assertNotIn('telephone', org)
+                else:
+                    self.assertContains(response, stored)
+                company.refresh_from_db()
+                self.assertEqual(company.phone, stored)
+
     def test_page_specific_types_and_profile_absence_are_truthful(self):
         from core.models import CompanyProfile
         CompanyProfile.objects.all().delete()

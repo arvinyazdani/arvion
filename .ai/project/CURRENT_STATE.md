@@ -1,5 +1,13 @@
 # Rvion current state
 
+## SEO follow-up — PARTIAL (2026-10-07)
+
+- Start 517211e; telephone regression VERIFIED: schema-only E.164 mobile,
+  international unchanged, blank omitted, persisted/visible value unchanged.
+  core.tests_seo_contract: 12/12 OK. No migration or production changes.
+- Next: prove premium audit baseline, idle Lighthouse medians, low-risk linking.
+- Preserve three dirty gallery files; OWNER DECISION DEFERRED; local commits only.
+
 ## SEO continuation — PARTIAL (2026-10-07)
 
 - AGENT-PROMPT-2 execution assigned to this single primary agent. OWNER DECISION
