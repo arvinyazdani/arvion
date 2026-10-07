@@ -720,7 +720,7 @@ cookie/privacy text or caching was changed. P1-3/P4-1 remain BLOCKED (DEFERRED).
 
 ## Boundaries and rollback
 
-Metadata milestone: 93132bc; schema/navigation milestone recorded in Git history.
+Metadata milestone: 93132bc; schema/navigation and measurement milestone e8a8aa2.
 Revert the scoped local commits for source rollback; no schema/data rollback needed.
 No permanent dev or production database changes, external SMS, push or deploy.
 Three existing user gallery edits are preserved and excluded. Canonical report

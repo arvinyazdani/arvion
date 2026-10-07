@@ -8,7 +8,8 @@
   passed (16 PostgreSQL-only skips), then 7/7 focused tests including localized brand.
   Check/migration drift/diff clean. Red-before-green: 50 subtest failures before fixes.
 - P1-2/P1-4/P2-1..4/P2-6/P2-7 verified locally; P1-5 partial because protected
-  gallery/embedded names remain unchanged. Metadata milestone: 93132bc.
+  gallery/embedded names remain unchanged. Metadata milestone: 93132bc;
+  schema/navigation and measurement milestone: e8a8aa2 (local only).
 - Schema/navigation: 51 focused tests pass; final full suite 1032 tests OK,
   27 PostgreSQL-only skips. First full failures were corrected cache-version/JSON
   representation expectations, not skipped. tblib installed only in temporary
