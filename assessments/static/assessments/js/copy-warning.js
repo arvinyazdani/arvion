@@ -11,13 +11,19 @@
   if (!csrf) return; // Incomplete question snapshots have no answer form.
   let count = Number(panel.dataset.count) || 0;
   let pending = Promise.resolve();
+  let stopped = false;
+  const limitEnabled = panel.dataset.limitEnabled === 'true';
   const digits = n => fa ? String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(n);
   const render = n => {
     count = Math.max(count, n);
-    counter.textContent = (fa ? 'تلاش‌های ثبت‌شده: ' : 'Recorded copy attempts: ') + digits(count);
+    counter.textContent = (fa ? 'تلاش‌های ثبت‌شده: ' : 'Recorded copy attempts: ') + digits(count)
+      + (limitEnabled ? (fa ? ' از ۵' : ' of 5') : '');
     panel.dataset.stage = String(Math.min(count, 5));
     if (count >= 4) {
-      message.textContent = fa ? 'اخطار جدی: تلاش‌های کپی تکرار شده است. بدون کپی یا کمک بیرونی ادامه دهید.'
+      message.textContent = limitEnabled
+        ? (fa ? 'اخطار نهایی: با تلاش پنجم، همین آزمون هدیه متوقف می‌شود. مستقل ادامه دهید.'
+              : 'Final warning: the fifth copy attempt stops this welcome assessment. Continue independently.')
+        : fa ? 'اخطار جدی: تلاش‌های کپی تکرار شده است. بدون کپی یا کمک بیرونی ادامه دهید.'
         : 'Serious warning: repeated copy attempts. Continue without copying or outside help.';
     }
   };
@@ -43,19 +49,22 @@
       connection_state: navigator.onLine ? 'online' : 'offline'});
     // One retry uses the same identifier; failed requests never inflate the UI count.
     const send = async () => {
+      if (stopped) return;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 6000);
       try {
         const response = await fetch(shell.dataset.integrityUrl, {method: 'POST', keepalive: true,
           headers: {'X-CSRFToken': csrf}, body, signal: controller.signal});
-        if (!response.ok) throw new Error('copy_event_failed');
         const data = await response.json();
+        if (data.stopped && data.stop_url) {
+          stopped = true;
+          window.location.assign(data.stop_url);
+          return;
+        }
+        if (!response.ok) throw new Error('copy_event_failed');
         render(data.copy_count);
-        message.textContent = count >= 4
-          ? (fa ? 'اخطار جدی: تلاش‌های کپی تکرار شده است. بدون کپی یا کمک بیرونی ادامه دهید.'
-                : 'Serious warning: repeated copy attempts. Continue without copying or outside help.')
-          : (fa ? 'تلاش برای کپی ثبت شد. کپی سؤال و گزینه‌ها مجاز نیست؛ مستقل پاسخ دهید.'
-                : 'A copy attempt was recorded. Do not copy questions or choices; answer independently.');
+        if (count < 4) message.textContent = fa ? 'تلاش برای کپی ثبت شد. کپی سؤال و گزینه‌ها مجاز نیست؛ مستقل پاسخ دهید.'
+                : 'A copy attempt was recorded. Do not copy questions or choices; answer independently.';
         const score = document.getElementById('integrity-status');
         if (score) score.textContent = (fa ? 'سلامت آزمون ' : 'Integrity ') + digits(data.integrity_score) + '%';
       } finally { clearTimeout(timeout); }

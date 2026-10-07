@@ -300,7 +300,8 @@ class Attempt(models.Model):
         ("expired", "Expired"), ("scoring", "Scoring"), ("completed", "Completed"),
         ("invalidated", "Invalidated"),
     )
-    COMPLETION_REASONS = (("manual", "Manual submission"), ("timeout", "Time expired"))
+    COMPLETION_REASONS = (("manual", "Manual submission"), ("timeout", "Time expired"),
+                          ("copy_limit", "Welcome copy limit"))
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="exam_attempts")

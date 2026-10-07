@@ -1,5 +1,57 @@
 # Rvion current state
 
+## Copy deterrence — phase 2 checkpoint (2026-10-07)
+
+- Status: VERIFIED locally for the bounded implementation. Single primary agent;
+  self-review, not independent review. Baseline `f52f0ee`. Local commit subject:
+  `feat(assessments): safely stop welcome attempts at fifth copy`.
+- New welcome attempts only: server-created v2 acknowledgement recorded when
+  the prestart guidance checkbox is submitted. Existing active attempts are not
+  retroactively opted in, even if resumed through the new guidance page. Real
+  WelcomeAssessmentCredit ownership/order + welcome_trial gateway are required;
+  zero-priced promotional orders and paid attempts are not stopped by this rule.
+- Fifth distinct scoped copy event and invalidation are in the same Attempt-row
+  transaction. completion_reason=copy_limit, one audit marker, saved responses
+  retained, no result/certificate, no account/order/credit deletion or revocation.
+  Retry/queued sixth events return the same stop destination without recounting.
+  Save/audio/finalize/start cannot resurrect the stopped attempt; clock expiry
+  cannot score it. A separately approved paid retake remains available.
+- Dedicated bilingual stopped state on question/review, fourth final warning,
+  saved-answer explanation, price/new-order path, free support review path and
+  account return link. Dashboard retains a stopped-attempt entry. Review form
+  preselects the owned order/category/subject and includes a return button;
+  neither another customer's attempt nor order can be used. No automatic appeal
+  approval and no new SMS/report sharing. Copy events alone are not proven cheating.
+- Evidence: impacted assessments+accounts suite 260/260 on isolated PostgreSQL,
+  zero skips (Python 3.9.6/Django 4.2.30). After final support/title/test additions,
+  fresh phase-2 suite 12/12 on PostgreSQL, zero skips. Includes fifth stop, paid
+  immunity/retake, no retroactive rule, owner isolation, expiry, audit-error rollback,
+  and real-thread stop-vs-save/finalize serialization. Node 8/8 (fourth warning and
+  stop redirect/discard queue included); check 0; migration drift/diff clean.
+  Initial fixture failures (wrong ticket related_name and cached absent reverse
+  one-to-one) were fixed; not skipped. Injected audit failure logs are expected.
+  The concurrency gate now observes BOTH competing backend PIDs in PostgreSQL
+  lock-wait state before releasing the stopping transaction. An initial observer
+  counted only direct blockers (missed a queued/transitive waiter) and failed;
+  cleanup also needed finally-based thread joins before test DB flush. Both test
+  harness defects were corrected; final fresh 12/12 passed, no skips/hidden errors.
+- Visual/navigation QA: isolated SQLite fixture at /tmp/rvion-copy-stop-qa.QBs8FK,
+  no permanent local/production data touched. FA 390px light+dark, EN 320px light
+  and 1200px dark; no horizontal overflow in measured mobile views. Fourth warning
+  restores; stopped page, account return/re-entry, prefilled review/back, and
+  non-free new order -> card-transfer form inspected. No real payment was made.
+  Evidence: /tmp/rvion-copy-stop-qa.QBs8FK/mobile-stop-fa-dark.png.
+- Browser limitation: this phase's native Chrome new tab had a blank content
+  surface; IAB copy input again did not emit a trusted copy event, and raw CDP
+  input was unsupported. Therefore fifth-copy gesture end-to-end is NOT claimed
+  as browser proof: QA stop events came through the real view on disposable
+  fixtures; server behavior and client redirect are covered separately by
+  PostgreSQL and Node tests. Prior phase-1 actual native-copy evidence is historical.
+- Migration 0027 only adds the completion-reason choice (no column/data removal),
+  applied only in disposable test/QA databases. Pending on permanent/production DB.
+  No push, CI run, deploy or production migration. Existing three dirty gallery
+  files preserved and excluded. Phase 3 (manager evidence/report polish) NOT_STARTED.
+
 ## Copy deterrence — phase 1 checkpoint (2026-10-07)
 
 - Status: VERIFIED locally for the bounded phase. Local commit subject:
@@ -11,7 +63,8 @@
 - Scope: shared question/review detection, server-confirmed copy counter and
   escalating bilingual warnings. FEATURE/UI_FEATURE; single primary agent.
   Baseline b041f44. No stopping, credit revocation, payment redirection or new
-  report sharing in this phase. Phases 2 and 3 remain NOT_STARTED.
+  report sharing in this phase. At this historical checkpoint, phases 2 and 3
+  were NOT_STARTED; see the phase-2 checkpoint above for current status.
 - Server counter includes only scoped v1 copy events with an owned question and
   bounded event identifier. Historical copy events remain unchanged and excluded.
   Retries deduplicate by identifier across time under the existing Attempt row

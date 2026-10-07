@@ -1,0 +1,12 @@
+<section class="account-section"><div class="shell narrow"><article class="status-card" aria-labelledby="copy-stop-title">
+<span class="eyebrow">{% if lang == 'fa' %}توقف نوبت هدیه{% else %}Welcome attempt stopped{% endif %}</span>
+<h1 id="copy-stop-title">{% if lang == 'fa' %}این آزمون هدیه پایان یافت{% else %}This welcome assessment has ended{% endif %}</h1>
+<p>{% if lang == 'fa' %}پس از پنج تلاش ثبت‌شده برای کپی سؤال یا گزینه‌ها، این نوبت طبق قانونی که پیش از شروع پذیرفتید متوقف شد. این وضعیت به‌تنهایی حکم قطعی تقلب نیست.{% else %}After five recorded attempts to copy questions or choices, this attempt was stopped under the rules acknowledged before starting. This is not, by itself, a conclusive finding of cheating.{% endif %}</p>
+<p>{% if lang == 'fa' %}<strong>حساب شما فعال است.</strong> پاسخ‌های ذخیره‌شده پیش از توقف و سوابق این آزمون محفوظ‌اند؛ برای این نوبت نتیجه یا گواهی صادر نمی‌شود. خرید آزمون جدید، سابقه این نوبت را پاک نمی‌کند.{% else %}<strong>Your account remains active.</strong> Answers saved before the stop and assessment records are retained. No result or certificate is issued for this attempt. Buying a new attempt does not erase this record.{% endif %}</p>
+<div class="briefing-actions">
+<a class="button primary" href="{% url 'assessments:detail' attempt.exam.slug %}">{% if lang == 'fa' %}قیمت و خرید آزمون جدید{% else %}View price and purchase another attempt{% endif %}</a>
+<a class="button secondary" href="{% url 'assessments:support_create' %}?copy_appeal={{ attempt.pk }}">{% if lang == 'fa' %}درخواست بررسی توقف{% else %}Request a review of the stop{% endif %}</a>
+<a class="button secondary" href="{% url 'accounts:dashboard' %}">{% if lang == 'fa' %}بازگشت به حساب{% else %}Back to account{% endif %}</a>
+</div>
+<p>{% if lang == 'fa' %}اگر فکر می‌کنید اشتباه فنی رخ داده، بدون نیاز به پرداخت درخواست بررسی ثبت کنید و زمان و توضیح اتفاق را بنویسید. پشتیبانی سوابق همین نوبت را بررسی می‌کند؛ ارسال درخواست به‌معنی بازشدن خودکار آزمون نیست.{% else %}If you suspect a technical error, request a review without making a payment. Include when and what happened. Support can review this attempt's records; sending a request does not automatically reopen the assessment.{% endif %}</p>
+</article></div></section>

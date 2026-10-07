@@ -515,13 +515,15 @@ def dashboard(request):
             continue
         group = grouped.setdefault(entitlement.exam_id, {
             "exam": entitlement.exam, "ready": 0, "ready_entitlement": None,
-            "in_progress": None, "completed": [],
+            "in_progress": None, "completed": [], "copy_stopped": None,
         })
         attempt = getattr(entitlement, "attempt", None)
         if attempt and attempt.status == "in_progress":
             group["in_progress"] = attempt
         elif attempt and attempt.status == "completed":
             group["completed"].append(attempt)
+        elif attempt and attempt.status == "invalidated" and attempt.completion_reason == "copy_limit":
+            group["copy_stopped"] = attempt
         elif not attempt and entitlement.attempts_remaining:
             group["ready"] += entitlement.attempts_remaining
             group["ready_entitlement"] = group["ready_entitlement"] or entitlement

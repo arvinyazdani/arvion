@@ -16,6 +16,7 @@
       </ul>
       <p>{% if lang == 'fa' %}زمان کل: {{ entitlement.exam.duration_minutes }} دقیقه. بازکردن این راهنما آزمون را شروع نمی‌کند؛ زمان پس از زدن دکمه زیر آغاز می‌شود.{% else %}Total time: {{ entitlement.exam.duration_minutes }} minutes. Opening this guide does not start the assessment; the clock starts after you press the button below.{% endif %}</p>
       <form method="post" action="{% url 'assessments:start_attempt' entitlement.pk %}">
+        <p class="copy-warning">{% if lang == 'fa' %}کپی سؤال و گزینه‌ها ممنوع است. برای آزمون هدیه جدید، پنجمین تلاش ثبت‌شده باعث توقف همین نوبت می‌شود؛ پاسخ‌های ذخیره‌شده محفوظ می‌مانند. حساب شما بسته نمی‌شود و می‌توانید آزمون جدید بخرید یا درخواست بررسی بدهید. در آزمون پولی، اخطار و گزارش رفتار ثبت می‌شود اما این قانون آزمون را متوقف نمی‌کند.{% else %}Do not copy questions or choices. On a new welcome assessment, the fifth recorded copy attempt stops that attempt; saved answers remain. Your account stays active: you can purchase another attempt or request a review. Paid assessments retain warnings and behavioral evidence but are not stopped by this rule.{% endif %}</p>
         {% csrf_token %}
         <label class="terms-check"><input type="checkbox" required name="guidance_read" value="yes"> {% if lang == 'fa' %}راهنما را خواندم و آماده پاسخ‌دادن مستقل هستم.{% else %}I have read the guidance and am ready to answer independently.{% endif %}</label>
         <div class="briefing-actions">

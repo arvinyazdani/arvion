@@ -13,7 +13,7 @@ from .integrity import pace_risk_points
 from .models import (
     Attempt, AttemptQuestion, AttemptResult, Certificate, ExamEntitlement,
     ExamVersion, ManualPaymentSubmission, Order, PaymentTransaction, Question, SkillResult,
-    WelcomeAssessmentCredit,
+    WelcomeAssessmentCredit, IntegrityEvent,
 )
 
 
@@ -197,7 +197,7 @@ def approve_manual_payment(submission_id, *, reviewer=None, review_note="", auto
 
 
 @transaction.atomic
-def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
+def start_attempt(entitlement_id, user, *, enforce_daily_limit=True, copy_policy_accepted=False):
     entitlement = ExamEntitlement.objects.select_for_update().select_related("exam").get(pk=entitlement_id, user=user)
     if entitlement.is_revoked:
         raise AssessmentAccessRevokedError("Assessment access has been revoked")
@@ -290,6 +290,10 @@ def start_attempt(entitlement_id, user, *, enforce_daily_limit=True):
             question_snapshot=question_snapshot, choices_snapshot=choices_snapshot,
         ))
     AttemptQuestion.objects.bulk_create(rows)
+    if copy_policy_accepted:
+        IntegrityEvent.objects.create(attempt=attempt, event_type="other", metadata={
+            "kind": "copy_policy_acceptance", "copy_policy_version": 2, "copy_limit": 5,
+        })
     Question.objects.filter(id__in=selected_questions).update(exposure_count=F("exposure_count") + 1)
     entitlement.attempts_remaining -= 1
     entitlement.save(update_fields=["attempts_remaining"])

@@ -10,7 +10,41 @@ def copy_warning_state(attempt):
     return {
         "copy_count": count,
         "warning_stage": min(count, 5),
+        "copy_limit_enabled": copy_limit_enabled(attempt),
     }
+
+
+def copy_limit_enabled(attempt):
+    from .models import WelcomeAssessmentCredit
+    return (
+        attempt.integrity_events.filter(event_type="other",
+            metadata__kind="copy_policy_acceptance", metadata__copy_policy_version=2).exists()
+        and WelcomeAssessmentCredit.objects.filter(user_id=attempt.user_id,
+            order_id=attempt.entitlement.order_id, order__gateway="welcome_trial").exists()
+    )
+
+
+def is_copy_stopped(attempt):
+    return attempt.status == "invalidated" and attempt.completion_reason == "copy_limit"
+
+
+def stop_welcome_copy_attempt(attempt):
+    """Caller holds Attempt's row lock; preserve answers, credit and payment evidence."""
+    from django.utils import timezone
+    from .models import IntegrityEvent
+    state = copy_warning_state(attempt)
+    if attempt.status != "in_progress" or not state["copy_limit_enabled"] or state["copy_count"] < 5:
+        return False
+    attempt.status = "invalidated"
+    attempt.completion_reason = "copy_limit"
+    attempt.submitted_at = timezone.now()
+    attempt.save(update_fields=["status", "completion_reason", "submitted_at", "updated_at"])
+    IntegrityEvent.objects.create(attempt=attempt, event_type="other", metadata={
+        "kind": "welcome_copy_stop", "copy_policy_version": 2, "copy_count": state["copy_count"],
+        "reason_fa": "آزمون هدیه پس از پنج تلاش کپی متوقف شد؛ پاسخ‌ها محفوظ‌اند.",
+        "reason_en": "Welcome attempt stopped after five copy attempts; saved answers retained.",
+    })
+    return True
 
 
 @dataclass(frozen=True)

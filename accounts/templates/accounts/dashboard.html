@@ -102,6 +102,7 @@
                   <p>
                     {% if group.in_progress %}{% if lang == 'fa' %}آزمون ناتمام؛ می‌توانید از همان‌جا ادامه دهید.{% else %}Assessment in progress; continue where you left off.{% endif %}
                     {% elif group.ready %}{% if lang == 'fa' %}{{ group.ready }} نوبت آماده شروع{% else %}{{ group.ready }} attempt{{ group.ready|pluralize }} ready{% endif %}
+                    {% elif group.copy_stopped %}{% if lang == 'fa' %}نوبت هدیه متوقف شد؛ پاسخ‌ها محفوظ‌اند. امکان درخواست بررسی یا خرید نوبت جدید دارید.{% else %}Welcome attempt stopped; saved answers retained. Request a review or purchase another attempt.{% endif %}
                     {% else %}{% if lang == 'fa' %}{{ group.completed|length }} نتیجه ثبت‌شده{% else %}{{ group.completed|length }} completed result{{ group.completed|length|pluralize }}{% endif %}
                     {% endif %}
                   </p>
@@ -114,6 +115,7 @@
                   <a class="button compact" href="{% url 'assessments:start_attempt' group.ready_entitlement.pk %}">{% if lang == 'fa' %}راهنما و شروع آزمون{% else %}Read guidance and start{% endif %}</a>
                 {% endif %}
                 {% for attempt in group.completed|slice:":1" %}<a class="button compact secondary" href="{% url 'assessments:result' attempt.result.pk %}">{% if lang == 'fa' %}آخرین نتیجه{% else %}Latest result{% endif %}</a>{% endfor %}
+                {% if group.copy_stopped %}<a class="button compact secondary" href="{{ group.copy_stopped.get_absolute_url }}">{% if lang == 'fa' %}آزمون هدیه متوقف‌شده؛ بررسی و آزمون جدید{% else %}Stopped welcome attempt: review or retake{% endif %}</a>{% endif %}
               </div>
             </section>
           {% empty %}

@@ -1,6 +1,7 @@
 from datetime import timedelta
 import logging
 import re
+from uuid import UUID
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -24,7 +25,7 @@ from management_portal.models import Customer, CustomerContact
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
-from .integrity import assess_event, copy_warning_state, question_pace_rows
+from .integrity import assess_event, copy_warning_state, question_pace_rows, is_copy_stopped, stop_welcome_copy_attempt
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket, WelcomeAssessmentCredit
 from .services import AssessmentAccessRevokedError, AttemptLimitError, ExamContentError, PaymentVerificationError, redeem_welcome_assessment, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
 
@@ -163,7 +164,23 @@ class SupportTicketCreateView(LanguageViewMixin, LoginRequiredMixin, FormView):
     def get_initial(self):
         initial = super().get_initial()
         initial.update({key: self.request.GET.get(key) for key in ("order", "result") if self.request.GET.get(key)})
+        if self.request.GET.get("copy_appeal"):
+            try:
+                appeal_id = UUID(self.request.GET["copy_appeal"])
+            except ValueError:
+                return initial
+            attempt = Attempt.objects.filter(pk=appeal_id, user=self.request.user,
+                status="invalidated", completion_reason="copy_limit").first()
+            if attempt:
+                self.copy_appeal_attempt = attempt
+                initial.update(order=attempt.entitlement.order_id, category="technical",
+                    subject="درخواست بررسی توقف آزمون هدیه" if self.lang == "fa" else "Review welcome assessment stop")
         return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["copy_appeal_attempt"] = getattr(self, "copy_appeal_attempt", None)
+        return context
 
     def form_valid(self, form):
         recent_count = SupportTicket.objects.filter(
@@ -425,6 +442,12 @@ class StartAttemptView(LoginRequiredMixin, View):
     def post(self, request, pk):
         entitlement = get_object_or_404(ExamEntitlement, pk=pk, user=request.user)
         lang = _request_language(request)
+        if (not hasattr(entitlement, "attempt")
+            and WelcomeAssessmentCredit.objects.filter(order_id=entitlement.order_id, user=request.user).exists()
+            and request.POST.get("guidance_read") != "yes"):
+            messages.error(request, "پیش از شروع، قوانین آزمون هدیه را مطالعه و تأیید کنید."
+                if lang == "fa" else "Read and acknowledge the welcome assessment rules before starting.")
+            return redirect(reverse("assessments:start_attempt", args=[pk]))
         if not request.user.first_name.strip() or not request.user.last_name.strip():
             messages.error(
                 request,
@@ -433,7 +456,8 @@ class StartAttemptView(LoginRequiredMixin, View):
             )
             return redirect(f"{reverse('accounts:profile_identity')}?lang={lang}")
         try:
-            attempt, _ = start_attempt(entitlement.pk, request.user)
+            attempt, _ = start_attempt(entitlement.pk, request.user,
+                copy_policy_accepted=request.POST.get("guidance_read") == "yes")
         except AssessmentAccessRevokedError:
             messages.error(
                 request,
@@ -565,6 +589,11 @@ class SaveAnswerView(LoginRequiredMixin, View):
         )
         result = finalize_expired_attempt(attempt.pk)
         if result or attempt.status != "in_progress":
+            if is_copy_stopped(attempt):
+                if wants_html:
+                    return redirect(attempt.get_absolute_url())
+                return JsonResponse({"ok": False, "reason": "copy_limit", "stopped": True,
+                    "result_url": attempt.get_absolute_url()}, status=409)
             if wants_html:
                 lang = _request_language(request)
                 if result:
@@ -653,8 +682,12 @@ class AudioPlayView(LoginRequiredMixin, View):
         if finalize_expired_attempt(owned_attempt.pk):
             return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
         attempt = get_object_or_404(
-            Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress",
+            Attempt.objects.select_for_update(), pk=pk, user=request.user,
         )
+        if is_copy_stopped(attempt):
+            return JsonResponse({"ok": False, "stopped": True, "stop_url": attempt.get_absolute_url()}, status=409)
+        if attempt.status != "in_progress":
+            raise Http404
         item = get_object_or_404(
             AttemptQuestion.objects.select_for_update(),
             pk=item_pk, attempt=attempt,
@@ -679,8 +712,13 @@ class IntegrityEventView(LoginRequiredMixin, View):
         if finalize_expired_attempt(owned_attempt.pk):
             return JsonResponse({"ok": False, "reason": "attempt_closed"}, status=409)
         attempt = get_object_or_404(
-            Attempt.objects.select_for_update(), pk=pk, user=request.user, status="in_progress"
+            Attempt.objects.select_for_update(), pk=pk, user=request.user
         )
+        if is_copy_stopped(attempt):
+            return JsonResponse({"ok": True, "stopped": True,
+                "stop_url": attempt.get_absolute_url(), **copy_warning_state(attempt)})
+        if attempt.status != "in_progress":
+            raise Http404
         event_type = request.POST.get("event_type")
         if event_type not in self.allowed_events:
             return JsonResponse({"ok": False}, status=400)
@@ -825,6 +863,7 @@ class IntegrityEventView(LoginRequiredMixin, View):
         if assessment.points:
             attempt.integrity_score = max(0, attempt.integrity_score - assessment.points)
             attempt.save(update_fields=["integrity_score", "updated_at"])
+        stopped = stop_welcome_copy_attempt(attempt) if scoped_copy else False
         return JsonResponse({
             "ok": True,
             "integrity_score": attempt.integrity_score,
@@ -832,6 +871,7 @@ class IntegrityEventView(LoginRequiredMixin, View):
             "evidence_id": event.pk,
             "pairing_status": pairing_status,
             **(copy_warning_state(attempt) if scoped_copy else {}),
+            **({"stopped": True, "stop_url": attempt.get_absolute_url()} if stopped else {}),
         })
 
 
@@ -864,6 +904,9 @@ class FinishAttemptView(LoginRequiredMixin, View):
             if created:
                 messages.success(request, "آزمون با موفقیت تصحیح شد." if lang == "fa" else "Your assessment has been scored.")
             return redirect(f"{reverse('assessments:result', kwargs={'pk': result.pk})}?lang={lang}")
+        attempt.refresh_from_db()
+        if is_copy_stopped(attempt):
+            return redirect(attempt.get_absolute_url())
         return redirect(f"{reverse('accounts:dashboard')}?lang={lang}")
 
 
