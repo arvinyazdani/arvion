@@ -1,5 +1,18 @@
 # Rvion current state
 
+## Generated metadata — BLOCKED (2026-10-07)
+
+- Deployed 94c9c06; local starting HEAD b45c2a8. No composition edits yet.
+- New whole-sitemap quality test is red: 119 subtest failures, 1 test, 3.143s.
+  Test remains uncommitted; checkpoint documents evidence, no failing test committed.
+- Scope conflict: require 90–155 descriptions everywhere but prohibit changes
+  outside demo/exam metadata. Live evidence has 11 other descriptions of 65–89
+  characters, confirmed by seeded/real-page contract failures.
+- Await owner: A restrict description-length acceptance to requested 26 instances
+  (recommended; other pages unchanged), or B authorize those 11 other descriptions.
+- Source/checkpoints: docs/seo/SEO_PHASE_REPORT.md. No full/green gate yet.
+  Three protected dirty gallery files preserved; no push/deploy/migration/cookie change.
+
 ## SEO release — VERIFIED (2026-10-07)
 
 - Explicit deploy instruction honored: pushed/deployed source 94c9c06, previous

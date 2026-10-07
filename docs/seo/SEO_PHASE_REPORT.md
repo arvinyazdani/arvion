@@ -1,5 +1,58 @@
 # SEO phase report — Rvion
 
+## Generated-metadata correction — BLOCKED on scope conflict (2026-10-07)
+
+Starting local HEAD b45c2a8; deployed source remains 94c9c06. Explicit boundary:
+fix demo previews/exam briefings only, but assert description length 90–155 on
+EVERY sitemap URL. Both cannot pass simultaneously without owner clarification.
+Saved live evidence from the owner's just-run verify_live.py:
+/Users/rwin/Documents/claud/rvionai.com-audit/live_check_result.json (62 URLs).
+Eleven other public descriptions fail the proposed minimum before this work:
+
+| Public path | Existing description length |
+| --- | ---: |
+| /fa/about/ | 73 |
+| /en/about/ | 73 |
+| /fa/services/digital-product-consulting/ | 65 |
+| /fa/services/corporate-website-design/ | 70 |
+| /fa/services/custom-web-application/ | 80 |
+| /fa/services/ecommerce-platform/ | 77 |
+| /fa/services/maintenance-and-growth/ | 66 |
+| /en/services/digital-product-consulting/ | 83 |
+| /en/services/custom-web-application/ | 86 |
+| /en/services/ecommerce-platform/ | 83 |
+| /en/services/maintenance-and-growth/ | 89 |
+
+Composition causes confirmed in source: demo_preview.html joins punctuated
+tagline with a new period, prepends redundant category wording and long qualifier;
+briefing.html adds a new separator after truncatechars:120, potentially ending
+inside a sentence/adding an ellipsis. No production composition fix applied yet.
+
+Red test added, unchanged assertions exactly covering the requested global scope:
+core.tests_seo_contract.WholeSitemapContractTests.test_generated_metadata_quality_entire_sitemap.
+Command: `.venv/bin/python manage.py test core.tests_seo_contract.WholeSitemapContractTests.test_generated_metadata_quality_entire_sitemap --verbosity 1`.
+Result: 1 test, 119 failed subtests, 3.143s, exit 1; raw evidence
+/tmp/rvion-seo-metadata-red.log. Failures include the two About pages and real
+seeded Service descriptions, not only artificial fixtures or affected demos.
+Additional fixture-length failures are not claimed as production defects.
+The test extension remains uncommitted intentionally; no failing test committed,
+removed, skipped or weakened. Report/state checkpoint alone is committed.
+No green/full suite, before/after 26-row table, or changed-HTML URL list yet:
+implementation has not started because the mandatory acceptance conflicts with
+the explicit no-other-page-metadata boundary. Existing deployed metadata unchanged.
+All three protected dirty gallery files preserved. No push/deploy/migration,
+analytics/session/cookie/cache changes or customer writes.
+
+Owner decision needed (recommended A):
+A. Enforce 90–155 only for the 26 requested demo/exam metadata instances;
+keep punctuation/repetition/title-size/uniqueness checks over the whole sitemap,
+and assert all other metadata is unchanged. This changes the requested length
+test scope only after explicit owner approval; it is NOT silently applied.
+B. Keep the exact global 90–155 criterion and explicitly authorize composition
+changes for the 11 About/service descriptions as well; use existing copy only.
+Rollback: no product/data change. Remove only this agent's uncommitted test hunk
+if the task is withdrawn; retain the red evidence and decision record.
+
 Date: 2026-10-07. Overall status: **PARTIAL — independent SEO work resumed**.
 Single primary agent; self-review, not independent review.
 Source request: `/Users/rwin/Documents/claud/rvionai.com-audit/AGENT-PROMPT.md`.
