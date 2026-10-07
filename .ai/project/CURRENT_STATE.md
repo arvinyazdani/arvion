@@ -1,5 +1,59 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 6 checkpoint (2026-10-07)
+
+- VERIFIED locally; user appearance acceptance pending. Stage 6 of 8:
+  order -> case -> specialist form -> agreement -> access/delivery -> customer
+  evidence. Stages 7–8 remain NOT_STARTED. Existing public customer-room flow,
+  Norbinan contract text/phone/password/records, business policies, publication,
+  delivery/authentication services and all-staff workspace access preserved.
+- Five fragment-linked preparation sections retain fields without page reload;
+  back/direct links and heading focus work. Without JS all sections remain
+  available. Four informational readiness checks are separate from customer
+  completion and do not replace server publication rules. Publication locks a
+  version; SMS delivery is a separate action, not assumed successful.
+- Original request/export links are scoped and permission-aware. Base snapshots
+  and readable historical revisions are accessible before a contract exists.
+  Demo snapshot presentation remains frozen. Source export returns only to its
+  matching case; external/malformed IDs fall back safely. Lead export now also
+  includes email, website, service, request type, budget, timing and contact
+  preference; existing Persian-only document convention retained.
+- Staff-only read-only package preview needs no customer login/acceptance and
+  exposes no access token/password. Published preview reads the frozen version;
+  draft preview reflects saved fields only. Invalid contract POST preserves typed
+  data, context, documents and inline errors. List counts/filter use the latest
+  non-expired workspace, not historical proposals; list and room events paginate
+  20 with actual totals. Newest events first, actor/time evidence retained.
+- Browser QA reproduced a builder deletion bug: bound accessibility validation
+  ran in QuestionnaireRowForm.__init__ before formset DELETE was added, so even
+  a checked deletion was ignored. Accessibility now runs in a scoped formset
+  add_fields after super; shared accessibility code is unchanged. JS retains
+  deleted row prefixes/TOTAL_FORMS. Automated regression and browser add ->
+  remove blank row -> save existing question both pass. No schema/migration.
+- Evidence: 107 related SQLite tests OK before final builder fix; subsequent
+  workspace/contracts gate 74/74 OK, including public questionnaire, frozen
+  contracts, acceptance and document protections. All 13 stage tests passed on
+  isolated real PostgreSQL (zero skips). Final export changes verified with the
+  stage + demo dashboard suite (21 tests). Check 0, no migration drift, JS syntax
+  and whitespace clean. No full-suite/CI or independent review claim.
+- Browser disposable :8126: FA light 390/1280, EN dark 320; list/detail,
+  read-only preview/back, source export/back, questionnaire edit/add/remove/save,
+  section/back-history/heading focus, publication confirmation cancelled;
+  access-revoke dialog cancelled with Escape and focus returned to Revoke.
+  No horizontal overflow; section targets 52px. Authored customer names and
+  contract content retain their original language intentionally. No customer
+  acceptance, real SMS/Push, credential rotation or publication submitted in UI.
+  Physical iPhone and production behavior not tested. Preview and pane styling
+  self-reviewed using Frontend Design, UI/UX Pro Max and Design Critique.
+- 21st Task Steps #23569 metadata used as checklist/progress inspiration;
+  retrieval quota 0/2, AI disabled respected. No fetched component code, new
+  React dependency or independent-review claim. Proof files:
+  /tmp/rvion-phase4-IWtoof/admin-stage6-mobile.png and
+  /tmp/rvion-phase4-IWtoof/admin-stage6-preview-desktop.png.
+- Three unrelated gallery edits preserved/excluded. No production write,
+  migration, push or deploy. Exact milestone hash: Git authority.
+- Next: pause for user stage-6 review; then stage 7 communication/follow-up.
+
 ## Admin decision-focused rebuild — stage 5 checkpoint (2026-10-07)
 
 - VERIFIED locally; user appearance acceptance pending. Stage 5 of 8:

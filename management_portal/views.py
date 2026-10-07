@@ -17,7 +17,7 @@ from django.db.models.fields.json import KeyTextTransform
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
@@ -1081,7 +1081,18 @@ def request_export(request, kind, object_id):
     elif kind == "clinic": report = render_clinic_order_text(item)
     else:
         demo_lines = _demo_selection_report_lines(item)
-        report = "\n".join(("گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}", f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}", f"تماس: {item.phone or item.email_or_telegram}", *demo_lines, "", item.message)) + "\n"
+        # The existing downloadable document is Persian in either UI language.
+        with translation.override("fa"):
+            report = "\n".join((
+                "گزارش درخواست همکاری آرویون", f"کد پیگیری: {item.tracking_code}",
+                f"نام: {item.name}", f"مجموعه: {item.business_name or '—'}",
+                f"تماس: {item.phone or '—'}", f"ایمیل / تلگرام: {item.email_or_telegram}",
+                f"وب‌سایت: {item.website_url or '—'}", f"خدمت: {item.service or '—'}",
+                f"نوع درخواست: {item.get_request_type_display()}", f"بودجه: {item.get_budget_range_display()}",
+                f"زمان‌بندی: {item.get_timeline_display()}", f"روش تماس: {item.get_preferred_contact_display()}",
+                f"زمان ثبت: {timezone.localtime(item.created_at):%Y/%m/%d %H:%M}",
+                *demo_lines, "", item.message,
+            )) + "\n"
     filename = f"rvion-{kind}-{item.pk}.txt"
     if request.GET.get("download") == "1":
         OperationalAudit.objects.create(actor=request.user, action="request_exported", target_type=kind, target_id=str(item.pk), summary=getattr(item, "tracking_code", str(item.pk)))
@@ -1089,6 +1100,12 @@ def request_export(request, kind, object_id):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
     lang = getattr(request, "LANGUAGE_CODE", "fa")
+    export_back_url = reverse("management_portal:request_detail", args=[kind, item.pk])
+    workspace_id = request.GET.get("workspace", "")
+    if workspace_id.isascii() and workspace_id.isdigit() and len(workspace_id) <= 18:
+        case = CustomerCase.objects.filter(pk=int(workspace_id), source_content_type=ContentType.objects.get_for_model(item), source_object_id=item.pk).first()
+        if case:
+            export_back_url = reverse("management_portal:workspace_detail", args=[case.pk]) + "#base"
     titles = {
         "lead": ("خروجی کامل درخواست همکاری", "Enquiry export"),
         "crm": ("خروجی کامل نیازسنجی CRM", "CRM discovery export"),
@@ -1101,7 +1118,7 @@ def request_export(request, kind, object_id):
         "report": report,
         "filename": filename,
         "download_url": f"{request.path}?download=1",
-        "back_url": reverse("management_portal:request_detail", args=[kind, item.pk]),
+        "back_url": export_back_url,
     })
 
 

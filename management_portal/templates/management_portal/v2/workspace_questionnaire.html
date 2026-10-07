@@ -1,7 +1,7 @@
 {% extends "management_portal/v2/base.html" %}{% load static %}
 {% block title %}{% if lang == 'fa' %}سازنده فرم تخصصی{% else %}Specialist form builder{% endif %} | {{ case.customer_name }}{% endblock %}
 {% block page_title %}{% if lang == 'fa' %}سازنده فرم تخصصی{% else %}Specialist form builder{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/workspace.css' %}?v=1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/workspace.css' %}?v=3"><link rel="stylesheet" href="{% static 'management_portal/v2/order-journey.css' %}?v=2">{% endblock %}
 {% block content %}
 <section class="m-detail-hero"><div><span>{{ case.code }}</span><h1>{% if lang == 'fa' %}سؤال‌های {{ case.customer_name }}{% else %}Questions for {{ case.customer_name }}{% endif %}</h1><p>{% if lang == 'fa' %}هر ردیف یک سؤال است. برای سؤال‌های یک بخش، عنوان بخش را یکسان نگه دارید. راهنمای خوب به مشتری می‌گوید چرا می‌پرسیم و پاسخ کامل چه اجزایی دارد.{% else %}Each row is one question. Keep the section title identical for questions in the same section. Good guidance explains why the answer matters and what a complete response contains.{% endif %}</p></div><div class="m-detail-actions"><a href="{% url 'management_portal:workspace_detail' case.pk %}">{% if lang == 'fa' %}انصراف و بازگشت{% else %}Cancel & back{% endif %}</a></div></section>
 {% if assignment and assignment.answers %}<section class="ws-warning" role="alert"><strong>{% if lang == 'fa' %}این فرم پاسخ مشتری دارد{% else %}This form has customer responses{% endif %}</strong><p>{% if lang == 'fa' %}برای حفاظت از پاسخ‌ها، جایگزینی مستقیم نسخه بسته است. ابتدا باید پرونده نسخه جدید داشته باشد.{% else %}Direct replacement is blocked to preserve the responses. Create a new case version first.{% endif %}</p></section>{% endif %}
@@ -20,4 +20,4 @@
   <footer class="ws-builder-actions"><button type="button" class="ws-secondary-button" data-add-question>＋ {% if lang == 'fa' %}افزودن سؤال{% else %}Add question{% endif %}</button><button class="ws-primary-button" type="submit">{% if lang == 'fa' %}ذخیره نسخه فرم{% else %}Save form version{% endif %}</button></footer>
 </form>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'management_portal/v2/workspace.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'management_portal/v2/workspace.js' %}?v=2" defer></script>{% endblock %}

@@ -12,7 +12,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import ValidationError
-from django.db.models import Prefetch, Q
+from django.db.models import OuterRef, Prefetch, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -26,7 +26,8 @@ from contracts.forms import (
     questionnaire_rows_from_schema,
     questionnaire_schema_from_formset,
 )
-from contracts.models import ContractProposal, RoomAccessGrant, SpecialistAssignment
+from contracts.models import ContractProposal, ContractVersion, RoomAccessGrant, SpecialistAssignment
+from contracts.services import proposal_snapshot
 from contracts.workspace_services import (
     create_access_grant,
     create_general_terms_version,
@@ -43,6 +44,8 @@ from contracts.workspace_services import (
 
 from .cases import DEMO_SELECTION_DOCUMENT_TITLE
 from .models import CustomerCase, OperationalAudit
+from .order_journey import STATUS_EN, preparation, source_links
+from .assessment_review import review_page
 
 
 DASH = "—"
@@ -65,14 +68,14 @@ def _validation_text(error):
 def _workspace_for_case(case):
     return (
         case.contract_proposals.select_related(
-            "customer", "general_terms_version", "created_by"
+            "customer", "general_terms_version", "created_by", "specialist_assignment__version"
         )
         .prefetch_related(
-            "access_grants", "room_deliveries", "room_events__actor",
-            "versions__room_acknowledgements",
+            "access_grants",
+            Prefetch("versions", queryset=ContractVersion.objects.select_related("acceptance").prefetch_related("room_acknowledgements")), "clauses",
         )
         .exclude(status__in=("expired",))
-        .order_by("-updated_at")
+        .order_by("-updated_at", "-pk")
         .first()
     )
 
@@ -139,18 +142,21 @@ EVENT_LABEL_EN = {
 @staff_member_required(login_url="accounts:login")
 def workspace_list(request):
     lang = _lang(request)
-    query = request.GET.get("q", "").strip()
+    query = request.GET.get("q", "").strip()[:150]
     state = request.GET.get("state", "all")
+    state = state if state in {"all", "not_started", "draft", "sent", "accepted", "revoked"} else "all"
     proposal_queryset = (
         ContractProposal.objects.exclude(status="expired")
         .select_related("specialist_assignment__version")
-        .prefetch_related("versions__room_acknowledgements")
-        .order_by("-updated_at")
+        .prefetch_related(Prefetch("versions", queryset=ContractVersion.objects.select_related("acceptance").prefetch_related("room_acknowledgements")))
+        .order_by("-updated_at", "-pk")
     )
+    latest = ContractProposal.objects.filter(customer_case_id=OuterRef("pk")).exclude(status="expired").order_by("-updated_at", "-pk")
+    all_cases = CustomerCase.objects.annotate(workspace_status=Subquery(latest.values("status")[:1]))
     cases = (
-        CustomerCase.objects.select_related("customer", "owner")
+        all_cases.select_related("customer", "owner")
         .prefetch_related(Prefetch("contract_proposals", queryset=proposal_queryset, to_attr="workspace_proposals"))
-        .order_by("-updated_at")
+        .order_by("-updated_at", "-pk")
     )
     if query:
         cases = cases.filter(
@@ -161,16 +167,19 @@ def workspace_list(request):
             | Q(email__icontains=query)
         )
     if state == "not_started":
-        cases = cases.filter(contract_proposals__isnull=True)
+        cases = cases.filter(workspace_status__isnull=True)
     elif state == "draft":
-        cases = cases.filter(contract_proposals__status="draft")
+        cases = cases.filter(workspace_status="draft")
     elif state == "sent":
-        cases = cases.filter(contract_proposals__status__in=("sent", "review"))
+        cases = cases.filter(workspace_status__in=("sent", "review"))
     elif state == "accepted":
-        cases = cases.filter(contract_proposals__status="accepted")
+        cases = cases.filter(workspace_status="accepted")
+    elif state == "revoked":
+        cases = cases.filter(workspace_status="revoked")
 
     rows = []
-    for case in cases.distinct()[:150]:
+    page = review_page(cases, request, "page", "workspace-cases")
+    for case in page:
         proposal = case.workspace_proposals[0] if case.workspace_proposals else None
         if proposal:
             try:
@@ -184,18 +193,20 @@ def workspace_list(request):
             progress = workspace_progress(proposal, assignment=assignment, version=version)
         else:
             progress = None
-        rows.append({"case": case, "proposal": proposal, "progress": progress})
+        rows.append({"case": case, "proposal": proposal, "progress": progress,
+                     "status_label": proposal.get_status_display() if lang == "fa" and proposal else STATUS_EN.get(proposal.status, proposal.status) if proposal else ""})
 
     return render(request, "management_portal/v2/workspace_list.html", {
         "lang": lang,
         "rows": rows,
+        "page": page,
         "query": query,
         "state": state,
         "stats": {
-            "all": CustomerCase.objects.count(),
-            "not_started": CustomerCase.objects.filter(contract_proposals__isnull=True).count(),
-            "active": ContractProposal.objects.filter(status__in=("draft", "sent", "review")).count(),
-            "accepted": ContractProposal.objects.filter(status="accepted").count(),
+            "all": all_cases.count(),
+            "not_started": all_cases.filter(workspace_status__isnull=True).count(),
+            "active": all_cases.filter(workspace_status="draft").count(),
+            "accepted": all_cases.filter(workspace_status="accepted").count(),
         },
     })
 
@@ -209,12 +220,18 @@ def workspace_detail(request, case_id):
         pk=case_id,
     )
     proposal = _workspace_for_case(case)
+    return render(request, "management_portal/v2/workspace_detail.html", _workspace_context(request, case, proposal))
+
+
+def _workspace_context(request, case, proposal, contract_form=None):
+    lang = _lang(request)
     assignment = None
     progress = None
     if proposal:
         assignment = getattr(proposal, "specialist_assignment", None)
-        progress = workspace_progress(proposal)
-    credentials = request.session.pop(f"workspace_credentials_{case.pk}", None)
+        version = next((v for v in proposal.versions.all() if v.number == proposal.current_version), None)
+        progress = workspace_progress(proposal, assignment=assignment, version=version)
+    credentials = request.session.pop(f"workspace_credentials_{case.pk}", None) if request.method == "GET" else None
     case_documents = list(case.documents.all())
     demo_document = next((document for document in case_documents if document.title == DEMO_SELECTION_DOCUMENT_TITLE), None)
     documents = [
@@ -222,20 +239,23 @@ def workspace_detail(request, case_id):
             "document": document,
             "rows": _flatten_snapshot(document.snapshot),
             "revisions": document.revisions.all(),
+            "revision_rows": [{"revision": r, "rows": _flatten_snapshot(r.snapshot)} for r in document.revisions.all()],
             "kind_label": document.get_kind_display() if lang == "fa" else DOCUMENT_KIND_EN.get(document.kind, document.kind),
         }
         for document in case_documents
         if document is not demo_document
     ]
     demo_card = _demo_selection_card(demo_document, case, lang)
+    events_page = review_page(proposal.room_events.select_related("actor").order_by("-created_at", "-pk"), request, "events_page", "activity") if proposal else None
     room_events = [
         {
             "event": event,
             "label": event.get_event_type_display() if lang == "fa" else EVENT_LABEL_EN.get(event.event_type, event.event_type.replace("_", " ").title()),
         }
-        for event in (proposal.room_events.all() if proposal else [])
+        for event in (events_page if events_page is not None else [])
     ]
-    return render(request, "management_portal/v2/workspace_detail.html", {
+    checks = preparation(case, proposal, assignment, lang)
+    return {
         "lang": lang,
         "case": case,
         "proposal": proposal,
@@ -244,13 +264,44 @@ def workspace_detail(request, case_id):
         "documents": documents,
         "demo_card": demo_card,
         "room_events": room_events,
+        "events_page": events_page,
         "credentials": credentials,
-        "contract_form": WorkspaceContractForm(instance=proposal, lang=lang) if proposal else None,
+        "contract_form": contract_form if contract_form is not None else WorkspaceContractForm(instance=proposal, lang=lang) if proposal else None,
+        "preparation": checks,
+        "ready_to_publish": bool(proposal and all(c["ready"] for c in checks)),
+        "source_links": source_links(case, request.user),
+        "proposal_status_label": proposal.get_status_display() if proposal and lang == "fa" else STATUS_EN.get(proposal.status, proposal.status) if proposal else "",
+        "amount_display": f"{proposal.amount_irr:,}" if proposal else "",
         "access_form": WorkspaceAccessForm(
             lang=lang,
             initial={"authorized_phone": case.phone or (case.customer.phone if case.customer else "")},
         ) if proposal else None,
         "access_url": workspace_access_url(proposal, absolute_base=request.build_absolute_uri("/")) if proposal else "",
+    }
+
+
+@staff_member_required(login_url="accounts:login")
+def workspace_preview(request, case_id):
+    """Staff-only, read-only review; no publication, credentials or room events."""
+    case = get_object_or_404(CustomerCase, pk=case_id)
+    proposal = _workspace_for_case(case)
+    if proposal is None:
+        messages.info(request, _message(request, "ابتدا فضای مشتری را بسازید.", "Create the workspace first."))
+        return redirect("management_portal:workspace_detail", case_id=case.pk)
+    version = next((v for v in proposal.versions.all() if v.number == proposal.current_version), None)
+    snapshot = version.snapshot if version else proposal_snapshot(proposal)
+    general = snapshot.get("general_terms", "")
+    if version is None and proposal.general_terms_version_id:
+        general = proposal.general_terms_version.body
+    return render(request, "management_portal/v2/workspace_preview.html", {
+        "lang": _lang(request), "case": case, "published": version is not None,
+        "project_title": snapshot.get("project_title", ""), "customer_name": snapshot.get("customer_name", ""),
+        "scope": snapshot.get("project_scope", ""), "payment_terms": snapshot.get("payment_terms", ""),
+        "delivery_terms": snapshot.get("delivery_terms", ""), "client_details": snapshot.get("client_details", ""),
+        "general": general, "private": snapshot.get("private_terms", ""),
+        "clauses": snapshot.get("clauses", []),
+        "sections": snapshot.get("specialist_questionnaire", {}).get("schema", []),
+        "amount_display": f'{snapshot.get("amount_irr", 0):,}',
     })
 
 
@@ -292,15 +343,8 @@ def workspace_contract_save(request, case_id):
         messages.success(request, _message(request, "اطلاعات تجاری و شرایط خصوصی ذخیره شد.", "Commercial and private terms were saved."))
     else:
         messages.error(request, _message(request, "فیلدهای مشخص‌شده را اصلاح کنید.", "Correct the highlighted fields."))
-        assignment = getattr(proposal, "specialist_assignment", None)
-        return render(request, "management_portal/v2/workspace_detail.html", {
-            "lang": _lang(request), "case": case, "proposal": proposal,
-            "assignment": assignment, "progress": workspace_progress(proposal),
-            "documents": [{"document": d, "rows": _flatten_snapshot(d.snapshot), "revisions": d.revisions.all(), "kind_label": d.get_kind_display() if _lang(request) == "fa" else DOCUMENT_KIND_EN.get(d.kind, d.kind)} for d in case.documents.prefetch_related("revisions")],
-            "room_events": [{"event": event, "label": event.get_event_type_display() if _lang(request) == "fa" else EVENT_LABEL_EN.get(event.event_type, event.event_type.replace("_", " ").title())} for event in proposal.room_events.all()],
-            "contract_form": form, "access_form": WorkspaceAccessForm(lang=_lang(request)),
-            "access_url": workspace_access_url(proposal, absolute_base=request.build_absolute_uri("/")),
-        }, status=400)
+        return render(request, "management_portal/v2/workspace_detail.html",
+                      _workspace_context(request, case, proposal, contract_form=form), status=400)
     return redirect("management_portal:workspace_detail", case_id=case.pk)
 
 

@@ -1,10 +1,31 @@
 (() => {
+  const sections = document.querySelector('[data-workspace-sections]');
+  if (sections) {
+    const links = [...sections.querySelectorAll('a[href^="#"]')];
+    const panels = links.map(link => document.getElementById(link.hash.slice(1))).filter(Boolean);
+    const showSection = (moveFocus = false) => {
+      const selected = panels.find(panel => `#${panel.id}` === location.hash)
+        || document.getElementById(sections.dataset.startSection) || panels[0];
+      panels.forEach(panel => { panel.hidden = panel !== selected; });
+      links.forEach(link => {
+        if (link.hash === `#${selected.id}`) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+      if (moveFocus) {
+        const heading = selected.querySelector('h2');
+        heading?.setAttribute('tabindex', '-1');
+        heading?.focus({ preventScroll: true });
+      }
+    };
+    window.addEventListener('hashchange', () => showSection(true));
+    showSection(Boolean(document.querySelector('.ws-form em')));
+  }
   const builder = document.querySelector('[data-question-builder]');
   if (builder) {
     const list = builder.querySelector('[data-question-list]');
     const total = builder.querySelector('[name="questions-TOTAL_FORMS"]');
     const template = builder.querySelector('[data-empty-question]');
-    const renumber = () => list.querySelectorAll('[data-question-row]').forEach((row, index) => {
+    const renumber = () => [...list.querySelectorAll('[data-question-row]')].filter(row => !row.hidden).forEach((row, index) => {
       const number = row.querySelector('[data-row-number]');
       if (number) number.textContent = String(index + 1);
     });
@@ -23,7 +44,7 @@
       if (!remove) return;
       const row = remove.closest('[data-question-row]');
       const deletion = row?.querySelector('input[name$="-DELETE"]');
-      if (deletion && row.querySelector('input[name$="-question_key"]')?.value) {
+      if (deletion) {
         deletion.checked = true;
         row.hidden = true;
       } else {

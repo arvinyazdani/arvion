@@ -380,7 +380,8 @@ class QuestionnaireRowForm(forms.Form):
             self.fields["choices"].help_text = "For choice questions only; enter one choice per line."
             self.fields["choices"].widget.attrs["placeholder"] = "One choice per line"
             self.fields["placeholder"].help_text = "A short example that demonstrates the expected response; it is not the customer's answer."
-        enhance_form_accessibility(self)
+        # Formset adds DELETE after __init__; accessibility must not trigger
+        # bound validation before that field exists.
 
     def clean_choices(self):
         raw = self.cleaned_data.get("choices", "")
@@ -396,8 +397,15 @@ class QuestionnaireRowForm(forms.Form):
         return cleaned
 
 
+class QuestionnaireRowBaseFormSet(forms.BaseFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        enhance_form_accessibility(form)
+
+
 QuestionnaireRowFormSet = formset_factory(
     QuestionnaireRowForm,
+    formset=QuestionnaireRowBaseFormSet,
     extra=0,
     min_num=1,
     max_num=120,

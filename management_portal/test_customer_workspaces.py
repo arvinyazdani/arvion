@@ -90,7 +90,8 @@ class CustomerWorkspaceManagementTests(TestCase):
         )
         self.assertContains(response, "Customer progress")
         self.assertContains(response, "0%")
-        self.assertContains(response, ">01<", html=False)
+        self.assertContains(response, 'href="#base"', html=False)
+        self.assertContains(response, "Base discovery and archived documents")
         self.assertContains(
             response,
             "Example: 8 weeks after receiving the advance payment and required information.",
