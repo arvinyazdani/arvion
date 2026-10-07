@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from dataclasses import replace
 import json
 from urllib.parse import urlsplit, urlencode
 
@@ -46,6 +47,7 @@ from .backups import find_backup_inventory
 from .inbox import payment_source_id, present_sources, safe_inbox_return, unique_work
 from .cases import case_for_customer
 from .customer_journey import resolve_customer_journey
+from .customer_record import customer_record
 from .customer_events import record_customer_event
 from assessments.services import AssessmentAccessRevokedError, PaymentVerificationError, approve_manual_payment, revoke_assessment_access
 from .models import CaseActivity, CaseDocument, CaseTask, Customer, CustomerCase, CustomerContact, CustomerEvent, ManagementNotification, NotificationReceipt, OperationalAudit, PushSubscription, SavedCustomerSegment, SMSCampaign, SMSDispatch, SMSMessageTemplate, StaffAccessAudit, SystemLog
@@ -230,57 +232,46 @@ def customer_merge(request, source_id):
 
 @staff_member_required(login_url="accounts:login")
 def customer_detail(request, customer_id):
-    customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user", "cases__owner", "cases__tasks", "cases__documents", "cases__activities__actor"), pk=customer_id)
+    customer = get_object_or_404(Customer.objects.prefetch_related("contacts__user"), pk=customer_id)
     lang = getattr(request, "LANGUAGE_CODE", "fa")
-    contracts = list(customer.contracts.select_related("created_by").order_by("-updated_at")[:10])
-    orders = list(customer.assessment_orders.select_related("exam", "user", "manual_payment").order_by("-created_at")[:20])
-    user_ids = set(customer.contacts.exclude(user__isnull=True).values_list("user_id", flat=True))
-    user_ids.update(order.user_id for order in orders)
-    attempts = list(
-        Attempt.objects.filter(user_id__in=user_ids)
-        .select_related("user", "exam", "entitlement__order", "result")
-        .prefetch_related("result__skill_results__skill", "integrity_events")
-        .order_by("-created_at")[:30]
-    )
-    tickets = SupportTicket.objects.filter(Q(order__customer=customer) | Q(user__customer_contact_profiles__customer=customer)).select_related("order__exam", "user").distinct().order_by("-updated_at")[:10]
-    attempt_urls = {str(attempt.pk): reverse("management_portal:customer_assessment_detail", args=[customer.pk, attempt.user_id]) + f"#attempt-{attempt.pk}" for attempt in attempts}
-    timeline = []
-    for event in CustomerEvent.objects.filter(customer=customer).select_related("case", "actor")[:100]:
-        url = ""
-        if event.category == "payment":
-            url = reverse("management_portal:approvals")
-        elif event.source_type == "assessments.attempt":
-            url = attempt_urls.get(event.source_id, "")
-        elif event.category == "contract" and event.source_type == "contracts.contractproposal":
-            url = reverse("management_portal:contract_detail", args=[event.source_id])
-        timeline.append({
-            "at": event.occurred_at, "kind": event.category,
-            "title": event.title_fa if lang == "fa" else event.title_en,
-            "detail": event.description, "url": url,
-            "meta": event.case.code if event.case_id else "",
-        })
+    record = customer_record(request, customer)
 
     can_message = request.user.is_superuser or request.user.has_perm("management_portal.add_smsdispatch")
     can_change_case = request.user.is_superuser or request.user.has_perm("management_portal.change_customercase") or request.user.has_perm("crm_orders.change_crmorder") or request.user.has_perm("leads.change_lead") or request.user.has_perm("clinic_orders.change_clinicorder")
     journey = resolve_customer_journey(
         customer=customer,
-        orders=orders,
-        attempts=attempts,
-        contracts=contracts,
+        orders=record["journey_orders"],
+        attempts=record["journey_attempts"],
+        contracts=record["journey_contracts"],
         can_message=can_message,
         can_change_case=can_change_case,
     )
+    actions = []
+    for action in journey.actions:
+        if action.key == "contract" and not request.user.is_superuser:
+            continue
+        if action.key == "payment":
+            if not request.user.has_perm("assessments.view_manualpaymentsubmission"):
+                continue
+            pending = next(order.manual_payment for order in record["journey_orders"] if getattr(order, "manual_payment", None) and order.manual_payment.status == "pending")
+            action = replace(action, url=reverse("management_portal:approvals") + f"?payment={pending.pk}#payment-{pending.pk}")
+        actions.append(action)
+    # A customer query is not consumed by the legacy contract-create view.
+    # Use the existing case workspace instead of promising a false prefill.
+    actions = [action for action in actions if not (action.key == "contract" and not record["journey_contracts"])]
     initial_phone = customer.phone or next((contact.phone for contact in customer.contacts.all() if contact.phone), "")
     return render(request, "management_portal/v2/customer_detail.html", {
         "customer": customer,
-        "contact_form": CustomerContactForm(lang=lang),
-        "message_form": CustomerMessageForm(lang=lang, initial={"recipient": initial_phone}),
-        "task_form": CaseTaskForm(lang=lang),
-        "activity_form": CaseActivityForm(lang=lang),
+        "contact_form": CustomerContactForm(lang=lang, auto_id="contact_%s"),
+        "message_form": CustomerMessageForm(lang=lang, auto_id="message_%s", initial={"recipient": initial_phone}),
+        "task_form": CaseTaskForm(lang=lang, auto_id="task_%s"),
+        "activity_form": CaseActivityForm(lang=lang, auto_id="activity_%s"),
         "can_message": can_message,
         "can_change_case": can_change_case,
-        "events": timeline[:80], "contracts": contracts, "orders": orders,
-        "attempts": attempts, "tickets": tickets, "journey": journey, "lang": lang,
+        **record, "record_actions": actions, "journey": journey, "lang": lang,
+        "can_view_receipts": request.user.has_perm("assessments.view_manualpaymentsubmission"),
+        "can_manage_contracts": request.user.is_superuser,
+        "can_view_requests": any(request.user.has_perm(perm) for perm in ("leads.view_lead", "crm_orders.view_crmorder", "clinic_orders.view_clinicorder")),
     })
 
 
@@ -698,7 +689,7 @@ def crm_case_export(request, case_id):
         "report": report,
         "filename": filename,
         "download_url": f"{request.path}?download=1",
-        "back_url": reverse("management_portal:crm_case_detail", args=[case.pk]),
+        "back_url": (reverse("management_portal:customer_detail", args=[case.customer_id]) + "#customer-documents") if case.customer_id and request.GET.get("customer_record") == str(case.customer_id) else reverse("management_portal:crm_case_detail", args=[case.pk]),
     })
 
 

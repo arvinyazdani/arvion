@@ -77,7 +77,7 @@ def resolve_customer_journey(*, customer, orders, attempts, contracts, can_messa
     if can_change_case:
         actions.extend((
             JourneyAction("task", "ساخت پیگیری", "Create follow-up", "وظیفه مسئول‌دار با مهلت مشخص", "Create an assigned task with a due date", "#customer-actions", "form"),
-            JourneyAction("activity", "ثبت تماس یا یادداشت", "Log activity", "تماس، جلسه یا تصمیم را در Timeline نگه دارید", "Keep a call, meeting or decision in the timeline", "#customer-actions", "form"),
+            JourneyAction("activity", "ثبت تماس یا یادداشت", "Log activity", "تماس، جلسه یا تصمیم را در تاریخچه نگه دارید", "Keep a call, meeting or decision in the timeline", "#customer-actions", "form"),
         ))
     if pending_payments:
         actions.insert(0, JourneyAction("payment", "بررسی پرداخت", "Review payment", "رسید یا وضعیت سفارش منتظر تصمیم مدیر است", "A receipt or order is waiting for a decision", reverse("management_portal:approvals"), urgent=True))

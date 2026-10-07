@@ -4,7 +4,7 @@
 {% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/customer-operations.css' %}?v=8">{% endblock %}
 {% block content %}
 <section class="co-detail-hero">
-  <div><a href="{% url 'management_portal:customer_detail' customer.pk %}">{% if lang == 'fa' %}پرونده {{ customer.name }} ←{% else %}← {{ customer.name }} record{% endif %}</a><span>{% if lang == 'fa' %}حساب آزمون{% else %}ASSESSMENT ACCOUNT{% endif %}</span><h1>{{ account.get_full_name|default:account.email }}</h1><p><bdi>{{ account.mobile|default:account.email }}</bdi></p></div>
+  <div><a href="{% url 'management_portal:customer_detail' customer.pk %}#customer-assessments">{% if lang == 'fa' %}پرونده {{ customer.name }} ←{% else %}← {{ customer.name }} record{% endif %}</a><span>{% if lang == 'fa' %}حساب آزمون{% else %}ASSESSMENT ACCOUNT{% endif %}</span><h1>{{ account.get_full_name|default:account.email }}</h1><p><bdi>{{ account.mobile|default:account.email }}</bdi></p></div>
   <div><b>{{ attempts|length }}</b><small>{% if lang == 'fa' %}تلاش ثبت‌شده{% else %}attempts{% endif %}</small></div>
 </section>
 <section class="co-panel co-access-control" aria-labelledby="access-control-title">

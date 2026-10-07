@@ -1,5 +1,60 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 4 checkpoint (2026-10-07)
+
+- VERIFIED locally, appearance acceptance pending. Stage 4 of 8: unified
+  customer record with activity, assessments, finance, projects/documents and
+  contacts sections. Four stages remain NOT_STARTED. Existing customer URLs,
+  immutable events, documents/revisions, contracts and writers remain intact.
+- Selected section uses ordinary fragment links; JS hides other panels without
+  reload, supports direct links/back, opens the relevant form and restores
+  keyboard focus. Without JS, every section remains usable on the same page.
+  New action groups existing payment review, results/access controls, message,
+  follow-up, activity, contact and project package destinations. Forbidden
+  payment/contract/task/message actions are absent; their existing server checks
+  are unchanged. All-staff customer/contact/workspace access is deliberately
+  preserved. No new grant policy, SMS delivery, assessment flow or contract
+  editor was introduced; deeper finance/project work remains stages 5/6.
+- Activity has real timestamps, recorded actor (explicit unknown when absent),
+  source and case context; receipt/result/order/ticket/contract/legacy source
+  destinations resolve in scoped batches. Malformed, removed or unrelated
+  sources fail safely. Archived/general activity remains reachable through its
+  case; sources without a separate destination show an honest explanation.
+  Known system exam titles localize without rewriting persisted customer text.
+- Events/orders/attempts/cases/contracts paginate 15 at a time with real totals,
+  replacing silent caps and expensive integrity/document prefetches. Journey
+  representatives include older paid/active/completed/pending-receipt records
+  beyond the page; pending receipts remain actionable after a newer unpaid order.
+  Linked account menu is deduplicated, forms have unique field IDs. Currency
+  groups digits; issued access is not labelled proof of a bank transfer.
+- Text preview from this record has a validated back link to its documents
+  section; the old export URL/default return/download/Audit remain compatible.
+- Evidence: 116 related tests OK (CustomerRecordTests + ManagementDashboardTests
+  + AssessmentAccessControlTests + DemoSelectionCaseHandoffTests + action safety).
+  All 15 new record tests passed on isolated PostgreSQL, zero skips. After final
+  copy/currency polish, the 15-record-test targeted check was repeated. Check 0,
+  no migration drift, JS syntax and whitespace clean. Regression coverage includes
+  scope/CSRF/permissions, read-only GET/document preservation, precise source
+  links, malformed legacy metadata, pagination, old state, localized exam copy,
+  unique form IDs and bounded query growth. Fixture failures (missing paid_at /
+  duplicate pending user-exam order) were corrected without weakening constraints.
+- Browser isolated :8126: FA light 390/1280, EN dark 320; populated/empty records,
+  long authored text, fragment panel changes, Escape/focus, exact attempt report,
+  text preview -> same record/documents section. No horizontal overflow; primary
+  controls >=44px. Physical iPhone, full suite, CI, OS delivery and production
+  evidence were not claimed. Existing invalid POST paths still use their generic
+  retry messages; richer inline validation is deferred to the final UX gate.
+- Skills: primary workflow, Frontend Design, UI/UX Pro Max and Design Critique
+  self-review. 21st catalog Activity Timeline #28340 was researched as a grouping/
+  provenance pattern; code retrieval quota 0/2 and AI disabled were respected.
+  Implemented in existing Django/CSS/JS; no React dependency or claimed code import.
+- Proof: /tmp/rvion-phase4-IWtoof/admin-stage4-desktop.png and
+  admin-stage4-mobile.png; own local preview retained. Synthetic result/note/empty
+  customer were added only to disposable QA SQLite. No production data write,
+  migration, push or deploy. Three unrelated gallery edits preserved/excluded.
+  Exact milestone hash is recorded by Git, not a forward-reference hash here.
+- Next: pause for user appearance review; stage 5 is assessment/finance review.
+
 ## Admin decision-focused rebuild — stage 3 checkpoint (2026-10-07)
 
 - VERIFIED locally, user appearance acceptance pending. Stage 3 of 8: compact
