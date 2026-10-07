@@ -121,20 +121,20 @@ because the audit describes an existing implementation.
 | P1-4 | VERIFIED (local) | Page-specific descriptions from visible content and exam fields, including assessment terms outside sitemap. |
 | P1-5 | PARTIAL | Shared brand context, public title suffixes and og:site_name; protected gallery and embedded brand names retain correct existing spelling. |
 | P1-6 | NOT_STARTED | Existing core.test_seo_pwa.SearchDiscoveryTests.test_private_workspaces_are_excluded_from_crawling explicitly requires X-Robots-Tag: noindex. Header retained under the prompt's safety condition; no assertion weakened. |
-| P2-1 | NOT_STARTED | No Organization/WebSite graph work before Phase 1 resolves. |
-| P2-2 | NOT_STARTED | No visible breadcrumb/schema changes. |
-| P2-3 | NOT_STARTED | No Service schema/Offer added. |
-| P2-4 | NOT_STARTED | No CRM SoftwareApplication or fabricated exam Course/ratings. |
+| P2-1 | VERIFIED (local) | One model-backed Organization/WebSite graph, real logo, no guessed sameAs/contact fields. |
+| P2-2 | VERIFIED (local) | Matching visible bilingual breadcrumbs and BreadcrumbList; mobile wrap/desktop/local navigation checked. |
+| P2-3 | VERIFIED (local) | Service detail: Service/provider/areaServed, no fabricated Offer or price. |
+| P2-4 | VERIFIED (local) | CRM truthfully uses Service; exams use WebPage/BreadcrumbList, never Course/rating. |
 | P2-5 | NOT_STARTED | No blog schema/model/migration change; author and modification metadata approval remains needed. |
 | P2-6 | VERIFIED (local) | Template-only unique titles/descriptions use demo title/category/tagline/fit label; protected view untouched; contract passes. |
-| P2-7 | NOT_STARTED | No schema-contract extension; no sample graph invented for the report. |
+| P2-7 | VERIFIED (local) | Whole-sitemap JSON parsing, unique IDs/absolute URLs/type safety; 5 actual rendered graphs below. |
 | P3-1 | NOT_STARTED | No blog publishing/content/TOC work, no article or permanent draft created. |
 | P3-2 | NOT_STARTED | No invented FAQ or audience copy; database/copy inventory deferred. |
 | P3-3 | NOT_STARTED | No unique demo introductions supplied/applied; no noindex change. |
 | P3-4 | NOT_STARTED | No entity page/footer edits. |
 | P3-5 | NOT_STARTED | H1 proposal deferred at stop boundary; homepage untouched. |
 | P4-1 | BLOCKED | OWNER DECISION DEFERRED; analytics, language session behavior and cache policy must not change. |
-| P4-2 | NOT_STARTED | No Lighthouse run or before/after performance numbers; no CSS consolidation. |
+| P4-2 | VERIFIED (measurement only) | Four valid local mobile Lighthouse runs, LCP/CLS/TBT/CSS below; no optimization or production claim. |
 | P4-3 | NOT_STARTED | No first-paint PWA browser observation or change. |
 | P4-4 | NOT_STARTED | No new image introduced; future image policy still to enforce. |
 
@@ -231,3 +231,498 @@ policy, assessment terms, active exam briefings/demo previews; title suffixes
 also affect home, about, service list/detail and blog detail. FA-only enquiry
 head gains valid Persian/x-default alternates. No new claim needing approval.
 Rollback: bounded metadata/contract commit in Git; no DB rollback required.
+
+## Unified schema and navigation — current continuation
+
+P2 graph uses a public-route allow-list, CompanyProfile context already loaded by
+the page, one Organization/WebSite, stable absolute IDs, safe JSON script escaping,
+and matching visible bilingual breadcrumbs. No private account/customer graph.
+No invented sameAs, review/rating, Offer, price or exam Course. CRM uses Service.
+Organization/Service deliberately do not use unsupported inLanguage; the linked
+WebSite/WebPage/BlogPosting carry locale. References:
+[Google structured data](https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data),
+[Organization](https://schema.org/Organization), [Service](https://schema.org/Service),
+[localized alternates](https://developers.google.com/search/docs/specialty/international/localized-versions).
+
+The existing BlogPosting is consolidated into the same graph without adding an
+author, image or modification claim (P2-5 remains NOT_STARTED). Its prior test now
+resolves mainEntityOfPage to the actual WebPage URL, preserving canonical proof.
+Focused schema/core/PWA: 51/51 passed. No migrations; check/drift/diff clean.
+Full-suite first attempts exposed old CSS cache-version expectations and a compact
+JSON formatting expectation: versions updated to the intentional v7, JSON remains
+compact; no assertion skipped or business access weakened. Parallel failure
+reporting initially lacked tblib; installed tblib 3.2.2 only into disposable
+/tmp/rvion-seo-qa.3snpId/test-deps, not project requirements or production.
+
+Visual proof is bounded to new navigation: Persian and English service at 390px,
+Persian CRM order at 320px, English service at 1440px; screenshots inspected and
+scrollWidth equals viewport. Long English crumbs wrap, current item is plain
+aria-current text, ancestor links retain 44px targets. Clicking the CRM Home
+breadcrumb stays on the local host (relative visible link; absolute schema URL).
+No full-product UX acceptance or independent review is claimed. Premium strict
+audit reported 55 errors (actionless-button detection on existing demo controls);
+it is NOT a passing whole-product premium gate. Controls use JS data attributes,
+but this SEO phase does not claim to have interactively dismissed all findings.
+They remain recorded outside this scope, not hidden or rewritten in protected UI.
+
+Final full suite: 1032 tests, OK (27 PostgreSQL-only skips), 105.334 seconds:
+`PYTHONPATH=/tmp/rvion-seo-qa.3snpId/test-deps .venv/bin/python manage.py test --parallel 4 --verbosity 1`.
+The earlier sequential run had 3 failures/1 error (two cache-version subtests,
+one load-order version lookup, one JSON formatting check); all corrected and the
+full suite rerun, no skips added. Local Python 3.9/SQLite; this is not a new
+PostgreSQL/Python 3.11/3.12 CI or deployed-production proof.
+
+Changed public HTML now includes all allow-listed public pages, not only the
+historical sitemap-only change above. Paths with fa/en versions:
+`/`, `/about/`, `/company/`, `/crm/`, `/services/`,
+`/services/<published-slug>/`, `/blog/`, `/blog/<published-localized-slug>/`,
+`/projects/demos/`, `/projects/demos/<active-slug>/`, `/assessments/`,
+`/assessments/<active-slug>/about/`, `/assessments/terms/`, `/contact/`,
+`/privacy/`, `/service-terms/`, `/refund-policy/`, `/start/`.
+FA-only: `/fa/crm-order/`, `/fa/clinic-order/`. Dynamic paths must be enumerated
+from the live sitemap after a future authorized release; this task does not ask
+Google to recrawl QA fixtures. Private/noindex pages intentionally emit no graph.
+Single-language-only blog rows are not a new fixture covered by this contract;
+no claim of exhaustive arbitrary future content validation.
+
+Five samples below are parsed actual HTTP output from the disposable runtime.
+Exam seo-qa and blog seo-qa-fa are clearly synthetic QA-only records, never production.
+Company fields come from the migrated existing CompanyProfile, not invented copy.
+
+### Rendered /fa/
+
+```json
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://rvionai.com/#organization",
+      "name": "آرویون",
+      "alternateName": "Rvion",
+      "url": "https://rvionai.com/",
+      "logo": "https://rvionai.com/static/core/icons/icon-512.03c06f9d62f5.png",
+      "areaServed": "IR",
+      "legalName": "آروین توسعه تجارت هوشمند",
+      "telephone": "09333021100",
+      "identifier": "14015444540",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "تهران، نارمک شمالی، خیابان نیلفروشان، پلاک ۱، طبقه اول، واحد ۱",
+        "addressCountry": "IR",
+        "postalCode": "1683445995"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://rvionai.com/#website",
+      "name": "آرویون",
+      "url": "https://rvionai.com/",
+      "inLanguage": "fa",
+      "publisher": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://rvionai.com/fa/#webpage",
+      "url": "https://rvionai.com/fa/",
+      "name": "خانه",
+      "inLanguage": "fa",
+      "isPartOf": {
+        "@id": "https://rvionai.com/#website"
+      }
+    }
+  ]
+}
+```
+
+### Rendered /fa/services/corporate-website-design/
+
+```json
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://rvionai.com/#organization",
+      "name": "آرویون",
+      "alternateName": "Rvion",
+      "url": "https://rvionai.com/",
+      "logo": "https://rvionai.com/static/core/icons/icon-512.03c06f9d62f5.png",
+      "areaServed": "IR",
+      "legalName": "آروین توسعه تجارت هوشمند",
+      "telephone": "09333021100",
+      "identifier": "14015444540",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "تهران، نارمک شمالی، خیابان نیلفروشان، پلاک ۱، طبقه اول، واحد ۱",
+        "addressCountry": "IR",
+        "postalCode": "1683445995"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://rvionai.com/#website",
+      "name": "آرویون",
+      "url": "https://rvionai.com/",
+      "inLanguage": "fa",
+      "publisher": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://rvionai.com/fa/services/corporate-website-design/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "خانه",
+          "item": "https://rvionai.com/fa/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "راهکارها",
+          "item": "https://rvionai.com/fa/services/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "طراحی و توسعه وب‌سایت شرکتی",
+          "item": "https://rvionai.com/fa/services/corporate-website-design/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://rvionai.com/fa/services/corporate-website-design/#webpage",
+      "url": "https://rvionai.com/fa/services/corporate-website-design/",
+      "name": "طراحی و توسعه وب‌سایت شرکتی",
+      "inLanguage": "fa",
+      "isPartOf": {
+        "@id": "https://rvionai.com/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://rvionai.com/fa/services/corporate-website-design/#breadcrumb"
+      },
+      "mainEntity": {
+        "@id": "https://rvionai.com/fa/services/corporate-website-design/#service"
+      }
+    },
+    {
+      "@type": "Service",
+      "@id": "https://rvionai.com/fa/services/corporate-website-design/#service",
+      "name": "طراحی و توسعه وب‌سایت شرکتی",
+      "serviceType": "طراحی و توسعه وب‌سایت شرکتی",
+      "url": "https://rvionai.com/fa/services/corporate-website-design/",
+      "areaServed": "IR",
+      "provider": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    }
+  ]
+}
+```
+
+### Rendered /fa/crm/
+
+```json
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://rvionai.com/#organization",
+      "name": "آرویون",
+      "alternateName": "Rvion",
+      "url": "https://rvionai.com/",
+      "logo": "https://rvionai.com/static/core/icons/icon-512.03c06f9d62f5.png",
+      "areaServed": "IR",
+      "legalName": "آروین توسعه تجارت هوشمند",
+      "telephone": "09333021100",
+      "identifier": "14015444540",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "تهران، نارمک شمالی، خیابان نیلفروشان، پلاک ۱، طبقه اول، واحد ۱",
+        "addressCountry": "IR",
+        "postalCode": "1683445995"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://rvionai.com/#website",
+      "name": "آرویون",
+      "url": "https://rvionai.com/",
+      "inLanguage": "fa",
+      "publisher": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://rvionai.com/fa/crm/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "خانه",
+          "item": "https://rvionai.com/fa/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "CRM سازمانی",
+          "item": "https://rvionai.com/fa/crm/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://rvionai.com/fa/crm/#webpage",
+      "url": "https://rvionai.com/fa/crm/",
+      "name": "CRM سازمانی",
+      "inLanguage": "fa",
+      "isPartOf": {
+        "@id": "https://rvionai.com/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://rvionai.com/fa/crm/#breadcrumb"
+      },
+      "mainEntity": {
+        "@id": "https://rvionai.com/fa/crm/#service"
+      }
+    },
+    {
+      "@type": "Service",
+      "@id": "https://rvionai.com/fa/crm/#service",
+      "name": "CRM سازمانی",
+      "serviceType": "CRM سازمانی",
+      "url": "https://rvionai.com/fa/crm/",
+      "areaServed": "IR",
+      "provider": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    }
+  ]
+}
+```
+
+### Rendered /fa/assessments/seo-qa/about/
+
+```json
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://rvionai.com/#organization",
+      "name": "آرویون",
+      "alternateName": "Rvion",
+      "url": "https://rvionai.com/",
+      "logo": "https://rvionai.com/static/core/icons/icon-512.03c06f9d62f5.png",
+      "areaServed": "IR",
+      "legalName": "آروین توسعه تجارت هوشمند",
+      "telephone": "09333021100",
+      "identifier": "14015444540",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "تهران، نارمک شمالی، خیابان نیلفروشان، پلاک ۱، طبقه اول، واحد ۱",
+        "addressCountry": "IR",
+        "postalCode": "1683445995"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://rvionai.com/#website",
+      "name": "آرویون",
+      "url": "https://rvionai.com/",
+      "inLanguage": "fa",
+      "publisher": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://rvionai.com/fa/assessments/seo-qa/about/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "خانه",
+          "item": "https://rvionai.com/fa/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "آزمون‌ها",
+          "item": "https://rvionai.com/fa/assessments/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "آزمون نمونه بررسی سئو",
+          "item": "https://rvionai.com/fa/assessments/seo-qa/about/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://rvionai.com/fa/assessments/seo-qa/about/#webpage",
+      "url": "https://rvionai.com/fa/assessments/seo-qa/about/",
+      "name": "آزمون نمونه بررسی سئو",
+      "inLanguage": "fa",
+      "isPartOf": {
+        "@id": "https://rvionai.com/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://rvionai.com/fa/assessments/seo-qa/about/#breadcrumb"
+      }
+    }
+  ]
+}
+```
+
+### Rendered /fa/blog/seo-qa-fa/
+
+```json
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://rvionai.com/#organization",
+      "name": "آرویون",
+      "alternateName": "Rvion",
+      "url": "https://rvionai.com/",
+      "logo": "https://rvionai.com/static/core/icons/icon-512.03c06f9d62f5.png",
+      "areaServed": "IR",
+      "legalName": "آروین توسعه تجارت هوشمند",
+      "telephone": "09333021100",
+      "identifier": "14015444540",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "تهران، نارمک شمالی، خیابان نیلفروشان، پلاک ۱، طبقه اول، واحد ۱",
+        "addressCountry": "IR",
+        "postalCode": "1683445995"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://rvionai.com/#website",
+      "name": "آرویون",
+      "url": "https://rvionai.com/",
+      "inLanguage": "fa",
+      "publisher": {
+        "@id": "https://rvionai.com/#organization"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://rvionai.com/fa/blog/seo-qa-fa/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "خانه",
+          "item": "https://rvionai.com/fa/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "دیدگاه‌ها",
+          "item": "https://rvionai.com/fa/blog/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "مقاله نمونه بررسی",
+          "item": "https://rvionai.com/fa/blog/seo-qa-fa/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://rvionai.com/fa/blog/seo-qa-fa/#webpage",
+      "url": "https://rvionai.com/fa/blog/seo-qa-fa/",
+      "name": "مقاله نمونه بررسی",
+      "inLanguage": "fa",
+      "isPartOf": {
+        "@id": "https://rvionai.com/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://rvionai.com/fa/blog/seo-qa-fa/#breadcrumb"
+      },
+      "mainEntity": {
+        "@id": "https://rvionai.com/fa/blog/seo-qa-fa/#article"
+      }
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://rvionai.com/fa/blog/seo-qa-fa/#article",
+      "url": "https://rvionai.com/fa/blog/seo-qa-fa/",
+      "headline": "مقاله نمونه بررسی",
+      "description": "این مقاله فقط در پایگاه داده موقت بررسی وجود دارد.",
+      "inLanguage": "fa",
+      "publisher": {
+        "@id": "https://rvionai.com/#organization"
+      },
+      "mainEntityOfPage": {
+        "@id": "https://rvionai.com/fa/blog/seo-qa-fa/#webpage"
+      },
+      "datePublished": "2026-10-07T09:59:20.919000+00:00"
+    }
+  ]
+}
+```
+
+
+## Lighthouse mobile — measurement only
+
+Lighthouse 13.5.0 (official npm), Chrome, default mobile simulated throttling.
+Local runtime DEBUG=False, compressed-manifest static/WhiteNoise, isolated SQLite
+and WSGI on 127.0.0.1:8142; no TLS/CDN/production DB. One valid run per page, not
+a median or RUM/INP measurement. Other local tests shared CPU; results are directional.
+Two initial home/blog runs failed NO_NAVSTART and are excluded rather than scored.
+The raw successful reports are retained in /tmp/rvion-seo-qa.3snpId:
+lighthouse-home-retry.json, lighthouse-service.json, lighthouse-blog-retry.json,
+lighthouse-demo.json. Current working tree includes preserved user gallery edits;
+these are not a clean-release or before/after comparison.
+[Measurement reference](https://developer.chrome.com/docs/lighthouse/overview).
+
+| Local path | Performance /100 | LCP ms | CLS | TBT ms |
+| --- | ---: | ---: | ---: | ---: |
+| /fa/ | 57 | 3072 | 0.280 | 869 |
+| /fa/services/corporate-website-design/ | 96 | 2422 | 0.0085 | 0 |
+| /fa/blog/ | 69 | 3120 | 0 | 1101 |
+| /fa/projects/demos/saffron-table/ | 71 | 3201 | 0 | 723 |
+
+Render-blocking CSS common to all four (hashed files; query versions retained):
+tokens.css?v=5, site.css?v=40, components.css?v=7, public-shell.css?v=1,
+footer-studio.css?v=2. Home additionally home-studio.css?v=3 and
+projects/demo-studio.css?v=4 (7 total). Demo additionally demo-gallery.css?v=8,
+demo-studio.css?v=4, sector-experience.css?v=1 (8 total). Blog/service each 5.
+Exact hashed URLs remain in the raw JSON render-blocking-insight audit.
+No CSS consolidation, loader, cache, image or font optimization was attempted.
+Home layout shift and home/blog/demo main-thread blocking merit a later scoped
+performance phase, not a ranking or production-speed claim.
+
+## Read-only crawler diagnostic
+
+**NO**: traffic/middleware.py:52–68 only filters method/status/content type/private
+routes/prefixes; no known-crawler User-Agent exclusion. Lines 72–85 create session,
+increment page/unique counts and update online records for eligible crawler GETs.
+Proposal: after owner approval, exclude classified crawlers from human unique/online
+analytics and avoid creating their analytics sessions. This alone does not remove
+LanguageViewMixin's language session writes. No bot heuristic, middleware behavior,
+cookie/privacy text or caching was changed. P1-3/P4-1 remain BLOCKED (DEFERRED).
+
+## Boundaries and rollback
+
+Metadata milestone: 93132bc; schema/navigation milestone recorded in Git history.
+Revert the scoped local commits for source rollback; no schema/data rollback needed.
+No permanent dev or production database changes, external SMS, push or deploy.
+Three existing user gallery edits are preserved and excluded. Canonical report
+and CURRENT_STATE are the continuation source; historical checkpoints above remain
+history, not the current stage result.

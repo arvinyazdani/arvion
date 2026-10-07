@@ -7,7 +7,6 @@
 {% block og_description %}{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}{% endblock %}
 {% block extra_head %}
   <meta property="article:published_time" content="{{ post.published_at|date:'c' }}">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"{% if lang == 'fa' %}{{ post.title_fa|escapejs }}{% else %}{{ post.title_en|escapejs }}{% endif %}","description":"{% if lang == 'fa' %}{{ post.summary_fa|escapejs }}{% else %}{{ post.summary_en|escapejs }}{% endif %}","datePublished":"{{ post.published_at|date:'c' }}","mainEntityOfPage":{"@type":"WebPage","@id":"{{ canonical_url|escapejs }}"},"publisher":{"@type":"Organization","name":"Rvion","url":"{{ site_url|escapejs }}"}}</script>
 {% endblock %}
 
 {% block content %}

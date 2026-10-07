@@ -7,8 +7,21 @@
 - Whole-sitemap contract + factual metadata VERIFIED locally: 375 regression tests
   passed (16 PostgreSQL-only skips), then 7/7 focused tests including localized brand.
   Check/migration drift/diff clean. Red-before-green: 50 subtest failures before fixes.
-- P1-2/P1-4/P2-6 verified; P1-5 partial because protected gallery/embedded names
-  remain unchanged. Next: unified graph and visible breadcrumbs (P2-1..4, P2-7).
+- P1-2/P1-4/P2-1..4/P2-6/P2-7 verified locally; P1-5 partial because protected
+  gallery/embedded names remain unchanged. Metadata milestone: 93132bc.
+- Schema/navigation: 51 focused tests pass; final full suite 1032 tests OK,
+  27 PostgreSQL-only skips. First full failures were corrected cache-version/JSON
+  representation expectations, not skipped. tblib installed only in temporary
+  test-deps for parallel traceback reporting. No production dependency change.
+- P4-2 measured locally: home/service/blog/demo performance 57/96/69/71;
+  LCP/CLS/TBT and blocking CSS in canonical report, no optimization. Crawlers
+  are NOT excluded from human visitor/session counts (read-only diagnosis).
+- Bounded visual breadcrumbs: FA/EN 390px, FA flow 320px, EN desktop 1440px,
+  no horizontal scroll; relative Home link remains local. Whole premium strict
+  audit is NOT green (55 existing demo actionless-button findings recorded).
+- This authorized prompt is completed locally; entire four-phase SEO programme
+  remains PARTIAL. Next owner decision: analytics policy P1-3/P4-1 (DEFERRED);
+  remaining content/performance phases are not implemented or authorized here.
 - Canonical evidence: docs/seo/SEO_PHASE_REPORT.md. Preserve/exclude the three
   user-dirty gallery files. No permanent local/customer DB changes.
 

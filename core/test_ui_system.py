@@ -134,7 +134,7 @@ class UISystemFoundationTests(SimpleTestCase):
                 source = shell.read_text(encoding="utf-8")
                 self.assertIn('{% include "core/_pull_to_refresh.html" %}', source)
                 self.assertIn("core/js/pull-to-refresh.js' %}?v=1", source)
-                version = 6 if shell == shells[0] else 5
+                version = 7 if shell in shells[:2] else 5
                 self.assertIn(f"core/css/components.css' %}}?v={version}", source)
 
     def test_progressive_reveal_and_scrim_focus_recovery_are_real(self):

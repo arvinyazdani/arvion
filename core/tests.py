@@ -147,7 +147,7 @@ class CorePagesTests(TestCase):
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=5")
         legacy = html.index("core/css/site.css?v=40")
-        components = html.index("core/css/components.css?v=6")
+        components = html.index("core/css/components.css?v=7")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
 

@@ -26,6 +26,8 @@ class HeadParser(HTMLParser):
         self.h1_count = 0
         self.title = ''
         self._in_title = False
+        self.json_ld = []
+        self._schema_buffer = None
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
@@ -38,14 +40,21 @@ class HeadParser(HTMLParser):
             self.h1_count += 1
         elif tag == 'title':
             self._in_title = True
+        elif tag == 'script' and attrs.get('type') == 'application/ld+json':
+            self._schema_buffer = ''
 
     def handle_endtag(self, tag):
         if tag == 'title':
             self._in_title = False
+        elif tag == 'script' and self._schema_buffer is not None:
+            self.json_ld.append(json.loads(self._schema_buffer))
+            self._schema_buffer = None
 
     def handle_data(self, data):
         if self._in_title:
             self.title += data
+        if self._schema_buffer is not None:
+            self._schema_buffer += data
 
 
 class WholeSitemapContractTests(TestCase):
@@ -136,6 +145,77 @@ class WholeSitemapContractTests(TestCase):
                     self.assertIn(brand, head.title)
                     self.assertEqual(head.meta['og:site_name'], brand)
                     self.assertTrue(head.meta['description'])
+
+    def test_schema_is_one_graph_with_unique_ids_and_absolute_local_urls(self):
+        def check_urls(value):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    if key in {'@id', 'url', 'item', 'logo', 'image'} and isinstance(child, str):
+                        self.assertTrue(child.startswith('https://rvionai.com/'), child)
+                    check_urls(child)
+            elif isinstance(value, list):
+                for child in value:
+                    check_urls(child)
+
+        for url, path, response, head in self.pages():
+            with self.subTest(url=url):
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(head.json_ld), 1)
+                graph = head.json_ld[0]['@graph']
+                ids = [node['@id'] for node in graph]
+                self.assertEqual(len(ids), len(set(ids)))
+                self.assertEqual(sum(node['@type'] == 'Organization' for node in graph), 1)
+                self.assertEqual(sum(node['@type'] == 'WebSite' for node in graph), 1)
+                check_urls(graph)
+                self.assertNotIn('aggregateRating', str(graph))
+                self.assertNotIn('Offer', str(graph))
+                if path not in {'/fa/', '/en/'}:
+                    breadcrumb = next(node for node in graph if node['@type'] == 'BreadcrumbList')
+                    html = response.content.decode()
+                    self.assertIn('class="shell seo-breadcrumbs"', html)
+                    self.assertIn('aria-current="page"', html)
+                    for item in breadcrumb['itemListElement']:
+                        self.assertIn(item['name'], html)
+                if '/assessments/' in path:
+                    self.assertNotIn('Course', str(graph))
+
+    def test_schema_uses_profile_and_escapes_script_breakout(self):
+        from core.models import CompanyProfile
+        # The profile seeded by migrations is public company data, not customer PII.
+        company = CompanyProfile.objects.first()
+        self.assertIsNotNone(company)
+        company.phone = '+980000000000'
+        company.legal_name_en = '</script><script>alert("test")</script>'
+        company.save()
+        response = self.client.get('/en/company/')
+        head = HeadParser(response.content.decode())
+        org = next(node for node in head.json_ld[0]['@graph'] if node['@type'] == 'Organization')
+        self.assertEqual(org['telephone'], company.phone)
+        self.assertEqual(org['legalName'], company.legal_name_en)
+        self.assertNotIn('</script><script>alert', response.content.decode())
+        self.assertNotIn('sameAs', org)
+
+    def test_private_account_does_not_receive_public_schema(self):
+        response = self.client.get('/fa/account/login/')
+        self.assertEqual(HeadParser(response.content.decode()).json_ld, [])
+
+    def test_page_specific_types_and_profile_absence_are_truthful(self):
+        from core.models import CompanyProfile
+        CompanyProfile.objects.all().delete()
+        for path, expected in (
+            ('/fa/services/seo-service/', 'Service'), ('/en/crm/', 'Service'),
+            ('/fa/assessments/english-placement-a1-c1/about/', 'WebPage'),
+        ):
+            response = self.client.get(path)
+            graph = HeadParser(response.content.decode()).json_ld[0]['@graph']
+            self.assertIn(expected, [node['@type'] for node in graph])
+            organization = next(node for node in graph if node['@type'] == 'Organization')
+            self.assertNotIn('telephone', organization)
+            self.assertNotIn('address', organization)
+            self.assertNotIn('identifier', organization)
+            if '/assessments/' in path:
+                self.assertEqual({node['@type'] for node in graph},
+                                 {'Organization', 'WebSite', 'WebPage', 'BreadcrumbList'})
 
 
 class ExamSearchContractTests(TestCase):

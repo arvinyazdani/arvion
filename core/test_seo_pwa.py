@@ -156,6 +156,9 @@ class SearchDiscoveryTests(TestCase):
                 response.content.decode("utf-8"),
             )
         ]
-        article = next(document for document in documents if document.get("@type") == "BlogPosting")
+        self.assertEqual(len(documents), 1)
+        graph = documents[0]["@graph"]
+        article = next(document for document in graph if document.get("@type") == "BlogPosting")
         self.assertEqual(article["headline"], post.title_fa)
-        self.assertEqual(article["mainEntityOfPage"]["@id"], response.context["canonical_url"])
+        page = next(document for document in graph if document["@id"] == article["mainEntityOfPage"]["@id"])
+        self.assertEqual(page["url"], response.context["canonical_url"])

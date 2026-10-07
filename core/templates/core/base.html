@@ -1,4 +1,4 @@
-{% load static %}
+{% load static seo %}{% seo_documents as seo %}
 <!doctype html>
 <html lang="{{ lang|default:'fa' }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
@@ -36,7 +36,7 @@
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme);if(!sessionStorage.getItem('rvion-welcome-v1'))document.documentElement.classList.add('welcome-pending')}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=40">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=7">
   <link rel="stylesheet" href="{% static 'core/css/public-shell.css' %}?v=1">
   <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=2">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
@@ -48,7 +48,7 @@
   <script src="{% static 'core/js/wizard-engine.js' %}?v=4" defer></script>
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=2" defer></script>{% endif %}
   {% block extra_head %}{% endblock %}
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"{% if lang == 'fa' %}آروین توسعه تجارت هوشمند{% else %}Rvion Intelligent Trade Development{% endif %}","alternateName":"Rvion","url":"{{ site_url }}","telephone":"+989333021100","identifier":"14015444540","address":{"@type":"PostalAddress","postalCode":"1683445995","addressLocality":"Tehran","addressCountry":"IR"}}</script>
+  {% include 'core/includes/seo_graph.html' %}
 </head>
 <body class="{% block body_class %}{% endblock %}" data-public-shell>
   {% include "core/_route_loader.html" %}
@@ -87,7 +87,7 @@
     </div>
   </header>
   {% if messages %}<div class="shell messages" aria-label="{% if lang == 'fa' %}پیام‌های سیستم{% else %}System messages{% endif %}">{% for message in messages %}<div class="message message-{{ message.level_tag|default:'info' }}" {% if message.level_tag == 'error' %}role="alert" aria-live="assertive"{% else %}role="status" aria-live="polite"{% endif %} aria-atomic="true"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#{% if message.level_tag == 'success' %}check{% elif message.level_tag == 'error' or message.level_tag == 'warning' %}alert{% else %}message{% endif %}"></use></svg><span>{{ message }}</span></div>{% endfor %}</div>{% endif %}
-  <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
+  <main id="main" tabindex="-1">{% include 'core/includes/seo_breadcrumbs.html' %}{% block content %}{% endblock %}</main>
   <nav class="mobile-tabbar" aria-label="{% if lang == 'fa' %}دسترسی سریع{% else %}Quick navigation{% endif %}">
     <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#home"></use></svg><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
     <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</span></a>

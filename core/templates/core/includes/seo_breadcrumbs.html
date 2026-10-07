@@ -1,0 +1,5 @@
+{% if seo.breadcrumbs %}
+<nav class="shell seo-breadcrumbs" aria-label="{% if lang == 'fa' %}مسیر صفحه{% else %}Breadcrumb{% endif %}">
+  <ol>{% for item in seo.breadcrumbs %}<li>{% if forloop.last %}<span aria-current="page">{{ item.name }}</span>{% else %}<a href="{{ item.path }}">{{ item.name }}</a>{% endif %}</li>{% endfor %}</ol>
+</nav>
+{% endif %}

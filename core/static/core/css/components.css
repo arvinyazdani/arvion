@@ -1,5 +1,14 @@
 /* کامپوننت‌های پایه مشترک v3 — افزایشی و عقب‌سازگار با کلاس‌های فعلی. */
 
+/* Shared, in-flow hierarchy; no animation or additional blocking stylesheet. */
+.seo-breadcrumbs{padding-block:var(--space-3);font-size:var(--font-size-sm);color:var(--text-secondary)}
+.seo-breadcrumbs ol{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin:0;padding:0;list-style:none}
+.seo-breadcrumbs li{min-width:0;overflow-wrap:anywhere;display:flex;align-items:center;gap:var(--space-2)}
+.seo-breadcrumbs li+li::before{content:'/';color:var(--text-secondary)}
+.seo-breadcrumbs a{display:inline-flex;align-items:center;min-height:44px;color:var(--text-primary);text-decoration:underline;text-underline-offset:4px}
+.seo-breadcrumbs a:hover{color:var(--text-link)}
+.seo-breadcrumbs a:focus-visible{outline:2px solid var(--border-focus);outline-offset:3px}
+
 .btn,.button,.button-ghost{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:var(--control-height-md);border:var(--border-width) solid var(--action-primary-bg);background:var(--action-primary-bg);color:var(--action-primary-text);padding:10px var(--control-padding-inline);border-radius:var(--radius-pill);font:inherit;font-size:var(--font-size-sm);font-weight:var(--font-weight-bold);line-height:1.45;cursor:pointer;text-decoration:none;transition:transform var(--motion-duration-normal) var(--motion-ease-standard),box-shadow var(--motion-duration-normal) var(--motion-ease-standard),background-color var(--motion-duration-fast) var(--motion-ease-standard),border-color var(--motion-duration-fast) var(--motion-ease-standard),color var(--motion-duration-fast) var(--motion-ease-standard)}
 @media(hover:hover) and (pointer:fine){.btn:hover,.button:hover,.button-ghost:hover{transform:none;box-shadow:var(--shadow-sm);background:var(--action-primary-bg-hover);color:var(--action-brand-text)}}
 .btn:active,.button:active,.button-ghost:active{transform:translateY(0);box-shadow:none}
