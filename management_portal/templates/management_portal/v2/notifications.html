@@ -1,26 +1,26 @@
 {% extends "management_portal/v2/base.html" %}{% load static management_i18n %}
-{% block title %}{% if lang == 'fa' %}مرکز اعلان‌ها | مدیریت آرویون{% else %}Notification center | Rvion Management{% endif %}{% endblock %}
-{% block page_title %}{% if lang == 'fa' %}مرکز اعلان‌ها{% else %}Notification center{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/notifications.css' %}?v=3">{% endblock %}
+{% block title %}{% if lang == 'fa' %}صندوق کار | مدیریت آرویون{% else %}Work inbox | Rvion Management{% endif %}{% endblock %}
+{% block page_title %}{% if lang == 'fa' %}صندوق کار و اعلان‌ها{% else %}Work & notifications{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'management_portal/v2/notifications.css' %}?v=6">{% endblock %}
 
 {% block content %}
-<section class="n-hero">
-  <div><span>{% if lang == 'fa' %}صندوق عملیات زنده{% else %}LIVE OPERATIONS INBOX{% endif %}</span><h1>{% if lang == 'fa' %}فقط چیزی که اکنون مهم است{% else %}Only what matters now{% endif %}</h1><p>{% if lang == 'fa' %}کارهای نیازمند تصمیم از رویدادهای اطلاع‌رسانی جدا شده‌اند. این صفحه هنگام بازبودن، خودکار به‌روز می‌شود.{% else %}Work that needs a decision is separated from informational events. This page refreshes itself while open.{% endif %}</p></div>
+<section class="n-hero" data-inbox-view="{{ active_view }}">
+  <div><h1>{% if lang == 'fa' %}صندوق کار{% else %}Work inbox{% endif %}</h1><p>{% if lang == 'fa' %}جزئیات را ببینید، تصمیم بگیرید و به همین صف برگردید. «دیده‌شده» یعنی مشاهده، نه انجام کار.{% else %}Review the details, take action and return to this queue. Seen means viewed, not completed.{% endif %}</p></div>
   <div class="n-live-state"><i aria-hidden="true"></i><span>{% if lang == 'fa' %}همگام‌سازی زنده هر ۱۵ ثانیه{% else %}Live sync every 15 seconds{% endif %}</span></div>
 </section>
 
 <nav class="n-views" aria-label="{% if lang == 'fa' %}نماهای اعلان{% else %}Notification views{% endif %}">
-  <a href="?view=action"{% if active_view == 'action' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}نیازمند اقدام{% else %}Needs action{% endif %}</span><b data-notification-view-count="action">{{ notification_counts.action }}</b></a>
-  <a href="?view=mine"{% if active_view == 'mine' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}کارهای من{% else %}My work{% endif %}</span><b data-notification-view-count="mine">{{ notification_counts.mine }}</b></a>
-  <a href="?view=events"{% if active_view == 'events' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}رویدادها{% else %}Updates{% endif %}</span><b data-notification-view-count="events">{{ notification_counts.events }}</b></a>
-  <a href="?view=snoozed"{% if active_view == 'snoozed' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}یادآوری بعداً{% else %}Snoozed{% endif %}</span><b data-notification-view-count="snoozed">{{ notification_counts.snoozed }}</b></a>
-  <a href="?view=archive"{% if active_view == 'archive' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}آرشیو{% else %}Archive{% endif %}</span><b data-notification-view-count="archive">{{ notification_counts.archive }}</b></a>
+  <a href="?{{ inbox_filter_query }}&view=action"{% if active_view == 'action' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}نیازمند اقدام{% else %}Needs action{% endif %}</span><b data-notification-view-count="action">{{ notification_counts.action }}</b></a>
+  <a href="?{{ inbox_filter_query }}&view=mine"{% if active_view == 'mine' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}کارهای من{% else %}My work{% endif %}</span><b data-notification-view-count="mine">{{ notification_counts.mine }}</b></a>
+  <a href="?{{ inbox_filter_query }}&view=events"{% if active_view == 'events' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}رویدادها{% else %}Updates{% endif %}</span><b data-notification-view-count="events">{{ notification_counts.events }}</b></a>
+  <a href="?{{ inbox_filter_query }}&view=snoozed"{% if active_view == 'snoozed' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}یادآوری بعداً{% else %}Snoozed{% endif %}</span><b data-notification-view-count="snoozed">{{ notification_counts.snoozed }}</b></a>
+  <a href="?{{ inbox_filter_query }}&view=archive"{% if active_view == 'archive' %} class="active" aria-current="page"{% endif %}><span>{% if lang == 'fa' %}آرشیو{% else %}Archive{% endif %}</span><b data-notification-view-count="archive">{{ notification_counts.archive }}</b></a>
 </nav>
 
 <section class="n-live-banner" data-notification-live-banner hidden role="status" aria-live="polite"><div><i aria-hidden="true"></i><strong data-notification-live-copy></strong></div><button type="button" data-notification-live-refresh>{% if lang == 'fa' %}نمایش موارد تازه{% else %}Show new items{% endif %}</button></section>
 
 <div class="n-toolbar">
-  <details class="n-filter-panel"{% if active_priority or active_category or active_status %} open{% endif %}>
+  <details class="n-filter-panel">
     <summary>{% if lang == 'fa' %}فیلتر دقیق{% else %}Refine results{% endif %}{% if active_priority or active_category or active_status %}<em>{% if lang == 'fa' %}فعال{% else %}Active{% endif %}</em>{% endif %}</summary>
     <form class="m-filters n-filters" method="get"><input type="hidden" name="view" value="{{ active_view }}">
       <select name="priority" aria-label="{% if lang == 'fa' %}اولویت{% else %}Priority{% endif %}"><option value="">{% if lang == 'fa' %}همه اولویت‌ها{% else %}All priorities{% endif %}</option>{% for value, label in priorities %}<option value="{{ value }}"{% if active_priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
@@ -48,5 +48,6 @@
   {% include "management_portal/v2/_notification_group.html" with items=resolved_notifications group_title_fa="سوابق مختومه و بایگانی‌شده" group_title_en="Resolved and archived history" group_tone="resolved" %}
 {% endif %}
 {% if not overdue_notifications and not upcoming_notifications and not snoozed_notifications and not resolved_notifications %}<section class="n-empty"><span aria-hidden="true">✓</span><h2>{% if lang == 'fa' %}این بخش خالی است{% else %}Nothing here{% endif %}</h2><p>{% if lang == 'fa' %}در حال حاضر موردی متناسب با این نما و فیلترها ندارید.{% else %}No item currently matches this view and its filters.{% endif %}</p></section>{% endif %}
+{% if inbox_page.paginator.count %}<nav class="n-pagination" aria-label="{% if lang == 'fa' %}صفحه‌های صندوق{% else %}Inbox pages{% endif %}"><span>{% if lang == 'fa' %}{{ inbox_page.start_index }} تا {{ inbox_page.end_index }} از {{ inbox_page.paginator.count }} مورد{% else %}{{ inbox_page.start_index }}–{{ inbox_page.end_index }} of {{ inbox_page.paginator.count }} items{% endif %}</span>{% if inbox_page.has_previous %}<a class="n-action" href="?{{ inbox_page_query }}&page={{ inbox_page.previous_page_number }}">{% if lang == 'fa' %}قبلی{% else %}Previous{% endif %}</a>{% endif %}{% if inbox_page.has_next %}<a class="n-action" href="?{{ inbox_page_query }}&page={{ inbox_page.next_page_number }}">{% if lang == 'fa' %}بعدی{% else %}Next{% endif %}</a>{% endif %}</nav>{% endif %}
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'management_portal/v2/notifications.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'management_portal/v2/notifications.js' %}?v=5" defer></script>{% endblock %}

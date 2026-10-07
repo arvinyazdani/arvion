@@ -89,16 +89,33 @@
     busy = true;
     try {
       const url = new URL(endpoint, window.location.origin);
+      const inboxView = document.querySelector("[data-inbox-view]")?.dataset.inboxView;
+      const rowIds = inboxView === "archive" ? [] : [...document.querySelectorAll("[data-notification]")].slice(0, 30).map((row) => row.dataset.notification);
+      if (rowIds.length) url.searchParams.set("inbox_ids", rowIds.join(","));
       if (!cursor || forceBootstrap) url.searchParams.set("bootstrap", "1");
       else url.searchParams.set("since", String(cursor));
       const response = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" }, cache: "no-store" });
       if (!response.ok) throw new Error(`feed_${response.status}`);
       const data = await response.json();
       setCount(Number(data.unread_count || 0));
-      Object.entries(data.counts || {}).forEach(([view, count]) => {
-        const node = document.querySelector(`[data-notification-view-count="${view}"]`);
-        if (node) node.textContent = String(count);
+      let inboxChanged = false;
+      (data.inbox_states || []).forEach((state) => {
+        const row = document.querySelector(`[data-notification="${state.id}"]`);
+        if (!row || row.dataset.busy === "true" || row.classList.contains("is-settled")) return;
+        const label = row.querySelector("[data-notification-status]");
+        if (label && label.textContent !== state.display_status) inboxChanged = true;
+        if (label) label.textContent = state.display_status;
+        const owner = row.querySelector("[data-notification-owner]");
+        if (owner && state.owner) owner.textContent = `${fa ? "مسئول" : "Owner"}: ${state.owner}`;
+        if (!state.can_review_payment) row.querySelectorAll(".n-decision-row").forEach((node) => { node.hidden = true; });
+        if (state.inactive && !(inboxView === "snoozed" && state.snoozed)) {
+          row.classList.add("is-settled");
+          row.querySelectorAll(".n-actions form, .n-more-actions").forEach((node) => { node.hidden = true; });
+        }
       });
+      if (inboxChanged) document.dispatchEvent(new CustomEvent("rvion-inbox-state-changed"));
+      // Inbox counts are source-deduplicated and filter-scoped. The global
+      // notification feed counts events, so it must not overwrite those totals.
       announceBatch(Array.isArray(data.notifications) ? data.notifications : []);
       rememberCursor(data.latest_id);
       failures = 0;
@@ -119,7 +136,14 @@
     if (event.data?.type === "action") {
       if (typeof event.data.count === "number") setCount(event.data.count);
       if (["resolved", "snooze", "dismiss", "payment_approve", "payment_reject"].includes(event.data.action)) {
-        document.querySelector(`[data-notification="${event.data.id}"]`)?.remove();
+        const row = document.querySelector(`[data-notification="${event.data.id}"]`);
+        if (row) {
+          row.classList.add("is-settled");
+          row.querySelectorAll(".n-actions form, .n-more-actions").forEach((node) => { node.hidden = true; });
+          const label = row.querySelector("[data-notification-status]");
+          if (label && event.data.display_status) label.textContent = event.data.display_status;
+          document.dispatchEvent(new CustomEvent("rvion-inbox-state-changed"));
+        }
       }
       sync();
     }

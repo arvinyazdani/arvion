@@ -171,5 +171,5 @@ class ManagementActionSafetyStaticTests(TestCase):
             / "proposal_detail_v2.html"
         ).read_text(encoding="utf-8")
         self.assertRegex(base, r"management\.css' %}\?v=\d+")
-        self.assertIn("management.js' %}?v=10", base)
+        self.assertRegex(base, r"management\.js' %}\?v=[1-9]\d*")
         self.assertIn("data-confirm=", contract_detail)

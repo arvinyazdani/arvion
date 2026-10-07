@@ -1507,7 +1507,7 @@ class ManagementDashboardTests(TestCase):
         self.client.force_login(root)
 
         inbox = self.client.get(reverse("management_portal:notification_list"))
-        self.assertContains(inbox, "باز کردن درخواست")
+        self.assertContains(inbox, "باز کردن جزئیات")
         self.assertContains(inbox, "data-notification-action")
         self.assertContains(inbox, "یادآوری بعداً")
         self.assertContains(inbox, "به عهده من")

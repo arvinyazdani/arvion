@@ -3,6 +3,7 @@ from django.middleware.csrf import get_token
 from django.db.models import Q
 from django.utils import timezone
 from django.urls import reverse
+from .inbox import safe_inbox_return
 
 
 def _management_navigation(request, lang):
@@ -82,4 +83,5 @@ def management_alerts(request):
         "web_push_public_key": settings.WEB_PUSH_VAPID_PUBLIC_KEY,
         "unread_count": unread_count,
         "language_switch_url": language_switch_url,
+        "inbox_return_url": safe_inbox_return(request.GET.get("inbox_return")),
     }

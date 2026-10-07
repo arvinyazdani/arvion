@@ -1,5 +1,47 @@
 # Rvion current state
 
+## Admin decision-focused rebuild — stage 3 checkpoint (2026-10-07)
+
+- VERIFIED locally, user appearance acceptance pending. Stage 3 of 8: compact
+  source-backed work inbox, 30-row pagination, filter-scoped counts, and distinct
+  action/mine/events/snoozed/history views. Five stages remain NOT_STARTED.
+- Receipt/resubmission/SLA alerts for the same receipt become one active work item;
+  superseded events stay accessible in read-only history, no rows/data deleted.
+  Exact receipt/ticket/account/enquiry/contract destinations are localized;
+  missing sources fail safely. Auto-approval retains legacy contact fallback.
+- Receipt evidence and existing view/change permissions gate fast decisions.
+  Seen, personal archive, snooze and global resolution remain separate. Existing
+  approval service, three-minute policy and Push/SMS/reminder workers unchanged.
+  Claim uses a conditional atomic update with one Audit for replay; malformed
+  assignment IDs return 400, not a server error. Snooze copy uses local time.
+- Safe back link retains inbox filter/page/row; in-place actions lock the whole
+  row, confirmations show receipt context, timeout/network failure warns of an
+  uncertain outcome, and focus/confirmation stay in place. Cross-tab broadcasts
+  no longer delete completed rows. Visible existing rows reconcile through the
+  feed; global event counts never overwrite filtered/deduplicated work counts.
+- Evidence: related phase gate 133 tests OK / 2 PostgreSQL-only skips on SQLite;
+  all 20 inbox tests on isolated PostgreSQL passed, including concurrent payment
+  decisions (one transaction/grant/Audit) and concurrent claims (one assignment
+  Audit). Check 0 issues, no migration drift, JS syntax and whitespace checks clean.
+  No full suite/CI/release gate was run for this scoped stage.
+- Browser on isolated :8126: FA light 390/1280, EN dark 320/1280, no horizontal
+  overflow, 44px row controls, fixed mobile nav. Exact receipt → same filtered
+  row return; reject dialog cancel/focus; offline error → successful claim;
+  snooze preserves row/feedback/focus and updates counters without route loader.
+  Real phone/OS delivery and production data were not used. JS regression evidence
+  is browser-based, not a new automated browser harness (phase 8 follow-up).
+- Self-review via Frontend Design, UI/UX Pro Max and Design Critique; adapted
+  21st notification-panel #27135 interaction pattern to Django, no React install.
+  Fixed dark approval contrast, collapsed obstructing filters, and refreshed
+  asset versions after detecting service-worker-cached old JS. Pre-existing
+  action-safety test's v10 literal was replaced with a positive versioned-script
+  check; its confirmation coverage remains intact.
+- Proof: /tmp/rvion-phase4-IWtoof/admin-stage3-mobile.png and
+  admin-stage3-desktop.png. Synthetic reminder reset only in disposable QA SQLite;
+  own preview retained for UAT. No production write, migration, push or deploy.
+  Three unrelated gallery edits preserved/excluded. Exact local commit from Git.
+- Next: pause for user review, then stage 4 customer workspace/contextual actions.
+
 ## Admin decision-focused rebuild — stage 2 checkpoint (2026-10-07)
 
 - VERIFIED locally; user appearance review pending. Stage 2 of 8: compact Today,

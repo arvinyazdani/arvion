@@ -67,6 +67,7 @@ table.m-sr-only{display:block}
 .m-icon-action em{position:absolute;inset-block-start:-5px;inset-inline-end:-5px;display:grid;place-items:center;min-width:21px;height:21px;padding:0 5px;border:2px solid var(--m-paper);border-radius:999px;background:var(--m-orange);color:var(--color-on-brand);font:900 .68rem/1 Arial}
 .theme-toggle svg{width:20px;height:20px}
 .m-workspace{width:calc(100% - var(--m-sidebar-width));max-width:calc(var(--m-content-max) + 84px);min-height:100vh;margin-inline-start:var(--m-sidebar-width);padding:calc(var(--m-topbar-height) + 32px) clamp(20px,3vw,42px) 64px}
+.m-back-inbox{display:inline-flex;align-items:center;min-height:44px;padding:10px 16px;border:1px solid var(--m-line);border-radius:12px;background:var(--color-surface);color:var(--m-ink);font-size:.9rem;font-weight:700;text-decoration:none}.m-back-inbox:focus-visible{outline:3px solid var(--m-orange);outline-offset:3px}
 .m-bottom{display:none}
 
 /* More-tools drawer */
