@@ -13,7 +13,13 @@
   font preload makes CLS 0 in all three after runs. Home TBT is worse/variable,
   shared welcome AudioContext dominates several runs, so optimization PARTIAL.
   45 focused tests pass; bounded FA/EN 390/1440 visual check, no redesign.
-- Next: contextual linking, owner-only content proposals, then full suite once.
+- Performance milestone e367e39. Contextual linking VERIFIED locally (45 focused
+  tests); published preview/service/home anchors have matching FA/EN structures
+  and 200/indexable targets. Browser checked 390/1440 across both languages.
+- P3-1..5 / P2-5 content proposals recorded, NOT implemented; exact owner copy,
+  file/migration boundaries are in the canonical report. Constants need updating
+  if seeded target slugs are disabled/renamed; no dynamic view changes authorized.
+- Next: run full project suite once and record final evidence; no release authorized.
 - Preserve three dirty gallery files; OWNER DECISION DEFERRED; local commits only.
 
 ## SEO continuation — PARTIAL (2026-10-07)

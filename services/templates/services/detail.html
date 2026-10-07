@@ -18,4 +18,5 @@
   </div>
 </section>
 <section class="service-cta"><div class="shell"><div><span class="eyebrow">{% if lang == 'fa' %}گام بعدی{% else %}NEXT STEP{% endif %}</span><h2>{% if lang == 'fa' %}ابتدا مسئله را بررسی کنیم.{% else %}Let’s start by understanding the problem.{% endif %}</h2><p>{% if lang == 'fa' %}مشاوره اولیه رایگان است و پیش از هر پرداخت، دامنه، زمان و خروجی پروژه شفاف می‌شود.{% else %}Initial consultation is free; scope, schedule and deliverables are clarified before any payment.{% endif %}</p></div><a class="button" href="{% url 'leads:contact' %}?service={{ service.slug }}">{% if lang == 'fa' %}ثبت درخواست این خدمت{% else %}Enquire about this service{% endif %}</a></div></section>
+<section class="section"><div class="shell">{% include 'services/includes/related_demos.html' %}</div></section>
 {% endblock %}

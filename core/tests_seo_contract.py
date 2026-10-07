@@ -23,6 +23,8 @@ class HeadParser(HTMLParser):
         super().__init__()
         self.meta = {}
         self.links = []
+        self.related_links = []
+        self._in_related_nav = False
         self.h1_count = 0
         self.title = ''
         self._in_title = False
@@ -32,6 +34,10 @@ class HeadParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if tag == 'nav' and 'data-seo-related' in attrs:
+            self._in_related_nav = True
+        elif tag == 'a' and self._in_related_nav:
+            self.related_links.append(attrs.get('href', ''))
         if tag == 'meta':
             self.meta[attrs.get('name') or attrs.get('property', '')] = attrs.get('content', '')
         elif tag == 'link':
@@ -44,6 +50,8 @@ class HeadParser(HTMLParser):
             self._schema_buffer = ''
 
     def handle_endtag(self, tag):
+        if tag == 'nav':
+            self._in_related_nav = False
         if tag == 'title':
             self._in_title = False
         elif tag == 'script' and self._schema_buffer is not None:
@@ -231,6 +239,42 @@ class WholeSitemapContractTests(TestCase):
         self.assertLess(html.index('as="font"'), html.index('core/css/tokens.css'))
         for path in ('/en/', '/fa/blog/', '/fa/services/seo-service/'):
             self.assertNotContains(self.client.get(path), 'as="font"')
+
+    def test_contextual_links_have_matching_bilingual_indexable_targets(self):
+        service_targets = {
+            'corporate-website-design': ['parsa-advisory', 'linea-studio'],
+            'ecommerce-platform': ['nava-market', 'sarvin-atelier'],
+            'custom-web-application': ['roshna-clinic', 'ariana-academy', 'saffron-table'],
+            'digital-product-consulting': [], 'maintenance-and-growth': [],
+        }
+        cases = [('', ['services/', 'crm/', 'assessments/'])]
+        for slug, demos in service_targets.items():
+            targets = [f'projects/demos/{demo}/' for demo in demos] or ['projects/demos/']
+            if slug in ('custom-web-application', 'digital-product-consulting'):
+                targets += ['crm/']
+            cases.append((f'services/{slug}/', targets))
+        for category, _label in DemoTemplate.CATEGORY_CHOICES:
+            service = ('ecommerce-platform' if category in ('ecommerce', 'jewelry') else
+                       'corporate-website-design' if category in ('corporate', 'portfolio') else
+                       'custom-web-application')
+            cases.append((f'projects/demos/seo-{category}-0/',
+                          [f'services/{service}/', 'contact/']))
+        for source, expected in cases:
+            structures = []
+            for lang in ('fa', 'en'):
+                with self.subTest(source=source, lang=lang):
+                    response = self.client.get(f'/{lang}/{source}')
+                    self.assertEqual(response.status_code, 200)
+                    links = HeadParser(response.content.decode()).related_links
+                    self.assertEqual(links, [f'/{lang}/{target}' for target in expected])
+                    structures.append([link.removeprefix(f'/{lang}/') for link in links])
+                    for link in links:
+                        target = self.client.get(link, follow=False)
+                        self.assertEqual(target.status_code, 200, link)
+                        self.assertNotIn('Location', target.headers, link)
+                        self.assertNotIn('noindex', HeadParser(target.content.decode()).meta.get('robots', '').lower(), link)
+                        self.assertNotIn('noindex', target.headers.get('X-Robots-Tag', '').lower(), link)
+            self.assertEqual(structures[0], structures[1])
 
     def test_page_specific_types_and_profile_absence_are_truthful(self):
         from core.models import CompanyProfile

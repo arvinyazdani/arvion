@@ -134,7 +134,7 @@ because the audit describes an existing implementation.
 | P3-4 | NOT_STARTED | No entity page/footer edits. |
 | P3-5 | NOT_STARTED | H1 proposal deferred at stop boundary; homepage untouched. |
 | P4-1 | BLOCKED | OWNER DECISION DEFERRED; analytics, language session behavior and cache policy must not change. |
-| P4-2 | VERIFIED (measurement only) | Four valid local mobile Lighthouse runs, LCP/CLS/TBT/CSS below; no optimization or production claim. |
+| P4-2 | PARTIAL | Diagnosis VERIFIED: 24 runs, median/spread below. Home CLS fix verified; main-thread/audio cost unresolved, no production claim. |
 | P4-3 | NOT_STARTED | No first-paint PWA browser observation or change. |
 | P4-4 | NOT_STARTED | No new image introduced; future image policy still to enforce. |
 
@@ -822,3 +822,117 @@ changes are noise, not attributed gains. Main-thread optimization remains PARTIA
 Rollback: revert only this font-preload milestone; no data rollback needed.
 Owner decision needed for changing startup sound timing; deferred privacy tasks
 P1-3/P4-1 stay BLOCKED and unchanged.
+
+## Follow-up 4 — contextual linking VERIFIED (local); content proposals only
+
+Font milestone e367e39. Applied only template anchors in core/home.html,
+services/detail.html + services/includes/related_demos.html, and
+projects/demo_preview.html + projects/includes/related_service.html.
+Uses existing button/layout classes, no new CSS/JS/view/model/migration or claims.
+Mappings use the existing seeded public slugs, not invented customers/case studies:
+corporate → parsa-advisory/linea-studio; ecommerce → nava-market/sarvin-atelier;
+custom applications → roshna-clinic/ariana-academy/saffron-table. Consulting and
+maintenance → the active gallery; consulting/custom applications also → CRM.
+Each demo category maps back to corporate/ecommerce/custom application service
+and contact. Home links to services/CRM/exams. Full standalone noindex demos
+remain untouched; linking concerns their indexable preview pages only.
+
+core.tests_seo_contract asserts exact scoped anchor lists across 5 seeded service
+routes and 7 demo categories plus home in FA/EN, identical structure, each target
+200 without following redirects, no Location/noindex meta or header. Scope is
+the new contextual links, not legitimate login links elsewhere in the shell.
+`.venv/bin/python manage.py test core.tests_seo_contract services.tests projects.tests --verbosity 1`:
+45/45 OK (11.603s). Check 0 issues; migration dry-run no changes; diff clean.
+Browser: home/service/restaurant preview FA/EN at 390 and 1440, every new anchor
+fits and document scrollWidth equals viewport. Screens inspected for FA mobile
+service buttons and EN desktop preview buttons, keyboard focus visible. Real
+service→restaurant navigation succeeded. Runtime sample filter shows only drinks,
+reservation shows selected time/guest summary, settings button opens its sheet:
+three concrete baseline-auditor false positives verified, not a blanket 55-control audit.
+
+P2 maintenance limitation: associations are template constants as requested;
+no live availability lookup was added. If an operator disables/renames one of
+these seeded targets, update corresponding anchors or authorize a dynamic
+published-only association layer; current fixture/isolated-runtime targets pass.
+No production availability check was run. Plain contact is a separate enquiry
+link, not a substitute for the existing selection-preserving order submission.
+Rollback: this scoped template/test milestone only, no data rollback.
+
+### P3-5 home wording — proposal VERIFIED; implementation NOT_STARTED
+
+Input: /Users/rwin/Documents/claud/rvionai.com-audit/KEYWORDS.md, not evidence of
+search volume, rank or current free/paid policy. Proposed H1 FA:
+«طراحی سایت اختصاصی؛ سایت شما، با امضای خود شما.»
+EN: “Custom website design. Unmistakably yours.”
+Proposed lead FA: «نمونه‌ای متناسب با کسب‌وکارتان انتخاب و شخصی‌سازی کنید؛
+سفارش طراحی سایت اختصاصی را با انتخاب‌های خودتان آغاز کنید.»
+EN: “Choose and customise a sample for your business, then start your custom
+website enquiry with your choices intact.” No cost/quality/rank guarantee.
+Files if approved: core/templates/core/home.html, core/tests_seo_contract.py,
+core/tests.py and canonical checkpoints. No migration. Approve both languages;
+keep exactly one H1 and the existing brand slogan, not a keyword-stuffed second H1.
+
+### P3-2 service audience + FAQ — proposal VERIFIED; implementation NOT_STARTED
+
+Existing data supports consulting for new/existing products and MVP/redesign,
+corporate presence/leads, ecommerce catalogue/cart/payment, custom operational
+platforms, maintenance/growth. Audience paragraphs can be derived from each
+Service.description_fa/en rather than inventing sectors or customer statistics.
+Questions answerable from existing fields: “What will be delivered?” (deliverables),
+“What are the stages?” (process), “How long?” (duration), “How to enquire?” (existing CTA).
+Existing template says 50/50 payment and three months support; owner must confirm
+whether these apply to EACH service before republishing them as FAQ commitments.
+Missing owner copy, both languages: inclusions/exclusions, hosting/domain ownership,
+ongoing support terms/SLA, content responsibility, revisions/acceptance, payment
+exceptions and any price ranges. Do not answer these by guessing.
+Files: services/templates/services/detail.html and a new
+services/templates/services/includes/faq.html; services/tests.py/core/tests_seo_contract.py.
+No migration for rendering existing fields; editable independent FAQs would require
+approved Service bilingual FAQ fields in services/models/service.py + new migration,
+services/admin.py and input validation/tests. No FAQ rich-result promise.
+
+### P3-3 unique demo introductions — proposal VERIFIED; implementation NOT_STARTED
+
+Current title/tagline/fit label already differ; propose one unique bilingual intro
+per actual DemoTemplate, placed before preview, explaining business goal, sample
+capabilities and discovery boundaries without pretending it is a delivered client site.
+Owner supplies/approves 11 FA/EN intros (all current seeded demos), with none claiming
+real revenue, bookings, credentials or customer results. Files if approved:
+projects/models/demo.py (intro_fa/en), new projects migration (blank-compatible),
+projects/admin.py, projects/views/projects.py (currently protected: separate permission
+needed), projects/templates/projects/demo_preview.html, projects/tests.py,
+core/tests_seo_contract.py. Do not auto-fill boilerplate and call it unique content.
+
+### P3-4 About/entity — proposal VERIFIED; implementation NOT_STARTED
+
+Existing pages: core/templates/core/about.html and company_info.html; existing
+CompanyProfile: legal names, brand, registration/national ID, executive names,
+phone, addresses/postal code, support hours, established_date_fa and domain.
+Propose identity header → actual activities/services → profile-backed facts/contact
+→ leadership → company-information link. Replace duplicated static names where
+profile fields exist. Owner must verify leadership biography, “10 years”, partner
+role and EN foundation year (model only stores a Persian date string), and supply
+official social/profile URLs for sameAs, or leave it absent. Do not infer translated
+legal forms or credentials. Files: core/templates/core/{about,company_info}.html,
+core/views/base.py only if needed, core/tests.py, core/tests_seo_contract.py and
+core/templatetags/seo.py if approved sameAs added. No migration for existing fields;
+persistent bilingual biography/social URLs would need core/models/company.py,
+core/admin.py, validation and a new core migration. No new duplicate About route.
+
+### P3-1 / P2-5 blog readiness — proposal VERIFIED; implementation NOT_STARTED
+
+Already present: bilingual slug/title/summary/body, published_at, hero_image, tags;
+article published meta and BlogPosting datePublished. Missing: author and genuine
+editorial modification date (do not fake with request time or deployment date).
+Checklist: real author/byline and approved bio; visible published/updated dates;
+estimated reading time from sanitized localized body; related published posts with
+valid language slugs; accessible H2/H3 TOC with stable sanitized heading IDs;
+no duplicated H1; image rights/alt/dimensions; real unique body; owner content review.
+Files: blog/models/post.py, a new blog migration for author/updated metadata,
+blog/admin.py, blog/views/post_detail.py, blog/templates/blog/{detail,list}.html,
+blog/templates/blog/components/post_card.html, core/templatetags/seo.py,
+core/sitemaps.py, blog/tests.py, core/tests_seo_contract.py. Reading time/related/TOC
+alone need no migration; safe Markdown/bleach heading ID policy needs targeted tests.
+Owner supplies author's public name/role/bio and identity URL if any, publication
+approval and factual last editorial update for existing articles (or omit updated).
+No article, schema author, model migration, FAQ or new wording applied this phase.

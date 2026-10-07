@@ -1,0 +1,18 @@
+<nav class="actions" data-seo-related aria-label="{% if lang == 'fa' %}نمونه‌های مرتبط{% else %}Related samples{% endif %}">
+  {% if service.slug == 'ecommerce-platform' %}
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'nava-market' %}">{% if lang == 'fa' %}نمونه فروشگاه{% else %}Store sample{% endif %}</a>
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'sarvin-atelier' %}">{% if lang == 'fa' %}نمونه طلا و جواهر{% else %}Jewellery sample{% endif %}</a>
+  {% elif service.slug == 'corporate-website-design' %}
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'parsa-advisory' %}">{% if lang == 'fa' %}نمونه شرکتی{% else %}Corporate sample{% endif %}</a>
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'linea-studio' %}">{% if lang == 'fa' %}نمونه پورتفولیو{% else %}Portfolio sample{% endif %}</a>
+  {% elif service.slug == 'custom-web-application' %}
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'roshna-clinic' %}">{% if lang == 'fa' %}نمونه کلینیک{% else %}Clinic sample{% endif %}</a>
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'ariana-academy' %}">{% if lang == 'fa' %}نمونه آموزشگاه{% else %}Education sample{% endif %}</a>
+  <a class="button secondary" href="{% url 'projects:demo_preview' 'saffron-table' %}">{% if lang == 'fa' %}نمونه رستوران{% else %}Restaurant sample{% endif %}</a>
+  {% else %}
+  <a class="button secondary" href="{% url 'projects:demo_gallery' %}">{% if lang == 'fa' %}نمونه‌های وب‌سایت{% else %}Website samples{% endif %}</a>
+  {% endif %}
+  {% if service.slug == 'custom-web-application' or service.slug == 'digital-product-consulting' %}
+  <a class="button secondary" href="{% url 'crm_product' %}">{% if lang == 'fa' %}راهکار CRM{% else %}CRM solution{% endif %}</a>
+  {% endif %}
+</nav>
