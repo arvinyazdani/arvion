@@ -3,10 +3,51 @@
 Date: 2026-10-07. Overall status: **PARTIAL — independent SEO work resumed**.
 Single primary agent; self-review, not independent review.
 Source request: `/Users/rwin/Documents/claud/rvionai.com-audit/AGENT-PROMPT.md`.
-Baseline: `6977b30`; production runtime remains `63abbcd`.
+Baseline: `6977b30`; production runtime now `94c9c06` (release evidence below).
 Implementation commit: `4d22cc1` (`fix(seo): publish public assessment briefings in sitemap`).
 This SHA applies to P1-1 and the partial P1-2/diagnostic evidence below. The report
 hash finalization is a separate documentation-only checkpoint, not further implementation.
+
+## Production release — VERIFIED (2026-10-07)
+
+Explicit user instruction: «دپلوی کن». Committed source only was pushed;
+three unrelated dirty gallery files remain local and uncommitted. Source release
+94c9c0669b5abdc19fc4d7b0c0d885ccee7d5a3e, previous production 63abbcd.
+[Quality run 37613465630](https://github.com/arvinyazdani/arvion/actions/runs/37613465630)
+completed success for Python 3.11 and 3.12 on PostgreSQL, including parallel and
+shuffled suites, dependency/migration drift, bank audit and JS/shell syntax gates.
+Server worktree was clean before fast-forward; no reset/stash/untracked cleanup.
+Real active Service/DemoTemplate link-target preflight found zero missing targets.
+Production migrate --plan was empty; release migrate reported no migrations.
+
+Official ops/release.sh completed commit=94c9c06 health=ok. Snapshot:
+/srv/arvion/backups/pre-release-20261007-112920.dump. `pg_restore --list` exited
+success; this validates the archive catalog, not a full restoration rehearsal.
+Dependencies/check --deploy/nginx validation passed. Existing assessment bank
+versions unchanged, static assets collected, application/nginx active. Local
+health returned status=ok; recent journal error-marker count was 0 during this
+bounded check, not a claim of long-running/15-minute monitoring or zero future errors.
+
+Public HTTPS smoke: 36 FA/EN pages (home, service list, CRM, blog list, exams,
+contact, five service details, seven linked demo previews) all 200 with no redirect,
+indexable and correct Organization telephone. New related anchors present; FA
+home emits three font preloads. Production 390px browser inspected service links:
+all fit, scrollWidth=390, visible button boundaries. Existing notification prompt
+dismissed without activating/sending a test; no customer form submitted.
+Browser test tab closed and viewport reset. Anonymous HTTP smoke separately
+checks pages without the browser's existing staff login.
+Evidence logs: /tmp/rvion-seo-deploy.log, /tmp/rvion-seo-production-smoke.log.
+No performance/ranking claim follows from release or HTTP status checks.
+
+Rollback boundary: before source rollback inspect production status, preserve
+.env.production/.secrets/media/backups; switch only committed source back to
+63abbcd, collectstatic and restart/check services. No DB restoration/reverse
+migration required by this schema-free release; never restore over customer
+data without a separate recovery decision. Source backup commit and validated
+database snapshot retained. SEO programme overall remains PARTIAL; deferred
+owner decisions, copy proposals and startup main-thread work remain unresolved.
+This release evidence checkpoint is documentation-only and local, after the
+tested/pushed/deployed source SHA above; it does not change deployed runtime.
 
 ## Scope and stop boundary
 
@@ -969,7 +1010,7 @@ P1-3/P4-1 remain BLOCKED (OWNER DECISION DEFERRED), optional crawler changes abs
 The authorized independent work is done; entire SEO programme remains PARTIAL.
 Source rollback is by the individual scoped commits; no data/schema rollback.
 
-## Updated public HTML URLs (source changes, not deployed)
+## Updated public HTML URLs (source changes deployed in 94c9c06)
 
 Base domain for every path below: https://rvionai.com; `{fa,en}` means both
 localized versions, not a literal URL. Dynamic rows are active/published records,

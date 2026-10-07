@@ -1,5 +1,20 @@
 # Rvion current state
 
+## SEO release — VERIFIED (2026-10-07)
+
+- Explicit deploy instruction honored: pushed/deployed source 94c9c06, previous
+  production 63abbcd. Three local user gallery diffs preserved/excluded.
+- CI run 37613465630 success for Python 3.11/3.12 on PostgreSQL, parallel/shuffle
+  suites and all quality gates. Official ops/release.sh completed health=ok.
+- Snapshot pre-release-20261007-112920.dump catalog validated; no migrations to
+  apply, existing banks unchanged. App/nginx active; health OK, recent error markers 0.
+- 36 public HTTPS FA/EN pages 200/indexable with corrected schema/anchors;
+  production mobile service links fit at 390px. No customer submission/SMS test.
+- SEO programme remains PARTIAL: deferred privacy/content/audio-performance work
+  unchanged. Detailed evidence/rollback in docs/seo/SEO_PHASE_REPORT.md.
+- Current checkpoint is local documentation only after deployed source 94c9c06.
+  Earlier no-release notes below are historical phase boundaries, not current state.
+
 ## SEO follow-up — PARTIAL (2026-10-07)
 
 - Start 517211e; telephone regression VERIFIED: schema-only E.164 mobile,
