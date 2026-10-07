@@ -9,10 +9,10 @@
   <meta name="robots" content="{% block meta_robots %}{% if seo_noindex %}noindex,nofollow{% else %}index,follow,max-image-preview:large{% endif %}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
   <link rel="alternate" hreflang="fa" href="{{ alternate_urls.fa }}">
-  <link rel="alternate" hreflang="en" href="{{ alternate_urls.en }}">
+  {% if alternate_urls.en %}<link rel="alternate" hreflang="en" href="{{ alternate_urls.en }}">{% endif %}
   <link rel="alternate" hreflang="x-default" href="{{ alternate_urls.fa }}">
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
-  <meta property="og:site_name" content="Rvion">
+  <meta property="og:site_name" content="{{ brand_name }}">
   <meta property="og:locale" content="{% if lang == 'fa' %}fa_IR{% else %}en_US{% endif %}">
   <meta property="og:title" content="{% block og_title %}{% if lang == 'fa' %}آرویون — طراحی و توسعه پلتفرم آنلاین{% else %}Rvion — Online platform design and development{% endif %}{% endblock %}">
   <meta property="og:description" content="{% block og_description %}{% if lang == 'fa' %}طراحی CRM سازمانی، وب‌سایت و سامانه‌های هوشمند؛ از نیازسنجی تا توسعه و پشتیبانی.{% else %}Enterprise CRM, websites and intelligent platforms—from discovery to development and support.{% endif %}{% endblock %}">

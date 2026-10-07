@@ -22,6 +22,9 @@ def seo_context(request):
         localized_segments[1] = code
         alternate_paths[code] = "/".join(localized_segments)
     match = request.resolver_match
+    # English discovery wizards redirect to Persian, not a real translation.
+    if match and match.view_name in {'crm_orders:create', 'clinic_orders:create'}:
+        alternate_paths.pop('en', None)
     private_assessment_views = {
         "checkout", "sandbox_pay", "start_attempt", "attempt", "save_answer",
         "attempt_review", "finish_attempt", "result", "certificate", "audio_play",
@@ -45,7 +48,8 @@ def seo_context(request):
     return {
         "canonical_url": canonical_url,
         "alternate_urls": {code: f"{settings.SITE_URL}{path}" for code, path in alternate_paths.items()},
-        "language_switch_url": alternate_paths["en" if language == "fa" else "fa"],
+        "language_switch_url": alternate_paths.get("en" if language == "fa" else "fa", alternate_paths['fa']),
+        "brand_name": "آرویون" if language == "fa" else "Rvion",
         "site_url": settings.SITE_URL,
         "seo_noindex": seo_noindex,
         "whatsapp_share_url": whatsapp_share_url,

@@ -1,5 +1,6 @@
 {% extends "core/base.html" %}
-{% block title %}{% if lang == 'fa' %}اطلاعات حقوقی شرکت | آرویون{% else %}Legal company information | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}اطلاعات رسمی شرکت، نام حقوقی، شماره ثبت، شناسه ملی و راه‌های تماس آرویون برای بررسی هویت طرف همکاری.{% else %}Rvion's official company details: legal identity, registration, national identifier and contact information for prospective partners.{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}اطلاعات حقوقی شرکت | {{ brand_name }}{% else %}Legal company information | {{ brand_name }}{% endif %}{% endblock %}
 {% block content %}
 <section class="page-hero">
   <div class="shell">

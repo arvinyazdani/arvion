@@ -1,5 +1,17 @@
 # Rvion current state
 
+## SEO continuation — PARTIAL (2026-10-07)
+
+- AGENT-PROMPT-2 execution assigned to this single primary agent. OWNER DECISION
+  DEFERRED: P1-3/P4-1 blocked; no analytics/session/caching change, push or deploy.
+- Whole-sitemap contract + factual metadata VERIFIED locally: 375 regression tests
+  passed (16 PostgreSQL-only skips), then 7/7 focused tests including localized brand.
+  Check/migration drift/diff clean. Red-before-green: 50 subtest failures before fixes.
+- P1-2/P1-4/P2-6 verified; P1-5 partial because protected gallery/embedded names
+  remain unchanged. Next: unified graph and visible breadcrumbs (P2-1..4, P2-7).
+- Canonical evidence: docs/seo/SEO_PHASE_REPORT.md. Preserve/exclude the three
+  user-dirty gallery files. No permanent local/customer DB changes.
+
 ## SEO programme — BLOCKED at P1-3 (2026-10-07)
 
 - User requested execution of external AGENT-PROMPT.md; local only/no deploy or push.

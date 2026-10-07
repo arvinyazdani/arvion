@@ -1,5 +1,6 @@
 {% extends "core/base.html" %}
-{% block title %}{% if lang == 'fa' %}شرایط خدمات | آرویون{% else %}Service terms | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}شرایط همکاری و استفاده از خدمات آرویون؛ دامنه پروژه، تعهدات طرفین و قواعد عمومی سفارش خدمات طراحی و توسعه.{% else %}Terms for working with Rvion: project scope, responsibilities and the general conditions governing design and development services.{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}شرایط خدمات | {{ brand_name }}{% else %}Service terms | {{ brand_name }}{% endif %}{% endblock %}
 {% block content %}
 <section class="page-hero terms-hero">
   <div class="shell">

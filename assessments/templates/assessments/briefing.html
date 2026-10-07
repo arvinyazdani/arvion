@@ -1,6 +1,6 @@
 {% extends "core/base.html" %}{% load static %}
-{% block title %}{% if lang == 'fa' %}پیش از شروع {{ exam.title_fa }} | آرویون{% else %}Before you start {{ exam.title_en }} | Rvion{% endif %}{% endblock %}
-{% block meta_description %}{% if lang == 'fa' %}آنچه این آزمون می‌سنجد، نحوه رصد سلامت آزمون، تحلیل پاسخ‌های اشتباه و اینکه هزینه آزمون صرف چه چیزی می‌شود.{% else %}What this assessment measures, how exam integrity is monitored, how wrong answers are analysed, and what the fee funds.{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}پیش از شروع {{ exam.title_fa }} | {{ brand_name }}{% else %}Before you start {{ exam.title_en }} | {{ brand_name }}{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}راهنمای {{ exam.title_fa }}: {{ exam.description_fa|striptags|truncatechars:120 }}؛ آشنایی با پایش آزمون و بررسی پاسخ‌ها پیش از شروع.{% else %}Guide to {{ exam.title_en }}: {{ exam.description_en|striptags|truncatechars:120 }}. Learn about integrity monitoring and answer review before starting.{% endif %}{% endblock %}
 {% block body_class %}exam-briefing-page{% endblock %}
 {% block content %}
 <section class="page-hero briefing-hero">

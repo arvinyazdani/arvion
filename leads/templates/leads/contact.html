@@ -1,5 +1,6 @@
 {% extends "core/base.html" %}{% load static widget_tweaks assessment_extras %}
-{% block title %}{% if lang == 'fa' %}مشاوره و سفارش پروژه | آرویون{% else %}Consultation and project enquiry | Rvion{% endif %}{% endblock %}
+{% block meta_description %}{% if lang == 'fa' %}فرم مشاوره و سفارش پروژه آرویون؛ نوع پروژه، نیاز اولیه و اطلاعات تماس خود را برای بررسی درخواست ارسال کنید.{% else %}Send a project enquiry to Rvion with your project type, initial requirements and contact details for review.{% endif %}{% endblock %}
+{% block title %}{% if lang == 'fa' %}مشاوره و سفارش پروژه | {{ brand_name }}{% else %}Consultation and project enquiry | {{ brand_name }}{% endif %}{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'leads/css/demo-order.css' %}?v=1">{% endblock %}
 {% block content %}
 <section class="page-hero enquiry-hero">

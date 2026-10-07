@@ -795,3 +795,9 @@ Rvion یک پلتفرم دوزبانه فارسی/انگلیسی مبتنی بر
 - ممیزی کامل Release Candidate روی ۲۹ کامیت محلی (پیش از push) انجام شد: گیت محلی کامل، مراحل دقیق CI (تست موازی، shuffle، ممیزی سخت‌گیرانه، بررسی نحو JS/شل)، rehearsal واقعی migration روی PostgreSQL موقت (forward → backward → forward)، بررسی تنظیمات production با مقادیر آزمایشی، و UAT مرورگر روی مسیرهای حیاتی (قیف کامل، عدم تکرار سفارش، ثبت‌نام بدون OTP، خروج خودکار نشست دوم، بستن دسترسی آزمون) همگی موفق شدند.
 - یک اشکال کوچک و کم‌ریسک (تداخل rate-limit تست‌ها زیر ترتیب shuffle) پیدا و رفع شد. یک اشکال واقعی ولی نادر و کم‌خطر در race ورود هم‌زمان دو درخواست برای یک حساب (خطای نادر و قابل‌تکرار در ذخیرهٔ نشست، بدون از دست رفتن داده یا دور زدن امنیت) پیدا شد اما در همین مرحله رفع نشد؛ رفع آن به فاز اختصاصی بعدی موکول شد تا کد امنیتی نشست با عجله تغییر نکند.
 - نتیجهٔ ممیزی: انتشار در وضعیت `BLOCKED` است، نه آماده push. راهنمای عملیات (`docs/OPERATIONS_RUNBOOK_FA.md`) نیز اصلاح شد: ثبت‌نام دیگر نیازمند OTP توصیف نشده، و بخش کوتاهی دربارهٔ ریسک rollback این ۵ migration (حذف داده جدید در برگشت) و ماهیت کاملاً دستی دو دستور cleanup اضافه شد. جزئیات کامل فنی در `.ai/project/CURRENT_STATE.md` ثبت است.
+# SEO continuation — 2026-10-07
+
+Whole-sitemap contract and factual metadata verified locally (375 tests,
+16 PostgreSQL-only skips; final focused 7/7). Localized brand context;
+gallery edits preserved. Analytics/cookie/cache DEFERRED. No push/deploy.
+Details: `docs/seo/SEO_PHASE_REPORT.md`.

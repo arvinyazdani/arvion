@@ -1,6 +1,6 @@
 # SEO phase report — Rvion
 
-Date: 2026-10-07. Overall status: **BLOCKED on an analytics/product decision**.
+Date: 2026-10-07. Overall status: **PARTIAL — independent SEO work resumed**.
 Single primary agent; self-review, not independent review.
 Source request: `/Users/rwin/Documents/claud/rvionai.com-audit/AGENT-PROMPT.md`.
 Baseline: `6977b30`; production runtime remains `63abbcd`.
@@ -10,7 +10,12 @@ hash finalization is a separate documentation-only checkpoint, not further imple
 
 ## Scope and stop boundary
 
-The requested four-phase programme is **not complete**. P1-1 is implemented and
+The requested four-phase programme is **not complete**. The initial checkpoint below
+stopped at P1-3; AGENT-PROMPT-2 now authorizes independent steps with OWNER DECISION
+**DEFERRED**. Analytics, LanguageViewMixin session behavior and caching stay unchanged.
+Current continuation evidence is recorded at the end of this report.
+
+Historical first checkpoint: P1-1 is implemented and
 locally verified. P1-2 has an exam-only contract, not the requested entire-sitemap
 contract. Investigation of P1-3 exposed a second intentional session writer that
 the prompt's proposed LanguageViewMixin edit cannot resolve. Per the supplied
@@ -111,24 +116,24 @@ because the audit describes an existing implementation.
 | Task | Status | Files / evidence / reason |
 | --- | --- | --- |
 | P1-1 | VERIFIED (local) | core/sitemaps.py, core/test_seo_pwa.py, core/tests_seo_contract.py; active exam about URLs, preserved lastmod/access, red→green evidence above. |
-| P1-2 | PARTIAL | core/tests_seo_contract.py covers emitted exam URLs only. Entire sitemap, title/description uniqueness and all reciprocal alternates remain unimplemented; not a green whole-site contract. |
+| P1-2 | VERIFIED (local) | Entire emitted sitemap: anonymous 200/indexable/self canonical/H1/nonempty unique titles/descriptions/reciprocal alternates. Red: 50 subtest failures; now green. |
 | P1-3 | BLOCKED | No production code changed. Independent traffic session writer reproduced; analytics/product coverage decision required. Diagnostic test is characterization, NOT cookieless acceptance. |
-| P1-4 | NOT_STARTED | Stopped at P1-3; metadata/copy must be verified against pages before edits. |
-| P1-5 | NOT_STARTED | Shared brand helper/title conversion deferred at the stop boundary. |
+| P1-4 | VERIFIED (local) | Page-specific descriptions from visible content and exam fields, including assessment terms outside sitemap. |
+| P1-5 | PARTIAL | Shared brand context, public title suffixes and og:site_name; protected gallery and embedded brand names retain correct existing spelling. |
 | P1-6 | NOT_STARTED | Existing core.test_seo_pwa.SearchDiscoveryTests.test_private_workspaces_are_excluded_from_crawling explicitly requires X-Robots-Tag: noindex. Header retained under the prompt's safety condition; no assertion weakened. |
 | P2-1 | NOT_STARTED | No Organization/WebSite graph work before Phase 1 resolves. |
 | P2-2 | NOT_STARTED | No visible breadcrumb/schema changes. |
 | P2-3 | NOT_STARTED | No Service schema/Offer added. |
 | P2-4 | NOT_STARTED | No CRM SoftwareApplication or fabricated exam Course/ratings. |
 | P2-5 | NOT_STARTED | No blog schema/model/migration change; author and modification metadata approval remains needed. |
-| P2-6 | NOT_STARTED | No demo metadata change. Protected dirty projects/views/projects.py remains untouched. |
+| P2-6 | VERIFIED (local) | Template-only unique titles/descriptions use demo title/category/tagline/fit label; protected view untouched; contract passes. |
 | P2-7 | NOT_STARTED | No schema-contract extension; no sample graph invented for the report. |
 | P3-1 | NOT_STARTED | No blog publishing/content/TOC work, no article or permanent draft created. |
 | P3-2 | NOT_STARTED | No invented FAQ or audience copy; database/copy inventory deferred. |
 | P3-3 | NOT_STARTED | No unique demo introductions supplied/applied; no noindex change. |
 | P3-4 | NOT_STARTED | No entity page/footer edits. |
 | P3-5 | NOT_STARTED | H1 proposal deferred at stop boundary; homepage untouched. |
-| P4-1 | NOT_STARTED | Depends on blocked cookie policy; never cache authenticated/form HTML. |
+| P4-1 | BLOCKED | OWNER DECISION DEFERRED; analytics, language session behavior and cache policy must not change. |
 | P4-2 | NOT_STARTED | No Lighthouse run or before/after performance numbers; no CSS consolidation. |
 | P4-3 | NOT_STARTED | No first-paint PWA browser observation or change. |
 | P4-4 | NOT_STARTED | No new image introduced; future image policy still to enforce. |
@@ -195,3 +200,34 @@ indexing. No Search Console/DNS/indexing request has been submitted by this task
 - [Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap):
   sitemap entries should represent the preferred crawlable URLs; sitemap submission
   itself is not evidence of ranking or indexing success.
+
+## Continuation — AGENT-PROMPT-2
+
+The user explicitly assigned execution to this same single primary agent.
+No delegation or external messaging. OWNER DECISION = DEFERRED.
+Whole-sitemap fixtures cover all five sitemap classes, all seven demo categories
+with two variants each, differently named bilingual blog slugs, and both exam
+types, alongside migrated seed content. Every emitted URL is crawled anonymously.
+No duplicate title/description exceptions. FA-only discovery wizards are explicit
+translation exceptions; their English redirects are no longer advertised as alternates.
+
+Red evidence: `.venv/bin/python manage.py test core.tests_seo_contract.WholeSitemapContractTests --verbosity 1`
+ran 2 tests, 50 subtest failures, no errors (log `/tmp/rvion-seo-contract-red.log`).
+An initial test implementation error resolving localized URLs outside a language
+override was corrected before recording this red result; it was not a product defect.
+Metadata changes contain descriptive summaries only; legal provisions, fees,
+exam questions, forms, customer records and privacy policy text remain unchanged.
+P2-6's template-only metadata was moved into this coherent contract/metadata phase
+because the required uniqueness gate exposes existing repeated category descriptions.
+Do not commit a knowingly failing contract as an accepted implementation phase.
+
+Metadata gate: `.venv/bin/python manage.py test core.tests_seo_contract core.test_seo_pwa core.tests core.test_security_redirects blog services projects leads --verbosity 1`
+passed 375 tests (16 PostgreSQL-only skips). After adding a brand/terms test,
+reran `.venv/bin/python manage.py test core.tests_seo_contract --verbosity 1`: 7/7 passed.
+Check: 0 issues; migration drift: no changes; diff check: clean.
+SQLite read-path evidence, not PostgreSQL concurrency or production.
+Changed HTML: FA/EN company, blog list, contact, privacy, service terms, refund
+policy, assessment terms, active exam briefings/demo previews; title suffixes
+also affect home, about, service list/detail and blog detail. FA-only enquiry
+head gains valid Persian/x-default alternates. No new claim needing approval.
+Rollback: bounded metadata/contract commit in Git; no DB rollback required.
