@@ -103,7 +103,7 @@ class ExamSitemap(LocalizedSitemap):
     def location(self, item):
         language, exam = item
         with translation.override(language):
-            return reverse("assessments:detail", args=[exam.slug])
+            return reverse("assessments:briefing", args=[exam.slug])
 
     def lastmod(self, item):
         return item[1].updated_at

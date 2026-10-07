@@ -1,5 +1,23 @@
 # Rvion current state
 
+## SEO programme — BLOCKED at P1-3 (2026-10-07)
+
+- User requested execution of external AGENT-PROMPT.md; local only/no deploy or push.
+  Canonical report: `docs/seo/SEO_PHASE_REPORT.md` (all 22 task IDs tracked).
+- P1-1 VERIFIED locally: active ExamSitemap URLs now point to public briefings,
+  lastmod preserved and price-page authorization unchanged. New exam contract
+  failed before the correction at 302 != 200, then passed; 50 targeted tests passed.
+  P1-2 PARTIAL: exam-only contract, not the requested entire sitemap contract.
+- P1-3 BLOCKED: TrafficAnalyticsMiddleware independently creates anonymous sessions
+  for existing unique/online visitor tracking. Plain-HttpResponse diagnostic proves
+  cookies persist even with no language/template write. LanguageViewMixin unchanged.
+  Need owner's decision on anonymous analytics coverage before a cookieless policy.
+  No IP/UA identity substitute, cache weakening, form/CSRF or auth change attempted.
+- Remaining IDs NOT_STARTED under the prompt's stop rule. Read the report before
+  resuming; do not treat this as full SEO completion. Check/migration drift/diff clean.
+- Preserve/exclude the three pre-existing gallery edits. Existing robots noindex test
+  still applies. No migration, articles, production data changes or performance claim.
+
 ## Production release — VERIFIED (2026-10-07, 09:21 UTC)
 
 - SSH retry succeeded with the original key and standard secure connection options;

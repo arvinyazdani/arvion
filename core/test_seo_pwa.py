@@ -100,8 +100,10 @@ class SearchDiscoveryTests(TestCase):
         self.assertContains(response, f"https://testserver/fa/projects/demos/{demo.slug}/")
         self.assertContains(response, f"https://testserver/en/projects/demos/{demo.slug}/")
         self.assertNotContains(response, f"https://testserver/fa/projects/{project.slug}/")
-        self.assertContains(response, f"https://testserver/fa/assessments/{exam.slug}/")
-        self.assertContains(response, f"https://testserver/en/assessments/{exam.slug}/")
+        self.assertContains(response, f"https://testserver/fa/assessments/{exam.slug}/about/")
+        self.assertContains(response, f"https://testserver/en/assessments/{exam.slug}/about/")
+        self.assertNotContains(response, f"<loc>https://testserver/fa/assessments/{exam.slug}/</loc>")
+        self.assertNotContains(response, f"<loc>https://testserver/en/assessments/{exam.slug}/</loc>")
         self.assertNotContains(response, "https://testserver/en/crm-order/")
         self.assertNotContains(response, "https://testserver/en/clinic-order/")
 
