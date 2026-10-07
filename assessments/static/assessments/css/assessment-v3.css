@@ -122,6 +122,12 @@
 .answer-review-section .inline-code{max-width:100%;border:1px solid var(--border-default);background:var(--surface-card);color:var(--text-primary);overflow-wrap:anywhere;word-break:break-word}
 .empty-review{border-color:var(--border-default);background:var(--surface-card);color:var(--text-secondary)}
 .insight-pill{border:1px solid var(--border-default);background:var(--color-accent-surface);color:var(--text-primary)}
+.copy-warning{margin-block:1rem;padding:1rem;border:1px solid var(--status-warning-border);border-inline-start:4px solid var(--status-warning-text);border-radius:16px;background:var(--status-warning-surface);color:var(--status-warning-text);overflow-wrap:anywhere}
+.copy-warning p{margin-block:.5rem;font-size:.95rem;line-height:1.8}
+.copy-warning [data-copy-counter]{display:block;font-weight:700}
+.copy-warning button{margin-block-start:.75rem;max-width:100%;white-space:normal}
+.copy-warning button[hidden]{display:none}
+.copy-warning[data-stage="4"],.copy-warning[data-stage="5"]{border-inline-start-width:7px}
 .integrity-score strong{color:var(--status-success-text)}
 .result-panel.integrity-review{border-color:var(--status-warning-border)!important;background:var(--status-warning-surface)!important}
 .integrity-review .integrity-score strong{color:var(--status-warning-text)}

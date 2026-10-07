@@ -9,6 +9,12 @@ from core.i18n_numbers import persian_digits
 register = template.Library()
 
 
+@register.simple_tag
+def copy_warning_state(attempt):
+    from assessments.integrity import copy_warning_state as state
+    return state(attempt)
+
+
 @register.filter
 def group_digits(value):
     try:

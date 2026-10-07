@@ -4,6 +4,15 @@ from dataclasses import dataclass
 MAX_ABSENCE_MS = 900_000
 
 
+def copy_warning_state(attempt):
+    """Count only scoped v1 events, never reinterpret historical telemetry."""
+    count = attempt.integrity_events.filter(event_type="copy", metadata__copy_policy_version=1).count()
+    return {
+        "copy_count": count,
+        "warning_stage": min(count, 5),
+    }
+
+
 @dataclass(frozen=True)
 class IntegrityAssessment:
     points: int

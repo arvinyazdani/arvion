@@ -1,0 +1,8 @@
+{% load static assessment_extras %}{% copy_warning_state attempt as copy_state %}
+<aside class="copy-warning" data-copy-warning data-count="{{ copy_state.copy_count }}" data-lang="{{ lang }}" role="status" aria-live="polite" aria-atomic="true">
+  <strong>{% if lang == 'fa' %}پاسخ مستقل؛ نتیجه معتبر{% else %}Independent answers; meaningful results{% endif %}</strong>
+  <p data-copy-message>{% if lang == 'fa' %}کپی سؤال و گزینه‌ها مجاز نیست. از منابع بیرونی یا کمک دیگران استفاده نکنید.{% else %}Do not copy questions or choices, use external sources, or get help from others.{% endif %}</p>
+  <span data-copy-counter>{% if lang == 'fa' %}تلاش‌های ثبت‌شده: {{ copy_state.copy_count|fa_digits }}{% else %}Recorded copy attempts: {{ copy_state.copy_count }}{% endif %}</span>
+  <button type="button" class="button secondary" data-copy-dismiss hidden>{% if lang == 'fa' %}متوجه شدم؛ مستقل ادامه می‌دهم{% else %}Understood; I will continue independently{% endif %}</button>
+</aside>
+<script src="{% static 'assessments/js/copy-warning.js' %}" defer></script>

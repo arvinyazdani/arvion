@@ -1,5 +1,56 @@
 # Rvion current state
 
+## Copy deterrence — phase 1 checkpoint (2026-10-07)
+
+- Status: VERIFIED locally for the bounded phase. Local commit subject:
+  `feat(assessments): add scoped copy counters and progressive warnings`.
+  Final gate: 73/73 targeted Python tests on isolated real PostgreSQL, zero
+  skips (including concurrent replay); Node 6/6 passed; check 0 issues;
+  makemigrations --check --dry-run: No changes detected; git diff --check clean.
+
+- Scope: shared question/review detection, server-confirmed copy counter and
+  escalating bilingual warnings. FEATURE/UI_FEATURE; single primary agent.
+  Baseline b041f44. No stopping, credit revocation, payment redirection or new
+  report sharing in this phase. Phases 2 and 3 remain NOT_STARTED.
+- Server counter includes only scoped v1 copy events with an owned question and
+  bounded event identifier. Historical copy events remain unchanged and excluded.
+  Retries deduplicate by identifier across time under the existing Attempt row
+  lock; reusing the identifier on a different question returns 409 without writes.
+  Legacy telemetry compatibility is retained. No schema/migration change.
+- One shared selection-based detector blocks normal browser copying only when
+  selected content intersects a question/choice. The review has no question text,
+  so copying its instructions is not penalized. Paste detection on the question
+  stays unchanged. No clipboard contents, selection text or fingerprint collected.
+- Inline live warnings/count, stronger warning from fourth action, dismissible
+  acknowledgement. Count and serious warning restore from the server on reload.
+  Fetches are serialized; one retry retains the same event identifier. Failed
+  recording shows explicit feedback and never invents a successful count.
+- Evidence: 70 initial SQLite domain/UI tests passed; final PostgreSQL domain/UI
+  + copy-replay concurrency gate recorded below. Six permanent Node tests cover
+  selection scope, synthetic events, network retry, rapid actions, English fourth
+  warning and missing-CSRF snapshot safety. check/migration dry-run/diff checks
+  recorded below. Full project suite not required for this bounded phase.
+- Browser: real native Chrome copy commands showed first and fourth warnings;
+  three rapid commands after serialization persisted three distinct events
+  (count 3 -> 6). Reload and review retained the count. IAB FA question/EN review
+  at 390x844: scrollWidth=390, English warning has no Persian characters. Screenshot:
+  /tmp/rvion-copy-qa.MXW2e5/mobile-review-en.png. IAB copy commands did not trigger
+  a browser event, so actual copy evidence comes from native Chrome, not IAB.
+  Direct IAB URL navigation required re-login; cross-language session continuity
+  is not claimed by this browser evidence. No physical iPhone/Android check.
+- Found/fixed during QA: parallel browser fetches hit isolated SQLite write-lock
+  contention; serialized client queue then passed rapid-copy browser verification.
+  Initial Node rapid-action test had a fake UUID stub tied to sent-request count;
+  corrected the stub to mint an ID at each action. No test skipped/weakened.
+- Preservation: three pre-existing projects gallery edits excluded from commit.
+  All DB/browser fixtures isolated in /tmp or local PostgreSQL test DBs; no real
+  customer mutation, SMS/Push, push, deploy or production migration.
+- Boundary: browser telemetry can be bypassed and is evidence, not proof of AI
+  use. Offline loss/unload before queued sends is not durable offline telemetry;
+  server-confirmed counts alone are authoritative. No retrospective sanctions.
+- Next: phase 2, explicitly enforce free-credit attempt stopping at five with
+  retained answers, safe payment/support path, and paid-attempt warning-only policy.
+
 ## Admin decision-focused rebuild — stage 8 checkpoint (2026-10-07)
 
 - VERIFIED locally; all eight stages technically complete, appearance acceptance

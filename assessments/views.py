@@ -24,7 +24,7 @@ from management_portal.models import Customer, CustomerContact
 
 from .emails import send_payment_confirmation_email, send_result_ready_email
 from .forms import FinishAttemptForm, ManualPaymentSubmissionForm, SupportTicketForm
-from .integrity import assess_event, question_pace_rows
+from .integrity import assess_event, copy_warning_state, question_pace_rows
 from .models import Attempt, AttemptQuestion, AttemptResult, Certificate, Choice, Exam, ExamEntitlement, IntegrityEvent, ManualPaymentSubmission, Order, SupportTicket, WelcomeAssessmentCredit
 from .services import AssessmentAccessRevokedError, AttemptLimitError, ExamContentError, PaymentVerificationError, redeem_welcome_assessment, finalize_attempt_submission, finalize_expired_attempt, start_attempt, verify_sandbox_payment
 
@@ -699,7 +699,21 @@ class IntegrityEventView(LoginRequiredMixin, View):
             connection_state = "unknown"
         pairing_status = "not_applicable"
         now = timezone.now()
-        if event_type in {"copy", "paste"}:
+        scoped_copy = event_type == "copy" and request.POST.get("copy_scope") == "question"
+        copy_event_id = _telemetry_token(request.POST.get("copy_event_id"))
+        if scoped_copy:
+            if item is None or not copy_event_id:
+                return JsonResponse({"ok": False, "reason": "invalid_copy_event"}, status=400)
+            existing = IntegrityEvent.objects.filter(
+                attempt=attempt, event_type="copy", metadata__copy_policy_version=1,
+                metadata__copy_event_id=copy_event_id,
+            ).first()
+            if existing:
+                if existing.attempt_question_id != item.pk:
+                    return JsonResponse({"ok": False, "reason": "copy_event_conflict"}, status=409)
+                return JsonResponse({"ok": True, "deduplicated": True,
+                    "integrity_score": attempt.integrity_score, **copy_warning_state(attempt)})
+        if event_type in {"copy", "paste"} and not scoped_copy:
             recent = IntegrityEvent.objects.filter(
                 attempt=attempt, event_type=event_type, attempt_question=item,
                 created_at__gte=now - timedelta(seconds=3),
@@ -799,6 +813,8 @@ class IntegrityEventView(LoginRequiredMixin, View):
             metadata["transition_id"] = transition_id
         if page_session_id:
             metadata["page_session_id"] = page_session_id
+        if scoped_copy:
+            metadata.update(copy_policy_version=1, copy_event_id=copy_event_id)
         event = IntegrityEvent.objects.create(
             attempt=attempt,
             attempt_question=item,
@@ -815,6 +831,7 @@ class IntegrityEventView(LoginRequiredMixin, View):
             "risk_points": assessment.points,
             "evidence_id": event.pk,
             "pairing_status": pairing_status,
+            **(copy_warning_state(attempt) if scoped_copy else {}),
         })
 
 

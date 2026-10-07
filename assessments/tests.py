@@ -65,9 +65,19 @@ class AssessmentUISystemTests(SimpleTestCase):
         self.assertNotIn("navigator.userAgent", self.attempt_template)
 
     def test_clipboard_telemetry_is_limited_to_question_content(self):
-        self.assertIn("const monitoredContent=document.querySelector('.question-stage')", self.attempt_template)
+        self.assertIn("node.dataset.copyQuestion=shell.dataset.itemId", self.attempt_template)
         self.assertIn("#assessment-question-title,.choice-list,.listening-player", self.attempt_template)
         self.assertNotIn("document.addEventListener('copy'", self.attempt_template)
+
+    def test_shared_copy_detector_checks_selection_and_ignores_review_page_text(self):
+        script = (ASSESSMENT_STATIC_ROOT / 'js' / 'copy-warning.js').read_text()
+        review = (Path(__file__).resolve().parent / 'templates/assessments/attempt_review.html').read_text()
+        self.assertIn('selection.isCollapsed', script)
+        self.assertIn('range.intersectsNode(node)', script)
+        self.assertIn('if (!event.isTrusted) return', script)
+        self.assertNotIn("document.addEventListener('copy'", review)
+        self.assertNotIn('clipboardData', script)
+        self.assertIn("assessments/_copy_warning.html", review)
 
     def test_payment_consent_overrides_legacy_checkbox_layout(self):
         self.assertIn(
@@ -1576,6 +1586,72 @@ class AssessmentEngineTests(TestCase):
         attempt.refresh_from_db()
         self.assertEqual(attempt.integrity_score, 98)
 
+    def test_scoped_copy_counts_distinct_actions_and_replay_only_once(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        self.client.force_login(self.user)
+        url = reverse('assessments:integrity_event', args=[attempt.pk])
+        for n in range(1, 6):
+            body = {'event_type': 'copy', 'copy_scope': 'question',
+                    'copy_event_id': f'copy-event-{n}', 'item_id': item.pk}
+            response = self.client.post(url, body)
+            self.assertEqual(response.json()['copy_count'], n)
+            replay = self.client.post(url, body)
+            self.assertTrue(replay.json()['deduplicated'])
+            self.assertEqual(replay.json()['copy_count'], n)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, 'in_progress')
+        self.assertEqual(attempt.integrity_score, 90)
+        page = self.client.get(reverse('assessments:attempt_review', args=[attempt.pk]))
+        self.assertContains(page, 'data-count="5"')
+
+    def test_scoped_copy_requires_question_and_identifier_without_side_effects(self):
+        attempt = self.start()
+        self.client.force_login(self.user)
+        url = reverse('assessments:integrity_event', args=[attempt.pk])
+        for extra in ({}, {'copy_event_id': 'valid-event-id'},
+                      {'item_id': attempt.attempt_questions.first().pk, 'copy_event_id': 'bad token'}):
+            response = self.client.post(url, {'event_type': 'copy', 'copy_scope': 'question', **extra})
+            self.assertEqual(response.status_code, 400)
+        self.assertFalse(attempt.integrity_events.exists())
+
+    def test_historical_copy_does_not_enter_new_counter(self):
+        attempt = self.start()
+        item = attempt.attempt_questions.first()
+        IntegrityEvent.objects.create(attempt=attempt, event_type='copy', attempt_question=item)
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('assessments:integrity_event', args=[attempt.pk]),
+            {'event_type': 'copy', 'copy_scope': 'question', 'copy_event_id': 'new-event-id', 'item_id': item.pk})
+        self.assertEqual(response.json()['copy_count'], 1)
+
+    def test_copy_replay_survives_time_and_rejects_reuse_on_another_question(self):
+        attempt = self.start()
+        items = list(attempt.attempt_questions.all())
+        self.client.force_login(self.user)
+        url = reverse('assessments:integrity_event', args=[attempt.pk])
+        body = {'event_type': 'copy', 'copy_scope': 'question',
+                'copy_event_id': 'stable-event-123', 'item_id': items[0].pk,
+                'clipboard_text': 'private text must not be stored'}
+        self.client.post(url, body)
+        attempt.integrity_events.update(created_at=timezone.now()-timedelta(minutes=5))
+        replay = self.client.post(url, body)
+        self.assertEqual(replay.json()['copy_count'], 1)
+        self.assertTrue(replay.json()['deduplicated'])
+        body['item_id'] = items[1].pk
+        self.assertEqual(self.client.post(url, body).status_code, 409)
+        self.assertEqual(attempt.integrity_events.count(), 1)
+        self.assertNotIn('private text', str(attempt.integrity_events.first().metadata))
+
+    def test_scoped_copy_cannot_be_written_by_another_user(self):
+        attempt = self.start()
+        other = User.objects.create_user(username='copy-outsider@example.test', password='test-password')
+        self.client.force_login(other)
+        response = self.client.post(reverse('assessments:integrity_event', args=[attempt.pk]),
+            {'event_type': 'copy', 'copy_scope': 'question', 'copy_event_id': 'other-event-123',
+             'item_id': attempt.attempt_questions.first().pk})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(attempt.integrity_events.exists())
+
     def test_finish_submits_attempt(self):
         attempt = self.start()
         self.client.force_login(self.user)
@@ -2068,6 +2144,37 @@ class AssessmentFinishConcurrencyTests(TransactionTestCase):
                 "explanation_fa": "", "explanation_en": "", "is_correct": True,
             }],
         )
+
+    def test_concurrent_scoped_copy_replay_has_one_event_and_one_penalty(self):
+        from django.test import RequestFactory
+        from assessments.views import IntegrityEventView
+        barrier = threading.Barrier(2)
+        outcomes, errors = [], []
+        item = self.attempt.attempt_questions.first()
+
+        def send():
+            close_old_connections()
+            try:
+                request = RequestFactory().post('/', {'event_type': 'copy',
+                    'copy_scope': 'question', 'copy_event_id': 'same-event-123', 'item_id': item.pk})
+                request.user = self.user
+                barrier.wait(timeout=5)
+                outcomes.append(IntegrityEventView.as_view()(request, pk=self.attempt.pk).status_code)
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                close_old_connections()
+        threads = [threading.Thread(target=send) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(errors, [])
+        self.assertEqual(outcomes, [200, 200])
+        self.assertEqual(self.attempt.integrity_events.count(), 1)
+        self.attempt.refresh_from_db()
+        self.assertEqual(self.attempt.integrity_score, 98)
 
     def test_concurrent_final_submit_keeps_completed_state_and_one_result(self):
         barrier = threading.Barrier(2)
