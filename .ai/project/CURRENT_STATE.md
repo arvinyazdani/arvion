@@ -1,5 +1,29 @@
 # Rvion current state
 
+## Production release — VERIFIED (2026-10-07, 09:21 UTC)
+
+- SSH retry succeeded with the original key and standard secure connection options;
+  no VPN/system/SSH configuration was changed by the agent. Prior timeout blocker
+  is closed; its entry below is historical. Single-primary release checklist used.
+- Server started clean at `7c64527`, active. Fast-forwarded to the exact approved
+  `63abbcde57ebd64ea94f095649b440eb9636cf30`, then ran `ops/release.sh` successfully.
+  Quality workflow 37597882080 completed success for that exact revision.
+- Pre-migration PostgreSQL snapshot:
+  `/srv/arvion/backups/pre-release-20261007-092058.dump`; `pg_restore --list` passed
+  (archive validation, not a full production restore rehearsal).
+- Production checks/dependencies passed; assessments 0027 and management_portal
+  0020 applied; static files refreshed; Nginx validated; service restarted active;
+  internal health passed. Existing English v5 / Python v3 banks reported no changes.
+  Server Git status clean after release; release-history records commit=63abbcd health=ok.
+- Public smoke: health JSON ok; FA/EN home and English assessment about HTTP 200;
+  anonymous management HTTP 302 (login boundary preserved). Recent service journal
+  showed normal startup and health requests. No production test account or customer
+  mutation introduced. Authenticated production copy gesture / physical phone UAT
+  and a full 15-minute monitoring window are not claimed; local QA limits remain.
+- Product runtime release is 63abbcd. This local documentation checkpoint is not
+  a further runtime release; no additional migration/restart required for these notes.
+  Three unrelated, uncommitted gallery changes remain local and excluded.
+
 ## Release attempt — production BLOCKED on SSH (2026-10-07)
 
 - Explicit deployment authorization received. Release source baseline `12e67bb`;
