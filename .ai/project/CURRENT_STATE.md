@@ -5,7 +5,11 @@
 - Start 517211e; telephone regression VERIFIED: schema-only E.164 mobile,
   international unchanged, blank omitted, persisted/visible value unchanged.
   core.tests_seo_contract: 12/12 OK. No migration or production changes.
-- Next: prove premium audit baseline, idle Lighthouse medians, low-risk linking.
+- Telephone commit b431ad2. Baseline premium comparison VERIFIED: detached
+  6977b30 and current audit both 55; same findings and literal button markup across
+  10 files. Existing JS handlers demonstrate static-detection false positives,
+  not a blanket runtime/premium PASS. No protected UI changed.
+- Next: idle Lighthouse medians and evidence-supported fixes, then linking.
 - Preserve three dirty gallery files; OWNER DECISION DEFERRED; local commits only.
 
 ## SEO continuation — PARTIAL (2026-10-07)

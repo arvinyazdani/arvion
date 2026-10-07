@@ -741,3 +741,29 @@ correctly rejects new blank profiles; this does not change model validation.
 No migration, push, deploy, messaging or permanent DB writes. Rollback: revert
 the scoped telephone commit; stored company data needs no rollback.
 Next: baseline audit provenance and idle 3-run performance medians.
+
+## Follow-up 2 — premium audit baseline VERIFIED (comparison only)
+
+Telephone commit: b431ad2. Disposable detached worktree created at exactly
+6977b30: /tmp/rvion-seo-baseline-6977b30; main worktree was never stashed/reset.
+Command: `.venv/bin/python /Users/rwin/.codex/plugins/cache/openai-curated-remote/frontend-design-premium/1.4.0/skills/frontend-design-premium/scripts/audit_project.py /tmp/rvion-seo-baseline-6977b30 --mode strict`.
+Baseline and e8a8aa2-era audit both report exactly 55 errors, all
+affordance.actionless-button. Same file/rule/message multiset and counts, and
+every literal button's complete markup in all 10 flagged templates is byte-for-byte
+identical between baseline and current code. Line numbers alone changed on preview
+because its redundant breadcrumb was removed; selectors/attributes did not.
+Counts: demo_full 3, demo_preview 7; scenes clinic 7, corporate 3, education 6,
+footer 1, jewelry 2, portfolio 7, restaurant 7, storefront 12. No finding introduced
+by 93132bc/e8a8aa2. Raw baseline premium-audit.json retained in temporary worktree;
+previous raw audit retained under /tmp/rvion-seo-qa.3snpId/premium-audit.json.
+
+These are static action-detection false positives where a data attribute has an
+explicit handler: demo-configurator.js data-demo-view/reset (244–245), config-open
+(304), demo-action (339), demo-filter (399); storefront.js owns store controls.
+Example restaurant filter has data-demo-filter and changes hidden item states;
+reservation data-demo-action sets aria-pressed plus live summary; footer
+data-config-open opens the existing settings region/sheet. No claim that every
+possible runtime state was interactively audited. The strict auditor remains red,
+not waived as a full premium gate; comparison itself is verified. Protected UI
+unchanged. This phase is evidence-only, no product fix needed, no migrations.
+Rollback: documentation-only; no runtime/data consequence.
