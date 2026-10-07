@@ -9,7 +9,11 @@
   6977b30 and current audit both 55; same findings and literal button markup across
   10 files. Existing JS handlers demonstrate static-detection false positives,
   not a blanket runtime/premium PASS. No protected UI changed.
-- Next: idle Lighthouse medians and evidence-supported fixes, then linking.
+- Performance diagnosis completed: 24 successful local Lighthouse runs; FA home
+  font preload makes CLS 0 in all three after runs. Home TBT is worse/variable,
+  shared welcome AudioContext dominates several runs, so optimization PARTIAL.
+  45 focused tests pass; bounded FA/EN 390/1440 visual check, no redesign.
+- Next: contextual linking, owner-only content proposals, then full suite once.
 - Preserve three dirty gallery files; OWNER DECISION DEFERRED; local commits only.
 
 ## SEO continuation — PARTIAL (2026-10-07)

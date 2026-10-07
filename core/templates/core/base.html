@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  {% block font_preload %}{% endblock %}
   <title>{% block title %}{% if lang == 'fa' %}آرویون | طراحی و توسعه محصول دیجیتال{% else %}Rvion | Digital product development{% endif %}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{% if lang == 'fa' %}مشاوره، طراحی، توسعه و پشتیبانی وب‌سایت و پلتفرم آنلاین توسط شرکت آروین توسعه تجارت هوشمند.{% else %}Consulting, design, development and support for websites and online platforms by Rvion.{% endif %}{% endblock %}">
   <meta name="robots" content="{% block meta_robots %}{% if seo_noindex %}noindex,nofollow{% else %}index,follow,max-image-preview:large{% endif %}{% endblock %}">

@@ -767,3 +767,58 @@ possible runtime state was interactively audited. The strict auditor remains red
 not waived as a full premium gate; comparison itself is verified. Protected UI
 unchanged. This phase is evidence-only, no product fix needed, no migrations.
 Rollback: documentation-only; no runtime/data consequence.
+
+## Follow-up 3 — P4-2 diagnosis VERIFIED; optimization PARTIAL (local)
+
+Baseline comparison commit: 6ee23a1. Lighthouse 13.5.0, the same isolated
+DEBUG=False runtime at 8142, default mobile simulated throttling. Three serial
+runs per page before and after; agent tests/builds/browser work paused during
+each batch. Other user apps/OS background activity were not controlled, so this
+is not a guarantee of a completely idle machine or production/RUM performance.
+Raw JSON, trace and devtoolslog: /tmp/rvion-seo-qa.3snpId/before-{home,service,blog,demo}-{1,2,3}*
+and after-{home,service,blog,demo}-{1,2,3}*. No failed runs included.
+Each cell below is median [min–max]; times in milliseconds.
+
+| Page | Before LCP | After LCP | Before CLS | After CLS | Before TBT | After TBT | Score before → after |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Home | 2726 [2721–2727] | 2584 [2481–2729] | .279 [.014–.279] | 0 [0–0] | 361 [0–384] | 654 [161–699] | 79 [71–84] → 81 [78–94] |
+| Service | 2417 [2416–2417] | 2421 [2416–2421] | .0085 [.0068–.0085] | .0085 [.0068–.0085] | 279 [0–404] | 282 [0–450] | 90 [86–96] → 90 [85–96] |
+| Blog | 2417 [2412–2423] | 2422 [2420–2473] | .0029 [.0029–.0029] | .0029 [.0027–.0029] | 273 [0–291] | 299 [0–520] | 90 [90–96] → 89 [82–96] |
+| Demo | 2877 [2732–3031] | 2882 [2876–2886] | .0036 [.0021–.0037] | .0031 [.0031–.0031] | 355 [0–526] | 0 [0–0] | 82 [79–93] → 92 [92–92] |
+
+Home before run 1: cls-culprits-insight (Lighthouse 13's replacement for the
+legacy layout-shift-elements audit) identifies section.website-hero, width 388,
+top 131, height 1172, shift score .2789797, and Vazirmatn Regular/Bold/Black.
+Blog's small shift is its page-hero h1 (.0028887). Existing sample art reserves
+its aspect ratio; no evidence supports arbitrary image/section min-heights.
+[Web fonts can cause layout shifts](https://web.dev/articles/optimize-cls).
+
+bootup-time/mainthread-work-breakdown: home run 1 style/layout 614ms, script
+evaluation 80ms, HTML/CSS parsing 54ms. Home runs 2/3 script evaluation 590/614ms;
+welcome-sound.js accounts for approximately 547/569ms. Blog runs 1/3 attribute
+495/531ms to welcome-sound.js; run 1 style/layout 308ms. Document-attributed
+layout work cannot be honestly assigned to one stylesheet. Service TBT is NOT
+consistently zero: its sound script also costs 666/507ms in runs 1/2. The earlier
+single-run inference that only page-specific code causes blocking is disproved.
+[Audit interpretation](https://developer.chrome.com/docs/lighthouse/performance/bootup-time).
+Changing welcome autoplay would change shared product behaviour, so was not done.
+
+Seven home blocking stylesheets: tokens (fonts/tokens), site (base typography,
+layout/reset), components (buttons/focus), public-shell (header/navigation),
+home-studio (hero), demo-studio (visible hero sample art) are needed above fold.
+footer-studio is below-fold but shared; no removal/reordering/consolidation.
+Unused-byte estimates do not justify removing shared selectors/cascade rules.
+
+One retained fix: FA home only preloads its three above-fold font weights via
+a base font_preload block. EN, service, blog and demo have no new preloads.
+Files: core/templates/core/{base,home}.html, core/tests_seo_contract.py.
+Final rendered design checked before/after at FA/EN 390x844 and 1440x900;
+no redesign, horizontal overflow or CSS order change. Three-run CLS consistently
+fell to zero, so this is not a no-effect fix. Home TBT nevertheless worsened;
+no overall speed, production or ranking improvement is claimed. Other-page
+changes are noise, not attributed gains. Main-thread optimization remains PARTIAL.
+`.venv/bin/python manage.py test core.tests_seo_contract core.tests --verbosity 1`:
+45/45 OK; git diff --check clean. No migration/analytics/cache/loader change.
+Rollback: revert only this font-preload milestone; no data rollback needed.
+Owner decision needed for changing startup sound timing; deferred privacy tasks
+P1-3/P4-1 stay BLOCKED and unchanged.

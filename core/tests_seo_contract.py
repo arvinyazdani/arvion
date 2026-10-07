@@ -222,6 +222,16 @@ class WholeSitemapContractTests(TestCase):
                 company.refresh_from_db()
                 self.assertEqual(company.phone, stored)
 
+    def test_home_font_preload_is_limited_to_persian_above_fold_fonts(self):
+        response = self.client.get('/fa/')
+        html = response.content.decode()
+        for weight in ('Regular', 'Bold', 'Black'):
+            self.assertIn(f'core/fonts/Vazirmatn-{weight}.woff2', html)
+        self.assertEqual(html.count('as="font"'), 3)
+        self.assertLess(html.index('as="font"'), html.index('core/css/tokens.css'))
+        for path in ('/en/', '/fa/blog/', '/fa/services/seo-service/'):
+            self.assertNotContains(self.client.get(path), 'as="font"')
+
     def test_page_specific_types_and_profile_absence_are_truthful(self):
         from core.models import CompanyProfile
         CompanyProfile.objects.all().delete()
