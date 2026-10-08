@@ -5,7 +5,11 @@
 - Phase A VERIFIED locally: 10-test RED (7 failures), 31-test GREEN after fix.
 - No model/schema change; single-language list/detail/sitemap safe; real tags
   and q+tag pagination preserved. SEO metadata preservation gate still green.
-- Phase B importer/render verification next; full suite once at the end.
+- Phase A local commit 2aaff43.
+- Phase B VERIFIED: 58-test targeted GREEN; dry-run zero Posts; 4 exact-body
+  copies, safe idempotent importer, render/link and test-published sitemap gates.
+- Phase C full suite once at the end next. Check and schema dry-run clean on
+  :memory:; no migration needed. Editorial/publication decisions stay with owner.
 - No persistent DB writes, publishing, push, deployment or migration authorized.
 - Three dirty gallery files preserved; P1-3/P4-1 stay DEFERRED.
 - Evidence/files/rollback in docs/seo/SEO_PHASE_REPORT.md. Single primary agent.

@@ -25,9 +25,136 @@ Phase A files: blog/languages.py, blog/views/post_list.py,
 blog/views/post_detail.py, blog/templates/blog/list.html,
 blog/templates/blog/detail.html, blog/test_language_contract.py,
 core/templates/core/base.html, core/sitemaps.py, core/tests_seo_contract.py,
-and the existing status records. Local commit recorded at the next checkpoint.
+and the existing status records. Local commit: 2aaff43.
 Rollback: revert only this phase's committed files before deployment; no DB
 rollback exists or is needed. Never revert the protected gallery work.
+
+### Phase B — importer and content rendering (local)
+
+Four repository files under blog/content_drafts/ contain ONLY JSON-valued front
+matter (slug_fa/title_fa/summary_fa/tags) and the exact Markdown after the source
+`# BODY` delimiter. No source questions, research notes or editor comments were
+imported. Source directory is read-only and unchanged:
+/Users/rwin/Documents/claud/rvionai.com-audit/content-drafts/.
+Byte comparison succeeded for all four bodies; SHA-256 expectations are pinned
+in blog/test_import_drafts.py. No wording, prices, claims or sources were edited.
+
+New files: blog/drafts.py; blog/management/__init__.py;
+blog/management/commands/__init__.py;
+blog/management/commands/import_blog_drafts.py; blog/test_import_drafts.py;
+blog/content_drafts/01-cost-of-corporate-website.md;
+blog/content_drafts/02-custom-vs-template.md;
+blog/content_drafts/03-custom-vs-offtheshelf-crm.md;
+blog/content_drafts/04-english-teacher-assessment.md. Existing status/report
+records updated. No model, migration, renderer, admin or assessment code changed.
+
+Importer validates the whole bundle before writing; only an explicit --update
+may change an existing unpublished Persian draft's title/summary/body/tags.
+Published (including future-scheduled) rows are skipped even with --update.
+Existing English/editorial/publication-date/image fields are preserved.
+New rows have all English fields NULL, is_published=False, published_at=NULL.
+Unique slug and one atomic bundle transaction prevent partial imports. Existing
+rows are locked for a real update; this is not a PostgreSQL concurrency proof.
+No scheduler, automatic import or publication hook exists. --publish-style
+options and front-matter publication/English keys are rejected.
+
+Dry-run captured from a DISPOSABLE Django test database, not db.sqlite3:
+
+```text
+Would create: corporate-website-cost-1405
+Would create: custom-website-vs-template
+Would create: custom-or-ready-made-crm
+Would create: english-teacher-assessment
+DRY RUN — no database writes. Created: 4; updated: 0; skipped: 0. Unreviewed drafts only; no article was published.
+Post count after dry-run: 0
+```
+
+| Draft | Title including brand | Description | h2 | h3 | Blockquotes | Internal hrefs | External hrefs |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 01 corporate-website-cost-1405 | 49 | 122 | 7 | 5 | 1 | 5 | 1 |
+| 02 custom-website-vs-template | 51 | 131 | 5 | 11 | 0 | 5 | 6 |
+| 03 custom-or-ready-made-crm | 59 | 140 | 7 | 8 | 0 | 4 | 7 |
+| 04 english-teacher-assessment | 56 | 131 | 9 | 2 | 0 | 4 | 7 |
+
+Counts are occurrences, not distinct destinations (CRM repeats one external
+href; assessment repeats its briefing link). Markdown heading/link counters
+exactly match the sanitized Post.body_as_html HTML. No h1/table/img, raw &gt;,
+or leaked Markdown markers; article 01's blockquote is intact. All titles <=60
+and descriptions 110–140; no metadata contract violation. Existing renderer
+needed no change.
+
+Internal links retained verbatim:
+
+- 01: /fa/services/ecommerce-platform/; /fa/services/maintenance-and-growth/;
+  /fa/services/corporate-website-design/; /fa/projects/demos/; /fa/contact/.
+- 02: /fa/services/corporate-website-design/; /fa/services/maintenance-and-growth/;
+  /fa/services/custom-web-application/; /fa/projects/demos/; /fa/contact/.
+- 03: /fa/crm/; /fa/services/maintenance-and-growth/;
+  /fa/services/custom-web-application/; /fa/crm-order/.
+- 04: /fa/assessments/english-placement-a1-c1/about/ (twice);
+  /fa/assessments/; /fa/contact/.
+
+The route smoke test supplies an English-exam fixture because operator-seeded
+exam data is absent from a fresh test DB. An initial missing-fixture 404 was
+diagnosed and corrected in TEST setup only, not by altering article links or
+production routes. All internal targets return 200 with their normal fixtures.
+External href preservation is verified, not external availability or accuracy.
+Test-only publication of all four articles exercises every inherited whole-
+sitemap contract; the fa-only hreflang exception is explicitly limited to these
+four named slugs plus the phase-A fixture. No missing translation is fabricated.
+
+### Phase C — owner handoff / publication decisions
+
+UNREVIEWED DRAFTS. Neither this work nor the tests constitute editorial,
+financial, legal or educational approval. Nothing was published or written to
+any persistent database. These files are ready for a FUTURE authorized release,
+not deployed in this phase. No publishing command/flag is provided.
+
+After that future deployment, owner runs in the release's configured Django
+environment (production settings/venv/environment, not a bare local default):
+
+1. `python manage.py import_blog_drafts --dry-run` — inspect create/skip counts.
+2. `python manage.py import_blog_drafts` — create the four unpublished drafts.
+   Existing slugs are skipped; inspect them rather than blindly adding --update.
+3. In /admin/ open each Post. Review title, summary, exact body, tags and sources.
+   Author name is NOT modelled; no author/schema byline was invented here.
+4. Only after approving its content set that post's is_published and published_at
+   explicitly. A future date delays public visibility until that time. Confirm
+   the FA detail/list/sitemap and the English-list language-switch fallback.
+5. After the page is public request indexing of its exact FA URL in Google
+   Search Console URL Inspection. Do not request indexing while it is a draft.
+
+Owner decisions needed BEFORE publication:
+
+- Author byline: approve actual identity and whether bilingual byline fields or
+  an author relation is wanted. That needs a separately authorized model change
+  and migration; design consideration ONLY, not implemented.
+- Publication dates/order/timezone for the four articles; no automatic dates.
+- CRM sanctions paragraph: verify current vendor terms and wording, including
+  Salesforce/Zoho claims. No legal/compliance validity was established here.
+- Teacher-assessment claims: educational review, actual competencies measured,
+  and consistency with the CURRENT copy-monitoring policy (gift attempt can be
+  stopped at the fifth copy event). Source wording about human review must not
+  misrepresent that behaviour. No wording change without owner review.
+- Cost/article product-policy claims and cited third-party numbers/statistics
+  also need editorial fact-checking; body preservation does not endorse them.
+
+Rollback for B: before importing, revert the scoped importer/content commit
+only. After any future import, do NOT delete Posts automatically: preserve
+editorial edits, inspect ownership/publication state and obtain data-change
+authorization. No migration rollback required. Phase-A route safety can be
+reverted separately only after considering any subsequently published fa-only
+articles. Protected gallery work is never part of rollback.
+
+Phase B targeted GREEN: blog + core.tests_seo_contract, 58/58 tests OK,
+/tmp/rvion-blog-import-green.log. Covers import idempotency, explicit update,
+scheduled/published preservation, all publication flags, front-matter allowlist,
+zero-write dry-run, transaction rollback after an injected tag failure,
+unpublished visibility and test-published whole-sitemap contracts. Check zero
+issues; makemigrations --check --dry-run: No changes detected, with the check's
+database explicitly set to :memory:. git diff --check clean. Local Python 3.9 /
+SQLite evidence, not a new CI/Python 3.11/3.12/PostgreSQL validation.
+Full suite and final local commit checkpoint will follow below.
 
 ## Metadata production release — VERIFIED (2026-10-08)
 
