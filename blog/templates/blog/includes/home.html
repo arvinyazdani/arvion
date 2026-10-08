@@ -1,0 +1,6 @@
+{% if latest_posts %}
+<section class="journal-home shell" aria-labelledby="home-articles-title">
+  <header class="journal-section-heading"><div><span class="journal-kicker">{% if lang == 'fa' %}پیش از تصمیم، بخوانید{% else %}Before you decide{% endif %}</span><h2 id="home-articles-title">{% if lang == 'fa' %}برای انتخاب آگاهانه‌تر.{% else %}Make a more informed choice.{% endif %}</h2><p>{% if lang == 'fa' %}هزینه، مسیر ساخت و انتخاب راهکار؛ راهنماهایی برای سوال‌های پیش از شروع پروژه.{% else %}Costs, the building process and choosing a solution. Guides to the questions before a project begins.{% endif %}</p></div><a class="button secondary" href="{% url 'blog:list' %}">{% if lang == 'fa' %}همه مقاله‌ها{% else %}All articles{% endif %}</a></header>
+  <div class="journal-home-grid">{% for post in latest_posts %}{% include 'blog/includes/card.html' with featured=forloop.first %}{% endfor %}</div>
+</section>
+{% endif %}

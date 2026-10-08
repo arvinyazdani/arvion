@@ -138,6 +138,20 @@ and restrained buttons. These are sample variants, not global rebrands.
 
 ## Components
 
+Public journal (2026-10-08): `blog/includes/card.html` and `journal.css` own
+the shared cover/title/date/estimated-reading-time presentation across home,
+list and related articles. Desktop home gives one latest article a larger
+cover and two compact rows; phones retain the lead cover and thumb-sized rows.
+The article library uses a three-column desktop grid, two columns on tablets,
+and one full-width column on phones. Search/topic/page state stays in GET URLs.
+The reading page uses a bounded sticky contents rail and <=760px body on desktop;
+phones use an in-flow native collapsible contents list and 16px text, never a
+sticky overlay. Sanitized headings get generated anchors; article wording is
+unchanged. All semantic colors/font/motion resolve through core/tokens.css.
+21st.dev's sumonadotwork Blog Cards informed text-led hierarchy; no React runtime,
+remote font, hidden-hover cover or additional animation dependency was adopted.
+No fabricated author, popularity, customer claims or read tracking is introduced.
+
 Public shell phase 1 (2026-10-06): header actions use a quiet navigation row,
 one orange project CTA, and native collapsible preferences (language/theme/sound).
 Phones keep five quick destinations and an accessible menu with 52px primary

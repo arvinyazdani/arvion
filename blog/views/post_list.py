@@ -7,6 +7,7 @@ from blog.languages import indexable_list_languages, translated_posts
 from django.conf import settings
 from django.urls import reverse
 from django.utils import translation
+import re
 from core.views.lang import LanguageViewMixin
 
 class PostListView(LanguageViewMixin, ListView):
@@ -33,7 +34,7 @@ class PostListView(LanguageViewMixin, ListView):
         tag = self.request.GET.get("tag")
         if tag:
             qs = qs.filter(tags__name__iexact=tag)
-        return qs
+        return qs.distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -44,4 +45,9 @@ class PostListView(LanguageViewMixin, ListView):
             with translation.override(language):
                 urls[language] = f"{settings.SITE_URL}{reverse('blog:list')}"
         context["alternate_urls"] = urls
+        available = translated_posts(Post.objects.published(), self.lang)
+        tag_names = available.values_list("tags__name", flat=True).exclude(tags__name__isnull=True).order_by("tags__name").distinct()
+        context["article_tags"] = [name for name in tag_names if self.lang == "fa" or not re.search(r"[\u0600-\u06ff]", name)]
+        context["search_query"] = self.request.GET.get("q", "")
+        context["selected_tag"] = self.request.GET.get("tag", "")
         return context

@@ -4,6 +4,7 @@
 # ==== ایمپورت‌ها ====
 from django.views.generic import TemplateView
 from blog.models import Post
+from blog.languages import translated_posts
 from projects.models import DemoTemplate
 from projects.demo_labels import CATEGORY_LABELS_EN
 from .lang import LanguageViewMixin  # میکسین مدیریت زبان
@@ -24,7 +25,7 @@ class HomeView(LanguageViewMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
 
         # آخرین ۳ پست منتشر شده
-        posts = list(Post.objects.published()[:3])
+        posts = list(translated_posts(Post.objects.published(), self.lang)[:3])
         # One active representative per business type; no dead demo links.
         featured_slugs = ("nava-market", "sarvin-atelier", "saffron-table", "linea-studio",
                           "parsa-advisory", "roshna-clinic", "ariana-academy")
@@ -36,13 +37,6 @@ class HomeView(LanguageViewMixin, TemplateView):
         for demo in demos:
             demo.category_label = (demo.get_category_display() if self.lang == "fa"
                                    else CATEGORY_LABELS_EN[demo.category])
-
-        # اگر مدل‌ها چندزبانه هستند (مثلاً با django-parler) این قسمت زبان را اعمال می‌کند
-        for p in posts:
-            try:
-                p.set_current_language(self.lang)
-            except AttributeError:
-                pass  # اگر مدل از parler استفاده نمی‌کند، مشکلی ایجاد نشود
 
         # افزودن به context
         ctx["latest_posts"] = posts

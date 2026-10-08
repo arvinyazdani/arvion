@@ -1,5 +1,40 @@
 # Rvion current state
 
+## Public article experience — VERIFIED locally (2026-10-08)
+
+- New scope: home article section, public list and reading page; no production
+  access, publishing, schema, analytics/session/cache change in this phase.
+- 21st catalog search + component 9321 retrieved; original Django adaptation,
+  frontend-design/Premium used. Existing tokens/fonts/theme remain canonical.
+- Home shows at most three published articles with a real title/slug in the page
+  language. Shared covers/cards, search/topic/pagination, readable body, generated
+  heading anchors, estimated reading time, related articles and return/project
+  links. Desktop/mobiles use different grids and contents-rail behavior.
+- Source test first exposed one removed empty-topic label (fixed without weakening
+  the test) and four pre-existing protected-gallery metadata failures. Isolated
+  HEAD candidate with this scoped patch: blog + SEO 73/73; final impacted gate
+  core/projects/leads.tests/blog 217/217, plus JS syntax PASS. Check zero, no
+  migrations; diff clean. No full suite required for this bounded read-only UI.
+- Browser: FA desktop 1365, mobile 390, FA/EN 320; light/dark, covers loaded,
+  zero horizontal overflow, contents jumps/collapse, search/no-results/clear,
+  native keyboard focus (3px). English article/list slices contain no Persian.
+  Native smooth-scroll needs a settled observation; verified heading is visible.
+- Premium audit with existing projects-only manifest reports 55 unrelated gallery
+  findings; not claimed green. Explicit brand-site blog scope: missing novalidate
+  fixed, strict audit 0 findings. Both JSON artifacts in /tmp/rvion-journal.eMMrOz.
+- DESIGN lint: 0 errors, 2 pre-existing unused-token warnings (muted/focus).
+  Final copy/query polish: singular English count, no unused tag-prefetch queries;
+  targeted journal/blog regression 11/11 passes after this final review.
+- Candidate/browser uses disposable test DB, no permanent local data write.
+  Screenshots journal-mobile-dark.jpg, journal-desktop-dark.jpg and
+  journal-home-desktop.jpg in that folder. Agent-only QA server/test DB closed
+  after verification; no user server stopped.
+- Prior custom article-admin work and three protected gallery diffs preserved,
+  not part of this commit. Protected diff SHA256 remains b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba.
+- Local commit follows this checkpoint; no push/deploy. Next: owner visual review
+  and explicit release request; prior panel/new bundle remains PARTIAL as below.
+
+
 ## Owner-authorized publication / editorial desk — PARTIAL (2026-10-08)
 
 - Owner explicitly authorized publication and the next article bundle, superseding
