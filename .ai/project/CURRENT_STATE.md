@@ -1,5 +1,31 @@
 # Rvion current state
 
+## Owner-authorized publication / editorial desk — PARTIAL (2026-10-08)
+
+- Owner explicitly authorized publication and the next article bundle, superseding
+  the quoted no-production restriction. Other scope/privacy safeguards remain.
+- 66a7cbf pushed; quality run 37833575777 SUCCESS. SSH recovered after handshake
+  timeouts. Pull as ubuntu failed on FETCH_HEAD ownership; retry as existing source
+  owner arvion succeeded without changing permissions or resetting source.
+- Official release 66a7cbf completed health=ok; snapshot
+  pre-release-20261008-200201.dump catalog validated. No migrations applied;
+  existing assessment banks unchanged. Earlier stalled attempt had not released.
+- Import --dry-run --update: 0 create, 4 update, 0 skip. Metadata/tags/bodies matched
+  repository or article-04's known prior revision; all four covers existed.
+- Import --update and publication committed atomically. IDs 1–4 published at
+  2026-10-08T20:03:07.537309+00:00; owner-attributed OperationalAudit rows recorded.
+  Covers and English fields preserved. External smoke passes four HTTP200 pages,
+  canonical/h1/covers/FA-only alternates, all four in sitemap and public health=ok.
+  No article 05–08 published yet.
+- New editorial desk remains local/uncommitted: permission-scoped listing/edit/
+  create/private preview, publish/schedule/draft, tags/cover, stale-edit guard and
+  audit. Targeted temporary-DB checks 12/12 and management regression 115/115 pass.
+  FA mobile editor at 390px has no horizontal overflow; visual review not complete.
+- Next: finish panel verification, then new bundle copy/render/claims/integrity
+  review and four new covers. Full candidate suite once at the end, not yet run
+  for the new panel. Three protected gallery diffs unchanged; P1-3/P4-1 DEFERRED.
+
+
 ## SEO article claims and list availability — VERIFIED (2026-10-08, local only)
 
 - Starting HEAD dc4ad72 (cover commit preserved), owner-reported runtime c722766.

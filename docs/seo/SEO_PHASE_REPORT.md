@@ -1,5 +1,62 @@
 # SEO phase report — Rvion
 
+## Owner-authorized release and first four publications — VERIFIED deployment/data (2026-10-08)
+
+Owner directly authorized publication, the custom dashboard article editor and
+the next bundle. This overrides the pasted no-production restriction, not the
+protected-gallery, privacy or assessment-bank confidentiality boundaries.
+
+- Source: 66a7cbf pushed; quality CI 37833575777 SUCCESS. Its unchanged source
+  retains the prior 1083-test/27-PostgreSQL-skip full-suite evidence. No fresh full
+  suite was claimed for the uncommitted editorial desk.
+- SSH initially timed out during key exchange. A recovered read confirmed runtime
+  c722766, clean source and active arvion/nginx; previous stalled release had not
+  run. Ubuntu's pull failed on .git/FETCH_HEAD ownership. Running the same pull as
+  its existing owner arvion succeeded; no broad chmod/chown/reset was used.
+- Exact release: `sudo -u arvion git -C /srv/arvion pull --ff-only origin main`,
+  then `cd /srv/arvion && sudo bash ops/release.sh`. Exit 0; commit=66a7cbf health=ok.
+  Snapshot `/srv/arvion/backups/pre-release-20261008-200201.dump` catalog validated
+  with `pg_restore --list`. No migrations to apply; seeded banks unchanged.
+- Before publication, repository-loaded metadata/tags/bodies were compared against
+  each stored draft. Only article 04 had its known pre-a6da984 sentence; other
+  bodies were already exact. Every cover existed. No unexpected owner edit.
+- `import_blog_drafts --dry-run --update`: create 0 / update 4 / skip 0, no write.
+  Actual `--update` and publication ran in one `transaction.atomic()` after a
+  repeated locked preflight, preserving cover pointers and all English fields.
+- IDs 1–4 published at real UTC `2026-10-08T20:03:07.537309+00:00`, not backdated.
+  Four `article_publish` OperationalAudit rows use the owner's existing admin
+  actor and record explicit authorization, release and backup identifiers.
+
+Published URLs:
+
+- https://rvionai.com/fa/blog/corporate-website-cost-1405/
+- https://rvionai.com/fa/blog/custom-website-vs-template/
+- https://rvionai.com/fa/blog/custom-or-ready-made-crm/
+- https://rvionai.com/fa/blog/english-teacher-assessment/
+
+An initial external probe timed out in Python TLS; its curl retry incorrectly
+counted the language-switch anchor as an SEO alternate. The probe was corrected
+to inspect only `<link>` tags; neither failure required product code changes.
+Corrected external curl smoke PASSED all four: HTTP200, exactly one h1, exact
+self canonical, existing cover URL, and no English SEO alternate. All four
+are present in the live sitemap; public health returns {"status":"ok"}.
+Search Console indexing has not been requested; no author field/migration added.
+
+Editorial desk is PARTIAL/local: new article_forms/article_views/test_articles,
+articles.css, articles/article_edit/article_preview/_article_field templates,
+URL registrations and content-center entry. Twelve targeted tests and 115-test
+management regression pass in an isolated temporary DB/candidate excluding
+protected gallery changes. Mobile FA editor inspected at 390x844, scrollWidth
+390; full bilingual/browser review and final full suite still pending. No panel
+commit/push/deploy yet. Sources 05–08, their reviews and covers not completed.
+
+Rollback: unpublish only these four article IDs after checking their current
+revision/audit, preserving contents/covers/customer data. Reverting 66a7cbf source
+uses the official release path. The validated pre-release dump is emergency
+recovery evidence, NOT an instruction to overwrite a live DB with new user data.
+Canonical state is CURRENT_STATE.md; no parallel status document created.
+
+
 ## Article claims / language-list indexing — VERIFIED (2026-10-08, local only)
 
 Starting HEAD was dc4ad72, not the attachment's 416aa97: the intervening cover
