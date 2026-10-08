@@ -1,5 +1,80 @@
 # SEO phase report — Rvion
 
+## Article-draft production release/import — VERIFIED (2026-10-08)
+
+Owner explicitly authorized deployment and production dry-run/import. Pushed
+c56db13 + 2aaff43 + 8fb45a1 + c722766; deployed EXACT
+c7227669a070ce3f70e8081d7ffdf11a67c53bc8. Previous runtime c33cf7f.
+Protected gallery work remained excluded and its diff hash unchanged.
+[Quality run 37784737288](https://github.com/arvinyazdani/arvion/actions/runs/37784737288)
+SUCCESS on that SHA, both Python 3.11 and 3.12/PostgreSQL: checks, parallel and
+shuffled full suites, source audits and syntax gates. No CI exception needed.
+
+Server preflight: clean source, app/nginx active, 63G free, migration plan empty.
+Fast-forward clean; official ops/release.sh completed commit=c722766 health=ok
+at 2026-10-08T13:38:51+00:00. Snapshot BEFORE release and import:
+/srv/arvion/backups/pre-release-20261008-133835.dump.
+Root pg_restore --list succeeded (catalog validation, NOT a full restore test).
+No migrations applied; dependency/settings checks successful, existing English
+v5 and Python v3 banks unchanged, nginx valid, both services active.
+
+Production importer used the app user/venv and sourced production environment,
+not local settings. Inspected --dry-run BEFORE actual import:
+
+```text
+Would create: corporate-website-cost-1405
+Would create: custom-website-vs-template
+Would create: custom-or-ready-made-crm
+Would create: english-teacher-assessment
+DRY RUN — no database writes. Created: 4; updated: 0; skipped: 0. Unreviewed drafts only; no article was published.
+```
+
+Actual import: Created: 4; updated: 0; skipped: 0. A subsequent read-only
+dry-run: Created: 0; updated: 0; skipped: 4. Server read-only assertions confirm
+each body's/title's/summary's/tag set equals its repository draft, English
+fields empty, is_published=False, published_at=NULL, and absent from PostSitemap.
+Draft IDs 1–4 in source order, accessible to authorized owners at:
+
+- /admin/blog/post/1/change/ — corporate-website-cost-1405.
+- /admin/blog/post/2/change/ — custom-website-vs-template.
+- /admin/blog/post/3/change/ — custom-or-ready-made-crm.
+- /admin/blog/post/4/change/ — english-teacher-assessment.
+
+Public HTTPS smoke from the server: 62/62 recorded pages pass 200/no redirects,
+self-canonical, one H1, indexability, metadata quality/uniqueness; all prior 26
+corrected outputs exact and 36 non-target outputs byte-unchanged. Sitemap has
+62 URLs, none of these four drafts; FA/EN blog lists exclude them and all eight
+FA/EN draft detail URLs return 404. Local-network smoke first failed with an
+SSL handshake timeout; not counted as PASS. Same read-only checker succeeded
+from the server's public HTTPS path. No CDN/cache/cookie/session changes made.
+Bounded journal check since release: 0 error-marker lines; not a 15-minute
+monitoring or load-test claim. Source worktree clean after import.
+
+Evidence: /tmp/rvion-blog-release.log;
+/tmp/rvion-blog-import-production-dry-run.log;
+/tmp/rvion-blog-import-production.log;
+/tmp/rvion-blog-live-smoke.log (local network failure);
+/tmp/rvion-blog-server-public-smoke.log (62-page success); direct production
+read-only record/public-visibility assertions in this turn's tool evidence.
+
+Publication — BLOCKED on owner/editorial decisions, NOT a deployment blocker:
+no public article was published and no Search Console indexing request made.
+Owner questions in original source files remain unanswered. In particular the
+teacher-assessment article's human-review wording needs reconciliation with the
+gift-attempt fifth-copy stop policy before publication; code tests cannot
+approve that wording. Market prices, template recommendations/brand policy,
+Salesforce/Zoho paragraph, assessment claims, author and dates still require
+the owner's approval/review. Bodies were deliberately not edited in this release.
+Use the admin links above to review; publish/index only AFTER resolving them.
+P1-3/P4-1 remain DEFERRED. Overall SEO programme remains PARTIAL.
+
+Rollback: preserve .env.production/.secrets/media/backups; inspect status before
+returning committed source to c33cf7f through the reviewed release path. No schema
+rollback is required. Four new draft rows should be preserved, not blindly
+deleted or overwritten/restored: a full snapshot restore would also erase
+subsequent unrelated customer activity and needs separate approval. No further
+source release is needed for this documentation-only local checkpoint.
+
 ## Persian article drafts — VERIFIED (2026-10-08, local only)
 
 Start: local c56db13, deployed c33cf7f. Phase A VERIFIED: language-safe lists,

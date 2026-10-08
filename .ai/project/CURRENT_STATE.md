@@ -1,5 +1,21 @@
 # Rvion current state
 
+## Article draft release/import — VERIFIED (2026-10-08)
+
+- Owner-authorized push/deploy/import: runtime c722766, clean server source.
+- CI 37784737288 SUCCESS, Python 3.11/3.12 with PostgreSQL, all quality gates.
+- Official release health=ok; snapshot pre-release-20261008-133835.dump catalog
+  validated; no migrations, no question-bank changes, app/nginx active.
+- Production dry-run create 4; actual create 4; second dry-run skip 4.
+- Exact-content/tags verified; all four unpublished with empty English fields.
+- Public HTTPS server smoke 62/62; 8 draft URLs 404, absent from FA/EN lists and
+  sitemap. Local SSL timeout recorded separately, not disguised as success.
+- Publication BLOCKED on owner content decisions, notably assessment policy
+  wording; no indexing request. Review at /admin/blog/post/ (IDs 1–4).
+- Protected gallery diff unchanged; P1-3/P4-1 DEFERRED. Overall SEO PARTIAL.
+- Report/evidence/rollback in docs/seo/SEO_PHASE_REPORT.md. This post-release
+  documentation checkpoint local only; next action owner content review.
+
 ## Persian article drafts — VERIFIED locally (2026-10-08)
 
 - Phase A VERIFIED locally: 10-test RED (7 failures), 31-test GREEN after fix.
