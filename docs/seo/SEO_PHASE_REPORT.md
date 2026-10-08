@@ -1,5 +1,169 @@
 # SEO phase report — Rvion
 
+## Generated-metadata correction — VERIFIED (local), owner option A (2026-10-08)
+
+Owner decision: description length 90–155 applies ONLY to the 26 requested
+demo-preview/exam-briefing instances. Punctuation, middle ellipsis, adjacent
+repetition, title <=60 and uniqueness remain whole-sitemap contracts.
+P1-3/P4-1 remain DEFERRED: no analytics, sessions, cookies or caching changes.
+
+Baseline: deployed 94c9c06; local start 9fb815f. Used primary-workflow QUICK_FIX
+and engineering:debug (reproduce/isolate/fix/regression), single primary agent.
+No push, deploy or migration against any persistent database.
+
+### Scope and implementation
+
+- Only the title/description blocks and tag-library imports in
+  projects/templates/projects/demo_preview.html and
+  assessments/templates/assessments/briefing.html changed.
+- New core/templatetags/seo_metadata.py strips HTML/whitespace and terminal
+  punctuation from source parts BEFORE joining. It selects whole candidate
+  compositions, never truncates words/sentences, and preserves stored data.
+- Titles first discard the live-sample qualifier if necessary, then shorten
+  category labels; website/category repetition is removed before composition.
+- Demo descriptions use the existing complete tagline and enquiry instruction
+  instead of appending the longer fit phrase. Briefings fall back to their
+  existing monitoring/answer-review topic rather than slicing the exam overview.
+  No new capabilities/claims introduced; body copy/visible names remain unchanged.
+- Actual 26 outputs: title length <=60; description length 91–119, all unique.
+
+### Red / green and preservation evidence
+
+- Previous global-scope red evidence (119 failures) remains historical below.
+- Owner-adjusted RED, BEFORE product edits: 2 tests in 3.506s, 95 failing quality
+  subtests. The other test (all 36 non-target production pages unchanged) passed.
+  Command: .venv/bin/python manage.py test
+  core.tests_seo_contract.WholeSitemapContractTests.test_generated_metadata_quality_entire_sitemap
+  core.tests_seo_contract.WholeSitemapContractTests.test_every_non_target_live_page_metadata_is_byte_unchanged
+  --verbosity 1. Log: /tmp/rvion-seo-metadata-option-a-red.log.
+- GREEN: core.tests_seo_contract, 18 tests, OK (9.109s; repeated targeted run
+  9.347s also OK; final target-inventory assertion covered by the full gate). Log:
+  /tmp/rvion-seo-metadata-option-a-green.log.
+- check: zero issues; makemigrations --check --dry-run: No changes detected.
+  This is a schema-drift diagnostic, NOT a migration execution.
+- Full suite ONCE at the final gate: 1039 tests in 101.988s, OK, 27 PostgreSQL-only
+  skips on SQLite (1012 executed/passed), exit 0. Command:
+  `PYTHONPATH=/tmp/rvion-seo-qa.3snpId/test-deps /Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py test --parallel 4 --verbosity 1`
+  from the isolated candidate archive. Log: /tmp/rvion-seo-metadata-option-a-full.log.
+  The existing test-only tblib dependency enables parallel failure reporting;
+  no project dependency changed. Logged injected-provider errors belong to
+  expected negative-path tests, not additional failing tests.
+- New immutable fixture core/fixtures/seo_metadata_94c9c06.json contains the 62
+  public title/description values from the owner's 2026-10-07 live audit.
+  Every non-target path is present and compared as UTF-8 bytes without test-side
+  whitespace normalization. All 36 match, including the 11 short About/service
+  descriptions. The live verifier originally decoded HTML entities/normalized
+  whitespace; the RED and GREEN preservation tests confirmed those recorded
+  values equal the actual rendered non-target strings byte for byte.
+- For every row below, BEFORE was independently re-rendered from the exact
+  94c9c06 template with the same public catalogue data and matched the live
+  snapshot exactly. AFTER is actual Django response metadata, not a hand-written
+  proposal.
+- A pre-existing breadcrumb assertion failed when real Python exam catalogue
+  wording replaced the fake slug title: "&" is correctly HTML-escaped. Fixed
+  the test to look for escape(item['name']), not unescaped raw text in HTML.
+  This corrects test representation only; schema/template behaviour unchanged.
+- Tests cover terminal punctuation/HTML, whole shorter-topic fallback, no source
+  mutation, all 26 target paths visited, whole-sitemap quality/uniqueness and the
+  non-target byte-preservation assertion.
+- No visual/layout change: response-head checks are the relevant evidence; no
+  new mobile screenshot, PostgreSQL/concurrency, CI or production claim.
+
+### Protected dirty work and reproducible test boundary
+
+The three user-owned gallery files were not edited, staged or committed:
+projects/static/projects/css/demo-gallery.css,
+projects/templates/projects/demo_gallery.html, projects/views/projects.py.
+The pre-existing dirty gallery template changes its OWN two metadata entries,
+so testing the raw working tree would legitimately fail deployed-preservation
+for those entries. Tests instead ran on a disposable HEAD archive plus ONLY
+this phase's candidate files, /tmp/rvion-metadata-candidate.jDvCIL.
+The archive excludes all three protected diffs. This is not a test exception:
+the preservation assertion remains intact and the tested candidate matches what
+will be committed. Temporary test databases only; no project db.sqlite3/server
+database touched.
+
+### Exact 26-row before/after table
+
+| URL | Title before | Title after | Description before | Description after |
+| --- | --- | --- | --- | --- |
+| https://rvionai.com/fa/projects/demos/roshna-clinic/ | طراحی سایت کلینیک با نمونه زنده کلینیک و نوبت‌دهی \| آرویون | طراحی سایت کلینیک با نمونه زنده کلینیک و نوبت‌دهی \| آرویون | کلینیک و نوبت‌دهی؛ نوبت‌دهی، معرفی پزشک و محتوای آگاه‌کننده.. برای کلینیک با معرفی پزشک، محتوای آگاه‌کننده و نوبت‌دهی؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | کلینیک و نوبت‌دهی؛ نوبت‌دهی، معرفی پزشک و محتوای آگاه‌کننده. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/parsa-advisory/ | طراحی سایت وب‌سایت شرکتی با نمونه زنده شرکت خدمات حرفه‌ای \| آرویون | طراحی سایت شرکتی با نمونه زنده شرکت خدمات حرفه‌ای \| آرویون | شرکت خدمات حرفه‌ای؛ اعتمادسازی، خدمات و مسیر ساده تماس.. برای شرکت خدماتی که اعتماد، خدمات و تماس روشن اولویت دارد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | شرکت خدمات حرفه‌ای؛ اعتمادسازی، خدمات و مسیر ساده تماس. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/northline-group/ | طراحی سایت وب‌سایت شرکتی با نمونه زنده برند شرکتی \| آرویون | طراحی سایت شرکتی با نمونه زنده برند شرکتی \| آرویون | برند شرکتی؛ هویت جسور برای معرفی تیم و راهکارها.. برای شرکت خدماتی که اعتماد، خدمات و تماس روشن اولویت دارد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | برند شرکتی؛ هویت جسور برای معرفی تیم و راهکارها. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/nava-market/ | طراحی سایت فروشگاه اینترنتی با نمونه زنده فروشگاه مینیمال \| آرویون | طراحی سایت فروشگاه اینترنتی: فروشگاه مینیمال \| آرویون | فروشگاه مینیمال؛ فروش آرام و متمرکز روی محصول.. برای فروش مستقیم محصول با مسیر خرید کوتاه و واضح؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | فروشگاه مینیمال؛ فروش آرام و متمرکز روی محصول. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/orbit-shop/ | طراحی سایت فروشگاه اینترنتی با نمونه زنده فروشگاه پرانرژی \| آرویون | طراحی سایت فروشگاه اینترنتی: فروشگاه پرانرژی \| آرویون | فروشگاه پرانرژی؛ کاتالوگ سریع برای محصول‌های شاخص.. برای فروش مستقیم محصول با مسیر خرید کوتاه و واضح؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | فروشگاه پرانرژی؛ کاتالوگ سریع برای محصول‌های شاخص. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/ariana-academy/ | طراحی سایت آموزش با نمونه زنده آکادمی و وبینار \| آرویون | طراحی سایت آموزش با نمونه زنده آکادمی و وبینار \| آرویون | آکادمی و وبینار؛ دوره، مسیر یادگیری و تجربه عضویت.. برای آکادمی، دوره آنلاین یا مجموعه برگزارکننده وبینار؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | آکادمی و وبینار؛ دوره، مسیر یادگیری و تجربه عضویت. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/sarvin-atelier/ | طراحی سایت طلافروشی و جواهرات با نمونه زنده گالری طلا و جواهر \| آرویون | طراحی سایت طلافروشی و جواهرات: گالری طلا و جواهر \| آرویون | گالری طلا و جواهر؛ هر قطعه، داستانی برای ماندن.. برای طلافروشی و برندی که اصالت، ساخت سفارشی و مشاوره را آنلاین ارائه می‌کند؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | گالری طلا و جواهر؛ هر قطعه، داستانی برای ماندن. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/linea-studio/ | طراحی سایت پورتفولیو با نمونه زنده استودیوی خلاق \| آرویون | طراحی سایت پورتفولیو با نمونه زنده استودیوی خلاق \| آرویون | استودیوی خلاق؛ نمونه‌کارهایی که داستان هر پروژه را تعریف می‌کنند.. برای متخصص یا استودیویی که باید کیفیت کار را سریع اثبات کند؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | استودیوی خلاق؛ نمونه‌کارهایی که داستان هر پروژه را تعریف می‌کنند. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/atlas-profile/ | طراحی سایت پورتفولیو با نمونه زنده پورتفولیو شخصی \| آرویون | طراحی سایت پورتفولیو با نمونه زنده پورتفولیو شخصی \| آرویون | پورتفولیو شخصی؛ معرفی شفاف مهارت، تجربه و راه تماس.. برای متخصص یا استودیویی که باید کیفیت کار را سریع اثبات کند؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | پورتفولیو شخصی؛ معرفی شفاف مهارت، تجربه و راه تماس. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/saffron-table/ | طراحی سایت رستوران و کافه با نمونه زنده منوی رستوران \| آرویون | طراحی سایت رستوران و کافه: منوی رستوران \| آرویون | منوی رستوران؛ منوی دیجیتال با حس گرم و اشتهابرانگیز.. برای رستوران و کافه‌ای که منو، رویداد و رزرو را یکجا می‌خواهد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | منوی رستوران؛ منوی دیجیتال با حس گرم و اشتهابرانگیز. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/fa/projects/demos/mora-cafe/ | طراحی سایت رستوران و کافه با نمونه زنده کافه و رزرو \| آرویون | طراحی سایت رستوران و کافه با نمونه زنده کافه و رزرو \| آرویون | کافه و رزرو؛ یک تجربه صمیمی برای منو، رویداد و رزرو.. برای رستوران و کافه‌ای که منو، رویداد و رزرو را یکجا می‌خواهد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. | کافه و رزرو؛ یک تجربه صمیمی برای منو، رویداد و رزرو. نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید. |
+| https://rvionai.com/en/projects/demos/roshna-clinic/ | Clinic website design: live Clinic and booking sample \| Rvion | Clinic website design: Clinic and booking \| Rvion | Clinic and booking: Bookings, practitioners and helpful content.. For clinics combining practitioner profiles, guidance and appointment booking. Customise this sample and send a design enquiry. | Clinic and booking: Bookings, practitioners and helpful content. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/parsa-advisory/ | Corporate website website design: live Professional services sample \| Rvion | Corporate website design: Professional services \| Rvion | Professional services: Trust, services and a direct contact path.. For service companies prioritising trust, offers and a clear contact path. Customise this sample and send a design enquiry. | Professional services: Trust, services and a direct contact path. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/northline-group/ | Corporate website website design: live Corporate brand sample \| Rvion | Corporate website design: Corporate brand \| Rvion | Corporate brand: A bold identity for teams and solutions.. For service companies prioritising trust, offers and a clear contact path. Customise this sample and send a design enquiry. | Corporate brand: A bold identity for teams and solutions. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/nava-market/ | E-commerce website design: live Minimal storefront sample \| Rvion | E-commerce website design: Minimal storefront \| Rvion | Minimal storefront: A calm product-first storefront.. For direct product sales with a short, clear purchase path. Customise this sample and send a design enquiry. | Minimal storefront: A calm product-first storefront. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/orbit-shop/ | E-commerce website design: live Bold commerce sample \| Rvion | E-commerce website design: live Bold commerce sample \| Rvion | Bold commerce: A fast catalogue for standout products.. For direct product sales with a short, clear purchase path. Customise this sample and send a design enquiry. | Bold commerce: A fast catalogue for standout products. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/ariana-academy/ | Education & webinar website design: live Academy and webinars sample \| Rvion | Education website design: Academy and webinars \| Rvion | Academy and webinars: Courses, learning journeys and membership.. For academies, online courses and webinar-led education. Customise this sample and send a design enquiry. | Academy and webinars: Courses, learning journeys and membership. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/sarvin-atelier/ | Jewellery boutique website design: live Jewellery atelier sample \| Rvion | Jewellery boutique website design: Jewellery atelier \| Rvion | Jewellery atelier: A keepsake with a story of its own.. For jewellery brands presenting authenticity, custom craft and consultation online. Customise this sample and send a design enquiry. | Jewellery atelier: A keepsake with a story of its own. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/linea-studio/ | Portfolio website design: live Creative studio sample \| Rvion | Portfolio website design: Creative studio \| Rvion | Creative studio: Work that tells the story behind every project.. For experts or studios that need to prove the quality of their work quickly. Customise this sample and send a design enquiry. | Creative studio: Work that tells the story behind every project. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/atlas-profile/ | Portfolio website design: live Personal portfolio sample \| Rvion | Portfolio website design: Personal portfolio \| Rvion | Personal portfolio: A clear home for expertise, work and contact.. For experts or studios that need to prove the quality of their work quickly. Customise this sample and send a design enquiry. | Personal portfolio: A clear home for expertise, work and contact. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/saffron-table/ | Restaurant & cafe website design: live Restaurant menu sample \| Rvion | Restaurant & cafe website design: Restaurant menu \| Rvion | Restaurant menu: A warm, appetite-led digital menu.. For restaurants and cafés combining menus, events and reservations. Customise this sample and send a design enquiry. | Restaurant menu: A warm, appetite-led digital menu. Customise this sample and send a design enquiry. |
+| https://rvionai.com/en/projects/demos/mora-cafe/ | Restaurant & cafe website design: live Cafe and reservations sample \| Rvion | Restaurant website design: Cafe and reservations \| Rvion | Cafe and reservations: A friendly home for menus, events and bookings.. For restaurants and cafés combining menus, events and reservations. Customise this sample and send a design enquiry. | Cafe and reservations: A friendly home for menus, events and bookings. Customise this sample and send a design enquiry. |
+| https://rvionai.com/fa/assessments/english-placement-a1-c1/about/ | پیش از شروع ارزیابی پیشرفته زبان انگلیسی مدرسان \| آرویون | پیش از شروع ارزیابی پیشرفته زبان انگلیسی مدرسان \| آرویون | راهنمای ارزیابی پیشرفته زبان انگلیسی مدرسان: غربالگری سطح بالای گرامر، دقت واژگانی، خواندن انتقادی، شنیدار، ویرایش و تحلیل آموزشی برای انتخاب مدرس.؛ آشنایی با پایش آزمون و بررسی پاسخ‌ها پیش از شروع. | راهنمای ارزیابی پیشرفته زبان انگلیسی مدرسان. پیش از شروع با پایش آزمون و بررسی پاسخ‌ها آشنا شوید. |
+| https://rvionai.com/fa/assessments/python-django-professional/about/ | پیش از شروع ارزیابی تخصصی Python و Django \| آرویون | پیش از شروع ارزیابی تخصصی Python و Django \| آرویون | راهنمای ارزیابی تخصصی Python و Django: سنجش عملی Python، حل مسئله، دیتابیس، تست، امنیت و استقرار پروژه‌های Django.؛ آشنایی با پایش آزمون و بررسی پاسخ‌ها پیش از شروع. | راهنمای ارزیابی تخصصی Python و Django. پیش از شروع با پایش آزمون و بررسی پاسخ‌ها آشنا شوید. |
+| https://rvionai.com/en/assessments/english-placement-a1-c1/about/ | Before you start Advanced English Teacher Assessment \| Rvion | Before you start Advanced English Teacher Assessment \| Rvion | Guide to Advanced English Teacher Assessment: Advanced screening of grammar, lexical precision, critical reading, listening, editing, and pedagogical analysis for te…. Learn about integrity monitoring and answer review before starting. | Guide to Advanced English Teacher Assessment. Learn about integrity monitoring and answer review before starting. |
+| https://rvionai.com/en/assessments/python-django-professional/about/ | Before you start Professional Python & Django Assessment \| Rvion | Guide to Professional Python & Django Assessment \| Rvion | Guide to Professional Python & Django Assessment: A practical assessment of Python, problem solving, databases, testing, security, and Django deployment.. Learn about integrity monitoring and answer review before starting. | Guide to Professional Python & Django Assessment. Learn about integrity monitoring and answer review before starting. |
+
+### Exact changed-HTML URL list
+
+Only the following 26 production sitemap URLs change title and/or description;
+the 36 other production sitemap URLs are unchanged:
+- https://rvionai.com/fa/projects/demos/roshna-clinic/
+- https://rvionai.com/fa/projects/demos/parsa-advisory/
+- https://rvionai.com/fa/projects/demos/northline-group/
+- https://rvionai.com/fa/projects/demos/nava-market/
+- https://rvionai.com/fa/projects/demos/orbit-shop/
+- https://rvionai.com/fa/projects/demos/ariana-academy/
+- https://rvionai.com/fa/projects/demos/sarvin-atelier/
+- https://rvionai.com/fa/projects/demos/linea-studio/
+- https://rvionai.com/fa/projects/demos/atlas-profile/
+- https://rvionai.com/fa/projects/demos/saffron-table/
+- https://rvionai.com/fa/projects/demos/mora-cafe/
+- https://rvionai.com/en/projects/demos/roshna-clinic/
+- https://rvionai.com/en/projects/demos/parsa-advisory/
+- https://rvionai.com/en/projects/demos/northline-group/
+- https://rvionai.com/en/projects/demos/nava-market/
+- https://rvionai.com/en/projects/demos/orbit-shop/
+- https://rvionai.com/en/projects/demos/ariana-academy/
+- https://rvionai.com/en/projects/demos/sarvin-atelier/
+- https://rvionai.com/en/projects/demos/linea-studio/
+- https://rvionai.com/en/projects/demos/atlas-profile/
+- https://rvionai.com/en/projects/demos/saffron-table/
+- https://rvionai.com/en/projects/demos/mora-cafe/
+- https://rvionai.com/fa/assessments/english-placement-a1-c1/about/
+- https://rvionai.com/fa/assessments/python-django-professional/about/
+- https://rvionai.com/en/assessments/english-placement-a1-c1/about/
+- https://rvionai.com/en/assessments/python-django-professional/about/
+
+### Files / local commit / rollback
+
+Files: the two templates above; core/templatetags/seo_metadata.py;
+core/tests_seo_contract.py; core/fixtures/seo_metadata_94c9c06.json;
+docs/seo/SEO_PHASE_REPORT.md; .ai/project/CURRENT_STATE.md; PROJECT_STATUS.md.
+Local implementation commit: e70cdd8
+`fix(seo): compose bounded demo and briefing metadata without truncation`
+(parent 9fb815f). All five implementation/test/fixture files exactly matched the
+tested candidate at commit time. This report and the two living checkpoints are
+recorded in a separate local documentation commit referencing e70cdd8.
+Rollback: revert this phase's scoped local implementation commit; no database
+rollback required. Deployed 94c9c06 is unaffected. Protected gallery work must
+remain excluded from any future release.
+Remaining risk: no production/CI evidence for this unpushed change; constraints
+validated against current catalogue/sitemap, not a guarantee for arbitrary future
+unbounded copy. No known P0/P1 remains in this bounded local phase. Future
+release requires explicit authorization; the wider SEO programme remains PARTIAL.
+
+
 ## Generated-metadata correction — BLOCKED on scope conflict (2026-10-07)
 
 Starting local HEAD b45c2a8; deployed source remains 94c9c06. Explicit boundary:

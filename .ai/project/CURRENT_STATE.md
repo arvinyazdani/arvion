@@ -1,5 +1,25 @@
 # Rvion current state
 
+## Generated metadata — VERIFIED (local), option A (2026-10-08)
+
+- Baseline deployed 94c9c06; local start 9fb815f. Earlier scope blocker below
+  is resolved by the owner's explicit option A, not a current blocker.
+- Implemented render-only demo/briefing composition; 26 target descriptions
+  91–119 chars, titles <=60; punctuation/repetition/ellipsis/uniqueness global.
+- RED: 2 tests, 95 failing quality subtests; 36-page byte-preservation passed.
+- GREEN: core.tests_seo_contract 18/18; check zero; schema dry-run clean.
+- Final full parallel suite ONCE: 1039 tests, 101.988s, OK (27 PostgreSQL-only
+  skips on SQLite). Final candidate files match the committed implementation.
+- Local implementation commit e70cdd8; this documentation checkpoint follows it.
+- Candidate testing excludes the three protected gallery diffs using a temporary
+  HEAD archive. Their own pre-existing gallery metadata edits remain local.
+- P1-3/P4-1 DEFERRED; no push/deploy/persistent migration/data change.
+- Report/table/changed-URL inventory: docs/seo/SEO_PHASE_REPORT.md.
+- Scoped diff review and git diff --check clean; protected-diff SHA-256 remains
+  b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba.
+- Next: no further code work required for this phase; release only on an explicit
+  owner request. Overall SEO remains PARTIAL due to deferred work.
+
 ## Generated metadata — BLOCKED (2026-10-07)
 
 - Deployed 94c9c06; local starting HEAD b45c2a8. No composition edits yet.
