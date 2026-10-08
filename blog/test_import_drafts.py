@@ -28,6 +28,10 @@ BODY_HASHES = {
     "04-english-teacher-assessment.md": "e297a247b5a692d3b19bf6437e23c5801dda838b6360f1b15c5c9e520cd83a1a",
 }
 
+# Only this evidenced correction is permitted against the original draft bundle.
+TEACHER_CLAIM_BEFORE = "سامانه‌ای که الگوی غیرعادی را علامت می‌زند باید خروجی‌اش به بازبینی انسانی برسد، نه رد خودکار."
+TEACHER_CLAIM_AFTER = "سامانه نشانه‌های سلامت آزمون را ثبت می‌کند؛ ادامه آزمون تابع قوانین اعلام‌شده آن است و علامت‌گذاری یک رفتار به‌تنهایی اثبات تقلب نیست."
+
 
 class BodyParser(HTMLParser):
     def __init__(self, html):
@@ -177,7 +181,12 @@ class ImportBlogDraftTests(TestCase):
         self.assertEqual({draft.filename for draft in drafts}, set(BODY_HASHES))
         for draft in drafts:
             with self.subTest(file=draft.filename):
-                self.assertEqual(hashlib.sha256(draft.body_fa.encode()).hexdigest(), BODY_HASHES[draft.filename])
+                original_body = draft.body_fa
+                if draft.filename == "04-english-teacher-assessment.md":
+                    self.assertEqual(original_body.count(TEACHER_CLAIM_AFTER), 1)
+                    self.assertNotIn(TEACHER_CLAIM_BEFORE, original_body)
+                    original_body = original_body.replace(TEACHER_CLAIM_AFTER, TEACHER_CLAIM_BEFORE)
+                self.assertEqual(hashlib.sha256(original_body.encode()).hexdigest(), BODY_HASHES[draft.filename])
                 html = Post(body_fa=draft.body_fa).body_as_html()
                 parsed = BodyParser(html)
                 for level in (2, 3):

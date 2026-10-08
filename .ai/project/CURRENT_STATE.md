@@ -1,5 +1,17 @@
 # Rvion current state
 
+## SEO article claims and list availability — PARTIAL (2026-10-08, local only)
+
+- Starting HEAD dc4ad72 (cover commit preserved), owner-reported runtime c722766.
+- Task 1 VERIFIED: one neutral teacher-draft sentence, byte-preservation hash
+  gate, evidence/owner limitations in docs/seo/SEO_PHASE_REPORT.md; 27 tests pass.
+- Tasks 2–3: red captured (8 tests, 6 failures); implementation and targeted
+  green 66/66 complete, final self-review/full suite/report pending.
+- No SSH, production import, push/deploy, persistent DB migration or publication.
+- P1-3/P4-1 DEFERRED. Three dirty gallery files preserved/excluded.
+- Next: final SEO gate, owner publication handoff, scoped local commits only.
+
+
 ## Article covers — VERIFIED (2026-10-08)
 
 - Four generated editorial JPEG covers saved in blog/content_drafts/covers/.

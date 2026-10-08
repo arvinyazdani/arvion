@@ -1,5 +1,89 @@
 # SEO phase report — Rvion
 
+## Article claims / language-list indexing — PARTIAL (2026-10-08, local only)
+
+Starting HEAD was dc4ad72, not the attachment's 416aa97: the intervening cover
+asset commit is preserved. Production runtime c722766 is owner-supplied history,
+not rechecked in this phase. Owner reports the four unpublished article URLs are
+404; that is owner evidence, not a new agent probe. No production access allowed.
+Single primary agent; three dirty gallery files excluded. P1-3/P4-1 DEFERRED.
+
+### Task 1 — VERIFIED locally: article claim reconciliation
+
+Evidence is current repository code/public templates, not a guarantee about
+live question-bank contents or pedagogical validity. The following inventory
+covers the article's assessment/monitoring/review/result/report/certificate
+statements; educational recommendations are distinguished from product promises.
+Article line references are blog/content_drafts/04-english-teacher-assessment.md.
+
+| Article statement / location | Evidence or limitation | Decision |
+|---|---|---|
+| Title/summary, lines 3–4: guide to teacher assessment, interviews/demo, reading results | Article sections themselves; seed_assessment_banks.py:90–94 defines a teacher assessment | Keep; not accreditation |
+| Lines 7, 11–17: combine assessment, structured interview and demo; interview limitations/research numbers | Employer advice and cited research, not an Rvion implementation promise | Keep; external research accuracy not independently re-audited |
+| Lines 21–30: language accuracy; five proposed item domains; grammar explanation, vocabulary, critical reading, listening, editing | Explicitly a proposed non-standard framework; assessments/management/commands/seed_assessment_banks.py:90–94 public catalogue covers these domains | Keep; no claim of manual grading |
+| Lines 34–37: pedagogical analysis / judge explanations and methods | Cited Richards material and employer framework; seed catalogue includes pedagogical analysis | Keep; real hiring predictive validity UNVERIFIABLE |
+| Line 41: university qualification vs standard language scores vs teaching credentials; added value of custom assessment | General distinction, not Rvion-issued accreditation or standard certification | Keep |
+| Lines 45–47: screening comparable applicants; demo costs and classroom observations | Employer recommendations; no measured Rvion cost/savings claim | Keep; benefit magnitude UNVERIFIABLE |
+| Line 49 sentence 1: linked Rvion assessment targets grammar, vocabulary, reading, listening, editing, pedagogy | seed_assessment_banks.py:90–94 and public /fa/assessments/english-placement-a1-c1/about/ via briefing.html:19–27 | Keep; catalogue evidence, not new live verification |
+| Line 49 sentence 2: not a substitute for interview/demo, may narrow the shortlist | Qualified recommendation, no guaranteed outcome | Keep |
+| Line 53: remote unsupervised scores may involve outside assistance | General risk statement; no claim that monitoring proves it | Keep |
+| Line 55 bold lead: monitoring gives indications, not a verdict | assessments/integrity.py:241–242 and briefing.html:32 explicitly avoid conclusive cheating verdicts | Keep |
+| Line 55 sentence about human review before rejection | Contradicted as a universal description by integrity.py:65–81 automatic policy enforcement; assessments/test_copy_stop.py:40,82,189 cover preservation/reload/no scoring | Replace only this sentence |
+| Remaining line 55: remote-proctoring research, no absolute guarantee | Cited external paper; general caution, not a new Rvion signal/threshold disclosure | Keep; independent literature audit not in scope |
+| Line 56: examine answers/errors instead of only total score | Employer advice; ResultView assessments/views.py:914–974 supplies correct/selected answers and explanations | Keep |
+| Line 57: ask applicants to explain answers at interview | Employer action, not a promise that Rvion supplies a human reviewer | Keep |
+| Line 59 sentence 1: Rvion introduction mentions health monitoring and answer review | briefing.html:31–38; integrity_evidence_summary; ResultView above; management_portal/views.py:477,533–534 report evidence/policy separately | Keep; review here means answer review, not guaranteed staff adjudication |
+| Line 59 sentence 2: ask what is recorded/who reviews/what applicant knows | Buyer due-diligence advice | Keep; no internal details added |
+| Line 63: IF report is skill-separated, compare skill profiles and ask provider | Conditional buyer advice; ResultView prefetches skill_results__skill and exposes learning plan | Keep; no invented score scale or report format |
+| Lines 64–67: define minimums, explain decision, trial period/classroom observations | Employer selection workflow, not automated product hiring decision | Keep |
+| Lines 73–76: explain monitoring, equal conditions, provide technical path, no accent bias, give weakness summary | Employer fairness advice; test_copy_stop.py:135,170 covers appeal/retake; saved answers retained | Keep; no promise of human remediation response time |
+| Line 80: may not need custom test for low-volume hiring; need someone to read results; child/specialist classes may need other items | Conditional suitability advice, no new product capability | Keep |
+| Lines 84–89: checklist for skills/interview/demo/minimums/monitoring/review | Employer checklist summarizing advice, not Rvion personnel/services | Keep |
+| Line 91: contact to discuss suitability | /fa/contact/ existing enquiry route; importer route test | Keep |
+| Rvion certificates, prices, duration, score scale, human marking/accreditation | No such affirmative product claims in this draft; generic IELTS/TKT/CELTA examples are not Rvion credentials | Nothing to add |
+
+Exactly one sentence changed (line 55); front matter, all other body bytes,
+headings, links, citations and trailing newlines remain identical.
+
+| Before | After |
+|---|---|
+| سامانه‌ای که الگوی غیرعادی را علامت می‌زند باید خروجی‌اش به بازبینی انسانی برسد، نه رد خودکار. | سامانه نشانه‌های سلامت آزمون را ثبت می‌کند؛ ادامه آزمون تابع قوانین اعلام‌شده آن است و علامت‌گذاری یک رفتار به‌تنهایی اثبات تقلب نیست. |
+
+No signals, counters, thresholds or bypass instructions were added to the public
+draft. Original body hashes remain pinned: test_import_drafts reverses only this
+single allowed replacement before comparing article 04 to its original hash;
+01–03 are still compared directly. Teacher title+brand 56 characters; summary
+131. No public article, published status, author, date, cover or live record edited.
+
+### Drafts 01–03 — bounded Rvion-claim inventory (no edits)
+
+| Draft / Rvion statement | Evidence | Owner limitation |
+|---|---|---|
+| 01: quoted market prices are NOT Rvion's offer (line 18) | Explicit disclaimer; no Rvion price set | Owner must still approve external price figures/date |
+| 01: e-commerce, maintenance and corporate-design services (38,55,59) | services/migrations/0004_service_sales_content.py:13,27,34; matching /fa/services/<slug>/ pages | Catalogue only; commercial scope/SLA/quotes UNVERIFIABLE |
+| 01: six named demo domains, anonymous colour/style changes, send choices (61,92) | projects/views/projects.py:164,188; projects/tests.py demo-to-enquiry tests; persisted DemoSelection handoff | Verified repository flow, not real customer brands or deployed performance |
+| 02: corporate/custom-webapp/maintenance services (13,45,55,82) | Same service migration, custom-web-application at line 20 | No promise that a template/WordPress delivery service is offered; such commercial offer UNVERIFIABLE |
+| 02: six demo types, anonymous customization/request (86,101) | Same demo flow and /fa/contact/ | No real portfolio/customer-success claim |
+| 03: customizable independently deployed CRM for customers/sales/services/operations (19,70) | core/templates/core/crm_product.html:3,5,7,13 public product description | Published positioning; real deployments/security efficacy UNVERIFIABLE from this site alone |
+| 03: maintenance/custom web-app services and CRM discovery wizard (66,90,107) | Service seeds above, /fa/crm-order/ existing create route | Individual implementation/ownership/SLA guarantees require owner confirmation |
+
+Task-1 red/green, isolated clean-HEAD candidate + only scoped changes:
+
+```text
+.venv/bin/python /tmp/rvion-seo-blog.09ler5/manage.py test blog.test_import_drafts.ImportBlogDraftTests.test_bodies_are_byte_identical_to_source_hashes_and_render_completely --verbosity 1
+RED: 1 test, 1 failure (required neutral replacement absent).
+.venv/bin/python /tmp/rvion-seo-blog.09ler5/manage.py test blog.test_import_drafts --verbosity 1
+Intermediate: 27 tests, 1 failure: patch had removed a final blank line.
+Restored that byte; repeated identical command: GREEN 27/27, zero skips.
+```
+
+Files at this checkpoint: article 04, blog/test_import_drafts.py, this report,
+.ai/project/CURRENT_STATE.md. Commit identified in Git by subject:
+`fix: reconcile teacher assessment draft with enforced exam policy`.
+Rollback: revert only that scoped commit; no schema/data rollback needed.
+Tasks 2–3 implementation/testing is in progress, full suite not run yet.
+
+
 ## Article covers — VERIFIED (2026-10-08)
 
 User authorized generating four covers and attaching them to the four existing
