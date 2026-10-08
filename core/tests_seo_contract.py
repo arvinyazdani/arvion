@@ -68,6 +68,97 @@ class HeadParser(HTMLParser):
             self._schema_buffer += data
 
 
+class BlogListAvailabilityTests(TestCase):
+    DESCRIPTIONS = {
+        'fa': 'راهنمای تصمیم‌گیری درباره طراحی سایت، CRM سازمانی و ارزیابی مهارت؛ هزینه‌ها، معیارها و اشتباه‌های رایج را مرور می‌کنیم.',
+        'en': 'Decision guides on website design, enterprise CRM and skills assessment: costs, selection criteria and common mistakes.',
+    }
+    LEADS = {
+        'fa': 'راهنمایی برای تصمیم‌هایی که پیش از سفارش سایت، CRM یا ارزیابی مهارت باید بگیرید.',
+        'en': 'Guides for the decisions you make before ordering a website, a CRM or a skills assessment.',
+    }
+
+    def setUp(self):
+        translation.activate('fa')
+        self.addCleanup(translation.deactivate_all)
+
+    def publish(self, **overrides):
+        return Post.objects.create(**dict({
+            'slug_fa': 'available-fa', 'title_fa': 'مقاله فارسی',
+            'is_published': True, 'published_at': timezone.now(),
+        }, **overrides))
+
+    def assert_lists(self, expected_languages):
+        from core.sitemaps import StaticSitemap
+        sitemap_languages = {lang for lang, name in StaticSitemap().items() if name == 'blog:list'}
+        self.assertEqual(sitemap_languages, set(expected_languages))
+        for language in ('fa', 'en'):
+            response = self.client.get(f'/{language}/blog/')
+            self.assertEqual(response.status_code, 200)
+            head = HeadParser(response.content.decode())
+            robots = head.meta['robots']
+            if language in expected_languages:
+                self.assertNotIn('noindex', robots)
+            else:
+                self.assertEqual(robots, 'noindex,follow')
+            alternates = {link['hreflang']: link['href'] for link in head.links
+                          if link.get('rel') == 'alternate' and 'hreflang' in link}
+            self.assertEqual(set(alternates), set(expected_languages) | ({'x-default'} if expected_languages else set()))
+            for code in expected_languages:
+                self.assertTrue(alternates[code].endswith(f'/{code}/blog/'))
+            if expected_languages:
+                default = 'fa' if 'fa' in expected_languages else 'en'
+                self.assertEqual(alternates['x-default'], alternates[default])
+            self.assertTrue(next(link['href'] for link in head.links if link.get('rel') == 'canonical').endswith(f'/{language}/blog/'))
+
+    def test_zero_public_posts_noindex_both_and_omit_both_lists(self):
+        self.assert_lists(set())
+
+    def test_persian_only_indexes_only_persian_list(self):
+        self.publish()
+        self.assert_lists({'fa'})
+
+    def test_bilingual_indexes_both_lists(self):
+        self.publish(slug_en='available-en', title_en='English article')
+        self.assert_lists({'fa', 'en'})
+
+    def test_english_only_indexes_only_english_list(self):
+        self.publish(slug_fa=None, title_fa=None, slug_en='available-en', title_en='English article')
+        self.assert_lists({'en'})
+
+    def test_unpublished_future_and_incomplete_translations_do_not_index(self):
+        self.publish(is_published=False)
+        self.publish(slug_fa='future', published_at=timezone.now() + timezone.timedelta(days=1))
+        self.publish(slug_fa='missing-title', title_fa='', slug_en='missing-en-title', title_en='')
+        self.publish(slug_fa='', title_fa='Missing slug', slug_en='', title_en='Missing English slug')
+        self.assert_lists(set())
+
+    def test_empty_search_results_do_not_change_language_availability(self):
+        self.publish()
+        response = self.client.get('/fa/blog/?q=not-present&tag=not-present')
+        self.assertEqual(list(response.context['posts']), [])
+        self.assertNotIn('noindex', HeadParser(response.content.decode()).meta['robots'])
+
+    def test_publication_and_unpublication_change_indexability_immediately(self):
+        post = self.publish(is_published=False)
+        self.assert_lists(set())
+        post.is_published = True
+        post.save()
+        self.assert_lists({'fa'})
+        post.is_published = False
+        post.save()
+        self.assert_lists(set())
+
+    def test_approved_list_copy_exact_and_descriptions_in_range(self):
+        for language in ('fa', 'en'):
+            response = self.client.get(f'/{language}/blog/')
+            head = HeadParser(response.content.decode())
+            self.assertEqual(head.meta['description'], self.DESCRIPTIONS[language])
+            self.assertTrue(90 <= len(head.meta['description']) <= 155)
+            self.assertContains(response, self.LEADS[language])
+            self.assertEqual(head.title, 'دیدگاه‌ها | آرویون' if language == 'fa' else 'Insights | Rvion')
+
+
 class WholeSitemapContractTests(TestCase):
     # These discovery wizards intentionally only have a Persian translation.
     FA_ONLY = {'crm_orders:create', 'clinic_orders:create'}

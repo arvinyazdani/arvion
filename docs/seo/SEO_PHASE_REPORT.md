@@ -1,6 +1,6 @@
 # SEO phase report — Rvion
 
-## Article claims / language-list indexing — PARTIAL (2026-10-08, local only)
+## Article claims / language-list indexing — VERIFIED (2026-10-08, local only)
 
 Starting HEAD was dc4ad72, not the attachment's 416aa97: the intervening cover
 asset commit is preserved. Production runtime c722766 is owner-supplied history,
@@ -78,10 +78,161 @@ Restored that byte; repeated identical command: GREEN 27/27, zero skips.
 ```
 
 Files at this checkpoint: article 04, blog/test_import_drafts.py, this report,
-.ai/project/CURRENT_STATE.md. Commit identified in Git by subject:
+.ai/project/CURRENT_STATE.md. Commit a6da984:
 `fix: reconcile teacher assessment draft with enforced exam policy`.
 Rollback: revert only that scoped commit; no schema/data rollback needed.
-Tasks 2–3 implementation/testing is in progress, full suite not run yet.
+At that checkpoint Tasks 2–3 were in progress; final results follow below.
+
+### Tasks 2–3 — VERIFIED locally: populated language lists and approved copy
+
+`blog.languages.indexable_list_languages()` uses the existing published query
+(is_published and published_at not in the future) and requires both localized
+slug and title. PostListView and StaticSitemap use that same rule. No cache,
+cookie, session, analytics or database-schema policy was changed. Availability
+is independent of q/tag/pagination; changes to publication are reflected on the
+next request. The helper uses two bounded EXISTS queries, no per-post iteration.
+
+| Public inventory | FA list | EN list | Blog-list alternates |
+|---|---|---|---|
+| Zero published translations | 200, noindex,follow, omitted from sitemap | Same | None, including no x-default |
+| FA only | 200, indexable, in sitemap | 200, noindex,follow, omitted | Only FA + x-default FA |
+| EN only | 200, noindex,follow, omitted | 200, indexable, in sitemap | Only EN + x-default EN |
+| Both | 200, indexable, in sitemap | Same | FA, EN, x-default FA |
+
+Every list keeps its own canonical, including an empty list. The base template
+guards x-default when no alternate exists, preventing an empty href. On other
+pages with existing alternates, rendered output is unchanged. No redirects,
+robots.txt disallow or Search Console removal request were introduced.
+
+What Google sees at `/en/blog/` with no English articles: BEFORE, an indexable
+200 empty list advertised by sitemap and hreflang; AFTER this future release,
+a 200 `noindex,follow` page, absent from sitemap and blog-list alternates. This
+is a crawlable noindex request, not a guarantee of immediate deindexing. Once
+an eligible English article is published, the list becomes indexable again.
+Production still serves the previous implementation; no live check this phase.
+
+Approved list copy (exact; both descriptions 119 characters):
+
+| Language | Meta description | Lead |
+|---|---|---|
+| FA | راهنمای تصمیم‌گیری درباره طراحی سایت، CRM سازمانی و ارزیابی مهارت؛ هزینه‌ها، معیارها و اشتباه‌های رایج را مرور می‌کنیم. | راهنمایی برای تصمیم‌هایی که پیش از سفارش سایت، CRM یا ارزیابی مهارت باید بگیرید. |
+| EN | Decision guides on website design, enterprise CRM and skills assessment: costs, selection criteria and common mistakes. | Guides for the decisions you make before ordering a website, a CRM or a skills assessment. |
+
+Titles remain `دیدگاه‌ها | آرویون` / `Insights | Rvion`. H1, search/filter form,
+article cards, empty state and pagination unchanged. Only the two `/fa/blog/`
+and `/en/blog/` description entries changed in the golden fixture; direct JSON
+comparison against dc4ad72 confirms every title and all other entries identical.
+Whole-sitemap metadata uniqueness and non-target byte-preservation tests pass.
+
+Exact affected outputs after an eventual release/update:
+
+- `https://rvionai.com/fa/blog/`: approved description/lead, inventory-based
+  robots/alternates (still 200; title/H1 unchanged).
+- `https://rvionai.com/en/blog/`: same, English version.
+- `https://rvionai.com/sitemap.xml`: includes each blog-list URL only when its
+  language has eligible published content; post/detail publication rule unchanged.
+- `https://rvionai.com/fa/blog/english-teacher-assessment/`: the one article-body
+  sentence only AFTER an authorized draft update and owner publication; currently
+  not changed by source release alone. Article title/summary/links remain unchanged.
+
+Final test evidence (no invented browser/live/CI evidence):
+
+```text
+# Candidate built with git archive dc4ad72, then scoped files copied.
+# Protected gallery diffs never copied into the candidate.
+.venv/bin/python /tmp/rvion-seo-blog.09ler5/manage.py test core.tests_seo_contract.BlogListAvailabilityTests --verbosity 1
+RED: 8 tests, 6 failures; unconditional sitemap languages + old copy reproduced.
+# One initial combined label run from the project cwd failed test discovery:
+# ImportError: candidate blog module vs project blog directory. No test executed.
+# Corrected cwd, no product/test change needed:
+cd /tmp/rvion-seo-blog.09ler5
+/Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py test core.tests_seo_contract blog --verbosity 1
+GREEN: 66/66, zero skips, 11.610s.
+/Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py check
+0 issues.
+PYTHONPATH=/tmp/rvion-seo-qa.3snpId/test-deps /Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py test --parallel 4 --verbosity 1
+FULL SUITE ONCE: 1083 tests, OK, 27 existing PostgreSQL-only skips, 57.613s.
+git diff --check
+Clean.
+```
+
+Python 3.9 local venv / isolated SQLite test databases. tblib is an existing
+temporary test dependency for parallel traceback transport, not a repo dependency
+change. Expected injected-error logs occurred inside passing failure-path tests;
+missing candidate staticfiles warning is not a production static check. No test
+was hidden/newly skipped. PostgreSQL, Python 3.11/3.12 and CI not run this phase.
+No persistent db.sqlite3 touched, migration files created or migrations applied;
+test runner only prepares/discards temporary test databases. No browser, live
+HTTP, SSH, import command on permanent data, push, deploy or indexing performed.
+
+Final files beyond Task 1: blog/languages.py, blog/views/post_list.py,
+blog/templates/blog/list.html, core/sitemaps.py, core/templates/core/base.html,
+core/tests_seo_contract.py (8 added tests), core/fixtures/seo_metadata_94c9c06.json,
+this report and CURRENT_STATE. Local implementation commit subject:
+`fix: index only populated blog languages and align approved copy` (hash in Git
+and final handoff, rather than a self-referential pre-commit hash).
+
+Protected gallery diff SHA256 still
+`b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba`;
+projects/static/projects/css/demo-gallery.css, projects/templates/projects/
+demo_gallery.html, projects/views/projects.py untouched and uncommitted here.
+
+### Task 4 — owner handoff / design only
+
+UNVERIFIABLE / owner decisions, not silently converted into claims:
+
+1. Author public name, actual authorship/reviewer role, optional bio/profile URL.
+   No invented person/credential or claim of human marking/review service.
+2. Real publication date for each article; real editorial modification date if
+   one is exposed. A deployment/import date is not automatically an editorial date.
+3. Article 01 external market-price figures and validity date; they are expressly
+   not Rvion quotes. Service delivery guarantees/prices/support SLA remain unproven.
+4. Article 02 recommendations on when NOT to choose custom development are kept;
+   confirm editorial/commercial stance. No WordPress/template service invented.
+5. Article 03 sanctions/access considerations and actual CRM delivery/security/
+   independent-deployment commitments need owner's factual/commercial review.
+6. Article 04 hiring predictive validity, actual savings, research interpretation
+   and fairness judgments need editorial approval; code proves mechanics, not
+   psychometric validation. External cited research was not re-audited here.
+
+Byline/schema design ONLY: nullable editorial fields (e.g. author_name_fa/en,
+optional public author_url, editorial_updated_at) or a nullable author relation
+if multiple writers are planned. Render a Person author only with an approved
+real public name; omit unsupported role/credentials/URL. Keep datePublished tied
+to published_at; emit dateModified only for an actual editorial change. A future
+additive migration must preserve existing articles/cover/publication fields and
+default to absent values. No author model/schema/template/migration implemented.
+
+Future production steps — NOT executed; require a new explicit release authority:
+
+1. Review/push these scoped commits, ensure protected gallery work remains separate,
+   and use the established `sudo bash /srv/arvion/ops/release.sh` release path with
+   pre-release backup and health/public smoke. This task adds no migrations.
+2. Before draft writes, retain an export/snapshot of current article records.
+   From `/srv/arvion`, using the production service environment and interpreter:
+   `python manage.py import_blog_drafts --dry-run --update`.
+   Inspect counts and each planned update; do not use plain dry-run's skip output
+   as evidence that --update has nothing to change.
+3. Only after review: `python manage.py import_blog_drafts --update`.
+   It skips ALL is_published=True records (including future scheduled ones),
+   updates existing UNPUBLISHED Persian title/summary/body/tags only, and preserves
+   cover, English fields, publication date and other editorial fields. Unchanged
+   01–03 source bodies are not a license to overwrite separate owner edits unseen.
+4. Read all four in `/admin/blog/post/`; confirm owner items above, article-04
+   neutral policy wording and the four existing covers. Leave unapproved drafts
+   unpublished. No OTP/counter/internal detection details added to public text.
+5. Owner sets is_published and the real published_at for individually approved
+   articles; inspect public pages, article/list sitemap and language alternates.
+6. Request Search Console indexing only for those published public URLs; do not
+   request indexing of the empty noindex English list or unpublished 404 articles.
+
+Source rollback: revert the relevant local scoped commit(s), preserving user
+gallery changes. No schema/data rollback now. After a future importer update,
+source revert alone does not revert DB article text: restore only affected draft
+fields from its retained pre-update export after review, not a blanket database
+restore that could erase later customer activity. Release health/backup/public
+checks remain future work. This local scope is VERIFIED; publication/release and
+the wider SEO programme remain PARTIAL, P1-3/P4-1 DEFERRED.
 
 
 ## Article covers — VERIFIED (2026-10-08)

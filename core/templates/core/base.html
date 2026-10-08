@@ -11,7 +11,7 @@
   <link rel="canonical" href="{{ canonical_url }}">
   {% if alternate_urls.fa %}<link rel="alternate" hreflang="fa" href="{{ alternate_urls.fa }}">{% endif %}
   {% if alternate_urls.en %}<link rel="alternate" hreflang="en" href="{{ alternate_urls.en }}">{% endif %}
-  <link rel="alternate" hreflang="x-default" href="{% if alternate_urls.fa %}{{ alternate_urls.fa }}{% else %}{{ alternate_urls.en }}{% endif %}">
+  {% if alternate_urls.fa or alternate_urls.en %}<link rel="alternate" hreflang="x-default" href="{% if alternate_urls.fa %}{{ alternate_urls.fa }}{% else %}{{ alternate_urls.en }}{% endif %}">{% endif %}
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:site_name" content="{{ brand_name }}">
   <meta property="og:locale" content="{% if lang == 'fa' %}fa_IR{% else %}en_US{% endif %}">

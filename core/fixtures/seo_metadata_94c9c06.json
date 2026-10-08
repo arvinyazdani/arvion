@@ -28,7 +28,7 @@
     },
     "/fa/blog/": {
       "title": "دیدگاه‌ها | آرویون",
-      "description": "دیدگاه‌ها و یادداشت‌های آرویون درباره Django، معماری محصول و تصمیم‌های توسعه نرم‌افزار؛ جست‌وجو و مرور مقاله‌ها."
+      "description": "راهنمای تصمیم‌گیری درباره طراحی سایت، CRM سازمانی و ارزیابی مهارت؛ هزینه‌ها، معیارها و اشتباه‌های رایج را مرور می‌کنیم."
     },
     "/fa/assessments/": {
       "title": "مرکز آزمون آرویون",
@@ -76,7 +76,7 @@
     },
     "/en/blog/": {
       "title": "Insights | Rvion",
-      "description": "Browse and search Rvion's insights on Django, product architecture and software development decisions."
+      "description": "Decision guides on website design, enterprise CRM and skills assessment: costs, selection criteria and common mistakes."
     },
     "/en/assessments/": {
       "title": "Rvion Assessment Center",

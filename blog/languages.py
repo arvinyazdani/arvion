@@ -14,3 +14,11 @@ def available_post_languages(post):
     return tuple(language for language in ("fa", "en")
                  if getattr(post, f"slug_{language}") and
                  getattr(post, f"title_{language}"))
+
+
+def indexable_list_languages():
+    """List availability follows publication, not search/pagination results."""
+    from blog.models import Post
+    published = Post.objects.published()
+    return tuple(language for language in ("fa", "en")
+                 if translated_posts(published, language).exists())

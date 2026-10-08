@@ -3,7 +3,10 @@
 from django.views.generic import ListView
 from django.db.models import Q
 from blog.models import Post
-from blog.languages import translated_posts
+from blog.languages import indexable_list_languages, translated_posts
+from django.conf import settings
+from django.urls import reverse
+from django.utils import translation
 from core.views.lang import LanguageViewMixin
 
 class PostListView(LanguageViewMixin, ListView):
@@ -31,3 +34,14 @@ class PostListView(LanguageViewMixin, ListView):
         if tag:
             qs = qs.filter(tags__name__iexact=tag)
         return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        languages = indexable_list_languages()
+        context["blog_has_posts"] = self.lang in languages
+        urls = {}
+        for language in languages:
+            with translation.override(language):
+                urls[language] = f"{settings.SITE_URL}{reverse('blog:list')}"
+        context["alternate_urls"] = urls
+        return context

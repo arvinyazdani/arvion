@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import translation
 
 from blog.models import Post
-from blog.languages import available_post_languages
+from blog.languages import available_post_languages, indexable_list_languages
 from projects.models import DemoTemplate
 from services.models import Service
 from assessments.models import Exam
@@ -23,7 +23,7 @@ class StaticSitemap(LocalizedSitemap):
     def items(self):
         bilingual_names = (
             "home", "about", "company_info", "crm_product", "services:list",
-            "projects:demo_gallery", "blog:list", "assessments:list", "leads:contact",
+            "projects:demo_gallery", "assessments:list", "leads:contact",
             "privacy", "service_terms", "refund_policy",
         )
         # These two discovery wizards intentionally redirect English requests to
@@ -31,6 +31,7 @@ class StaticSitemap(LocalizedSitemap):
         # not belong in a sitemap.
         persian_only_names = ("crm_orders:create", "clinic_orders:create")
         items = [(language, name) for language in self.languages() for name in bilingual_names]
+        items.extend((language, "blog:list") for language in indexable_list_languages())
         items.extend(("fa", name) for name in persian_only_names)
         return items
 
