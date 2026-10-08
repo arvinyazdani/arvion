@@ -42,9 +42,12 @@ Draft IDs 1–4 in source order, accessible to authorized owners at:
 
 Public HTTPS smoke from the server: 62/62 recorded pages pass 200/no redirects,
 self-canonical, one H1, indexability, metadata quality/uniqueness; all prior 26
-corrected outputs exact and 36 non-target outputs byte-unchanged. Sitemap has
-62 URLs, none of these four drafts; FA/EN blog lists exclude them and all eight
-FA/EN draft detail URLs return 404. Local-network smoke first failed with an
+corrected outputs exact and 36 non-target outputs byte-unchanged. The draft rows
+are absent from PostSitemap by direct server assertions. A separate public
+sitemap/list/eight-draft-URL visibility probe could NOT run: both SSH attempts
+timed out before executing its script. Therefore no production 404 assertion
+is claimed (that behaviour passed locally); public draft visibility probe is
+PARTIAL pending restored connectivity. Local-network smoke first failed with an
 SSL handshake timeout; not counted as PASS. Same read-only checker succeeded
 from the server's public HTTPS path. No CDN/cache/cookie/session changes made.
 Bounded journal check since release: 0 error-marker lines; not a 15-minute
@@ -55,7 +58,8 @@ Evidence: /tmp/rvion-blog-release.log;
 /tmp/rvion-blog-import-production.log;
 /tmp/rvion-blog-live-smoke.log (local network failure);
 /tmp/rvion-blog-server-public-smoke.log (62-page success); direct production
-read-only record/public-visibility assertions in this turn's tool evidence.
+read-only record assertions and unsuccessful public-visibility SSH attempts
+in this turn's tool evidence.
 
 Publication — BLOCKED on owner/editorial decisions, NOT a deployment blocker:
 no public article was published and no Search Console indexing request made.

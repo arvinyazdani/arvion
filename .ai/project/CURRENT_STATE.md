@@ -8,8 +8,9 @@
   validated; no migrations, no question-bank changes, app/nginx active.
 - Production dry-run create 4; actual create 4; second dry-run skip 4.
 - Exact-content/tags verified; all four unpublished with empty English fields.
-- Public HTTPS server smoke 62/62; 8 draft URLs 404, absent from FA/EN lists and
-  sitemap. Local SSL timeout recorded separately, not disguised as success.
+- Public HTTPS server smoke 62/62; records excluded from PostSitemap. Separate
+  list/sitemap/8-URL public visibility probe PARTIAL: SSH timed out twice before
+  executing it. Local SSL timeout also recorded, not disguised as success.
 - Publication BLOCKED on owner content decisions, notably assessment policy
   wording; no indexing request. Review at /admin/blog/post/ (IDs 1–4).
 - Protected gallery diff unchanged; P1-3/P4-1 DEFERRED. Overall SEO PARTIAL.
