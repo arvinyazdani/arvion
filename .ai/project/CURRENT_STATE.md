@@ -1,5 +1,19 @@
 # Rvion current state
 
+## Metadata release — VERIFIED (2026-10-08)
+
+- Explicit deployment authorization; c33cf7f pushed, protected gallery diffs excluded.
+- CI 37775751122 SUCCESS for 3.11/3.12 PostgreSQL, parallel/shuffle/all gates.
+- Runtime c33cf7f, clean server source, official release health=ok, app/nginx active.
+- Snapshot pre-release-20261008-122634.dump catalog validated as root; no migrations
+  applied, existing question banks unchanged. Post-release error-marker count 0.
+- Resolved source-directory ownership failure with an archive and restoration
+  ONLY of this failed attempt's known changes; customer/private data untouched.
+- HTTPS smoke 62/62: corrected 26 outputs exact, other 36 UTF-8-byte unchanged.
+- Detailed recovery, test/release logs, table and rollback in SEO_PHASE_REPORT.md.
+- Next: no work remains for this release; SEO programme's deferred work remains.
+  Post-release documentation checkpoint local only; source runtime c33cf7f.
+
 ## Generated metadata — VERIFIED (local), option A (2026-10-08)
 
 - Baseline deployed 94c9c06; local start 9fb815f. Earlier scope blocker below

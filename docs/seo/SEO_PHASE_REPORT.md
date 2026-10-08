@@ -1,5 +1,52 @@
 # SEO phase report — Rvion
 
+## Metadata production release — VERIFIED (2026-10-08)
+
+Owner explicitly requested deployment. Candidate c33cf7f (implementation e70cdd8)
+was pushed to main; protected gallery diffs remain local and excluded.
+Previous production source 94c9c06. Preflight worktree clean, health OK,
+migration plan empty, available disk 63G. [Quality run 37775751122](https://github.com/arvinyazdani/arvion/actions/runs/37775751122)
+completed SUCCESS for both Python 3.11 and 3.12 with PostgreSQL, parallel and
+shuffled suites and remaining quality gates, on exact SHA
+c33cf7f5ae52a15246bda145693b460654c8e284.
+
+First source fast-forward hit root-owned directories core/templatetags and
+docs/seo. HEAD remained 94c9c06 with partial checkout changes made by this
+attempt. Fixed ownership ONLY for those two directories and the report file,
+archived that attempt to backups/metadata-interrupted-merge-c33cf7f.tar.gz
+(plus its new public fixture JSON), restored ONLY the known attempt-created
+tracked changes to HEAD, preserved the generated fixture in backups, checked
+the source clean and retried fast-forward. No user/customer files were reset.
+The first attempt never ran release/restart; the retry succeeded.
+
+Official ops/release.sh completed commit=c33cf7f health=ok. Snapshot:
+/srv/arvion/backups/pre-release-20261008-122634.dump. Root pg_restore --list
+succeeded (catalog validation, not a full restoration test). An initial attempt
+as postgres lacked permission to read the owner-restricted dump; permissions
+were preserved and validation rerun as root, not loosened.
+Dependencies and deploy checks passed; no migrations to apply; English v5 and
+Python v3 banks already existed, no question records changed. Static assets
+unchanged, nginx valid, app/nginx active, source worktree clean, local health OK.
+Bounded post-release journal error-marker count 0; not 15-minute monitoring.
+
+Public read-only HTTPS smoke PASSED for all 62 recorded sitemap paths: 200/no
+redirect, self-canonical, one H1/indexable, global quality/uniqueness. All 26
+target title/descriptions exactly match the AFTER table below; all 36 non-target
+values match the 94c9c06 baseline as UTF-8 bytes, including the 11 short pages.
+The live /sitemap.xml inventory was separately asserted equal to those 62 paths.
+No account, payment, form, contract, SMS or notification action was performed.
+Evidence: /tmp/rvion-metadata-release.log (permission failure),
+/tmp/rvion-metadata-release-retry.log (success), /tmp/rvion-metadata-live-smoke.log.
+Protected local gallery diff hash unchanged:
+b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba.
+P1-3/P4-1 remain DEFERRED. Overall SEO programme remains PARTIAL.
+
+Rollback: inspect server status, preserve .env.production/.secrets/media/backups,
+return ONLY clean committed source to 94c9c06 and restart the application through
+the reviewed release path. This metadata-only release needs no database rollback.
+The deployment record is a subsequent local documentation checkpoint, not a
+second production release; runtime remains c33cf7f.
+
 ## Generated-metadata correction — VERIFIED (local), owner option A (2026-10-08)
 
 Owner decision: description length 90–155 applies ONLY to the 26 requested
