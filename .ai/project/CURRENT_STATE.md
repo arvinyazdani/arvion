@@ -1,5 +1,17 @@
 # Rvion current state
 
+## Article covers — VERIFIED (2026-10-08)
+
+- Four generated editorial JPEG covers saved in blog/content_drafts/covers/.
+- Production draft IDs 1–4 now have hero_image; every other field unchanged.
+- Snapshot pre-article-covers-20261008-1400.dump catalog validated; no schema,
+  model/template changes, source deployment, restart, or publication.
+- Existing image validator, decoding, storage hashes, and all four public media
+  HTTP200/JPEG/exact-byte checks passed. Earlier pre-write import typo resolved.
+- Runtime c722766; assets and evidence local commit only; gallery work preserved.
+- Owner content/publication decisions still required. Prompts, paths, evidence
+  and rollback in docs/seo/SEO_PHASE_REPORT.md.
+
 ## Article draft release/import — VERIFIED (2026-10-08)
 
 - Owner-authorized push/deploy/import: runtime c722766, clean server source.

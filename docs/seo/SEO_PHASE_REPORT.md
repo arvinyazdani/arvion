@@ -1,5 +1,91 @@
 # SEO phase report — Rvion
 
+## Article covers — VERIFIED (2026-10-08)
+
+User authorized generating four covers and attaching them to the four existing
+production drafts. Built-in image-generation tool used (not API/CLI fallback).
+Visual inspection: coherent ivory/charcoal/orange editorial compositions,
+legible main subjects, no price/score/credential claims or headline text.
+Original PNGs remain under the tool's generated_images directory; final
+project-bound JPEGs are stored in blog/content_drafts/covers/ and versioned.
+Routine sips JPEG conversion (quality 82, width 1200) reduced transfer size;
+no artistic edits or source article changes. No template/model/schema changes.
+
+| File under blog/content_drafts/covers/ | Pixels | Bytes | Post ID |
+| --- | --- | ---: | ---: |
+| corporate-website-cost-1405-v1.jpg | 1200 × 627 | 125873 | 1 |
+| custom-website-vs-template-v1.jpg | 1200 × 630 | 108854 | 2 |
+| custom-or-ready-made-crm-v1.jpg | 1200 × 630 | 121822 | 3 |
+| english-teacher-assessment-v1.jpg | 1200 × 630 | 120610 | 4 |
+
+Snapshot before the data update:
+/srv/arvion/backups/pre-article-covers-20261008-1400.dump.
+pg_restore --list succeeded (catalog check, not a restore rehearsal).
+Preflight found all four hero_image values empty and all posts unpublished;
+no existing owner-uploaded cover was overwritten. Validated JPEG decoding,
+width/height and the existing <1MB image validator before updates. Four
+select_for_update rows in one atomic transaction, only hero_image saved.
+Before/after comparisons of ALL other Post fields matched. Stored-file hashes
+matched the uploaded assets; no article text, tags, timestamps or publication
+status changed. All remain unpublished. Source runtime remains c722766.
+
+Initial attachment attempt failed before any write: validate_image_size was
+imported from blog.models, which does not export it. Corrected operational
+script to import from blog.models.post; no repository code change needed.
+An early public media check consequently returned 404 before attachment; the
+FINAL post-attachment public HTTPS checks all passed 200, image/jpeg, valid
+JPEG decoding, and exact byte/hash equality to stored files. No cache-policy
+change or app restart was needed. No test suite run on production. Full tests
+not repeated for an assets-only change; targeted validators/storage/field-
+preservation/HTTP checks and generated-image visual inspection are the evidence.
+
+Final media URLs:
+
+- https://rvionai.com/media/articles/corporate-website-cost-1405-v1.jpg
+- https://rvionai.com/media/articles/custom-website-vs-template-v1.jpg
+- https://rvionai.com/media/articles/custom-or-ready-made-crm-v1.jpg
+- https://rvionai.com/media/articles/english-teacher-assessment-v1.jpg
+
+Publication remains BLOCKED on the prior owner/content decisions; setting a
+cover does not approve or publish the content. Public media files are intended
+cover illustrations and contain no customer data. Admin review at
+https://rvionai.com/admin/blog/post/. No push or source deploy in this phase;
+assets/status documentation committed locally. Three gallery diffs preserved.
+
+Rollback: reset only these four hero_image pointers to their prior empty values
+if explicitly authorized; keep the uploaded files for recovery and never
+restore the whole database over subsequent customer activity without approval.
+
+### Generation prompts (exact shared prefix + each subject)
+
+```text
+Use case: stylized-concept. Asset type: premium editorial blog cover for Rvion, a Persian web development and CRM brand. Generate a landscape image, 1200x630 aspect ratio, no text, letters, numbers, logos or watermark. Sophisticated tactile 3D editorial illustration, warm ivory background, charcoal/ink-blue objects, vivid orange accents (#ff6b35), restrained soft shadows, elegant studio lighting, cohesive real material detail, not a generic stock graphic. Large uncluttered central subject readable on a phone, generous safety margins; no important objects at edges.
+```
+
+**corporate-website-cost-1405**
+
+```text
+Subject: budgeting for a corporate website: an elegant upright browser-window architectural model with clean blank layout panels, beside a compact dark calculator with blank keys and a neat stack of unmarked metallic coins, connected by a subtle orange measuring line. Balanced editorial still life, tangible project planning rather than financial investment; no currency signs or price claims.
+```
+
+**custom-website-vs-template**
+
+```text
+Subject: choosing a ready-made template versus a bespoke website. Two distinct browser-window sculptures side by side: one a tidy rigid grid of matching modular ivory blocks; the other an expressive custom-fit composition of charcoal panels, curved orange shapes and carefully crafted asymmetrical modules. Equal visual dignity for both options, an orange connecting hinge suggesting a design choice, no winner or loser, no code or labels.
+```
+
+**custom-or-ready-made-crm**
+
+```text
+Subject: a customer relationship management system: a central sophisticated charcoal interface panel with clean unlabelled customer profile silhouettes and blank pipeline columns, connected to a few ivory customer cards through precise glowing orange connection paths. Clear organic organization and collaboration, physical cards suspended slightly above an ivory surface, no vendor logos, no padlock or surveillance imagery.
+```
+
+**english-teacher-assessment**
+
+```text
+Subject: thoughtful assessment of an English language teacher: a refined charcoal laptop with an abstract blank test interface, an open ivory book, understated dark headphones, and an orange check-shaped sculptural accent next to three subtle balanced skill bars. Intellectual, credible educational editorial still life, not a diploma or certified score. No alphabet, language text, flags, numeric results or claims.
+```
+
 ## Article-draft production release/import — VERIFIED (2026-10-08)
 
 Owner explicitly authorized deployment and production dry-run/import. Pushed
