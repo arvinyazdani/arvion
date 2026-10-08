@@ -1,6 +1,6 @@
 # SEO phase report — Rvion
 
-## Persian article drafts — PARTIAL (2026-10-08, local only)
+## Persian article drafts — VERIFIED (2026-10-08, local only)
 
 Start: local c56db13, deployed c33cf7f. Phase A VERIFIED: language-safe lists,
 detail/switch/canonical/hreflang, truthful tags, pagination and PostSitemap.
@@ -15,8 +15,8 @@ corrected with an explicit conditional; no failing tests were skipped.
 Testing uses an isolated archive candidate /tmp/rvion-blog-candidate.uwgIs0
 without the three protected gallery changes. An initial targeted discovery
 invocation from the original cwd was rejected before tests ran; corrected cwd.
-Only disposable Django test databases are used. Full suite NOT_STARTED; importer
-and render gates next. No publication, persistent DB write, migration, push or
+Only disposable Django test databases are used. Importer/render/full gates
+are now verified below. No publication, persistent DB write, migration, push or
 deploy. P1-3/P4-1 remain DEFERRED; analytics/sessions/cookies/cache untouched.
 Protected gallery diff hash remains
 b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba.
@@ -154,7 +154,36 @@ unpublished visibility and test-published whole-sitemap contracts. Check zero
 issues; makemigrations --check --dry-run: No changes detected, with the check's
 database explicitly set to :memory:. git diff --check clean. Local Python 3.9 /
 SQLite evidence, not a new CI/Python 3.11/3.12/PostgreSQL validation.
-Full suite and final local commit checkpoint will follow below.
+
+### Final verification and commit checkpoint — VERIFIED locally
+
+- Phase A commit: 2aaff43, language-safe public article contracts.
+- Phase B commit: 8fb45a1, four unreviewed source-identical drafts and importer.
+- Phase C: this final documentation-only checkpoint; no further product change.
+- Full suite executed EXACTLY ONCE at the end, on the isolated clean candidate:
+  `python manage.py test --parallel 4 --verbosity 1` — 1075 tests in 98.980s,
+  OK (27 existing PostgreSQL-only tests skipped on SQLite), exit 0.
+  /tmp/rvion-blog-full.log. 1048 executed tests passed, not 1075 executed tests.
+  Temporary tblib from prior QA support was used for parallel diagnostics; no
+  dependency/project configuration change. Logged simulated exceptions belong
+  to intentional fault-injection tests, not new test failures. An absent
+  candidate staticfiles-directory warning is expected; no visual/live-page or
+  static-asset deployment verification is claimed.
+- Candidate and repository: all 16 changed implementation/test/content file
+  byte comparisons match. No protected gallery file was included in the
+  candidate or these commits. Final protected diff hash equals the start hash.
+- Final source-file hashes equal the initial hashes and all four repository
+  bodies equal the exact source BODY bytes. No external source file edited.
+- Final git diff --check clean; no model/schema/migration changes. All database
+  writes/publication fixtures existed only inside disposable Django test DBs,
+  which were destroyed afterward. No persistent import was run.
+- No push, deployment, CI run, production migration, author-field addition,
+  live publication or Search Console request. Deployed version remains the
+  previously recorded c33cf7f; no server action in this phase.
+- No technical BLOCKED/P0/P1 found within this bounded phase. Article content
+  remains unreviewed; owner decisions above are prerequisites to publication,
+  not silently waived by passing code tests. Overall SEO programme remains
+  PARTIAL and P1-3/P4-1 remain DEFERRED.
 
 ## Metadata production release — VERIFIED (2026-10-08)
 

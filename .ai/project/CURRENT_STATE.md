@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Persian article drafts — PARTIAL (2026-10-08)
+## Persian article drafts — VERIFIED locally (2026-10-08)
 
 - Phase A VERIFIED locally: 10-test RED (7 failures), 31-test GREEN after fix.
 - No model/schema change; single-language list/detail/sitemap safe; real tags
@@ -8,11 +8,16 @@
 - Phase A local commit 2aaff43.
 - Phase B VERIFIED: 58-test targeted GREEN; dry-run zero Posts; 4 exact-body
   copies, safe idempotent importer, render/link and test-published sitemap gates.
-- Phase C full suite once at the end next. Check and schema dry-run clean on
-  :memory:; no migration needed. Editorial/publication decisions stay with owner.
+- Phase B local commit 8fb45a1.
+- Phase C VERIFIED: full suite ONCE, 1075 tests / 98.980s, OK (27 PG-only
+  skipped on SQLite). All candidate implementation/content bytes match repo.
+- Check and schema dry-run clean on :memory:; no migration needed.
+- Next: owner reviews author/dates/CRM sanctions/assessment claims and content,
+  then separately authorizes a future release/import/publication. Not online yet.
 - No persistent DB writes, publishing, push, deployment or migration authorized.
 - Three dirty gallery files preserved; P1-3/P4-1 stay DEFERRED.
-- Evidence/files/rollback in docs/seo/SEO_PHASE_REPORT.md. Single primary agent.
+- Evidence/files/rollback and exact owner steps in docs/seo/SEO_PHASE_REPORT.md.
+- Overall SEO programme PARTIAL; single primary agent, self-review only.
 
 ## Metadata release — VERIFIED (2026-10-08)
 
