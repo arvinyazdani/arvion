@@ -1,6 +1,6 @@
-{% extends "core/base.html" %}{% load static %}
-{% block title %}{% if lang == 'fa' %}پیش از شروع {{ exam.title_fa }} | {{ brand_name }}{% else %}Before you start {{ exam.title_en }} | {{ brand_name }}{% endif %}{% endblock %}
-{% block meta_description %}{% if lang == 'fa' %}راهنمای {{ exam.title_fa }}: {{ exam.description_fa|striptags|truncatechars:120 }}؛ آشنایی با پایش آزمون و بررسی پاسخ‌ها پیش از شروع.{% else %}Guide to {{ exam.title_en }}: {{ exam.description_en|striptags|truncatechars:120 }}. Learn about integrity monitoring and answer review before starting.{% endif %}{% endblock %}
+{% extends "core/base.html" %}{% load static seo_metadata %}
+{% block title %}{% briefing_metadata exam lang brand_name as metadata %}{{ metadata.title }}{% endblock %}
+{% block meta_description %}{% briefing_metadata exam lang brand_name as metadata %}{{ metadata.description }}{% endblock %}
 {% block body_class %}exam-briefing-page{% endblock %}
 {% block content %}
 <section class="page-hero briefing-hero">

@@ -1,0 +1,254 @@
+{
+  "source_commit": "94c9c06",
+  "source": "2026-10-07 read-only live sitemap audit; decoded title/description values",
+  "pages": {
+    "/fa/": {
+      "title": "طراحی و سفارش وب‌سایت اختصاصی | آرویون",
+      "description": "نمونه سایت متناسب با کسب‌وکارتان را ببینید، زنده شخصی‌سازی کنید و با انتخاب‌های خودتان درخواست ساخت سایت بدهید."
+    },
+    "/fa/about/": {
+      "title": "درباره شرکت | آرویون",
+      "description": "معرفی شرکت آروین توسعه تجارت هوشمند، مدیرعامل، تخصص‌ها و حوزه‌های فعالیت."
+    },
+    "/fa/company/": {
+      "title": "اطلاعات حقوقی شرکت | آرویون",
+      "description": "اطلاعات رسمی شرکت، نام حقوقی، شماره ثبت، شناسه ملی و راه‌های تماس آرویون برای بررسی هویت طرف همکاری."
+    },
+    "/fa/crm/": {
+      "title": "CRM سازمانی آرویون | معرفی امکانات",
+      "description": "معرفی راهکار CRM سازمانی، امن، مستقل و قابل سفارشی‌سازی آرویون برای مدیریت مشتری، فروش، خدمات و عملیات."
+    },
+    "/fa/services/": {
+      "title": "خدمات طراحی و توسعه | آرویون",
+      "description": "مشاوره رایگان، طراحی وب‌سایت، ساخت وب‌اپلیکیشن، فروشگاه آنلاین و پشتیبانی نرم‌افزار توسط شرکت آرویون."
+    },
+    "/fa/projects/demos/": {
+      "title": "انتخاب و شخصی‌سازی دمو | آرویون",
+      "description": "دموی وب‌سایت دلخواه‌تان را بدون ثبت‌نام انتخاب کنید، رنگ و سبک آن را تغییر دهید و نسخه موبایل و دسکتاپ را ببینید."
+    },
+    "/fa/blog/": {
+      "title": "دیدگاه‌ها | آرویون",
+      "description": "دیدگاه‌ها و یادداشت‌های آرویون درباره Django، معماری محصول و تصمیم‌های توسعه نرم‌افزار؛ جست‌وجو و مرور مقاله‌ها."
+    },
+    "/fa/assessments/": {
+      "title": "مرکز آزمون آرویون",
+      "description": "آزمون‌های ساختاریافته زبان انگلیسی و پایتون/جنگو همراه تحلیل مهارتی و گواهی قابل اعتبارسنجی."
+    },
+    "/fa/contact/": {
+      "title": "مشاوره و سفارش پروژه | آرویون",
+      "description": "فرم مشاوره و سفارش پروژه آرویون؛ نوع پروژه، نیاز اولیه و اطلاعات تماس خود را برای بررسی درخواست ارسال کنید."
+    },
+    "/fa/privacy/": {
+      "title": "حریم خصوصی | آرویون",
+      "description": "سیاست حریم خصوصی آرویون: اطلاعات دریافتی، آمار بازدید، هدف استفاده، نگهداری داده و روش درخواست اصلاح یا حذف اطلاعات."
+    },
+    "/fa/service-terms/": {
+      "title": "شرایط خدمات | آرویون",
+      "description": "شرایط همکاری و استفاده از خدمات آرویون؛ دامنه پروژه، تعهدات طرفین و قواعد عمومی سفارش خدمات طراحی و توسعه."
+    },
+    "/fa/refund-policy/": {
+      "title": "لغو و بازپرداخت | آرویون",
+      "description": "قواعد لغو و بازپرداخت خدمات آرویون، مهلت درخواست لغو، شروع اجرای پروژه و اولویت شرایط اختصاصی قرارداد."
+    },
+    "/en/": {
+      "title": "Website design & development | Rvion",
+      "description": "Explore website samples for your business, customise them live and start a project with your own choices."
+    },
+    "/en/about/": {
+      "title": "About the company | Rvion",
+      "description": "Meet Rvion, its leadership, expertise and registered business activities."
+    },
+    "/en/company/": {
+      "title": "Legal company information | Rvion",
+      "description": "Rvion's official company details: legal identity, registration, national identifier and contact information for prospective partners."
+    },
+    "/en/crm/": {
+      "title": "Rvion Enterprise CRM | Product overview",
+      "description": "Explore Rvion's secure, independently deployed and customisable enterprise CRM for customer, sales, service and operations management."
+    },
+    "/en/services/": {
+      "title": "Design and development services | Rvion",
+      "description": "Free consultation, corporate websites, custom web applications, e-commerce and software support from Rvion."
+    },
+    "/en/projects/demos/": {
+      "title": "Choose and customise a demo | Rvion",
+      "description": "Choose a website demo without signing in, customise its colour and style, and test mobile and desktop views."
+    },
+    "/en/blog/": {
+      "title": "Insights | Rvion",
+      "description": "Browse and search Rvion's insights on Django, product architecture and software development decisions."
+    },
+    "/en/assessments/": {
+      "title": "Rvion Assessment Center",
+      "description": "Structured English and Python/Django assessments with skill analysis and verifiable certificates."
+    },
+    "/en/contact/": {
+      "title": "Consultation and project enquiry | Rvion",
+      "description": "Send a project enquiry to Rvion with your project type, initial requirements and contact details for review."
+    },
+    "/en/privacy/": {
+      "title": "Privacy policy | Rvion",
+      "description": "Rvion's privacy policy explains collected information, traffic analytics, data use and retention, and how to request correction or deletion."
+    },
+    "/en/service-terms/": {
+      "title": "Service terms | Rvion",
+      "description": "Terms for working with Rvion: project scope, responsibilities and the general conditions governing design and development services."
+    },
+    "/en/refund-policy/": {
+      "title": "Cancellation and refund | Rvion",
+      "description": "Rvion's cancellation and refund rules cover cancellation requests, the start of project work and the precedence of project-specific contracts."
+    },
+    "/fa/crm-order/": {
+      "title": "سفارش طراحی CRM سازمانی | آرویون",
+      "description": "نیازسنجی تخصصی CRM سازمانی آرویون؛ فرآیند فروش، خدمات، داده، دسترسی‌ها و اتصال‌های موردنیاز را در یک ویزارد روشن مشخص کنید."
+    },
+    "/fa/clinic-order/": {
+      "title": "نیازسنجی طراحی وب‌سایت کلینیک | آرویون",
+      "description": "فرم تخصصی نیازسنجی وب‌سایت کلینیک برای نوبت‌دهی، پرداخت، آموزش صوتی و ویدیویی و وبینار با فناوری Django."
+    },
+    "/fa/services/digital-product-consulting/": {
+      "title": "مشاوره محصول و پلتفرم آنلاین | آرویون",
+      "description": "تبدیل مسئله کسب‌وکار به نقشه اجرایی روشن، پیش از صرف هزینه توسعه."
+    },
+    "/fa/services/corporate-website-design/": {
+      "title": "طراحی و توسعه وب‌سایت شرکتی | آرویون",
+      "description": "وب‌سایت سریع، معتبر و دوزبانه برای معرفی شرکت، جذب مشتری و فروش خدمات."
+    },
+    "/fa/services/custom-web-application/": {
+      "title": "ساخت وب‌اپلیکیشن و MVP اختصاصی | آرویون",
+      "description": "پلتفرم امن و قابل رشد با Python، Django و PostgreSQL برای فرآیند واقعی کسب‌وکار."
+    },
+    "/fa/services/ecommerce-platform/": {
+      "title": "فروشگاه و پلتفرم تجارت آنلاین | آرویون",
+      "description": "فروش آنلاین کالا یا خدمات با مدیریت سفارش، پرداخت، مشتری و گزارش‌های عملیاتی."
+    },
+    "/fa/services/maintenance-and-growth/": {
+      "title": "پشتیبانی، بهینه‌سازی و توسعه | آرویون",
+      "description": "رفع اشکال، افزایش سرعت، امنیت، سئو و توسعه مرحله بعدی محصول موجود."
+    },
+    "/en/services/digital-product-consulting/": {
+      "title": "Digital product and platform consulting | Rvion",
+      "description": "Turn a business problem into a clear delivery plan before investing in development."
+    },
+    "/en/services/corporate-website-design/": {
+      "title": "Corporate website design and development | Rvion",
+      "description": "A fast, credible bilingual website for company presence, lead generation and service sales."
+    },
+    "/en/services/custom-web-application/": {
+      "title": "Custom web application and MVP | Rvion",
+      "description": "A secure, scalable Python, Django and PostgreSQL platform for real business workflows."
+    },
+    "/en/services/ecommerce-platform/": {
+      "title": "E-commerce platform | Rvion",
+      "description": "Sell products or services with order, payment, customer and operational management."
+    },
+    "/en/services/maintenance-and-growth/": {
+      "title": "Maintenance, optimization and growth | Rvion",
+      "description": "Bug fixing, performance, security, SEO and the next growth phase for an existing product."
+    },
+    "/fa/projects/demos/roshna-clinic/": {
+      "title": "طراحی سایت کلینیک با نمونه زنده کلینیک و نوبت‌دهی | آرویون",
+      "description": "کلینیک و نوبت‌دهی؛ نوبت‌دهی، معرفی پزشک و محتوای آگاه‌کننده.. برای کلینیک با معرفی پزشک، محتوای آگاه‌کننده و نوبت‌دهی؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/parsa-advisory/": {
+      "title": "طراحی سایت وب‌سایت شرکتی با نمونه زنده شرکت خدمات حرفه‌ای | آرویون",
+      "description": "شرکت خدمات حرفه‌ای؛ اعتمادسازی، خدمات و مسیر ساده تماس.. برای شرکت خدماتی که اعتماد، خدمات و تماس روشن اولویت دارد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/northline-group/": {
+      "title": "طراحی سایت وب‌سایت شرکتی با نمونه زنده برند شرکتی | آرویون",
+      "description": "برند شرکتی؛ هویت جسور برای معرفی تیم و راهکارها.. برای شرکت خدماتی که اعتماد، خدمات و تماس روشن اولویت دارد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/nava-market/": {
+      "title": "طراحی سایت فروشگاه اینترنتی با نمونه زنده فروشگاه مینیمال | آرویون",
+      "description": "فروشگاه مینیمال؛ فروش آرام و متمرکز روی محصول.. برای فروش مستقیم محصول با مسیر خرید کوتاه و واضح؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/orbit-shop/": {
+      "title": "طراحی سایت فروشگاه اینترنتی با نمونه زنده فروشگاه پرانرژی | آرویون",
+      "description": "فروشگاه پرانرژی؛ کاتالوگ سریع برای محصول‌های شاخص.. برای فروش مستقیم محصول با مسیر خرید کوتاه و واضح؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/ariana-academy/": {
+      "title": "طراحی سایت آموزش با نمونه زنده آکادمی و وبینار | آرویون",
+      "description": "آکادمی و وبینار؛ دوره، مسیر یادگیری و تجربه عضویت.. برای آکادمی، دوره آنلاین یا مجموعه برگزارکننده وبینار؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/sarvin-atelier/": {
+      "title": "طراحی سایت طلافروشی و جواهرات با نمونه زنده گالری طلا و جواهر | آرویون",
+      "description": "گالری طلا و جواهر؛ هر قطعه، داستانی برای ماندن.. برای طلافروشی و برندی که اصالت، ساخت سفارشی و مشاوره را آنلاین ارائه می‌کند؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/linea-studio/": {
+      "title": "طراحی سایت پورتفولیو با نمونه زنده استودیوی خلاق | آرویون",
+      "description": "استودیوی خلاق؛ نمونه‌کارهایی که داستان هر پروژه را تعریف می‌کنند.. برای متخصص یا استودیویی که باید کیفیت کار را سریع اثبات کند؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/atlas-profile/": {
+      "title": "طراحی سایت پورتفولیو با نمونه زنده پورتفولیو شخصی | آرویون",
+      "description": "پورتفولیو شخصی؛ معرفی شفاف مهارت، تجربه و راه تماس.. برای متخصص یا استودیویی که باید کیفیت کار را سریع اثبات کند؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/saffron-table/": {
+      "title": "طراحی سایت رستوران و کافه با نمونه زنده منوی رستوران | آرویون",
+      "description": "منوی رستوران؛ منوی دیجیتال با حس گرم و اشتهابرانگیز.. برای رستوران و کافه‌ای که منو، رویداد و رزرو را یکجا می‌خواهد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/fa/projects/demos/mora-cafe/": {
+      "title": "طراحی سایت رستوران و کافه با نمونه زنده کافه و رزرو | آرویون",
+      "description": "کافه و رزرو؛ یک تجربه صمیمی برای منو، رویداد و رزرو.. برای رستوران و کافه‌ای که منو، رویداد و رزرو را یکجا می‌خواهد؛ نمونه را شخصی‌سازی کنید و درخواست طراحی بفرستید."
+    },
+    "/en/projects/demos/roshna-clinic/": {
+      "title": "Clinic website design: live Clinic and booking sample | Rvion",
+      "description": "Clinic and booking: Bookings, practitioners and helpful content.. For clinics combining practitioner profiles, guidance and appointment booking. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/parsa-advisory/": {
+      "title": "Corporate website website design: live Professional services sample | Rvion",
+      "description": "Professional services: Trust, services and a direct contact path.. For service companies prioritising trust, offers and a clear contact path. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/northline-group/": {
+      "title": "Corporate website website design: live Corporate brand sample | Rvion",
+      "description": "Corporate brand: A bold identity for teams and solutions.. For service companies prioritising trust, offers and a clear contact path. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/nava-market/": {
+      "title": "E-commerce website design: live Minimal storefront sample | Rvion",
+      "description": "Minimal storefront: A calm product-first storefront.. For direct product sales with a short, clear purchase path. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/orbit-shop/": {
+      "title": "E-commerce website design: live Bold commerce sample | Rvion",
+      "description": "Bold commerce: A fast catalogue for standout products.. For direct product sales with a short, clear purchase path. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/ariana-academy/": {
+      "title": "Education & webinar website design: live Academy and webinars sample | Rvion",
+      "description": "Academy and webinars: Courses, learning journeys and membership.. For academies, online courses and webinar-led education. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/sarvin-atelier/": {
+      "title": "Jewellery boutique website design: live Jewellery atelier sample | Rvion",
+      "description": "Jewellery atelier: A keepsake with a story of its own.. For jewellery brands presenting authenticity, custom craft and consultation online. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/linea-studio/": {
+      "title": "Portfolio website design: live Creative studio sample | Rvion",
+      "description": "Creative studio: Work that tells the story behind every project.. For experts or studios that need to prove the quality of their work quickly. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/atlas-profile/": {
+      "title": "Portfolio website design: live Personal portfolio sample | Rvion",
+      "description": "Personal portfolio: A clear home for expertise, work and contact.. For experts or studios that need to prove the quality of their work quickly. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/saffron-table/": {
+      "title": "Restaurant & cafe website design: live Restaurant menu sample | Rvion",
+      "description": "Restaurant menu: A warm, appetite-led digital menu.. For restaurants and cafés combining menus, events and reservations. Customise this sample and send a design enquiry."
+    },
+    "/en/projects/demos/mora-cafe/": {
+      "title": "Restaurant & cafe website design: live Cafe and reservations sample | Rvion",
+      "description": "Cafe and reservations: A friendly home for menus, events and bookings.. For restaurants and cafés combining menus, events and reservations. Customise this sample and send a design enquiry."
+    },
+    "/fa/assessments/english-placement-a1-c1/about/": {
+      "title": "پیش از شروع ارزیابی پیشرفته زبان انگلیسی مدرسان | آرویون",
+      "description": "راهنمای ارزیابی پیشرفته زبان انگلیسی مدرسان: غربالگری سطح بالای گرامر، دقت واژگانی، خواندن انتقادی، شنیدار، ویرایش و تحلیل آموزشی برای انتخاب مدرس.؛ آشنایی با پایش آزمون و بررسی پاسخ‌ها پیش از شروع."
+    },
+    "/fa/assessments/python-django-professional/about/": {
+      "title": "پیش از شروع ارزیابی تخصصی Python و Django | آرویون",
+      "description": "راهنمای ارزیابی تخصصی Python و Django: سنجش عملی Python، حل مسئله، دیتابیس، تست، امنیت و استقرار پروژه‌های Django.؛ آشنایی با پایش آزمون و بررسی پاسخ‌ها پیش از شروع."
+    },
+    "/en/assessments/english-placement-a1-c1/about/": {
+      "title": "Before you start Advanced English Teacher Assessment | Rvion",
+      "description": "Guide to Advanced English Teacher Assessment: Advanced screening of grammar, lexical precision, critical reading, listening, editing, and pedagogical analysis for te…. Learn about integrity monitoring and answer review before starting."
+    },
+    "/en/assessments/python-django-professional/about/": {
+      "title": "Before you start Professional Python & Django Assessment | Rvion",
+      "description": "Guide to Professional Python & Django Assessment: A practical assessment of Python, problem solving, databases, testing, security, and Django deployment.. Learn about integrity monitoring and answer review before starting."
+    }
+  }
+}

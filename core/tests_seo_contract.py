@@ -1,13 +1,16 @@
 """Anonymous search contracts over every emitted sitemap URL."""
 import json
+import re
 from html.parser import HTMLParser
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.conf import settings
 from django.contrib.sessions.models import Session
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 from django.utils import translation
 from django.utils import timezone
+from django.utils.html import escape
 from django.urls import resolve
 
 from assessments.models import Exam
@@ -70,6 +73,14 @@ class WholeSitemapContractTests(TestCase):
     FA_ONLY = {'crm_orders:create', 'clinic_orders:create'}
     # No duplicate title/description exceptions currently justified.
     UNIQUENESS_EXCEPTIONS = set()
+    DEPLOYED_METADATA = json.loads(
+        (Path(__file__).parent / 'fixtures' / 'seo_metadata_94c9c06.json').read_text()
+    )['pages']
+    TARGET_PATHS = frozenset(
+        path for path in DEPLOYED_METADATA
+        if ('/projects/demos/' in path and not path.endswith('/projects/demos/'))
+        or ('/assessments/' in path and path.endswith('/about/'))
+    )
 
     @classmethod
     def setUpTestData(cls):
@@ -89,9 +100,19 @@ class WholeSitemapContractTests(TestCase):
                     tagline_en=f'{category} sample description {variant}',
                     fictional_brand_fa='برند فرضی', fictional_brand_en='Fictional brand',
                     style_key='minimal', default_features=['blog'])
-        for slug in ('english-placement-a1-c1', 'python-django-professional'):
-            Exam.objects.create(slug=slug, title_fa=f'آزمون {slug}', title_en=f'{slug} exam',
-                                description_fa=f'شرح {slug}', description_en=f'About {slug}',
+        # Public catalogue wording, not artificially shortened SEO fixtures.
+        for slug, title_fa, title_en, description_fa, description_en in (
+            ('english-placement-a1-c1', 'ارزیابی پیشرفته زبان انگلیسی مدرسان',
+             'Advanced English Teacher Assessment',
+             'غربالگری سطح بالای گرامر، دقت واژگانی، خواندن انتقادی، شنیدار، ویرایش و تحلیل آموزشی برای انتخاب مدرس.',
+             'Advanced screening of grammar, lexical precision, critical reading, listening, editing, and pedagogical analysis for teacher selection.'),
+            ('python-django-professional', 'ارزیابی تخصصی Python و Django',
+             'Professional Python & Django Assessment',
+             'سنجش عملی Python، حل مسئله، دیتابیس، تست، امنیت و استقرار پروژه‌های Django.',
+             'A practical assessment of Python, problem solving, databases, testing, security, and Django deployment.'),
+        ):
+            Exam.objects.create(slug=slug, title_fa=title_fa, title_en=title_en,
+                                description_fa=description_fa, description_en=description_en,
                                 language_mode='bilingual', is_active=True)
 
     def setUp(self):
@@ -142,6 +163,47 @@ class WholeSitemapContractTests(TestCase):
                         self.assertNotIn(value, seen[kind], f'Duplicate {kind}: {url} and {seen[kind].get(value)}')
                         seen[kind][value] = url
 
+    def test_generated_metadata_quality_entire_sitemap(self):
+        seen_targets = set()
+        for url, path, _response, head in self.pages():
+            description = head.meta.get('description', '')
+            for kind, value in (('title', head.title), ('description', description)):
+                for marker in ('..', '.؛'):
+                    with self.subTest(url=url, kind=kind, marker=marker):
+                        self.assertNotIn(marker, value)
+                with self.subTest(url=url, kind=kind, criterion='no_mid_text_ellipsis'):
+                    self.assertNotRegex(value, r'…(?=.*\S)')
+                with self.subTest(url=url, kind=kind, criterion='no_adjacent_repetition'):
+                    self.assertNotRegex(value, r'(?iu)\b(\w+)\W+\1\b')
+                    self.assertNotRegex(value, r'سایت\s+وب[\s\u200c-]?سایت')
+            with self.subTest(url=url, criterion='title_length'):
+                self.assertLessEqual(len(head.title), 60)
+            if path in self.TARGET_PATHS:
+                seen_targets.add(path)
+                with self.subTest(url=url, criterion='description_length'):
+                    self.assertGreaterEqual(len(description), 90)
+                    self.assertLessEqual(len(description), 155)
+        self.assertEqual(seen_targets, self.TARGET_PATHS)
+
+    def test_every_non_target_live_page_metadata_is_byte_unchanged(self):
+        self.assertEqual(len(self.TARGET_PATHS), 26)
+        # The audit's production sitemap has no fixture-only services/posts/demos.
+        # Restrict this assertion to that exact deployed URL inventory, while the
+        # other whole-sitemap contracts also exercise all synthetic fixtures.
+        expected_paths = set(self.DEPLOYED_METADATA) - self.TARGET_PATHS
+        seen = set()
+        for url, path, response, head in self.pages():
+            if path not in expected_paths:
+                continue
+            seen.add(path)
+            with self.subTest(url=url):
+                self.assertEqual(response.status_code, 200)
+                before = self.DEPLOYED_METADATA[path]
+                self.assertEqual(head.title.encode('utf-8'), before['title'].encode('utf-8'))
+                self.assertEqual(head.meta['description'].encode('utf-8'),
+                                 before['description'].encode('utf-8'))
+        self.assertEqual(seen, expected_paths)
+
     def test_brand_is_localized_and_terms_have_their_own_description(self):
         for language, brand in (('fa', 'آرویون'), ('en', 'Rvion')):
             for path in ('/', '/company/', '/services/seo-service/', '/blog/seo-post-' + language + '/',
@@ -183,7 +245,7 @@ class WholeSitemapContractTests(TestCase):
                     self.assertIn('class="shell seo-breadcrumbs"', html)
                     self.assertIn('aria-current="page"', html)
                     for item in breadcrumb['itemListElement']:
-                        self.assertIn(item['name'], html)
+                        self.assertIn(escape(item['name']), html)
                 if '/assessments/' in path:
                     self.assertNotIn('Course', str(graph))
 
@@ -293,6 +355,47 @@ class WholeSitemapContractTests(TestCase):
             if '/assessments/' in path:
                 self.assertEqual({node['@type'] for node in graph},
                                  {'Organization', 'WebSite', 'WebPage', 'BreadcrumbList'})
+
+
+class MetadataCompositionTests(SimpleTestCase):
+    def test_trailing_punctuation_is_owned_by_the_join_not_the_source(self):
+        from core.templatetags.seo_metadata import demo_metadata
+        for lang, brand in (('fa', 'آرویون'), ('en', 'Rvion')):
+            demo = SimpleNamespace(
+                category='corporate', category_label=('وب‌سایت شرکتی' if lang == 'fa' else 'Corporate website'),
+                title_fa='شرکت خدمات حرفه‌ای', title_en='Professional services',
+                tagline_fa='اعتمادسازی، خدمات و مسیر ساده تماس.؛ ',
+                tagline_en='<b>Trust, services and a direct contact path.</b>.. ',
+                fit_label='Unused fallback',
+            )
+            before = vars(demo).copy()
+            result = demo_metadata(demo, lang, brand)
+            self.assertEqual(vars(demo), before)
+            self.assertLessEqual(len(result['title']), 60)
+            self.assertTrue(90 <= len(result['description']) <= 155)
+            self.assertNotIn('..', result['description'])
+            self.assertNotIn('.؛', result['description'])
+            self.assertNotIn('website website', result['title'])
+            self.assertNotIn('سایت وب‌سایت', result['title'])
+            self.assertNotIn('<b>', result['description'])
+
+    def test_long_exam_copy_uses_the_complete_short_briefing_topic(self):
+        from core.templatetags.seo_metadata import briefing_metadata
+        exam = SimpleNamespace(
+            title_fa='ارزیابی تخصصی Python و Django',
+            title_en='Professional Python & Django Assessment',
+            description_fa='توضیحات بسیار طولانی برای آزمون. ' * 20,
+            description_en='A deliberately long complete source sentence. ' * 20,
+        )
+        before = vars(exam).copy()
+        for lang, brand in (('fa', 'آرویون'), ('en', 'Rvion')):
+            result = briefing_metadata(exam, lang, brand)
+            self.assertLessEqual(len(result['title']), 60)
+            self.assertTrue(90 <= len(result['description']) <= 155)
+            self.assertNotIn('…', result['description'])
+            self.assertNotIn('deliberately', result['description'])
+            self.assertTrue(result['description'].endswith('.'))
+        self.assertEqual(vars(exam), before)
 
 
 class ExamSearchContractTests(TestCase):
