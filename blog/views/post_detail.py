@@ -3,6 +3,7 @@
 from django.views.generic import DetailView
 from django.shortcuts import get_object_or_404
 from blog.models import Post
+from blog.languages import available_post_languages, translated_posts
 from core.views.lang import LanguageViewMixin
 from django.conf import settings
 from django.urls import reverse
@@ -17,7 +18,7 @@ class PostDetailView(LanguageViewMixin, DetailView):
 
     def get_object(self):
         slug = self.kwargs.get("slug")
-        queryset = Post.objects.published().prefetch_related("tags")
+        queryset = translated_posts(Post.objects.published(), self.lang).prefetch_related("tags")
         if self.lang == "fa":
             return get_object_or_404(queryset, slug_fa=slug)
         else:
@@ -26,10 +27,16 @@ class PostDetailView(LanguageViewMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         urls = {}
-        for language, slug in (("fa", self.object.slug_fa), ("en", self.object.slug_en)):
+        for language in available_post_languages(self.object):
+            slug = getattr(self.object, f"slug_{language}")
             with translation.override(language):
                 urls[language] = f"{settings.SITE_URL}{reverse('blog:detail', args=[slug])}"
         context["alternate_urls"] = urls
         context["canonical_url"] = urls[self.lang]
-        context["language_switch_url"] = urls["en" if self.lang == "fa" else "fa"].removeprefix(settings.SITE_URL)
+        other_language = "en" if self.lang == "fa" else "fa"
+        if other_language in urls:
+            context["language_switch_url"] = urls[other_language].removeprefix(settings.SITE_URL)
+        else:
+            with translation.override(other_language):
+                context["language_switch_url"] = reverse("blog:list")
         return context

@@ -9,9 +9,9 @@
   <meta name="description" content="{% block meta_description %}{% if lang == 'fa' %}مشاوره، طراحی، توسعه و پشتیبانی وب‌سایت و پلتفرم آنلاین توسط شرکت آروین توسعه تجارت هوشمند.{% else %}Consulting, design, development and support for websites and online platforms by Rvion.{% endif %}{% endblock %}">
   <meta name="robots" content="{% block meta_robots %}{% if seo_noindex %}noindex,nofollow{% else %}index,follow,max-image-preview:large{% endif %}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
-  <link rel="alternate" hreflang="fa" href="{{ alternate_urls.fa }}">
+  {% if alternate_urls.fa %}<link rel="alternate" hreflang="fa" href="{{ alternate_urls.fa }}">{% endif %}
   {% if alternate_urls.en %}<link rel="alternate" hreflang="en" href="{{ alternate_urls.en }}">{% endif %}
-  <link rel="alternate" hreflang="x-default" href="{{ alternate_urls.fa }}">
+  <link rel="alternate" hreflang="x-default" href="{% if alternate_urls.fa %}{{ alternate_urls.fa }}{% else %}{{ alternate_urls.en }}{% endif %}">
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:site_name" content="{{ brand_name }}">
   <meta property="og:locale" content="{% if lang == 'fa' %}fa_IR{% else %}en_US{% endif %}">

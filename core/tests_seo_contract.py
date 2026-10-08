@@ -71,6 +71,8 @@ class HeadParser(HTMLParser):
 class WholeSitemapContractTests(TestCase):
     # These discovery wizards intentionally only have a Persian translation.
     FA_ONLY = {'crm_orders:create', 'clinic_orders:create'}
+    # Explicit single-language article exception, not a blog-wide hreflang waiver.
+    PERSIAN_ONLY_POST_SLUGS = frozenset({'seo-persian-only'})
     # No duplicate title/description exceptions currently justified.
     UNIQUENESS_EXCEPTIONS = set()
     DEPLOYED_METADATA = json.loads(
@@ -90,6 +92,11 @@ class WholeSitemapContractTests(TestCase):
         Post.objects.create(slug_fa='seo-post-fa', slug_en='seo-post-en',
                             title_fa='مقاله آزمایشی', title_en='Fixture article',
                             summary_fa='خلاصه مقاله آزمایشی', summary_en='Fixture article summary',
+                            is_published=True, published_at=timezone.now())
+        Post.objects.create(slug_fa='seo-persian-only',
+                            title_fa='مقاله فارسی برای بررسی زبان',
+                            summary_fa='خلاصه مستقل برای بررسی انتشار مقاله فارسی بدون ترجمه انگلیسی.',
+                            body_fa='## عنوان بخش\n\nمتن آزمایشی مقاله.',
                             is_published=True, published_at=timezone.now())
         for category, _label in DemoTemplate.CATEGORY_CHOICES:
             for variant in range(2):
@@ -141,7 +148,9 @@ class WholeSitemapContractTests(TestCase):
                               if link.get('rel') == 'alternate' and 'hreflang' in link}
                 with translation.override(path.split('/')[1]):
                     view_name = resolve(path).view_name
-                if view_name in self.FA_ONLY:
+                persian_only_post = (view_name == 'blog:detail' and
+                                     response.context['post'].slug_fa in self.PERSIAN_ONLY_POST_SLUGS)
+                if view_name in self.FA_ONLY or persian_only_post:
                     self.assertEqual(set(alternates), {'fa', 'x-default'})
                 else:
                     self.assertEqual(set(alternates), {'fa', 'en', 'x-default'})

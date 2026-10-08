@@ -1,5 +1,15 @@
 # Rvion current state
 
+## Persian article drafts — PARTIAL (2026-10-08)
+
+- Phase A VERIFIED locally: 10-test RED (7 failures), 31-test GREEN after fix.
+- No model/schema change; single-language list/detail/sitemap safe; real tags
+  and q+tag pagination preserved. SEO metadata preservation gate still green.
+- Phase B importer/render verification next; full suite once at the end.
+- No persistent DB writes, publishing, push, deployment or migration authorized.
+- Three dirty gallery files preserved; P1-3/P4-1 stay DEFERRED.
+- Evidence/files/rollback in docs/seo/SEO_PHASE_REPORT.md. Single primary agent.
+
 ## Metadata release — VERIFIED (2026-10-08)
 
 - Explicit deployment authorization; c33cf7f pushed, protected gallery diffs excluded.

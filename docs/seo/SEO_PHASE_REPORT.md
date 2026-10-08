@@ -1,5 +1,34 @@
 # SEO phase report — Rvion
 
+## Persian article drafts — PARTIAL (2026-10-08, local only)
+
+Start: local c56db13, deployed c33cf7f. Phase A VERIFIED: language-safe lists,
+detail/switch/canonical/hreflang, truthful tags, pagination and PostSitemap.
+No schema/model changes. BlogPosting already uses the real language and needed
+no alteration. The new whole-sitemap exception is narrowly fixture-based.
+RED: 10 tests, 7 genuine failures (language availability, alternates, fake tag,
+pagination); /tmp/rvion-blog-language-red.log. GREEN: blog plus complete SEO
+contracts, 31 tests OK; /tmp/rvion-blog-language-green.log. An intermediate
+template error (eager resolution of a missing default-filter argument) was
+corrected with an explicit conditional; no failing tests were skipped.
+
+Testing uses an isolated archive candidate /tmp/rvion-blog-candidate.uwgIs0
+without the three protected gallery changes. An initial targeted discovery
+invocation from the original cwd was rejected before tests ran; corrected cwd.
+Only disposable Django test databases are used. Full suite NOT_STARTED; importer
+and render gates next. No publication, persistent DB write, migration, push or
+deploy. P1-3/P4-1 remain DEFERRED; analytics/sessions/cookies/cache untouched.
+Protected gallery diff hash remains
+b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba.
+
+Phase A files: blog/languages.py, blog/views/post_list.py,
+blog/views/post_detail.py, blog/templates/blog/list.html,
+blog/templates/blog/detail.html, blog/test_language_contract.py,
+core/templates/core/base.html, core/sitemaps.py, core/tests_seo_contract.py,
+and the existing status records. Local commit recorded at the next checkpoint.
+Rollback: revert only this phase's committed files before deployment; no DB
+rollback exists or is needed. Never revert the protected gallery work.
+
 ## Metadata production release — VERIFIED (2026-10-08)
 
 Owner explicitly requested deployment. Candidate c33cf7f (implementation e70cdd8)

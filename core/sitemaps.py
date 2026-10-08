@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.utils import translation
 
 from blog.models import Post
+from blog.languages import available_post_languages
 from projects.models import DemoTemplate
 from services.models import Service
 from assessments.models import Exam
@@ -58,16 +59,13 @@ class PostSitemap(LocalizedSitemap):
     def items(self):
         return [
             (language, post)
-            for language in self.languages()
             for post in Post.objects.published()
-            if (post.slug_fa if language == "fa" else post.slug_en)
+            for language in available_post_languages(post)
         ]
 
     def location(self, item):
         language, post = item
         slug = post.slug_fa if language == "fa" else post.slug_en
-        if not slug:
-            slug = post.slug_fa or post.slug_en
         with translation.override(language):
             return reverse("blog:detail", args=[slug])
 

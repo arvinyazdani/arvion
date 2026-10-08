@@ -3,6 +3,7 @@
 from django.views.generic import ListView
 from django.db.models import Q
 from blog.models import Post
+from blog.languages import translated_posts
 from core.views.lang import LanguageViewMixin
 
 class PostListView(LanguageViewMixin, ListView):
@@ -17,7 +18,7 @@ class PostListView(LanguageViewMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        qs = Post.objects.published()
+        qs = translated_posts(Post.objects.published(), self.lang)
         q = self.request.GET.get("q")
         if q:
             qs = qs.filter(
