@@ -46,6 +46,6 @@
 @media(max-width:900px){.project-start-grid{grid-template-columns:1fr}.project-start-card{min-height:0}}
 @media(max-width:560px){.project-start{padding-top:28px}.project-start-head h1{font-size:2.35rem}.project-start-card{padding:22px;border-radius:20px}.project-start-note{padding:18px}}
 @media(prefers-reduced-motion:reduce){.project-start *{scroll-behavior:auto!important}}
-.project-start-card .order-topic-action{font-size:.95rem;letter-spacing:0;display:flex;align-items:center;justify-content:space-between;margin-top:auto;min-height:44px;line-height:1.6}
+.project-start-card .order-topic-action{font-size:.95rem;letter-spacing:0;display:flex;align-items:center;justify-content:space-between;margin-top:auto;min-height:44px;line-height:1.6;color:var(--text-link)}
 .project-start-card h2{line-height:1.65}
 @media(min-width:641px) and (max-width:900px){.project-start-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

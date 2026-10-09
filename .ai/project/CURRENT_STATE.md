@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Unified order entry — implementation locally tested; final gate PARTIAL (2026-10-09)
+## Unified order entry — VERIFIED local candidate; owner acceptance/publication pending (2026-10-09)
 
 - New owner plan supersedes c8ae8de blockers: nine topics, two add-ons,
   consultation; contact data only in the final existing domain form. No PII
@@ -12,10 +12,21 @@
 - Final form summaries/shared confirmations:859762a; existing models, final
   forms, signals, drafts and messages preserved. Test submissions still create
   CustomerCase for all three domains. No push/deploy/SSH/migration.
-- Navigation/copy/phone/lazy fixes implemented; UI/mobile/candidate full gate
-  pending. Protected gallery/content-editor dirty work remains excluded.
+- Navigation/copy/phone/lazy fixes:671624e. Browser390/1440px fa/en gateway,
+  CRM/other builders/general form + fa specialist forms show no overflow;
+ 320px dark CRM checked, sample-preview/full/back preserves both add-ons.
+- Full isolated candidate671624e:1133 tests OK,27 existing skips,152.001s.
+  Final template/CSS-only polish:8 targeted tests OK. Details, screenshots,
+  rollback and remaining boundaries in docs/seo/SEO_PHASE_REPORT.md.
+- Protected dirty gallery/content-editor work is unchanged and excluded from
+  candidate; dirty gallery has2 pre-existing SEO metadata failures. Permanent
+  local dev DB has9 unapplied pre-existing migrations; no migrations run here,
+  submission evidence uses temporary test DB only. No PostgreSQL/CI/prod gate.
+- Next:owner review of local /fa/start/; publication needs separate authorization
+  and resolution of the protected work. Shared authenticated specialist drafts
+  remain design-only/out of scope; no private data storage or policy extension.
 - Nine-topic gateway and selection pages implemented; 12 targeted tests OK.
-  Visual/domain final gate pending. Metadata and existing form URLs retained.
+  Final local candidate gate passed as above. Metadata and existing form URLs retained.
 
 ## Unified order entry — BLOCKED after phase 0 (2026-10-09)
 

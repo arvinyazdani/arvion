@@ -1,5 +1,106 @@
 # SEO phase report — Rvion
 
+## Unified order entry — final local acceptance (2026-10-09)
+
+Status: VERIFIED for the committed, bounded local implementation. Owner visual
+acceptance and production publication are NOT_STARTED; not a production claim.
+Single primary agent; self-review, not independent review. No push/deploy/SSH,
+database migration, external dependency or production/customer-data operation.
+
+Before: several public order buttons entered different final forms directly,
+three competing /start/ cards, and sample context was not presented consistently.
+After: /start/ topic → existing sample/customisation or bounded brief → existing
+domain final form → original reference-code URL with shared next-process steps.
+The header's consultation entry also goes through /start/?consult=1; Samples,
+service information, account Continue enquiry and historical URLs still work.
+
+| Topic | Final form (consultation overrides to general) | General request type |
+|---|---|---|
+| ecommerce / jewelry | Lead | ecommerce; webapp when custom-portal add-on selected |
+| restaurant / corporate / portfolio / education | Lead | website; webapp with custom-portal add-on |
+| clinic | ClinicOrder, Persian | existing clinic domain |
+| crm | CrmOrder, Persian | existing CRM domain |
+| other | Lead | webapp |
+| Not sure | Lead | consultation |
+| Support | add-on on any topic | summary; support only without another topic |
+
+Commit ledger:209b7b8 vocabulary;8924140 gateway;caa9d4d existing configurator
+adapter;859762a summaries + shared confirmation (two tightly connected plan
+steps combined in one scoped commit);671624e entry/navigation fixes. Final small
+checkpoint uses subject `fix: polish order gateway and record scoped acceptance`.
+
+Verification:
+- Source/gateway first gate:12 tests OK; integration gate:19 tests OK.
+- Final handoff/gateway gate:14 tests OK, including retry/idempotency/session
+  isolation and real final submissions + CustomerCase for all three domains.
+- Updated core/home/related/service contract gate:56 tests OK.
+- New UI/handoff gate:14 tests OK; final template-only header/contrast refinement:
+  `python manage.py test core.test_order_ui core.tests.CorePagesTests.test_public_shell_groups_settings_and_keeps_legal_destinations core.tests.CorePagesTests.test_public_and_staff_mobile_navigation_always_has_five_destinations --verbosity 1`:8 tests OK.
+- Full suite ONCE, committed isolated candidate671624e (protected dirty work
+  excluded), `/Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py test --parallel 4 --verbosity 1`:
+  **1133 tests, OK,27 existing skips,152.001s**. Candidate:
+  `/tmp/rvion-order.MenaBr`; output:`full-suite.log`. Final refinement after this
+  gate is template/CSS/test-only and covered by the8 targeted checks + browser;
+  no Python production behavior changed afterward. No full-suite rerun.
+- `manage.py check`:0 issues; `node --check projects/static/projects/js/demo-configurator.js`
+  and `git diff --check`:clean. No permanent-database migration was run.
+- Initial affected-app483-test run had9 obsolete route/copy/phone failures and
+  one cascading related-link error, all corrected by explicit assertions of the
+  new destinations/names;2 protected gallery metadata failures remain in the
+  dirty working tree (fa/en titles differ from deployed baseline). No skip,
+  snapshot weakening or protected-file correction used to bypass them.
+- Two new UI fixture mistakes (already-seeded Service, Post's actual translated
+  slug/hero_image field names) were corrected; application schema was not changed.
+
+Browser evidence (local GET/selection navigation only; no permanent Lead/order
+or contact-data submission):390×844 and1440×1000, FA/EN gateway, CRM builder,
+other brief and general final form; FA specialist forms at both sizes. English
+specialist cards clearly disclose their Persian form; English final endpoints
+redirect as before, not falsely declared translated. All measured pages had
+scrollWidth==viewport width. Additional320px English CRM/dark check:320==320;
+visible choice targets66px tall. Dark desktop gateway also checked. Existing
+sample actual journey:choose ecommerce → preview → check two add-ons → full
+sample → Back to choices; both add-ons preserved and no browser error logs.
+No new storage was used. Reduced-motion stylesheet removes new hover movement.
+Mobile summary is collapsed by default so it does not bury the form.
+
+Screenshot directory (local evidence, deliberately not committed):
+`.ai/artifacts/unified-order-20261009/`:
+`gateway-{fa,en}-{390,1440}.jpg`, `crm-{fa,en}-{390,1440}.jpg`,
+`other-{fa,en}-{390,1440}.jpg`, `lead-{fa,en}-{390,1440}.jpg`,
+`{crm-order,clinic-order}-fa-{390,1440}.jpg`, `preview-en-mobile.jpg`,
+`gateway-en-desktop-dark.jpg`, `crm-en-320-dark.jpg`. Legacy captions/photos
+are not generated or changed. Screenshots document UI, not load/concurrency proof.
+
+Changed public HTML:shared public shell navigation/styles across existing pages;
+`/{fa,en}/`, `/start/`, `/crm/`, `/services/`, `/services/<active-slug>/`,
+`/projects/demos/<active-slug>/`, `/projects/demos/<active-slug>/full/`,
+`/contact/`, `/contact/thanks/<code>/`,
+`/account/dashboard/`; Persian `/crm-order/`, `/clinic-order/`,
+`/crm-order/thanks/<code>/`, `/clinic-order/thanks/<code>/`.
+No existing title/description/JSON-LD/canonical/
+hreflang/sitemap contract changed; full clean-candidate SEO contracts passed.
+
+Remaining boundaries/risks:
+- Protected gallery/content-centre changes remain uncommitted and untouched.
+  Gallery diff SHA256 still
+  `b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba`.
+  Stable #demo-options exists in committed HEAD gallery; per-demo anchors await
+  that separate gallery work being committed/reviewed.
+- Local permanent dev DB reports9 PRE-EXISTING unapplied migrations. These were
+  not applied under the no-migration rule. Real submissions were verified only
+  in temporary test databases; local preview is not a live POST smoke test.
+- No real PostgreSQL concurrency run/CI/production smoke in this task. Existing
+  server concurrency/idempotency service is reused;27 skipped gates are not
+  represented as passing. No storage or session-policy change; P1-3/P4-1 DEFERRED.
+- CRM/clinic cross-device continuation stays out of scope; the design-only draft
+  proposal below needs owner privacy/schema approval before implementation.
+
+Rollback:revert these scoped local commits in reverse order after release review,
+preserving unrelated dirty edits. No schema rollback/data deletion is needed;
+old final-form URLs, records, contracts and tracking codes remain unchanged.
+No stop was needed:all sensitive policy/schema boundaries stayed deferred.
+
 ### Order phase6 — bounded entry/template cleanup
 
 Home, service-order CTAs, CRM product-order CTAs, related-service discussion and

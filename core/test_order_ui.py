@@ -38,6 +38,8 @@ class OrderEntryUIContractTests(TestCase):
                 self.assertIn(label, header)
                 self.assertIn(label, bar)
             self.assertIn(f'href="/{lang}/start/"', bar)
+            self.assertIn(f'href="/{lang}/start/?consult=1"', header)
+            self.assertNotIn(f'href="/{lang}/contact/"', header)
 
     def test_phone_links_normalize_existing_public_mobile(self):
         for value in ("09333021100", "۰۹۳۳۳۰۲۱۱۰۰", "+98 933 302 1100"):
