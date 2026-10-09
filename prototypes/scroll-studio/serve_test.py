@@ -32,22 +32,9 @@ class PrototypeServerTests(unittest.TestCase):
             self.assertNotIn("<form", body)
 
     def test_modules_have_correct_mime(self):
-        for path in ("/model.mjs", "/studio.mjs", "/film.mjs", "/film-model.mjs"):
+        for path in ("/model.mjs", "/studio.mjs"):
             with urlopen(self.base + path) as response:
                 self.assertTrue(response.headers["Content-Type"].startswith("text/javascript"))
-
-    def test_coded_film_is_not_a_video_or_remote_embed(self):
-        with urlopen(self.base + "/film.html") as response:
-            self.assertEqual(response.status, 200)
-            self.assertEqual(response.headers["X-Robots-Tag"], "noindex, nofollow")
-            body = response.read().decode()
-            self.assertIn('id="scene"', body)
-            self.assertIn('type="range"', body)
-            self.assertNotIn("<video", body)
-            self.assertNotIn("<iframe", body)
-            self.assertNotIn("https://", body)
-        with urlopen(self.base + "/film.css") as response:
-            self.assertTrue(response.headers["Content-Type"].startswith("text/css"))
 
     def test_local_font_and_canonical_tokens_exist(self):
         for path in ("/assets/fonts/Vazirmatn-Regular.woff2", "/assets/fonts/Vazirmatn-Bold.woff2", "/assets/css/tokens.css"):

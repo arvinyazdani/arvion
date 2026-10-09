@@ -2582,30 +2582,3 @@ not newly invented pages or a claim of current production availability.
 8. If seeded services/demos will be disabled/renamed independently, authorize
    dynamic published-only related associations rather than template constants.
    Before any eventual release: verify these public targets on its real data.
-## Corrected motion interpretation — VERIFIED local prototype (2026-10-09)
-
-Owner rejected the preceding storefront/chapter interpretation and authorized a
-continuous, scroll-scrubbed code-built scene to check shared understanding. Added
-film.html, film.css, film.mjs, film-model.mjs, film-model.test.mjs; extended only the
-allowlisted prototype server and its HTTP tests. No existing public site metadata,
-application code, customer workflow, gallery or production was modified.
-
-SVG layers deterministically interpolate idea/orbits→wireframe→website content→
-mobile device→connected system, without video, remote runtime or storage. Range
-control supports native input plus Home/End/arrows/pages; skip and replay exist;
-manual/OS reduced motion renders the final still state. This is a FA conceptual
-review sample, not the previous bilingual production integration proposal.
-
-Commands: node --check prototypes/scroll-studio/film.mjs; node --test
-prototypes/scroll-studio/model.test.mjs prototypes/scroll-studio/film-model.test.mjs
-(16PASS); python3 -m unittest discover -s prototypes/scroll-studio -p serve_test.py
-(6PASS). Browser native scroll (.466), reverse1→0, skip/replay, manual reduced
-motion, mobile320/390 and desktop1440 checked, overflow0/errors[]. Visual defects
-fixed: SVG text inherited RTL, undersized phone scene, overlapping desktop caption,
-and keyboard End default scrolling past the sticky scene. Final End stageTop0,
-mobile320 sliderBottom704 within viewport740. Screenshots: /tmp/rvion-film.27qJty/.
-
-Local preview http://127.0.0.1:8161/film.html remains available for owner review.
-No full Django/CI/physical-device/performance audit, push/deploy/migration performed.
-Owner design acceptance NOT_STARTED; next: review animation before integration.
-Rollback: revert only this scoped prototype/checkpoint commit, no database effect.

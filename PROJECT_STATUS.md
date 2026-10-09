@@ -956,10 +956,3 @@ Whole-sitemap contract and factual metadata verified locally (375 tests,
 16 PostgreSQL-only skips; final focused 7/7). Localized brand context;
 gallery edits preserved. Analytics/cookie/cache DEFERRED. No push/deploy.
 Details: `docs/seo/SEO_PHASE_REPORT.md`.
-# نمونه انیمیشن پیوسته — ۲۰۲۶-۱۰-۰۹
-
-نمونه قبلی با خواسته مالک درباره جنس حرکت مطابقت نداشت. نمونه تازه جداگانه در
-`http://127.0.0.1:8161/film.html` ساخته شد: نقطه، نقشه، سایت، موبایل و سیستم متصل
-در یک صحنه کدنویسی‌شده، با کنترل پیوسته و برگشت‌پذیر اسکرول. ۲۲ تست هدفمند و
-تست مرورگر موبایل/دسکتاپ موفق؛ تأیید طراحی مالک هنوز NOT_STARTED. هیچ انتشار یا
-اتصال به سایت اصلی انجام نشد. نمونه قبلی و تغییرات نامرتبط محفوظ‌اند.
