@@ -20,7 +20,7 @@ class EntryPayloadTests(SimpleTestCase):
         self.assertIn('type="application/json"', source)
         self.assertNotIn('<div', source)
         self.assertEqual(set(payload), {"html", "css", "js"})
-        self.assertEqual(payload["css"], "/static/core/css/entry.css?v=1")
+        self.assertEqual(payload["css"], "/static/core/css/entry.css?v=2")
         self.assertEqual(payload["js"], "/static/core/js/entry.js?v=1")
         self.assertEqual(payload["html"].count('class="panel"'), 5)
 
@@ -30,6 +30,8 @@ class EntryPayloadTests(SimpleTestCase):
             html = payload["html"]
             self.assertIn(f'href="/{lang}/start/"', html)
             self.assertIn(f'href="/{lang}/assessments/"', html)
+            self.assertLess(html.index(f'href="/{lang}/start/"'),
+                            html.index(f'href="/{lang}/assessments/"'))
             self.assertNotIn("data-fa=", html)
             self.assertNotIn("data-en=", html)
             if lang == "en":

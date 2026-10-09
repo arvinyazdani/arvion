@@ -3067,3 +3067,44 @@ separate. Local preview is not deployment evidence. Commit list begins
 Rollback only these scoped commits in reverse, preserving all unrelated work;
 do not reset the repository or apply the preserved stash blindly. No database
 rollback required. Protected stash/bundle remain intact.
+
+### Mobile entry gateway follow-up — 2026-10-09
+
+Status: mobile layout VERIFIED locally; automatic rollout/deploy BLOCKED.
+Owner now expressly authorized commit/deploy; this does not turn the failed
+performance requirement into a passing result. Project card is first/top on
+<=760px phones, assessment card below; desktop remains side by side. The
+direct/reload admission policy is already implemented and was re-exercised in
+a temporarily activated test server. Default activation remains disabled.
+
+Files: core/static/core/css/entry.css; core/templatetags/entry_ui.py (CSSv2);
+core/test_entry.py; core/tests_js/entry_scene.test.cjs; these two living reports.
+Commit: `fix: stack mobile entry gateway actions and preserve CTA contrast`.
+Targeted command: `.venv/bin/python manage.py test core.test_entry
+core.tests.CorePagesTests core.test_ui_system core.tests_seo_contract --verbosity 1`
+→73 passed. `node core/tests_js/entry_scene.test.cjs`, `entry_policy.test.cjs`
+and `navigation_loader.test.cjs`→all passed. `manage.py check`→0 issues;
+`git diff --check`→clean. Browser FA390, EN320 and EN1440: correct card order,
+no horizontal overflow, readable CTA/title, direct entry/reload and dismissal.
+Proof: /tmp/rvion-entry-20261009/mobile-gateway-stacked.jpg.
+
+Performance diagnostic candidates (all reverted, NOT release evidence):
+
+| Candidate | LCP ms | TBT ms | CLS | Result |
+|---|---:|---:|---:|---|
+| Paused WAAPI camera |4521.54|794|0.6671|FAIL |
+| Zero-size room origin |4061.95|720|0.7548|FAIL |
+| Zero-size world+room origins |4534.31|873|0.4109|FAIL |
+
+The latter attribution moved to the laptop screen; changing empty-container
+bounds alone did not solve the scene's layout instability. Source geometry and
+camera code are restored. No measurement suppression or waived threshold.
+One NO_NAVSTART run was rerun; no final three-run median/full suite was claimed.
+Premium audit (strict) exited1:55 existing gallery findings, outside this diff,
+not triaged or masked. No protected gallery files were touched.
+
+Read-only SSH attempts: connection closed, then20-second bounded timeout.
+No production command/release/migration/restart, push or deployment completed.
+Next: fix the actual scene performance issue and finish the final gate, then
+official snapshot-backed release with live checks when SSH is available.
+Rollback: revert only this mobile correction commit; no database changes.

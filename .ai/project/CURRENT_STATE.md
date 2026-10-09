@@ -4,9 +4,10 @@
 
 Only Piece 1. Implementation and targeted tests are saved locally; automatic
 display is disabled by default. Read the final "Active checkpoint — entry
-animation" below and docs/seo/SEO_PHASE_REPORT.md. Performance gate failed;
-do not enable RVION_ENTRY_ENABLED, push or deploy this intro. The preceding
-order-release section is historical context, not authorization for this task.
+animation" below and docs/seo/SEO_PHASE_REPORT.md. Owner authorized commit and
+deploy on 2026-10-09, but the performance gate still prevents activation/release.
+Mobile gateway correction is VERIFIED locally; publication remains BLOCKED.
+The preceding order-release section is historical context, not release evidence.
 
 ## Owner-authorized release and workspace cleanup — PARTIAL (2026-10-09)
 
@@ -5181,3 +5182,31 @@ Prototype nested-span styles also lower CTA text contrast; owner visual
 acceptance has NOT occurred. This is a self-review, not independent review.
 Protected stash and external preservation bundle remain untouched.
 No push, deploy, SSH, model/migration, sound-file, protected-file or policy change.
+
+## Mobile gateway correction — VERIFIED local / release BLOCKED (2026-10-09)
+
+- Owner request: project above assessment on phones; direct entry/reload display;
+  suitable commit and deploy. Mobile <=760px now uses one column, compact icon/
+  content tracks and 44px CTA height. Desktop retains two columns. Scoped span
+  selectors preserve title and orange-button text colour in both themes.
+- Test evidence: 73 targeted Core/entry/UI/SEO tests passed; all three entry,
+  admission and navigation-loader Node contracts passed; check0 and diff clean.
+  Browser: FA390 stacked cards at y316.35/y502.24, both342px wide; EN320 no
+  horizontal overflow (long gateway scrolls inside its existing final surface).
+  EN1440 card tops both383.65; direct localhost entry and actual reload both
+  displayed the intro under a temporary test-server-only activation. Dismiss
+  returned to ordinary home. Permanent activation remains off.
+- Failed performance experiments were fully removed, including temporary
+  environment-setting support: WAAPI seeking CLS0.6671; zero-size room CLS0.7548;
+  room+world origins CLS0.4109. Reference scene geometry/JS remain unchanged.
+  One Lighthouse run failed NO_NAVSTART and was rerun, not counted as a pass.
+  Evidence remains in /tmp/rvion-entry-20261009; no claimed 3-run final median.
+- Premium static audit exited1 with55 existing gallery actionless-button
+  findings; these are outside this scoped diff and untriaged, not a PASS.
+- SSH read-only attempt closed by188.121.101.173; bounded retry timed out20s.
+  No push, release, restart, production mutation or migration was performed.
+  Temporary8167 test server stopped; original8165 preview kept available.
+- Full isolated suite not run: release gate still blocked. Next: resolve genuine
+  3D scene CLS while retaining the reference, then final performance/full release
+  gates and restore SSH connectivity. Revert only this scoped commit to roll
+  back mobile correction; no data rollback. Preserved stash/bundle untouched.

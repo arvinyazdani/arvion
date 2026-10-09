@@ -22,5 +22,5 @@ def entry_payload(context):
     lang = request.path.strip("/")
     with override(lang):
         html = render_to_string("core/_entry_scene.html", {"lang": lang})
-    return json_script({"html": html, "css": static("core/css/entry.css") + "?v=1",
+    return json_script({"html": html, "css": static("core/css/entry.css") + "?v=2",
                         "js": static("core/js/entry.js") + "?v=1"}, "rvion-entry-payload")

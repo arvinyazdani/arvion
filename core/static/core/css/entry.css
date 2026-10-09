@@ -104,7 +104,7 @@
 #rvion-entry .path:hover{transform:translateY(-3px);border-color:var(--orange);box-shadow:0 18px 50px rgba(255,107,53,.18)}
 #rvion-entry .path svg{width:64px;height:64px;fill:none;stroke:var(--amber);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;display:block;margin-bottom:10px}
 #rvion-entry .path b{display:block;font-size:19px;font-weight:900}
-#rvion-entry .path span{display:block;color:#aab6cf;font-size:14px;margin:2px 0 14px}
+#rvion-entry .path > span{display:block;color:#aab6cf;font-size:14px;margin:2px 0 14px}
 #rvion-entry .path em{font-style:normal;display:inline-block;padding:6px 16px;border-radius:10px;background:var(--orange);color:#1a0d05;font-weight:700;font-size:14px}
 #rvion-entry .enter-link{color:#b7c1d6;text-decoration:underline;font-size:14px;min-height:44px;padding:0 12px}
 #rvion-entry[data-entry-theme="light"]{background:#e6edf7;color:#121a2b}
@@ -131,7 +131,7 @@
 #rvion-entry[data-entry-theme="light"] .final{background:radial-gradient(ellipse at 50% 50%,rgba(230,237,247,.2),rgba(230,237,247,.93) 70%)}
 #rvion-entry[data-entry-theme="light"] .final p,#rvion-entry[data-entry-theme="light"] .enter-link{color:#44516b}
 #rvion-entry[data-entry-theme="light"] .path{background:linear-gradient(160deg,#fff,#eef2fa);border-color:rgba(15,25,50,.14)}
-#rvion-entry[data-entry-theme="light"] .path span{color:#4a566e}
+#rvion-entry[data-entry-theme="light"] .path > span{color:#4a566e}
 #rvion-entry[data-entry-theme="light"] .path svg{stroke:#e0701c}
 
 #rvion-entry{z-index:2147483000}#rvion-entry [hidden]{display:none!important}#rvion-entry .path{text-decoration:none;color:inherit;text-align:start;min-height:44px}#rvion-entry[dir="ltr"] .paths{text-align:left}
@@ -139,4 +139,12 @@
 #rvion-entry .final{overflow:auto;overscroll-behavior:contain}#rvion-entry .fin-in{margin-block:48px 12px}#rvion-entry .ctl{top:max(14px,env(safe-area-inset-top,0px))}
 #rvion-entry .grain,#rvion-entry .mug i,#rvion-entry .forearm,#rvion-entry .hand2,#rvion-entry .head,#rvion-entry .cur::after{animation-play-state:paused}
 #rvion-entry .cur::after{animation-delay:var(--entry-cursor-time,0s)}
+@media(max-width:760px){
+ #rvion-entry .paths{grid-template-columns:minmax(0,1fr);gap:12px}
+ #rvion-entry .path{padding:16px;display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:center}
+ #rvion-entry .path svg{width:44px;height:44px;grid-row:1 / 4;margin:0;align-self:start}
+ #rvion-entry .path > span{margin:4px 0 12px}
+ #rvion-entry .path em{justify-self:start;min-height:44px;display:inline-flex;align-items:center}
+ #rvion-entry .final h2{font-size:28px}
+}
 @media(prefers-reduced-motion:reduce){#rvion-entry{display:none}}
