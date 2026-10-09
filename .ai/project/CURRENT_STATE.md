@@ -2,7 +2,7 @@
 
 ## Homepage clarity — VERIFIED local; owner review NOT_STARTED (2026-10-09)
 
-- Baseline 5559e45; implementation commit recorded in the next checkpoint update.
+- Baseline 5559e45; implementation commit d2dce41 (16 scoped files), local only.
 - Approved bilingual offer-first hero, persistent header project CTA, database-driven
   six-service grid, three fictional samples/all categories, single custom and exam
   bands, real CompanyProfile identity, retained journal and final consultation CTA.

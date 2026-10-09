@@ -4,9 +4,9 @@
 
 ### Scope and checkpoint
 
-Baseline 5559e45. Single primary agent; this is technical self-review, not independent
-review or a completed five-second user study. Implementation commit is recorded in
-the following checkpoint update. No push, SSH, deployment, production access or
+Baseline 5559e45; implementation commit d2dce41 (16 scoped files). Single primary
+agent; this is technical self-review, not independent review or a completed
+five-second user study. No push, SSH, deployment, production access or
 permanent database migration. P1-3/P4-1 remain DEFERRED. Earlier P3-5 is superseded
 by the owner's approved bilingual hero. Overall SEO programme remains PARTIAL.
 
