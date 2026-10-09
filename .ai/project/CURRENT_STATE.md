@@ -1,5 +1,26 @@
 # Rvion current state
 
+## Public journal release — PARTIAL, SSH blocked (2026-10-09)
+
+- Owner explicitly requested deployment of the preceding public-journal change.
+  Pushed main 66a7cbf..541c9ca; unrelated editorial-desk and protected-gallery
+  working-tree changes were not staged, committed or transferred.
+- GitHub quality run 37883116866 targets exact 541c9ca21b169a72f36637024bf119ede90842e7.
+  Latest observation: Python 3.11 and 3.12 parallel test steps IN_PROGRESS;
+  dependency/check/migration-drift steps passed. Full CI is not claimed PASS.
+- Existing production public /health/ returns {"status":"ok"}. SSH to
+  ubuntu@188.121.101.173 with the existing rvion.pem, IdentitiesOnly and IPQoS=none
+  did not establish a connection. Two bounded retries returned port-22 timeout;
+  the initial stalled read-only attempt was safely terminated.
+- No remote source pull, backup, release script, migration, restart, publication
+  or new-version smoke occurred. Last verified runtime remains 66a7cbf (previous
+  checkpoint); current runtime could not be re-read over SSH.
+- Next: restore SSH reachability or use owner-opened Arvan console; verify CI,
+  clean production source, pull --ff-only as arvion and run official release.sh,
+  validate snapshot with pg_restore --list, then live home/list/detail/static smoke.
+  Source rollback boundary is prior verified 66a7cbf; no schema/data change in
+  this journal patch. Existing .env.production/.secrets/media/backups preserved.
+
 ## Public article experience — VERIFIED locally (2026-10-08)
 
 - New scope: home article section, public list and reading page; no production
