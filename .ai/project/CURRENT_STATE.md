@@ -1,5 +1,16 @@
 # Rvion current state
 
+## Unified order entry — phase1 VERIFIED, phase2 in progress (2026-10-09)
+
+- New owner plan supersedes c8ae8de blockers: nine topics, two add-ons,
+  consultation; contact data only in the final existing domain form. No PII
+  draft extension, no migration, no protected gallery/content-editor edits.
+- core/order_paths.py is template-independent bilingual vocabulary using existing
+  demo labels and all9 CRM features +6 roadmap labels. Strict categorical query
+  parser and request_type precedence. Four targeted tests passed.
+- Next: /start/ gateway, existing sample integration, final form summaries,
+  shared completion and bounded navigation fixes. No push/deploy/SSH.
+
 ## Unified order entry — BLOCKED after phase 0 (2026-10-09)
 
 - Latest owner attachment supersedes the earlier pause for this scoped order-entry

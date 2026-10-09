@@ -1,5 +1,23 @@
 # SEO phase report — Rvion
 
+## Unified order entry — revised owner plan (2026-10-09)
+
+Owner superseded the phase0 stop findings: collect contact data only once in
+final forms; preserve existing safe drafts; defer cross-device CRM/clinic;
+CRM builder uses query allowlists, no new demo category. Gallery/content edits
+stay protected. Implementation proceeds without production access.
+
+Phase1 VERIFIED: core/order_paths.py and core/test_order_paths.py. Nine topics,
+two add-ons, consultation, existing demo capability labels, nine CRM feature
+labels and six roadmap labels. Non-personal categorical allowlist drops unknown
+query values; request_type precedence is tested. No storage/model/URL changes.
+`python manage.py test core.test_order_paths --verbosity 1`: 4 tests OK.
+Design skills used: Frontend Design and UI/UX Pro Max. The local design-system
+search returned a suitable three-step funnel but an unsuitable restaurant palette
+and fonts; retained project typography/palette instead. Mobile choices will use
+visible 44px controls and progressive disclosure, no external dependencies.
+Rollback phase1: revert its scoped local commit; no data migration needed.
+
 ## Unified order entry — phase 0 discovery (2026-10-09)
 
 Status: discovery VERIFIED; implementation BLOCKED at the explicit pre-change
