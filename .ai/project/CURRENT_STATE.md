@@ -1,5 +1,26 @@
 # Rvion current state
 
+## Branching coded scenes — VERIFIED local; owner acceptance NOT_STARTED (2026-10-09)
+
+- Owner requested continuing with welcome→choice→scene→choice; no release authorized.
+- Added journey.html/css/mjs + journey-model.mjs/tests, allowlisted local assets.
+  Welcome auto-plays, shop/restaurant use separate illustrations, two styles alter
+  geometry/composition, domain-specific features play short clips, then summary.
+  This is a FA conceptual prototype; no order/API/storage/video/production writes.
+- Clips pause for decisions; skip/replay/back/reduced motion available. Back retains
+  choices; changing domain clears incompatible features. Cancel stops stale RAF;
+  hidden-document frames do not advance elapsed clip time (code, not device-proof).
+- Tests: node --check journey.mjs PASS; node --test prototypes/scroll-studio/*test.mjs
+  22PASS; HTTP unittest7PASS. Browser both paths to summary, retained booking after
+  back, replay/manual reduce, skip, route switch checked. 320/390/1440 overflow0,
+  console errors[]. Modern transforms verified (visual-390/products335).
+- Fixed mobile clip starting offscreen and replay erasing choices on the topic step.
+  Preview http://127.0.0.1:8162/journey.html remains available (session16224).
+  Screenshots /tmp/rvion-journey.eDMmiw/. Physical-device/CI/full Django/a11y audit
+  not run; no production-readiness claim. Protected user work preserved.
+- Rollback only the scoped prototype/docs commit. Next: owner reviews branching
+  experience; connecting real enquiry and remaining industries NOT_STARTED.
+
 ## Continuous coded animation — VERIFIED local; owner acceptance NOT_STARTED (2026-10-09)
 
 - Owner rejected the chapter/configurator interpretation; requested one continuous

@@ -12,6 +12,8 @@ for name, mime in (("studio.css", "text/css"), ("studio.mjs", "text/javascript")
 for name, mime in (("film.html", "text/html"), ("film.css", "text/css"), ("film.mjs", "text/javascript"), ("film-model.mjs", "text/javascript")):
     FILES["/" + name] = (ROOT / name, mime)
 FILES["/assets/css/tokens.css"] = (REPO / "core/static/core/css/tokens.css", "text/css")
+for name, mime in (("journey.html", "text/html"), ("journey.css", "text/css"), ("journey.mjs", "text/javascript"), ("journey-model.mjs", "text/javascript")):
+    FILES["/" + name] = (ROOT / name, mime)
 for weight in ("Regular", "Bold", "Black"):
     name = "Vazirmatn-" + weight + ".woff2"
     FILES["/assets/fonts/" + name] = (REPO / "core/static/core/fonts" / name, "font/woff2")

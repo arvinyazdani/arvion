@@ -32,7 +32,7 @@ class PrototypeServerTests(unittest.TestCase):
             self.assertNotIn("<form", body)
 
     def test_modules_have_correct_mime(self):
-        for path in ("/model.mjs", "/studio.mjs", "/film.mjs", "/film-model.mjs"):
+        for path in ("/model.mjs", "/studio.mjs", "/film.mjs", "/film-model.mjs", "/journey.mjs", "/journey-model.mjs"):
             with urlopen(self.base + path) as response:
                 self.assertTrue(response.headers["Content-Type"].startswith("text/javascript"))
 
@@ -47,6 +47,18 @@ class PrototypeServerTests(unittest.TestCase):
             self.assertNotIn("<iframe", body)
             self.assertNotIn("https://", body)
         with urlopen(self.base + "/film.css") as response:
+            self.assertTrue(response.headers["Content-Type"].startswith("text/css"))
+
+    def test_branching_journey_is_local_only(self):
+        with urlopen(self.base + "/journey.html") as response:
+            body = response.read().decode()
+            self.assertEqual(response.headers["X-Robots-Tag"], "noindex, nofollow")
+            self.assertIn('id="choices"', body)
+            self.assertIn('id="skip"', body)
+            self.assertNotIn("<video", body)
+            self.assertNotIn("<form", body)
+            self.assertNotIn("https://", body)
+        with urlopen(self.base + "/journey.css") as response:
             self.assertTrue(response.headers["Content-Type"].startswith("text/css"))
 
     def test_local_font_and_canonical_tokens_exist(self):
