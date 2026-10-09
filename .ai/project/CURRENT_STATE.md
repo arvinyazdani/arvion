@@ -5137,6 +5137,10 @@ Piece 1 only, local commits; no push/deploy/SSH or migration. Baseline b390e02.
 Old first-visit welcome removed; navigation loader separated and retained.
 Targeted CorePages/UI tests 41 passed; cache assertions updated for new versions.
 New regression assertion pins old-marker removal and navigation timers.
-Scene, gateway, admission guard and final browser/performance gates NOT_STARTED.
+Removal checkpoint: 501444b; regression suite now 42 passed.
+Payload scaffold VERIFIED: server-owned Django gettext catalogue (fa), inert
+JSON, staff/non-home exclusion, five reference panels and localized gateway.
+Three payload tests pass. Not enabled on home until scene/control/guard gates.
+Scene, runtime controls, admission guard and final browser/performance gates NOT_STARTED.
 Protected stash and external preservation bundle remain untouched.
 Continue with the supplied reference, not a new design; full suite only at end.

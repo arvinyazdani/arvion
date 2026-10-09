@@ -1,0 +1,161 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fa\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "1"
+msgstr "۱"
+
+msgid "Discovery"
+msgstr "نیازسنجی"
+
+msgid "First we ask what your website needs to do."
+msgstr "اول می‌پرسیم سایتتان چه کاری باید انجام بدهد."
+
+msgid "Online store"
+msgstr "فروشگاه آنلاین"
+
+msgid "Booking"
+msgstr "رزرو نوبت"
+
+msgid "Blog"
+msgstr "وبلاگ"
+
+msgid "Customer area"
+msgstr "پنل مشتری"
+
+msgid "Bilingual"
+msgstr "دوزبانه"
+
+msgid "2"
+msgstr "۲"
+
+msgid "Design"
+msgstr "طراحی"
+
+msgid "See the site and choose its colour and mood before we build."
+msgstr "پیش از ساخت، سایت را می‌بینید و رنگ و حال‌وهوایش را انتخاب می‌کنید."
+
+msgid "Your brand"
+msgstr "برند شما"
+
+msgid "Home"
+msgstr "خانه"
+
+msgid "Services"
+msgstr "خدمات"
+
+msgid "Contact"
+msgstr "تماس"
+
+msgid "Your main headline"
+msgstr "عنوان اصلی سایت شما"
+
+msgid "Get started"
+msgstr "شروع کنید"
+
+msgid "3"
+msgstr "۳"
+
+msgid "Code"
+msgstr "کدنویسی"
+
+msgid "Written to be readable, maintainable and extensible."
+msgstr "با کدی که قابل خواندن، نگهداری و گسترش است."
+
+msgid "4"
+msgstr "۴"
+
+msgid "Testing & QA"
+msgstr "آزمون و کنترل"
+
+msgid "Every part is checked before launch."
+msgstr "پیش از انتشار، هر بخش بررسی می‌شود."
+
+msgid "Pages load without errors"
+msgstr "صفحه‌ها بدون خطا باز می‌شوند"
+
+msgid "Renders correctly on mobile and desktop"
+msgstr "نمایش درست در موبایل و دسکتاپ"
+
+msgid "Checkout and payment flow"
+msgstr "مسیر خرید و پرداخت"
+
+msgid "Speed and basic SEO"
+msgstr "سرعت و سئوی پایه"
+
+msgid "5"
+msgstr "۵"
+
+msgid "Launch & support"
+msgstr "انتشار و پشتیبانی"
+
+msgid "Your site goes live, and we stay with you afterwards."
+msgstr "سایت آنلاین می‌شود و پس از آن هم کنارتان هستیم."
+
+msgid "Live ●"
+msgstr "آنلاین شد ●"
+
+msgid "Your website. Unmistakably yours."
+msgstr "سایت شما، با امضای خود شما"
+
+msgid "Backups"
+msgstr "پشتیبان‌گیری"
+
+msgid "Health monitoring"
+msgstr "پایش سلامت"
+
+msgid "Support"
+msgstr "پشتیبانی"
+
+msgid "Where shall we start?"
+msgstr "از کجا شروع کنیم؟"
+
+msgid "Pick one; the next step continues from here."
+msgstr "یکی را انتخاب کنید؛ مسیر بعدی از همین‌جا ادامه پیدا می‌کند."
+
+msgid "Build a website or system"
+msgstr "ساخت سایت و سیستم"
+
+msgid "Store, clinic, CRM, corporate and more; from idea to launch"
+msgstr "فروشگاه، کلینیک، CRM، شرکتی و بیشتر؛ از ایده تا انتشار"
+
+msgid "Start a project →"
+msgstr "شروع پروژه ←"
+
+msgid "Language & programming assessments"
+msgstr "آزمون زبان و برنامه‌نویسی"
+
+msgid "English level test and Python/Django assessment; with result analysis"
+msgstr "تعیین سطح زبان انگلیسی و ارزیابی Python/Django؛ با تحلیل نتیجه"
+
+msgid "Start an assessment →"
+msgstr "شروع آزمون زبان ←"
+
+msgid "I just want to enter the site"
+msgstr "فقط می‌خواهم وارد سایت شوم"
+
+msgid "Rvion introduction"
+msgstr "ورودی آرویون"
+
+msgid "Skip ✕"
+msgstr "رد کردن ✕"
+
+msgid "❚❚ Pause"
+msgstr "❚❚ توقف"
+
+msgid "▶ Resume"
+msgstr "▶ ادامه"
+
+msgid "Every website starts as an idea on a desk."
+msgstr "هر سایت از یک ایده روی میز شروع می‌شود."
+
+msgid "Let’s step inside."
+msgstr "بیایید داخلش برویم."
+
+msgid "See how your project gets built"
+msgstr "ببینید پروژه‌ی شما چطور ساخته می‌شود"
+
+msgid "# idea → design → code → launch"
+msgstr "# ایده → طراحی → کد → انتشار"

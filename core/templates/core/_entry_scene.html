@@ -1,0 +1,61 @@
+{% load i18n %}
+<div class="entry" id="rvion-entry" role="dialog" aria-modal="true" aria-label="{% translate "Rvion introduction" %}" tabindex="-1">
+ <div aria-hidden="true" class="vp" data-entry-id="vp"><div class="world" data-entry-id="world">
+  <div class="room" data-entry-id="room">
+   <div class="o wall" data-entry-id="wall"></div>
+   <div class="desk" data-entry-id="desk"></div>
+   <div class="o lamp bt" data-entry-id="lamp"><div class="cone"></div>
+    <svg viewBox="0 0 100 140" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible"><g fill="none" stroke="#2a3552" stroke-width="5" stroke-linecap="round"><path d="M50 138 L50 118"/><path d="M50 118 L30 62 L58 24"/></g><path d="M44 20 L74 28 L66 46 L36 36 Z" fill="#ff9f1c"/><ellipse cx="50" cy="138" rx="22" ry="5" fill="#161d30"/></svg></div>
+   <div class="o char bt" data-entry-id="char"><svg viewBox="0 0 220 300" aria-hidden="true">
+     <defs><linearGradient id="rvion-entry-rim" x1="0" x2="1"><stop offset="0" stop-color="#ff6b35"/><stop offset="1" stop-color="#d9531f"/></linearGradient></defs>
+     <ellipse cx="100" cy="292" rx="80" ry="8" fill="#000" opacity=".4"/>
+     <rect x="22" y="130" width="46" height="150" rx="14" fill="#141b2e"/>
+     <path d="M52 150 Q60 128 100 128 Q138 130 142 170 L146 262 L56 262 Z" fill="url(#rvion-entry-rim)"/>
+     <path d="M130 140 Q142 160 142 200 L146 262 L132 262 Z" fill="#7be0ff" opacity=".18"/>
+     <g class="head"><circle cx="106" cy="104" r="26" fill="#e8b998"/><path d="M80 100 Q84 74 112 76 Q134 80 132 104 Q118 92 100 94 Q88 96 80 100Z" fill="#171a26"/><path d="M82 96 Q106 62 134 94" fill="none" stroke="#1b2740" stroke-width="7" stroke-linecap="round"/><circle cx="84" cy="106" r="9" fill="#ff9f1c"/><path d="M128 100 q6 3 2 8" fill="none" stroke="#b98c70" stroke-width="2.5"/></g>
+     <path d="M96 138 L130 168 L150 208" fill="none" stroke="#ff6b35" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+     <g class="forearm"><path d="M150 208 L196 214" fill="none" stroke="#ff6b35" stroke-width="16" stroke-linecap="round"/><circle cx="202" cy="216" r="9" fill="#e8b998"/></g>
+     <g class="hand2"><circle cx="190" cy="226" r="7" fill="#e8b998"/></g>
+   </svg></div>
+   <div class="laptop" data-entry-id="laptop">
+    <div class="screen" data-entry-id="scr"><div class="glass" data-entry-id="glass"></div></div>
+    <div class="base"></div>
+   </div>
+   <div class="o mug bt" data-entry-id="mug"><i></i><i></i></div>
+  </div>
+
+  <section class="panel" data-i="0" style="--z:-600px"><div class="n"><span>{% translate "1" %}</span></div><h3><span>{% translate "Discovery" %}</span></h3><p><span>{% translate "First we ask what your website needs to do." %}</span></p>
+   <div class="chips"><span class="chip on"><span>{% translate "Online store" %}</span></span><span class="chip"><span>{% translate "Booking" %}</span></span><span class="chip on"><span>{% translate "Blog" %}</span></span><span class="chip"><span>{% translate "Customer area" %}</span></span><span class="chip on"><span>{% translate "Bilingual" %}</span></span></div></section>
+  <section class="panel" data-i="1" style="--z:-1250px"><div class="n"><span>{% translate "2" %}</span></div><h3><span>{% translate "Design" %}</span></h3><p><span>{% translate "See the site and choose its colour and mood before we build." %}</span></p>
+   <div class="wf"><div class="h"><b><span>{% translate "Your brand" %}</span></b><span><span>{% translate "Home" %}</span></span><span><span>{% translate "Services" %}</span></span><span><span>{% translate "Contact" %}</span></span></div><div class="hr"><span>{% translate "Your main headline" %}</span><br><i><span>{% translate "Get started" %}</span></i></div><div class="cd"><span></span><span></span><span></span></div></div>
+   <div class="pal"><i style="background:#ff6b35"></i><i style="background:#7c93ff"></i><i style="background:#5f8f6e"></i></div></section>
+  <section class="panel" data-i="2" style="--z:-1900px"><div class="n"><span>{% translate "3" %}</span></div><h3><span>{% translate "Code" %}</span></h3><p><span>{% translate "Written to be readable, maintainable and extensible." %}</span></p>
+   <div class="code"><span class="k">class</span> <span class="f">Product</span>(models.Model):<br>&nbsp;&nbsp;name = models.<span class="f">CharField</span>(max_length=<span class="s">120</span>)<br>&nbsp;&nbsp;price = models.<span class="f">PositiveIntegerField</span>()<br>&nbsp;&nbsp;<span class="k">def</span> <span class="f">can_buy</span>(self, qty=<span class="s">1</span>):<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">return</span> self.stock &gt;= qty</div></section>
+  <section class="panel" data-i="3" style="--z:-2550px"><div class="n"><span>{% translate "4" %}</span></div><h3><span>{% translate "Testing & QA" %}</span></h3><p><span>{% translate "Every part is checked before launch." %}</span></p>
+   <div class="checks"><div><b>✓</b><span>{% translate "Pages load without errors" %}</span></div><div><b>✓</b><span>{% translate "Renders correctly on mobile and desktop" %}</span></div><div><b>✓</b><span>{% translate "Checkout and payment flow" %}</span></div><div><b>✓</b><span>{% translate "Speed and basic SEO" %}</span></div></div></section>
+  <section class="panel" data-i="4" style="--z:-3200px"><div class="n"><span>{% translate "5" %}</span></div><h3><span>{% translate "Launch & support" %}</span></h3><p><span>{% translate "Your site goes live, and we stay with you afterwards." %}</span></p>
+   <div class="live"><div class="u">https://your-brand.ir<em><span>{% translate "Live ●" %}</span></em></div><div class="b"><strong><span>{% translate "Your brand" %}</span></strong><span>{% translate "Your website. Unmistakably yours." %}</span></div></div>
+   <div class="sup"><span class="chip"><span>{% translate "Backups" %}</span></span><span class="chip"><span>{% translate "Health monitoring" %}</span></span><span class="chip"><span>{% translate "Support" %}</span></span></div></section>
+ </div></div>
+
+ <canvas aria-hidden="true" data-entry-id="fx"></canvas>
+ <div class="bloom" data-entry-id="bloom"></div>
+ <div class="vig"></div>
+ <svg class="grain" aria-hidden="true"><filter id="rvion-entry-nz"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#rvion-entry-nz)"/></svg>
+ <div class="cap" data-entry-id="cap" aria-live="polite"></div>
+ <div class="final" data-entry-id="final"><div class="fin-in">
+   <span class="logo"><i></i>RVION</span>
+   <h2><span>{% translate "Where shall we start?" %}</span></h2>
+   <p><span>{% translate "Pick one; the next step continues from here." %}</span></p>
+   <div class="paths">
+    <a class="path" href="{% url 'project_start' %}" data-no-loader><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="38" rx="5"/><path d="M6 20h52M14 15h2M20 15h2M18 30h16M18 38h26M22 56h20"/></svg><b><span>{% translate "Build a website or system" %}</span></b><span><span>{% translate "Store, clinic, CRM, corporate and more; from idea to launch" %}</span></span><em><span>{% translate "Start a project →" %}</span></em></a>
+    <a class="path" href="{% url 'assessments:list' %}" data-no-loader><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 14h34a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H26l-10 8v-8H8z"/><path d="M20 24l5 8 5-8M36 24v8M52 26h4v22H34v-6"/></svg><b><span>{% translate "Language & programming assessments" %}</span></b><span><span>{% translate "English level test and Python/Django assessment; with result analysis" %}</span></span><em><span>{% translate "Start an assessment →" %}</span></em></a>
+   </div>
+   <button class="enter-link" data-entry-id="enter" type="button"><span>{% translate "I just want to enter the site" %}</span></button>
+ </div></div>
+ 
+<div class="ctl"><button data-entry-id="skip" type="button">{% translate "Skip ✕" %}</button><button data-entry-id="pp" type="button" aria-pressed="false" data-pause="{% translate "❚❚ Pause" %}" data-resume="{% translate "▶ Resume" %}">{% translate "❚❚ Pause" %}</button></div>
+<div class="prog" aria-hidden="true"><i data-entry-id="progbar"></i></div>
+<div data-entry-id="captions" hidden><div>{% translate "Every website starts as an idea on a desk." %}</div><div>{% translate "Let’s step inside." %}<small>{% translate "See how your project gets built" %}</small></div></div>
+<span data-entry-id="code-comment" hidden>{% translate "# idea → design → code → launch" %}</span>
+</div>

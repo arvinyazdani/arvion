@@ -2924,4 +2924,10 @@ migrations, analytics/cookie-policy or protected gallery/content changes.
    41 passed; initial two failures were stale cache-version assertions, updated
    to the actual shared asset versions without weakening ordering assertions.
    JS syntax passed. Full entry/browser/performance gates remain NOT_STARTED.
-   Rollback: revert this scoped commit; no data changes.
+   Rollback: revert this scoped commit; no data changes. Commit 501444b;
+   final targeted run including new removal assertion: 42 passed.
+2. Inert payload scaffold: VERIFIED locally; three tests pass. Reference
+   markup extracted only up to pathIntro; no later flows copied. Django gettext
+   owns both locales, with the source Persian text in core/locale/fa. No DB
+   queries in the payload renderer. Staff/non-home excluded. No live homepage
+   activation yet. Catalogue compiled with Django compilemessages; no migration.
