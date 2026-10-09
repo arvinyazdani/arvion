@@ -29,7 +29,7 @@ class ServiceTests(TestCase):
         response = self.client.get(service.get_absolute_url() + "?lang=fa")
         self.assertContains(response, "Backend و API امن")
         self.assertContains(response, "توسعه مرحله‌ای")
-        self.assertContains(response, f"service={service.slug}")
+        self.assertContains(response, 'href="/fa/start/?type=other"')
 
     def test_service_detail_eyebrows_are_not_mixed(self):
         service = Service.objects.get(slug="custom-web-application")

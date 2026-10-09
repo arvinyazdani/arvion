@@ -431,7 +431,7 @@ class WholeSitemapContractTests(TestCase):
                        'corporate-website-design' if category in ('corporate', 'portfolio') else
                        'custom-web-application')
             cases.append((f'projects/demos/seo-{category}-0/',
-                          [f'services/{service}/', 'contact/']))
+                          [f'services/{service}/', 'start/']))
         for source, expected in cases:
             structures = []
             for lang in ('fa', 'en'):

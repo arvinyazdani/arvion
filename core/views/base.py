@@ -45,7 +45,7 @@ class HomeView(LanguageViewMixin, TemplateView):
         ctx["featured_demos"] = demos[:3]
         ctx["home_demo_categories"] = [
             {"label": demo.category_label,
-             "url": reverse("projects:demo_gallery") + "#demo-" + demo.slug}
+             "url": reverse("projects:demo_gallery") + "#demo-options"}
             for demo in demos
         ]
         ctx["available_demo_count"] = DemoTemplate.objects.filter(is_active=True).count()

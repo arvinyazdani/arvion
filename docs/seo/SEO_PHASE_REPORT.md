@@ -1,5 +1,25 @@
 # SEO phase report — Rvion
 
+### Order phase6 — bounded entry/template cleanup
+
+Home, service-order CTAs, CRM product-order CTAs, related-service discussion and
+the account's new-order shortcut now lead to /start/; account Continue enquiry
+still resumes /contact/ and information-only sample/service links still browse.
+Home category fragments use the stable #demo-options, not uncommitted per-demo
+anchors. Header/tabbar use Services/Samples consistently. Public phone links use
+the existing Iranian normalizer and +98. Home teacher-assessment CTA uses the
+actual assessment name; article covers below the fold are lazy including first.
+No assessment logic, article body, metadata or protected gallery CSS changed.
+
+Initial affected-app run:483 tests,16 existing PostgreSQL skips;11 failures +1
+error. Nine outdated route/copy/phone expectations (including the cascading
+IndexError after a related-link assertion) were updated to the deliberately
+changed product contract, not removed; related-link bilingual/indexable checks
+remain intact. Two failures are pre-existing protected gallery title drift (fa/en)
+against the SEO baseline and are intentionally not fixed here. Focused retest of
+the changed core/home/related-link/service expectations:56 tests OK. New UI +
+handoff tests:14 tests OK. Full isolated candidate gate pending.
+
 ### Order phases4–5 — final forms and confirmations (local)
 
 Existing final forms remain identity collectors. General requests preselect the

@@ -109,7 +109,8 @@ class HomeClarityTests(TestCase):
             self.assertContains(response, getattr(company, f'legal_name_{lang}'))
             self.assertContains(response, getattr(company, f'address_{lang}'))
             self.assertContains(response, getattr(company, f'support_hours_{lang}'))
-            self.assertContains(response, f'href="tel:{company.phone}"')
+            from core.templatetags.order_ui import order_phone
+            self.assertContains(response, f'href="tel:{order_phone(company.phone)}"')
         CompanyProfile.objects.all().delete()
         response = self.client.get('/en/')
         self.assertNotContains(response, 'id="identity-title"')

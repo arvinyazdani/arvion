@@ -1,11 +1,12 @@
 {% extends "core/base.html" %}
 {% load assessment_extras %}
+{% load order_ui %}
 {% block title %}{% if lang == 'fa' %}خدمات طراحی و توسعه | {{ brand_name }}{% else %}Design and development services | {{ brand_name }}{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}مشاوره رایگان، طراحی وب‌سایت، ساخت وب‌اپلیکیشن، فروشگاه آنلاین و پشتیبانی نرم‌افزار توسط شرکت آرویون.{% else %}Free consultation, corporate websites, custom web applications, e-commerce and software support from Rvion.{% endif %}{% endblock %}
 {% block content %}
 <section class="page-hero services-sales-hero">
   <div class="shell content-grid">
-    <div><span class="eyebrow">{% if lang == 'fa' %}خدمات آرویون{% else %}RVION SERVICES{% endif %}</span><h1>{% if lang == 'fa' %}یک مسیر روشن،<br>از مسئله تا محصول.{% else %}A clear path,<br>from problem to product.{% endif %}</h1><p class="lead">{% if lang == 'fa' %}مشاوره اولیه رایگان است؛ نیاز را بررسی می‌کنیم، دامنه کار را شفاف می‌نویسیم و پروژه را با پرداخت ۵۰٪ در شروع و ۵۰٪ در تحویل اجرا می‌کنیم.{% else %}Initial consultation is free. We clarify requirements and scope, then deliver with 50% at commencement and 50% at handover.{% endif %}</p><a class="button" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}شروع مشاوره رایگان{% else %}Start a free consultation{% endif %}</a></div>
+    <div><span class="eyebrow">{% if lang == 'fa' %}خدمات آرویون{% else %}RVION SERVICES{% endif %}</span><h1>{% if lang == 'fa' %}یک مسیر روشن،<br>از مسئله تا محصول.{% else %}A clear path,<br>from problem to product.{% endif %}</h1><p class="lead">{% if lang == 'fa' %}مشاوره اولیه رایگان است؛ نیاز را بررسی می‌کنیم، دامنه کار را شفاف می‌نویسیم و پروژه را با پرداخت ۵۰٪ در شروع و ۵۰٪ در تحویل اجرا می‌کنیم.{% else %}Initial consultation is free. We clarify requirements and scope, then deliver with 50% at commencement and 50% at handover.{% endif %}</p><a class="button" href="{% order_entry %}">{% if lang == 'fa' %}شروع مشاوره رایگان{% else %}Start a free consultation{% endif %}</a></div>
     <aside class="service-promise"><span>{% if lang == 'fa' %}۰۱{% else %}01{% endif %}</span><p>{% if lang == 'fa' %}دامنه و خروجی مشخص{% else %}Defined scope and deliverables{% endif %}</p><span>{% if lang == 'fa' %}۰۲{% else %}02{% endif %}</span><p>{% if lang == 'fa' %}توسعه مرحله‌ای و قابل تست{% else %}Iterative, testable delivery{% endif %}</p><span>{% if lang == 'fa' %}۰۳{% else %}03{% endif %}</span><p>{% if lang == 'fa' %}سه ماه پشتیبانی کدنویسی{% else %}Three months of code support{% endif %}</p></aside>
   </div>
 </section>

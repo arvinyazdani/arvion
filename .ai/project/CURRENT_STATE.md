@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Unified order entry — phases1–2 locally tested; integration PARTIAL (2026-10-09)
+## Unified order entry — implementation locally tested; final gate PARTIAL (2026-10-09)
 
 - New owner plan supersedes c8ae8de blockers: nine topics, two add-ons,
   consultation; contact data only in the final existing domain form. No PII
@@ -8,8 +8,12 @@
 - core/order_paths.py is template-independent bilingual vocabulary using existing
   demo labels and all9 CRM features +6 roadmap labels. Strict categorical query
   parser and request_type precedence. Four targeted tests passed.
-- Next: /start/ gateway, existing sample integration, final form summaries,
-  shared completion and bounded navigation fixes. No push/deploy/SSH.
+- Source/gateway:209b7b8 +8924140. Configurator adapter:caa9d4d.
+- Final form summaries/shared confirmations:859762a; existing models, final
+  forms, signals, drafts and messages preserved. Test submissions still create
+  CustomerCase for all three domains. No push/deploy/SSH/migration.
+- Navigation/copy/phone/lazy fixes implemented; UI/mobile/candidate full gate
+  pending. Protected gallery/content-editor dirty work remains excluded.
 - Nine-topic gateway and selection pages implemented; 12 targeted tests OK.
   Visual/domain final gate pending. Metadata and existing form URLs retained.
 

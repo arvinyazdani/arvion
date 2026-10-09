@@ -19,7 +19,7 @@
     {% if welcome_credit_available %}<section class="account-panel"><h2>{% if lang == 'fa' %}یک آزمون رایگان، هدیه ثبت‌نام{% else %}One free assessment, your welcome gift{% endif %}</h2><p>{% if lang == 'fa' %}یکی از آزمون‌ها را انتخاب کنید و بدون پرداخت، یک نوبت آزمون بدهید. این هدیه فقط یک بار قابل استفاده است.{% else %}Choose one assessment and take one attempt without payment. This gift can be used only once.{% endif %}</p><a class="button primary" href="{% url 'assessments:list' %}">{% if lang == 'fa' %}انتخاب آزمون رایگان{% else %}Choose your free assessment{% endif %}</a></section>{% endif %}
 
     <nav class="account-compass" aria-label="{% if lang == 'fa' %}کارهای اصلی حساب{% else %}Primary account actions{% endif %}" data-ui-reveal>
-      <a href="{% if order_draft %}#my-order-draft{% else %}{% url 'leads:contact' %}{% endif %}">
+      <a href="{% if order_draft %}#my-order-draft{% else %}{% url 'project_start' %}{% endif %}">
         <svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg>
         <span>
           <strong>{% if lang == 'fa' %}سفارش پروژه{% else %}Project enquiry{% endif %}</strong>

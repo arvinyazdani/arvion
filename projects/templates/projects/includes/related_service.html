@@ -1,3 +1,4 @@
+{% load order_ui %}
 <nav class="actions" data-seo-related aria-label="{% if lang == 'fa' %}مسیرهای مرتبط{% else %}Related paths{% endif %}">
   {% if demo.category == 'ecommerce' or demo.category == 'jewelry' %}
   <a class="button secondary" href="{% url 'services:detail' 'ecommerce-platform' %}">{% if lang == 'fa' %}طراحی فروشگاه اینترنتی{% else %}Ecommerce development{% endif %}</a>
@@ -6,5 +7,5 @@
   {% else %}
   <a class="button secondary" href="{% url 'services:detail' 'custom-web-application' %}">{% if lang == 'fa' %}ساخت وب‌اپلیکیشن اختصاصی{% else %}Custom web application{% endif %}</a>
   {% endif %}
-  <a class="button secondary" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}گفتگو درباره پروژه{% else %}Discuss your project{% endif %}</a>
+  <a class="button secondary" href="{% order_entry %}">{% if lang == 'fa' %}گفتگو درباره پروژه{% else %}Discuss your project{% endif %}</a>
 </nav>

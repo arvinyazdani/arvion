@@ -38,7 +38,7 @@ class CorePagesTests(TestCase):
 
     def test_home_links_to_english_assessment_briefing_before_the_price(self):
         response = self.client.get("/fa/")
-        self.assertContains(response, "شروع آزمون زبان انگلیسی")
+        self.assertContains(response, "ارزیابی پیشرفته زبان انگلیسی مدرسان")
         # The briefing explains scope, proctoring and the fee before the price.
         self.assertContains(response, 'href="/fa/assessments/english-placement-a1-c1/about/"', html=False)
 
@@ -64,8 +64,8 @@ class CorePagesTests(TestCase):
         mobile_nav = html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
         self.assertEqual(mobile_nav.count("<a "), 5)
         self.assertEqual(html.count('class="nav-cta"'), 1)
-        # Header, unchanged tab bar/footer and the new closing project CTA.
-        self.assertContains(response, 'href="/fa/start/"', count=4, html=False)
+        # All new-order CTAs converge on the gateway; tabbar is still five items.
+        self.assertIn('href="/fa/start/"', mobile_nav)
         self.assertIn('href="/fa/projects/demos/"', mobile_nav)
 
         staff = get_user_model().objects.create_user(
@@ -238,7 +238,7 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "طراحی سایت، فروشگاه و CRM اختصاصی برای کسب‌وکار شما")
         self.assertContains(response, "نمونه مناسب من را پیدا کن")
         self.assertContains(response, "سفارش ساده. مسیر روشن.")
-        self.assertContains(response, "شروع آزمون زبان انگلیسی")
+        self.assertContains(response, "ارزیابی پیشرفته زبان انگلیسی مدرسان")
         self.assertNotContains(response, "۲۴ پروژه")
 
     def test_home_consolidated_bands_keep_discovery_and_assessment_paths_reachable(self):
@@ -247,8 +247,8 @@ class CorePagesTests(TestCase):
             self.assertNotContains(response, 'data-home-journey')
             self.assertContains(response, 'id="solutions-title"', count=1)
             self.assertContains(response, 'id="assessment-title"', count=1)
-            self.assertContains(response, reverse("crm_orders:create"))
-            self.assertContains(response, reverse("clinic_orders:create"))
+            self.assertContains(response, reverse("project_start") + "?type=crm")
+            self.assertContains(response, reverse("project_start") + "?type=clinic")
             self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
             self.assertContains(response, reverse("assessments:briefing", args=["python-django-professional"]))
             if language == "en":
@@ -284,7 +284,7 @@ class CorePagesTests(TestCase):
         DemoTemplate.objects.update(is_active=False)
         response = self.client.get("/en/")
         self.assertContains(response, "Samples are being prepared")
-        self.assertContains(response, reverse("leads:contact"))
+        self.assertContains(response, reverse("project_start"))
         self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
 
     def test_crm_product_overview_is_read_only_bilingual_and_internally_linked(self):
@@ -298,7 +298,7 @@ class CorePagesTests(TestCase):
         self.assertContains(english, "Customer management")
         self.assertNotContains(persian, "<form", html=False)
         self.assertNotRegex(persian.content.decode(), r'href=["\']https?://(?!testserver|rvionai\.com)')
-        self.assertContains(persian, 'href="/fa/crm-order/"', html=False)
+        self.assertContains(persian, 'href="/fa/start/?type=crm"', html=False)
 
         home = self.client.get("/fa/")
         self.assertContains(home, "CRM سازمانی")
