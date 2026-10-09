@@ -134,5 +134,69 @@ function clockLeaves(t){
 }
 return {measure,render,T_END,T_FINAL,camera};
 }
-window.RvionEntry={mount};
+function start(payload) {
+ const holder=document.createElement('template');
+ holder.innerHTML=payload.html;
+ const root=holder.content.firstElementChild;
+ if(!root||root.id!=='rvion-entry'||document.getElementById(root.id))return false;
+ root.dir=document.documentElement.dir;
+ const previous=document.activeElement;
+ const background=[...document.body.children].filter(node=>!['SCRIPT','STYLE','LINK'].includes(node.tagName));
+ const saved=background.map(node=>({node,inert:node.inert,hidden:node.getAttribute('aria-hidden')}));
+ let closed=false,frame=0,time=0,paused=false,last=0,timeline;
+ const skip=root.querySelector('[data-entry-id="skip"]');
+ const pp=root.querySelector('[data-entry-id="pp"]');
+ const close=()=>{
+   if(closed)return;closed=true;cancelAnimationFrame(frame);
+   document.removeEventListener('keydown',keyboard,true);
+   document.removeEventListener('visibilitychange',visibility);
+   window.removeEventListener('resize',resize);
+   window.removeEventListener('pagehide',close);
+   motion.removeEventListener?.('change',motionChange);
+   root.remove();
+   for(const state of saved){state.node.inert=state.inert;if(state.hidden===null)state.node.removeAttribute('aria-hidden');else state.node.setAttribute('aria-hidden',state.hidden);}
+   if(previous?.isConnected)previous.focus({preventScroll:true});
+   document.dispatchEvent(new Event('rvion:entry-closed'));
+ };
+ const keyboard=event=>{
+   if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();close();return;}
+   if(event.key!=='Tab')return;
+   const controls=[...root.querySelectorAll('button:not([disabled]),a[href]')].filter(node=>!node.closest('[inert]')&&node.getClientRects().length);
+   const first=controls[0],lastControl=controls[controls.length-1];
+   if(event.shiftKey&&(document.activeElement===first||!root.contains(document.activeElement))){event.preventDefault();lastControl?.focus();}
+   else if(!event.shiftKey&&(document.activeElement===lastControl||!root.contains(document.activeElement))){event.preventDefault();first?.focus();}
+ };
+ const tick=now=>{
+   if(closed||paused||document.hidden)return;
+   time=Math.min(timeline.T_END,time+Math.min(.05,(now-last)/1000));last=now;
+   try{timeline.render(time);}catch(error){close();return;}
+   if(time<timeline.T_END)frame=requestAnimationFrame(tick);else pp.disabled=true;
+ };
+ const resume=()=>{last=performance.now();if(!closed&&!paused&&time<timeline.T_END&&!document.hidden)frame=requestAnimationFrame(tick);};
+ const visibility=()=>{cancelAnimationFrame(frame);resume();};
+ const resize=()=>{if(!closed){timeline.measure();timeline.render(time);}};
+ const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
+ const motionChange=()=>{if(motion.matches)close();};
+ skip.addEventListener('click',close);
+ root.querySelector('[data-entry-id="enter"]').addEventListener('click',close);
+ root.querySelectorAll('a[href]').forEach(link=>link.addEventListener('click',close));
+ pp.addEventListener('click',()=>{paused=!paused;pp.textContent=paused?pp.dataset.resume:pp.dataset.pause;pp.setAttribute('aria-pressed',String(paused));cancelAnimationFrame(frame);if(!paused)resume();});
+ root.addEventListener('wheel',event=>{if(!event.target.closest('.final'))event.preventDefault();},{passive:false});
+ root.addEventListener('touchmove',event=>{if(!event.target.closest('.final'))event.preventDefault();},{passive:false});
+ document.body.append(root);
+ try{
+   timeline=mount(root);timeline.measure();
+   const seek=new URLSearchParams(location.search).get('entry_seek');
+   if(['localhost','127.0.0.1','[::1]'].includes(location.hostname)&&seek!==null&&Number.isFinite(Number(seek))){time=Math.min(timeline.T_END,Math.max(0,Number(seek)));paused=true;pp.textContent=pp.dataset.resume;pp.setAttribute('aria-pressed','true');}
+   timeline.render(time);
+   for(const state of saved){state.node.inert=true;state.node.setAttribute('aria-hidden','true');}
+   document.addEventListener('keydown',keyboard,true);
+   document.addEventListener('visibilitychange',visibility);
+   window.addEventListener('resize',resize);
+   window.addEventListener('pagehide',close);
+   motion.addEventListener?.('change',motionChange);
+   skip.focus({preventScroll:true});resume();return true;
+ }catch(error){close();return false;}
+}
+window.RvionEntry={mount,start};
 })();

@@ -2940,3 +2940,12 @@ migrations, analytics/cookie-policy or protected gallery/content changes.
    progress scaleX rather than width, deterministic particle velocity sampled
    from camera(t-1/60), timeline-clocked leaf animations. No later route flows.
    Inert JSON markup is not actual server DOM. Runtime remains unactivated.
+   Commit cab3515.
+4. Gateway/controls: implemented, browser gate pending. Navigation is a real
+   link to localized start/assessments; both intro flows remain out of scope.
+   Focus trap, restoration of original inert/aria-hidden values, immediate
+   skip/Escape, pause, hidden-tab suspension, pagehide cleanup and reduced-motion
+   change recovery included. RAF stops at 12.5s (reference runs forever).
+   No body overflow mutation/scrollbar shift. Localhost-only entry_seek query
+   pauses at a deterministic time for browser testing; ignored on production.
+   Node syntax and deterministic scene contracts pass. No network/audio calls.

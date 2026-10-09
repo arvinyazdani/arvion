@@ -5146,6 +5146,11 @@ scoped CSS, fixed timing 11.1/12.5s; Node timeline/seek contracts pass.
 Required adaptation: no animated leaf blur (transform/opacity requirement),
 progress uses scaleX, particle streaks use a pure t-1/60 camera sample.
 CSS leaf animation delays follow timeline, so pause/seek are deterministic.
-Runtime controls, admission guard and final browser/performance gates NOT_STARTED.
+Scene checkpoint cab3515. Runtime controls implemented: real gateway links,
+skip/Escape, pause/resume, focus trap/restore, inert/aria-hidden preservation,
+resize/visibility/pagehide recovery. No body scroll lock (avoids scrollbar CLS).
+Localhost-only entry_seek query supports deterministic browser snapshots.
+Node scene/syntax contracts pass; runtime browser verification PARTIAL.
+Admission guard and final browser/performance gates NOT_STARTED.
 Protected stash and external preservation bundle remain untouched.
 Continue with the supplied reference, not a new design; full suite only at end.
