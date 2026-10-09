@@ -1,5 +1,26 @@
 # Rvion current state
 
+## Scrollytelling prototype — VERIFIED local; integration NOT_STARTED (2026-10-09)
+
+- Baseline dc5db5a. Owner requested plan + review demo, not live integration/release.
+- Isolated prototypes/scroll-studio/: four-chapter fictional store, native desktop
+  sticky scene, separate phone scenes/sheet, three palettes/styles, capability
+  switches, sample product/basket and unsent design receipt. FA/EN, light/dark,
+  reduced motion, no-JS FA fallback. Shared tokens/fonts referenced read-only.
+- 21st Scroll01 layout reference retrieved/adapted conceptually; no React/GSAP
+  runtime installed. Native chapter-driven motion, not a continuous scrub claim.
+- Ten Node + five loopback HTTP tests pass. Browser overflow0 at320/390/768/1440;
+  product/empty/disable/reset/reload, modal keyboard/Escape and reduced motion checked.
+- Keyboard boundary and decorative-logo label findings fixed and targeted re-tested.
+  Final local Lighthouse accessibility100/100 with zero failed audits.
+  Strict static audit has9 documented listener-detection false positives, NOT a
+  raw passing gate. Physical-device/CI/full integration/performance tests not run.
+- Plan/evidence in docs/seo/SEO_PHASE_REPORT.md; screenshots /tmp/rvion-scroll.0GSRMe/.
+  Owner design acceptance NOT_STARTED. Stages2–5 NOT_STARTED.
+- Local preview http://127.0.0.1:8160/ remains running for review (session42570).
+  No Django/DB/production write, push/deploy/migration. Protected work preserved.
+- Next: owner reviews the actual demo; refine before connecting existing order state.
+
 ## Homepage clarity — VERIFIED local; owner review NOT_STARTED (2026-10-09)
 
 - Baseline 5559e45; implementation commit d2dce41 (16 scoped files), local only.
