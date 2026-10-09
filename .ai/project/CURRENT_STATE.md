@@ -1,5 +1,21 @@
 # Rvion current state
 
+## Owner-authorized release and workspace cleanup — PARTIAL (2026-10-09)
+
+- Release candidate:6500491; six order-entry implementation commits already saved.
+- Workspace cleanup VERIFIED: unfinished gallery/article-editor files and visual
+  evidence preserved in stash a8afc0d71357f038ba95ccc9cdd5a607900c45c8; verified
+  standalone bundle `/Users/rwin/Desktop/rwin-tech/arvion-workspace-preserved-20261009.bundle`.
+  Restore with `git stash apply a8afc0d71357f038ba95ccc9cdd5a607900c45c8` on this baseline;
+  do not apply blindly after later edits. No secret, media or database cleanup.
+- Clean-tree targeted gate:35 tests OK; check0; no migration drift; pip check OK.
+  Prior full-suite evidence1133/27 skipped remains recorded below; no runtime edits
+  in this cleanup. Push/release explicitly authorized by owner this turn.
+- Production health HTTP200/status=ok; SSH188.121.101.173:22 timed out before
+  any remote command. No backup/release/migration/restart performed this turn.
+- Next: publish committed candidate, verify CI, then official release when SSH
+  or authenticated server console becomes available. Do not claim deployed.
+
 ## Unified order entry — VERIFIED local candidate; owner acceptance/publication pending (2026-10-09)
 
 - New owner plan supersedes c8ae8de blockers: nine topics, two add-ons,

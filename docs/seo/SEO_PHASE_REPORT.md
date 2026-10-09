@@ -1,5 +1,38 @@
 # SEO phase report — Rvion
 
+## Owner-authorized cleanup/release checkpoint (2026-10-09)
+
+Status: cleanup VERIFIED; deployment BLOCKED on SSH connectivity, not on code.
+Candidate6500491 contains the already-committed order implementation. No runtime
+changes were added in this turn. Owner explicitly authorized commit/cleanup/deploy.
+
+Unfinished protected gallery and article-editor work, including untracked files
+and visual evidence, was preserved using an exact-path `git stash push --include-untracked`.
+Stash:a8afc0d71357f038ba95ccc9cdd5a607900c45c8. `git bundle create` and `git bundle verify`
+confirmed a standalone recoverable copy at
+`/Users/rwin/Desktop/rwin-tech/arvion-workspace-preserved-20261009.bundle`.
+39 archived files;437 insertions/51 deletions plus images. Working tree then clean.
+No ignored secrets, database, media or backups removed. This work is NOT released.
+Recovery:`git stash apply a8afc0d71357f038ba95ccc9cdd5a607900c45c8` after checking
+the baseline/conflicts; bundle preserves the stash even if the local stash is lost.
+
+Fresh clean-tree commands:
+- `.venv/bin/python manage.py test core.test_order_paths core.test_order_gateway core.test_order_handoff core.test_order_ui leads.test_demo_order_path --verbosity 1`:35 tests OK.
+  Logged QA-injected RuntimeError is the expected rollback test, not a failure.
+- `.venv/bin/python manage.py check`:0 issues.
+- `.venv/bin/python manage.py makemigrations --check --dry-run`:No changes detected.
+- `.venv/bin/python -m pip check`:No broken requirements.
+- `git diff --check`:clean. Prior full gate1133 tests/27 skips is below; no
+  redundant full run for documentation-only cleanup.
+- `curl --fail --silent --show-error --max-time 15 https://rvionai.com/health/`:
+  HTTP200,{"status":"ok"}, existing production only.
+
+SSH with existing key, IdentitiesOnly=yes, IPQoS=none and bounded connect timeout
+failed before any remote command. No production backup, pull, migration, release,
+restart or data change. Next:push/CI evidence then ops/release.sh through restored
+SSH/console, validate snapshot catalog and live paths. Rollback of this checkpoint
+is documentation-only; runtime remains6500491 until a real release succeeds.
+
 ## Unified order entry — final local acceptance (2026-10-09)
 
 Status: VERIFIED for the committed, bounded local implementation. Owner visual
