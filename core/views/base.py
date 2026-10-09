@@ -80,6 +80,24 @@ class ProjectStartView(LanguageViewMixin, TemplateView):
 
     template_name = "core/project_start.html"
 
+    def get(self, request, *args, **kwargs):
+        from core.order_gateway import gateway_get_destination
+        from django.shortcuts import redirect
+        destination = gateway_get_destination(request)
+        if destination:
+            return redirect(destination)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from core.order_gateway import submit_existing_demo
+        return submit_existing_demo(request)
+
+    def get_context_data(self, **kwargs):
+        from core.order_gateway import gateway_context
+        context = super().get_context_data(**kwargs)
+        context.update(gateway_context(self.request, self.lang))
+        return context
+
 
 # ==== ویو درباره ====
 class AboutView(LanguageViewMixin, TemplateView):

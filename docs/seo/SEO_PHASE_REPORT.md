@@ -18,6 +18,21 @@ and fonts; retained project typography/palette instead. Mobile choices will use
 visible 44px controls and progressive disclosure, no external dependencies.
 Rollback phase1: revert its scoped local commit; no data migration needed.
 
+Phase2 VERIFIED locally (visual gate pending): nine-card `/start/`, bounded
+sample selection, consultation and final destination routing. Existing metadata
+blocks unchanged. English CRM/clinic cards explicitly say their forms are Persian;
+the existing English form redirects remain intact. Delegated demo POST adapter
+is present for the next phase; it calls the existing configure view rather than
+reimplementing validation/idempotency. No new anonymous storage is added.
+`python manage.py test core.test_order_paths core.test_project_start core.test_order_gateway --verbosity 1`:
+12 tests OK. Initial two test failures corrected: escaped ampersand in English
+label, and existing LanguageViewMixin lang-session write (now asserts exactly
+the pre-existing lang key, not a false cookie-free claim). Old start tests now
+expect nine topic links instead of the superseded three final-form cards.
+Files: core/order_gateway.py, core/views/base.py, project_start.html,
+includes/order_gateway.html, project-start.css, test_project_start.py,
+test_order_gateway.py. Domain/browser gate will run before final acceptance.
+
 ## Unified order entry — phase 0 discovery (2026-10-09)
 
 Status: discovery VERIFIED; implementation BLOCKED at the explicit pre-change

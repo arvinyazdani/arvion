@@ -1,0 +1,25 @@
+<nav class="order-progress" aria-label="{% if lang == 'fa' %}مسیر سفارش{% else %}Order steps{% endif %}">
+  <a href="{% url 'project_start' %}">{% if lang == 'fa' %}انتخاب موضوع{% else %}Choose a topic{% endif %}</a>
+  <span aria-hidden="true">/</span><span{% if order_topic %} aria-current="step"{% endif %}>{% if lang == 'fa' %}نمونه و امکانات{% else %}Sample and features{% endif %}</span>
+  <span aria-hidden="true">/</span><span>{% if lang == 'fa' %}ثبت درخواست{% else %}Send enquiry{% endif %}</span>
+</nav>
+{% if order_topic %}
+<section class="order-builder" aria-labelledby="order-builder-title">
+  <header><h2 id="order-builder-title">{{ order_topic.title }}</h2><p>{% if lang == 'fa' %}نمونه و امکانات را بررسی کنید؛ اطلاعات تماس فقط در فرم نهایی پرسیده می‌شود.{% else %}Explore the sample and features. Contact details are collected only in the final form.{% endif %}</p></header>
+  <form method="get" action="{% url 'project_start' %}" class="order-builder-form">
+    <input type="hidden" name="type" value="{{ order_topic.key }}">
+    {% if order_demos %}<fieldset><legend>{% if lang == 'fa' %}کدام نمونه را امتحان کنیم؟{% else %}Which sample would you like to try?{% endif %}</legend><div class="order-samples">{% for demo in order_demos %}<label class="order-choice"><input type="radio" name="sample" value="{{ demo.slug }}"{% if forloop.first %} checked{% endif %}><span><strong>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</strong><small>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</small></span></label>{% endfor %}</div></fieldset>{% endif %}
+    {% if order_modules %}<fieldset><legend>{% if lang == 'fa' %}ماژول‌های موردنیاز{% else %}Modules you need{% endif %}</legend><div class="order-choice-grid">{% for key,label in order_modules %}<label class="order-choice"><input type="checkbox" name="modules" value="{{ key }}"><span>{{ label }}</span></label>{% endfor %}</div></fieldset><details class="order-options"><summary>{% if lang == 'fa' %}مسیرهای توسعه{% else %}Extension options{% endif %}</summary><div class="order-choice-grid">{% for key,label in order_extensions %}<label class="order-choice"><input type="checkbox" name="extensions" value="{{ key }}"><span>{{ label }}</span></label>{% endfor %}</div></details>{% endif %}
+    {% for field in order_brief %}<label class="order-select">{{ field.label }}<select name="brief_{{ field.key }}"><option value="">{% if lang == 'fa' %}با مشاوره مشخص می‌کنم{% else %}Decide during consultation{% endif %}</option>{% for value,label in field.options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>{% endfor %}
+    <fieldset><legend>{% if lang == 'fa' %}در کنار این پروژه{% else %}Alongside this project{% endif %}</legend><div class="order-choice-grid">{% for key,label in order_addons %}<label class="order-choice"><input type="checkbox" name="addons" value="{{ key }}"><span>{{ label }}</span></label>{% endfor %}</div></fieldset>
+    <p class="order-disclaimer">{% if lang == 'fa' %}نمونهٔ تعاملی است؛ تعهد، قیمت یا ارائهٔ قطعی نیست. محدودهٔ واقعی پس از بررسی نیاز شما مشخص می‌شود.{% else %}An interactive sample, not a commitment, price or confirmed delivery. Actual scope follows a review of your needs.{% endif %}</p>
+    {% if lang == 'en' and order_topic.specialist_fa %}<p class="order-language-note">The specialist form is currently in Persian.</p>{% endif %}
+    <div class="order-builder-actions">{% if order_demos %}<button class="button" name="go" value="preview">{% if lang == 'fa' %}دیدن و شخصی‌سازی نمونه{% else %}View and customise the sample{% endif %}</button><button class="button secondary" name="go" value="form">{% if lang == 'fa' %}بدون نمونه؛ ادامه به فرم{% else %}Skip sample, continue to form{% endif %}</button>{% else %}<button class="button" name="go" value="form">{% if lang == 'fa' %}ادامه به فرم درخواست{% else %}Continue to the enquiry form{% endif %}</button>{% endif %}<button class="button secondary" name="consult" value="1">{{ order_consultation }}</button></div>
+  </form>
+</section>
+{% else %}
+<div class="project-start-grid">
+{% for topic in order_topics %}<a class="project-start-card order-topic-card" href="{{ topic.url }}"><span class="project-start-icon"><svg class="ui-icon" aria-hidden="true"><use href="{% load static %}{% static 'core/icons/ui-sprite.svg' %}#{{ topic.icon }}"></use></svg></span><h2>{{ topic.title }}</h2><ul>{% for label in topic.features %}<li>{{ label }}</li>{% empty %}<li>{% if lang == 'fa' %}تعریف نیاز و محدوده پروژه{% else %}Define your needs and project scope{% endif %}</li>{% endfor %}</ul>{% if lang == 'en' and topic.specialist_fa %}<small>The specialist form is currently in Persian.</small>{% endif %}<span class="order-topic-action">{% if lang == 'fa' %}انتخاب این موضوع{% else %}Choose this topic{% endif %}<span aria-hidden="true">↗</span></span></a>{% endfor %}
+</div>
+<a class="button secondary order-consult" href="{% url 'project_start' %}?consult=1&amp;go=form">{{ order_consultation }}</a>
+{% endif %}

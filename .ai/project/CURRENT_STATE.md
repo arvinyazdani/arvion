@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Unified order entry — phase1 VERIFIED, phase2 in progress (2026-10-09)
+## Unified order entry — phases1–2 locally tested; integration PARTIAL (2026-10-09)
 
 - New owner plan supersedes c8ae8de blockers: nine topics, two add-ons,
   consultation; contact data only in the final existing domain form. No PII
@@ -10,6 +10,8 @@
   parser and request_type precedence. Four targeted tests passed.
 - Next: /start/ gateway, existing sample integration, final form summaries,
   shared completion and bounded navigation fixes. No push/deploy/SSH.
+- Nine-topic gateway and selection pages implemented; 12 targeted tests OK.
+  Visual/domain final gate pending. Metadata and existing form URLs retained.
 
 ## Unified order entry — BLOCKED after phase 0 (2026-10-09)
 
