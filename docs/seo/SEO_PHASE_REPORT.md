@@ -2420,6 +2420,68 @@ P1-3/P4-1 remain BLOCKED (OWNER DECISION DEFERRED), optional crawler changes abs
 The authorized independent work is done; entire SEO programme remains PARTIAL.
 Source rollback is by the individual scoped commits; no data/schema rollback.
 
+## Owner-approved publication of articles 05–08 — 2026-10-09
+
+Status: VERIFIED / PUBLISHED (content only). Owner explicitly approved the
+remaining four articles; earlier unpublished-only restriction superseded for
+this publication. No article wording, importer behavior, model, or migration changed.
+
+Files: four sources `blog/content_drafts/05-clinic-website-design.md`,
+`06-academy-webinar-website.md`, `07-enterprise-crm-cost.md`,
+`08-django-interview-questions.md`; `blog/test_import_drafts.py`; this report;
+`.ai/project/CURRENT_STATE.md`. Each copied source compared byte-for-byte with
+the owner's read-only external source. Existing v2 covers reused.
+
+Test changes: eight-file body hash fixture; dry-run/repeat counts 4→8; tag count
+8→20; Python/Django exam fixture for article08 internal URL; four Persian-only
+slugs added to the existing sitemap contract fixture. Assertions not weakened.
+
+Red: `.venv/bin/python manage.py test blog.test_import_drafts --verbosity 0`
+ran 27 tests, ten failures: obsolete four-draft assumptions, missing exam fixture,
+Persian-only alternates, and two unrelated metadata failures from protected dirty
+gallery edits. Those protected files were NOT changed or committed.
+Green: clean isolated candidate `/tmp/rvion-articles.KegGHP`, built from HEAD
+plus only the article sources/tests. Commands using the repository interpreter:
+
+```text
+python manage.py test blog.test_import_drafts blog.test_language_contract --verbosity 1
+36 tests OK
+python manage.py test --parallel 4 --verbosity 0
+1109 tests OK (27 existing skips), 73.632 seconds
+```
+
+Publication: bounded key-based SSH attempt timed out (exit255), no remote command
+executed. Used the existing authenticated production `/admin/blog/post/add/`
+form, with exact approved FA title/summary/body/slug/tags, empty English fields,
+uploaded v2 cover, published checkbox, Today/Now date controls. Admin success
+messages confirmed IDs5–8 and the list showed all8 published; previous IDs1–4
+and their publication dates untouched. This generates Django's normal admin
+addition log. No source release/push, importer invocation, production migration,
+new server backup, or Search Console submission occurred in this turn.
+
+Live verification: HTTP200 for each new detail page and its `/media/articles/`
+cover; one H1 and self-canonical; eight unique article links in `/fa/blog/`; all
+four new URLs in `/sitemap.xml`. Exact new public paths:
+
+- `/fa/blog/clinic-website-design-online-booking/` — ID5, 15:37 Tehran.
+- `/fa/blog/academy-website-structure-webinar/` — ID6, 15:38 Tehran.
+- `/fa/blog/enterprise-crm-development-cost-stages/` — ID7, 15:38 Tehran.
+- `/fa/blog/django-interview-questions-with-short-answers/` — ID8, 15:39 Tehran.
+
+Public list and sitemap naturally changed with publication. Screenshot evidence:
+`.ai/artifacts/articles-eight-published-20261009.png` (local, not committed).
+Textual bank integrity check: normalized SequenceMatcher threshold0.78 against
+FA/EN question prompts, 30 article questions, overlap numbers=[], count0; no
+bank prompts or answers printed. This is not a proof against every semantic
+paraphrase. Legal claims/source accuracy not independently certified in this
+turn; publication reflects the owner's editorial approval, not legal advice.
+P1-3/P4-1 remain DEFERRED.
+
+Rollback: uncheck published for ONLY IDs5–8 (retain records and covers), verify
+their public URLs disappear and list/sitemap exclude them. Local source rollback
+can revert the scoped article-bundle commit; it does not undo production content.
+No customer data deleted. Unrelated dirty gallery/editor files preserved.
+
 ## Updated public HTML URLs (source changes deployed in 94c9c06)
 
 Base domain for every path below: https://rvionai.com; `{fa,en}` means both

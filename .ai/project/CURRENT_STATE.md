@@ -1,5 +1,23 @@
 # Rvion current state
 
+## Articles 05–08 — VERIFIED / PUBLISHED (2026-10-09)
+
+- Owner explicitly approved publication of the remaining four articles. Added the
+  byte-identical approved source files to `blog/content_drafts/`; importer tests
+  now cover all eight. Existing runtime/importer/models unchanged.
+- SSH timed out before executing a remote command. Published through the existing
+  authenticated production Django admin instead: new Post IDs 5–8, published
+  2026-10-09 15:37–15:39 Asia/Tehran, each with its existing v2 cover uploaded.
+  This was a content publication, NOT a source deployment; no push or migration.
+- Public list contains eight article links. All four new pages and cover assets
+  return 200; one H1, self-canonical, and all four sitemap entries verified.
+- Clean isolated candidate excluding unrelated dirty files: targeted 36 tests OK;
+  full suite 1109 tests OK, 27 existing skips. Initial red results and exact scope
+  recorded in `docs/seo/SEO_PHASE_REPORT.md`.
+- Rollback: unpublish only Post IDs 5–8 through admin; retain records/covers.
+  User's gallery and article-management edits preserved, neither staged nor deployed.
+- Design work remains paused per owner. No Search Console indexing performed.
+
 ## Prototype retirement — VERIFIED (2026-10-09)
 
 - Owner rejected the local demos and requested removal + no further design work.

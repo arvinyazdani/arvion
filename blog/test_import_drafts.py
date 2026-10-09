@@ -26,6 +26,10 @@ BODY_HASHES = {
     "02-custom-vs-template.md": "c400e5f6f3041102de3674ecadcbe989c9a1f7b80913cc558c2c83f1260daf9e",
     "03-custom-vs-offtheshelf-crm.md": "db453d70246c5c2c03e112b969d963aab994453627c440c522d53f8bba631df1",
     "04-english-teacher-assessment.md": "e297a247b5a692d3b19bf6437e23c5801dda838b6360f1b15c5c9e520cd83a1a",
+    "05-clinic-website-design.md": "7065a66f8c3ce1286081e8b9c4d2750e48f4fbd7a6d80c43c4ebaae73f1908e5",
+    "06-academy-webinar-website.md": "64ddc2f1bd830bcb7d0f4611bf59add2202f9766cc478f575530c8ff15d4c3a7",
+    "07-enterprise-crm-cost.md": "56f786ab851372d587be7b301eedfbc2ef1300df30958ab3a8604e176e1ee363",
+    "08-django-interview-questions.md": "f81e55d7111086af5fa23110f3d013df781fa07522713c306b0f1c421aaec5cd",
 }
 
 # Only this evidenced correction is permitted against the original draft bundle.
@@ -56,7 +60,7 @@ class ImportBlogDraftTests(TestCase):
         call_command("import_blog_drafts", *args, stdout=output)
         return output.getvalue()
 
-    def test_dry_run_reports_all_four_without_any_writes(self):
+    def test_dry_run_reports_all_eight_without_any_writes(self):
         with CaptureQueriesContext(connection) as queries:
             output = self.run_import("--dry-run")
         self.assertEqual(Post.objects.count(), 0)
@@ -65,15 +69,15 @@ class ImportBlogDraftTests(TestCase):
         self.assertFalse(any(re.match(r"\s*(INSERT|UPDATE|DELETE)", q["sql"], re.I) for q in queries))
         for draft in load_drafts():
             self.assertIn(draft.slug_fa, output)
-        self.assertIn("Created: 4; updated: 0; skipped: 0", output)
+        self.assertIn("Created: 8; updated: 0; skipped: 0", output)
         self.assertIn("no database writes", output)
 
     def test_repeat_import_creates_nothing_and_preserves_rows(self):
         self.run_import()
         before = list(Post.objects.values())
-        self.assertIn("Created: 0; updated: 0; skipped: 4", self.run_import())
+        self.assertIn("Created: 0; updated: 0; skipped: 8", self.run_import())
         self.assertEqual(list(Post.objects.values()), before)
-        self.assertEqual(TaggedItem.objects.count(), 8)
+        self.assertEqual(TaggedItem.objects.count(), 20)
 
     def test_creates_exact_persian_only_unpublished_fields_and_tags(self):
         self.run_import()
@@ -207,6 +211,9 @@ class ImportBlogDraftTests(TestCase):
         Exam.objects.create(slug="english-placement-a1-c1", title_fa="آزمون زبان",
                             title_en="English assessment", description_fa="شرح آزمون",
                             description_en="Exam description", language_mode="en")
+        Exam.objects.create(slug="python-django-professional", title_fa="آزمون پایتون",
+                            title_en="Python assessment", description_fa="شرح آزمون",
+                            description_en="Exam description", language_mode="bilingual")
         for draft in load_drafts():
             with self.subTest(file=draft.filename):
                 self.assertLessEqual(len(draft.title_fa + " | آرویون"), 60)
@@ -221,6 +228,8 @@ class ImportedDraftSitemapContractTests(seo.WholeSitemapContractTests):
     PERSIAN_ONLY_POST_SLUGS = seo.WholeSitemapContractTests.PERSIAN_ONLY_POST_SLUGS | {
         "corporate-website-cost-1405", "custom-website-vs-template",
         "custom-or-ready-made-crm", "english-teacher-assessment",
+        "clinic-website-design-online-booking", "academy-website-structure-webinar",
+        "enterprise-crm-development-cost-stages", "django-interview-questions-with-short-answers",
     }
 
     @classmethod
