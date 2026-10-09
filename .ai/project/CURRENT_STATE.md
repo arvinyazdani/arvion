@@ -5141,6 +5141,11 @@ Removal checkpoint: 501444b; regression suite now 42 passed.
 Payload scaffold VERIFIED: server-owned Django gettext catalogue (fa), inert
 JSON, staff/non-home exclusion, five reference panels and localized gateway.
 Three payload tests pass. Not enabled on home until scene/control/guard gates.
-Scene, runtime controls, admission guard and final browser/performance gates NOT_STARTED.
+Scaffold checkpoint: 761a1a5. Scene copied from reference (not redesigned),
+scoped CSS, fixed timing 11.1/12.5s; Node timeline/seek contracts pass.
+Required adaptation: no animated leaf blur (transform/opacity requirement),
+progress uses scaleX, particle streaks use a pure t-1/60 camera sample.
+CSS leaf animation delays follow timeline, so pause/seek are deterministic.
+Runtime controls, admission guard and final browser/performance gates NOT_STARTED.
 Protected stash and external preservation bundle remain untouched.
 Continue with the supplied reference, not a new design; full suite only at end.

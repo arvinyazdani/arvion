@@ -2931,3 +2931,12 @@ migrations, analytics/cookie-policy or protected gallery/content changes.
    owns both locales, with the source Persian text in core/locale/fa. No DB
    queries in the payload renderer. Staff/non-home excluded. No live homepage
    activation yet. Catalogue compiled with Django compilemessages; no migration.
+   Commit 761a1a5.
+3. Scene/camera: targeted source and Node contracts pass; browser acceptance
+   still pending. Camera constants, scene dimensions, colours, 200 depth
+   particles/50 room dust motes and all five panels copied from reference.
+   Gateway begins 11.1s, final clock 12.5s. Adaptations: scoped CSS/IDs, site
+   font, no animated leaf blur (explicit transform/opacity-only constraint),
+   progress scaleX rather than width, deterministic particle velocity sampled
+   from camera(t-1/60), timeline-clocked leaf animations. No later route flows.
+   Inert JSON markup is not actual server DOM. Runtime remains unactivated.
