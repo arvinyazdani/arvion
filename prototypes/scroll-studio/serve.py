@@ -9,6 +9,8 @@ REPO = ROOT.parents[1]
 FILES = {"/": (ROOT / "index.html", "text/html"), "/index.html": (ROOT / "index.html", "text/html")}
 for name, mime in (("studio.css", "text/css"), ("studio.mjs", "text/javascript"), ("model.mjs", "text/javascript")):
     FILES["/" + name] = (ROOT / name, mime)
+for name, mime in (("film.html", "text/html"), ("film.css", "text/css"), ("film.mjs", "text/javascript"), ("film-model.mjs", "text/javascript")):
+    FILES["/" + name] = (ROOT / name, mime)
 FILES["/assets/css/tokens.css"] = (REPO / "core/static/core/css/tokens.css", "text/css")
 for weight in ("Regular", "Bold", "Black"):
     name = "Vazirmatn-" + weight + ".woff2"

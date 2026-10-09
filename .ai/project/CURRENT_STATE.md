@@ -1,5 +1,23 @@
 # Rvion current state
 
+## Continuous coded animation — VERIFIED local; owner acceptance NOT_STARTED (2026-10-09)
+
+- Owner rejected the chapter/configurator interpretation; requested one continuous
+  code-built scene, reversible with scroll. Previous demo preserved, not integrated.
+- film.html/css/mjs + film-model.mjs/tests added under prototypes/scroll-studio;
+  deterministic SVG idea→wireframe→rendered site→phone→connected system. No video,
+  external runtime, storage, network API, Django/data/production change.
+- Local loopback preview http://127.0.0.1:8161/film.html (session65807); keep for review.
+- Node16 tests + HTTP6 tests PASS; node syntax PASS. Browser native scroll reached
+  .466; slider End/Home rendered1/0 and reversed layers. Desktop1440×900 and mobile
+  390×844/320×740 overflow0. Skip/replay/manual reduced-motion checked, errors[].
+- Fixed SVG RTL text anchoring, mobile camera size, desktop caption overlap and
+  keyboard End scrolling beyond the stage; replay now returns focus to the slider.
+- Screenshots /tmp/rvion-film.27qJty/. Full Django/CI/physical-device tests not run
+  (isolated visual prototype); no current performance/a11y certification claimed.
+- Rollback only the scoped prototype/docs commit. Protected user work unchanged.
+  Next: owner checks whether this is the intended motion before further design.
+
 ## Scrollytelling prototype — VERIFIED local; integration NOT_STARTED (2026-10-09)
 
 - Baseline dc5db5a. Owner requested plan + review demo, not live integration/release.
