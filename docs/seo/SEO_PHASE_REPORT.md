@@ -1,5 +1,142 @@
 # SEO phase report — Rvion
 
+## Unified order entry — phase 0 discovery (2026-10-09)
+
+Status: discovery VERIFIED; implementation BLOCKED at the explicit pre-change
+gate. Baseline `e5f64b0`. Single primary agent. No product files changed, no
+SSH/push/deploy/database migration. Existing gallery/content-editor work preserved
+and excluded from this documentation checkpoint. Framework stop policy used to
+avoid silently expanding the draft/privacy/schema contract.
+
+### Entry map — current vs proposed (proposed, not implemented)
+
+Localized paths below mean `/fa/` and `/en/`. Existing URLs are retained.
+
+| Surface / source | Current entry and continuation | Proposed entry |
+| --- | --- | --- |
+| `core/templates/core/base.html` header + hamburger | Start → `project_start`; Samples → gallery; Contact → `leads:contact`; Services → list | Order CTAs → start; browsing/contact distinction retained |
+| Same template, mobile tabbar | Start → start; Choose → gallery; Solutions → services; account/admin destination independent | Same destination labels as header; start for order initiation |
+| `core/templates/core/includes/footer.html` | Start → start; samples, CRM product and service browsing links | Start remains unified; browsing links not converted into misleading order CTAs |
+| `core/templates/core/home.html`, `core/views/base.py` | Hero consultation → contact; sample hero/cards → preview; category chips → gallery `#demo-<slug>`; service cards → detail or CRM product; CRM/clinic/custom entries → three forms; closing → start | Order actions → start with validated type/demo context; demo browsing remains explicit |
+| `core/templates/core/project_start.html` | Three cards: CRM, clinic, custom → their forms directly; EN CRM/clinic intentionally switch to FA | Seven route cards, with sample/brief stage before destination form |
+| `services/templates/services/list.html`, `detail.html`, `includes/related_demos.html` | Consultation → contact; service-specific CTA → contact `?service=`; related sample buttons → preview/gallery or CRM product | Order CTA → start with service/type context, sample browsing remains explicit |
+| `core/templates/core/crm_product.html` | Product/roadmap discovery CTAs → CRM create | Start `?type=crm` |
+| `projects/templates/projects/demo_gallery.html`, `demo_preview.html`, `includes/related_service.html` | Gallery cards → preview; POST configure → contact `?demo=<token>&request_type=...`; discuss project → contact | Preserve validated demo context through start; existing configure hand-off needs scoped integration |
+| `accounts/templates/accounts/dashboard.html`, `login.html` | New enquiry → contact; continue saved enquiry → contact; login/signup preserve next destination | New order → start; continuation must go to its own saved form, not restart selection |
+| `blog/templates/blog/detail.html`, `includes/home.html`, article bodies | Related solution → service/CRM page; body links also directly target clinic-order/CRM/contact and gallery | Article bodies and metadata frozen in this scope; downstream service CTAs can lead to start. Do not rewrite approved article wording |
+| Existing thanks templates | Lead: services/home; CRM/clinic: home/contact | Common presentation only, retain each tracking URL and record |
+
+### Shared fields and material differences
+
+| Meaning | LeadForm | CrmOrderForm | ClinicOrderForm | Consequence |
+| --- | --- | --- | --- | --- |
+| Contact name | `name` | `contact_name` | `contact_name` | Must not silently replace contact person with account owner |
+| Phone | `phone` (optional at model level; required for phone contact) | `phone` required | `phone` required | Preserve each final form's validation |
+| Email/contact channel | `email_or_telegram` accepts either | `work_email` EmailField | `work_email` EmailField | Telegram is not an email; not a lossless automatic mapping |
+| Business | `business_name` optional | `organization_name` required | `clinic_name` required | Not stored in existing safe draft |
+| Website | `website_url` | `website` | `website` | Free-text URL excluded from safe draft |
+| Budget | unsure, under50, 50–150, 150–500, over500 million | under100, 100–250, 250–500, over500, estimate/private | under150, 150–300, 300–600, over600, estimate/private | Ranges overlap but differ; cannot silently reinterpret a choice |
+| Timeline | flexible, within1, 1–3, over3 months | under1, 1–2, 2–4, over4, unsure | under2, 2–4, 4–6, over6, unsure | Ask route-specific choice once; no nearest-range heuristic |
+| Consent | `privacy_accept` | `privacy_accept` | `privacy_accept` | Never auto-check from a draft |
+
+Lead has three wizard steps; CRM five; clinic six. CRM/clinic create and thanks
+currently redirect English requests to Persian on create. Therefore the requested
+old-URL 200 + fully English specialist journeys is NOT true today; it needs
+view/template/form-label work after the gate, not a changed URL or model.
+
+### Current data, completion and messaging map
+
+- `projects/views/projects.py`: active DemoTemplate → server-minted submission
+  token → validated POST DemoConfigureView → session-bound DemoSelection;
+  normalized theme/personality/features/brief → contact. Seven existing categories:
+  ecommerce, restaurant, portfolio, corporate, clinic, education, jewelry; NO CRM.
+- `projects/sector_catalog.py`, `demo_briefs.py`, `demo_snapshots.py`: domain-specific
+  scene/choices, four brief dimensions (goal/scope/content/timing), frozen bilingual
+  snapshot. They are not a contact-data store or arbitrary CRM module store.
+- `leads/demo_handoff.py` + `leads/signals.py`: existing anonymous pending selection
+  marker → login consumes into account-bound leads_contact draft; authenticated
+  contact request attaches/retries; invalid explicit demo never falls back.
+- `leads/form_draft_service.py`, draft API + wizard engine: allowlisted categorical
+  Lead selections only; 7-day retention, optimistic revision, same-account
+  continuation. Finalization links idempotently to submitted Lead, not CrmOrder or
+  ClinicOrder. `FormDraft.FORM_TYPES` contains only `leads_contact`, max step2.
+- `leads/views/contact.py`: service/demo-derived initial values and bounded timing
+  mapping; final Lead + existing notification email; `thanks/<code>/` (noindex).
+  CRM/clinic views: final respective model, existing email, respective
+  `thanks/<code>/` (noindex); no equivalent account draft/demo attachment exists.
+- `management_portal/signals.py`: Lead/CrmOrder/ClinicOrder post_save → respective
+  `sync_source_case` → CustomerCase documents/activity and sales notification.
+  Lead alone also syncs demo snapshot. `management_portal/notifications.py`
+  handles push/SMS and reminders from existing notifications. None needs altered
+  message text merely for presentation/routing. No email or SMS sent in discovery.
+- ADR-001 confirmed: keep three domain models; CustomerCase is operational union,
+  NOT permission to use its final documents as an unfinished PII draft store.
+
+### Stop-gate findings (before any implementation)
+
+1. **Required decision — persistent shared contact fields.** Existing FormDraft
+   explicitly forbids `name`, `phone`, `email_or_telegram`, `business_name`,
+   `website_url`, `message`, `privacy_accept`. Its API/service rejects those
+   fields even for logged-in users. Saving these to JSON anyway would breach
+   the existing security contract. Adding CRM/clinic form types/step bounds or
+   linking their completed records through this model requires schema/lifecycle
+   work outside the prompt's no-model/no-migration boundary. New anonymous
+   session/localStorage or URL parameters carrying PII are not alternatives.
+2. **CRM module continuation.** Existing demo categories do not include CRM;
+   the CRMProductView has **nine**, not eight, features plus six roadmap paths.
+   The existing snapshot validator does not accept arbitrary module selections.
+   Do not invent a CRM DemoTemplate category or disguise it as corporate.
+   A display-only module builder is possible without schema; persisted arbitrary
+   choices through the named existing services is not currently supported.
+3. **Protected-file conflict.** All gallery order cards must be rebuilt from the
+   proposed source, but gallery template/view have owner edits that must not be
+   touched or committed. Existing main has `#demo-options`; specific `#demo-<slug>`
+   targets depend on the dirty gallery. Adopt stable `#demo-options` later and test
+   all fragments against the clean candidate, or open a scoped gallery integration.
+4. **No sitemap/metadata change needed for the entry skeleton.** `/start/` already
+   exists; stages can use validated query parameters. No new public URL has been
+   approved, and title/description/schema/canonical/hreflang must stay unchanged.
+
+### Six concurrent UI findings — confirmed, NOT changed
+
+Home category fragment dependency; header/mobile labels differ; two home tel
+targets use raw company.phone vs +98 footer; FA English-test CTA is less precise;
+closing start selector is CRM-heavy; below-fold home article include passes
+`featured=forloop.first`, causing eager/high-priority image. These can be fixed
+later without changing exam logic, article wording or metadata. No CSS/UX
+implementation or screenshot is claimed in this read-only phase.
+
+### Evidence and decision to resume
+
+Read-only executable check (no database queries/writes):
+`python manage.py shell -c` imported model/service definitions and called
+`normalize_fields` with synthetic inputs. Output:
+
+```text
+Draft form types: ['leads_contact']
+CRM feature count: 9
+Demo categories: ['ecommerce', 'restaurant', 'portfolio', 'corporate', 'clinic', 'education', 'jewelry']
+leads_contact REJECTED forbidden_field
+crm_order REJECTED unsupported_form_type
+```
+
+No regression/full/browser tests: no runtime code changed; discovery does not
+claim current old routes return 200 or a rebuilt UI exists. `git diff --check`
+is the documentation gate. No production read/write this phase.
+
+Recommendation within strict boundaries: collect contact/business fields **once
+in the final route-specific form**, not a separate common identity stage; retain
+existing safe Lead draft behavior without claiming CRM/clinic cross-device save.
+This needs owner's explicit reduced-scope acceptance. Alternatively, authorize
+a separate authenticated-only draft/privacy design and the necessary migrations
+for all three routes before implementing persistent shared data/module choices.
+Also decide whether the existing gallery edits may receive scoped integration
+without being included in this task's commits. Do not silently pick either.
+
+Phase ledger: 0 VERIFIED (discovery); 1–5 NOT_STARTED; overall BLOCKED by the
+above data/scope decisions. Next action: owner's scope decision, not deployment.
+Rollback: documentation-only commit can be reverted; no data/UI to roll back.
+
 ## Homepage clarity — VERIFIED local; owner review NOT_STARTED (2026-10-09)
 
 ### Scope and checkpoint

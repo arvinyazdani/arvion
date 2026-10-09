@@ -1,5 +1,22 @@
 # Rvion current state
 
+## Unified order entry — BLOCKED after phase 0 (2026-10-09)
+
+- Latest owner attachment supersedes the earlier pause for this scoped order-entry
+  task: local commits only, no SSH/push/deploy/migration; protected gallery/content
+  edits untouched. Baseline e5f64b0. Single primary agent.
+- Phase0 discovery VERIFIED; phases1–5 NOT_STARTED. Exact entry/field/thanks/email/
+  notification/draft/demo map in docs/seo/SEO_PHASE_REPORT.md.
+- Existing draft supports leads_contact only and rejects contact/business PII.
+  CRM/clinic continuation requires a sanctioned extension, not storing forbidden
+  fields in existing JSON. Confirmed read-only normalize_fields rejection.
+- CRM product has9 features (prompt assumed8); no CRM demo category. Gallery
+  all-card integration conflicts with protected dirty template/view boundary.
+- Next: owner chooses final-form-only common fields/reduced continuation scope,
+  or separately authorizes authenticated draft/privacy/schema design; clarify
+  protected gallery integration. No runtime edits, screenshots, or test PASS
+  claim for unbuilt flows. Documentation diff check only; local docs commit.
+
 ## Articles 05–08 — VERIFIED / PUBLISHED (2026-10-09)
 
 - Owner explicitly approved publication of the remaining four articles. Added the
