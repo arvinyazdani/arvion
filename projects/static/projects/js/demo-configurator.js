@@ -120,6 +120,14 @@
     };
     const stateQuery = () => {
       const query = new URLSearchParams();
+      // Carry only server-allowlisted categorical order context through reload
+      // and full-preview navigation; never store customer contact information.
+      const order = new URLSearchParams(root.querySelector('[data-order-query]')?.dataset.orderQuery || root.dataset.orderQuery || '');
+      for (const key of ['type', 'consult']) if (order.has(key)) query.set(key, order.get(key));
+      const addons = root.querySelector('[name="order_addons"]')
+        ? Array.from(root.querySelectorAll('[name="order_addons"]:checked')).map(input => input.value).filter(value => ['webapp', 'support'].includes(value))
+        : (order.get('addons') || '').split(',').filter(value => ['webapp', 'support'].includes(value));
+      if (addons.length) query.set('addons', addons.join(','));
       query.set("brand", state.brand);
       query.set("theme", state.theme);
       if (state.theme === "custom") query.set("color", state.customColor);
@@ -455,6 +463,7 @@
       }
     }));
 
+    root.querySelectorAll('[name="order_addons"]').forEach(control => control.addEventListener('change', render));
     render();
   });
 })();

@@ -1,12 +1,13 @@
 {% extends "core/base.html" %}
-{% load static seo_metadata %}
+{% load static seo_metadata order_ui %}
 {% block title %}{% demo_metadata demo lang brand_name as metadata %}{{ metadata.title }}{% endblock %}
 {% block meta_description %}{% demo_metadata demo lang brand_name as metadata %}{{ metadata.description }}{% endblock %}
 {% block body_class %}demo-designer-page{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><script src="{% static 'projects/js/demo-configurator.js' %}?v=8" defer></script>
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><script src="{% static 'projects/js/demo-configurator.js' %}?v=9" defer></script>
 {% if demo.category == 'ecommerce' %}{% include 'projects/demo_scenes/store_assets.html' %}{% else %}{% include 'projects/demo_scenes/sector_assets.html' %}{% endif %}
 {% endblock %}
 {% block content %}
+{% demo_order_context demo as order_flow %}
 <section class="shell demo-preview" data-demo-configurator data-demo-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}" data-default-brand="{% if lang == 'fa' %}{{ demo.fictional_brand_fa|escape }}{% else %}{{ demo.fictional_brand_en|escape }}{% endif %}" data-default-style="{{ demo.style_key }}" data-default-theme="{{ demo.default_theme }}" data-default-personality="{{ demo.default_personality }}" data-default-custom-color="{{ demo.default_custom_color }}" data-default-features="{{ demo.default_features|join:',' }}" data-preview-url="{% url 'projects:demo_preview' demo.slug %}" data-full-url="{% url 'projects:demo_full' demo.slug %}">
 
   <header class="demo-preview-intro">
@@ -40,9 +41,12 @@
       <header><span>{% if lang == 'fa' %}انتخاب شما، اثر فوری{% else %}YOUR CHOICES, LIVE{% endif %}</span><h2 id="demo-config-title">{% if lang == 'fa' %}طراحی و سفارش شما{% else %}Your design & enquiry{% endif %}</h2><p>{% if lang == 'fa' %}ظاهر را تغییر دهید؛ جزئیات پروژه را برای ما مشخص کنید.{% else %}Shape the look. Tell us what your project needs.{% endif %}</p></header>
       {% if request.GET.invalid %}<p class="demo-error" role="alert">{% if lang == 'fa' %}یکی از انتخاب‌ها معتبر نبود؛ دوباره بررسی کنید.{% else %}One choice was invalid. Please review it.{% endif %}</p>{% endif %}
       {% if request.GET.stale %}<p class="demo-notice" role="status">{% if lang == 'fa' %}صفحه به‌روزرسانی شد و انتخاب‌های شما حفظ شدند؛ می‌توانید دوباره ادامه دهید.{% else %}This page was refreshed and your choices were kept — you can continue again.{% endif %}</p>{% endif %}
-      <form id="demo-order-form" method="post" action="{% url 'projects:demo_configure' demo.slug %}" data-demo-form novalidate>
+      <form id="demo-order-form" method="post" action="{{ order_flow.action }}" data-demo-form data-order-query="{{ order_flow.query }}" novalidate>
         {% csrf_token %}
         <input type="hidden" name="submission_token" value="{{ submission_token }}">
+        <input type="hidden" name="order_addons" value="">
+        <fieldset><legend>{% if lang == 'fa' %}در کنار این پروژه{% else %}Alongside this project{% endif %}</legend><div class="demo-option-grid compact">{% for key,label in order_flow.addons %}<label><input type="checkbox" name="order_addons" value="{{ key }}"{% if key in order_flow.selected %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}</div></fieldset>
+        <p class="demo-brief-help">{% if lang == 'fa' %}نمونهٔ تعاملی است؛ تعهد، قیمت یا ارائهٔ قطعی نیست.{% else %}An interactive sample, not a commitment, price or confirmed delivery.{% endif %}</p>
         <div class="demo-field"><label for="demo-brand">{% if lang == 'fa' %}نامی که روی دمو ببینم{% else %}Name shown on the demo{% endif %}</label><input id="demo-brand" name="brand_preview" maxlength="48" value="{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}" autocomplete="off"><small>{% if lang == 'fa' %}فقط برای پیش‌نمایش است و با ارسال فرم ذخیره می‌شود.{% else %}Used for this preview and saved only when you submit.{% endif %}</small></div>
         <details class="demo-config-section" open><summary>{% if lang == 'fa' %}رنگ و سبک{% else %}Colour & style{% endif %}</summary>
         <fieldset><legend>{% if lang == 'fa' %}رنگ غالب{% else %}Primary tone{% endif %}</legend><div class="demo-option-grid demo-theme-options">{% for value,label in labels.themes %}<label><input type="radio" name="theme" value="{{ value }}"{% if value == demo.default_theme %} checked{% endif %}><span class="tone-{{ value }}"></span>{{ label }}</label>{% endfor %}</div><label class="demo-custom-color"><span>{% if lang == 'fa' %}رنگ دقیق من{% else %}My exact colour{% endif %}</span><input type="color" name="custom_color" value="{{ demo.default_custom_color }}"><output data-demo-hex>{{ demo.default_custom_color|upper }}</output></label></fieldset>

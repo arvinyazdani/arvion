@@ -1,5 +1,19 @@
 # SEO phase report — Rvion
 
+### Order entry phase3 checkpoint — local integration
+
+Existing DemoConfigureView remains authoritative for validation, ownership,
+idempotency and race recovery. Preview/full navigation carries only allowlisted
+categorical order context; two optional add-ons travel to the existing domain
+form through the gateway POST adapter. Full-preview navigation preserves these
+choices without new browser storage. CRM selects the existing9 modules and6
+extension options; other-topic brief uses three existing fields, excluding timing
+because final forms own their own timing/budget ranges. No protected file changed.
+Targeted source/gateway/handoff checks:19 tests passed. Two initial test fixture
+errors (unsupported theme `clay`, abbreviated category label) corrected to actual
+catalogue values; production validation was not relaxed. Visual/final gate pending.
+Rollback: revert scoped phase3 commit; no migration or stored-data rollback.
+
 ## Unified order entry — revised owner plan (2026-10-09)
 
 Owner superseded the phase0 stop findings: collect contact data only once in

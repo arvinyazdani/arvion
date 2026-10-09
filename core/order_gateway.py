@@ -35,7 +35,7 @@ def gateway_context(request, lang):
             "order_consultation": CONSULTATION[0 if lang == "fa" else 1],
             "order_modules": crm_choices(lang)[0] if topic and topic.key == "crm" else (),
             "order_extensions": crm_choices(lang)[1] if topic and topic.key == "crm" else (),
-            "order_brief": brief_fields("corporate", lang) if topic and topic.key == "other" else (),
+            "order_brief": [field for field in brief_fields("corporate", lang) if field["key"] != "timing"] if topic and topic.key == "other" else (),
             "order_final_url": final_form_url(choices)}
 
 
@@ -55,7 +55,13 @@ def gateway_get_destination(request):
 def submit_existing_demo(request):
     """Delegate unchanged idempotency, validation and session checks, never copy them."""
     from projects.views.projects import DemoConfigureView
-    choices = parse_choices(request.GET)
+    merged = request.GET.copy()
+    for key in ("brief_goal", "brief_scope", "brief_content", "brief_timing"):
+        if key in request.POST:
+            merged[key] = request.POST[key]
+    if "order_addons" in request.POST:
+        merged.setlist("addons", request.POST.getlist("order_addons"))
+    choices = parse_choices(merged)
     demo = DemoTemplate.objects.filter(slug=request.GET.get("sample", "")[:100],
                                        category=choices.get("type", ""), is_active=True).first()
     if not demo:

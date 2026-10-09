@@ -1,4 +1,4 @@
-{% load static %}
+{% load static order_ui %}{% demo_order_context demo as order_flow %}
 <!doctype html>
 <html lang="{{ lang }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
@@ -11,11 +11,12 @@
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8">
 <link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4">
-  <script src="{% static 'projects/js/demo-configurator.js' %}?v=8" defer></script>
+  <script src="{% static 'projects/js/demo-configurator.js' %}?v=9" defer></script>
 {% if demo.category == 'ecommerce' %}{% include 'projects/demo_scenes/store_assets.html' %}{% else %}{% include 'projects/demo_scenes/sector_assets.html' %}{% endif %}
 </head>
 <body class="demo-full-body">
   <main class="demo-full" data-demo-configurator data-demo-full data-demo-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}" data-default-brand="{% if lang == 'fa' %}{{ demo.fictional_brand_fa|escape }}{% else %}{{ demo.fictional_brand_en|escape }}{% endif %}" data-default-style="{{ demo.style_key }}" data-default-theme="{{ demo.default_theme }}" data-default-personality="{{ demo.default_personality }}" data-default-custom-color="{{ demo.default_custom_color }}" data-default-features="{{ demo.default_features|join:',' }}" data-preview-url="{% url 'projects:demo_preview' demo.slug %}" data-full-url="{% url 'projects:demo_full' demo.slug %}">
+    <span hidden data-order-query="{{ order_flow.query }}"></span>
     <header class="demo-full-toolbar">
       <a class="demo-full-back" href="{% url 'projects:demo_preview' demo.slug %}#configurator" data-demo-back>
         <span aria-hidden="true">←</span>
