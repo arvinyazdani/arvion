@@ -2911,3 +2911,17 @@ not newly invented pages or a claim of current production availability.
 8. If seeded services/demos will be disabled/renamed independently, authorize
    dynamic published-only related associations rather than template constants.
    Before any eventual release: verify these public targets on its real data.
+# Entry animation — 2026-10-09 (local only)
+
+Scope: supplied entry-src.html, Piece 1 only. No push/deploy/SSH, models,
+migrations, analytics/cookie-policy or protected gallery/content changes.
+
+1. Old first-visit welcome removal: VERIFIED locally. Removed the inline
+   session marker, welcome-pending CSS and initial-welcome JS. Renamed shared
+   markup to route-loader/data-navigation-loader. Navigation delay (160ms),
+   recovery (8 seconds), inert locking and pageshow recovery remain. Sound
+   assets/buttons and notifications unchanged. Targeted CorePages/UI tests:
+   41 passed; initial two failures were stale cache-version assertions, updated
+   to the actual shared asset versions without weakening ordering assertions.
+   JS syntax passed. Full entry/browser/performance gates remain NOT_STARTED.
+   Rollback: revert this scoped commit; no data changes.

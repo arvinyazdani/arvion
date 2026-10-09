@@ -5131,3 +5131,12 @@
 | V2.1-E2 corrective — concurrent login response-save race | `VERIFIED` (local) | Removed physical `Session` deletion from the login signal. The locked `ActiveSession` pointer is authoritative; middleware rejects and flushes the loser before any protected view. This closes the intermittent Django `UpdateError` without allowing two valid devices. Evidence: focused SQLite 21/21; PostgreSQL race 30/30 repeated plus both concurrency cases; full PostgreSQL accounts suite 73/73. No migration. |
 | Push/deploy of `06812d2` through `79ad24d` | `VERIFIED / DEPLOYED` | GitHub Actions run `34958047474` passed for Python 3.11 and 3.12 on PostgreSQL. Production snapshot `pre-release-20260915-103509.dump` was validated with `pg_restore --list`; release script applied all five queued migrations and completed health checks. Public health/home fa+en/demo/contact/login returned 200; no recent application error or 5xx. |
 | Category demo scenes and dedicated responsive mobile order design (`f737d88` + `d1a211e` + `5fe87ec`) | `VERIFIED / DEPLOYED` | Local full suite 831 passed / 20 existing skips, strict editorial audit clean, 100-attempt benchmark passed. GitHub Actions run `37231381871` passed Python 3.11 and 3.12 (PostgreSQL). Snapshot-backed production release applied `projects.0007` and `projects.0008`; release log confirms `5fe87ec` and `health=ok`. Public health and all seven demo routes returned 200. Production visual QA at 390px confirmed new mobile layout/settings sheet and no horizontal overflow. |
+# Active checkpoint — entry animation (2026-10-09)
+
+Piece 1 only, local commits; no push/deploy/SSH or migration. Baseline b390e02.
+Old first-visit welcome removed; navigation loader separated and retained.
+Targeted CorePages/UI tests 41 passed; cache assertions updated for new versions.
+New regression assertion pins old-marker removal and navigation timers.
+Scene, gateway, admission guard and final browser/performance gates NOT_STARTED.
+Protected stash and external preservation bundle remain untouched.
+Continue with the supplied reference, not a new design; full suite only at end.

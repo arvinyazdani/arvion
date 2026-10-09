@@ -33,7 +33,7 @@ class CorePagesTests(TestCase):
         self.assertContains(response, 'data-install-panel="ios"', html=False)
         self.assertContains(response, 'data-install-panel="android"', html=False)
         self.assertContains(response, 'data-install-panel="desktop"', html=False)
-        self.assertContains(response, 'data-app-welcome', html=False)
+        self.assertContains(response, 'data-navigation-loader', html=False)
         self.assertRedirects(self.client.get("/favicon.ico"), "/static/core/favicon.svg", status_code=301, fetch_redirect_response=False)
 
     def test_home_links_to_english_assessment_briefing_before_the_price(self):
@@ -147,8 +147,8 @@ class CorePagesTests(TestCase):
         response = self.client.get("/fa/")
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=5")
-        legacy = html.index("core/css/site.css?v=40")
-        components = html.index("core/css/components.css?v=7")
+        legacy = html.index("core/css/site.css?v=41")
+        components = html.index("core/css/components.css?v=8")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
 

@@ -97,7 +97,7 @@ class UISystemFoundationTests(SimpleTestCase):
         self.assertNotIn("15000", self.shell)
 
     def test_route_feedback_is_shared_by_every_primary_shell(self):
-        self.assertIn(".navigation-pending .app-welcome[data-app-welcome]", self.components)
+        self.assertIn(".navigation-pending .route-loader[data-navigation-loader]", self.components)
         self.assertIn('querySelectorAll("[data-route-shell]")', self.shell)
         shells = (
             PROJECT_ROOT / "core" / "templates" / "core" / "base.html",
@@ -134,8 +134,20 @@ class UISystemFoundationTests(SimpleTestCase):
                 source = shell.read_text(encoding="utf-8")
                 self.assertIn('{% include "core/_pull_to_refresh.html" %}', source)
                 self.assertIn("core/js/pull-to-refresh.js' %}?v=1", source)
-                version = 7 if shell in shells[:2] else 5
+                version = 8 if shell == shells[0] else (7 if shell == shells[1] else 5)
                 self.assertIn(f"core/css/components.css' %}}?v={version}", source)
+
+    def test_first_visit_welcome_is_removed_without_removing_navigation_loader(self):
+        base = (PROJECT_ROOT / "core/templates/core/base.html").read_text()
+        loader = (PROJECT_ROOT / "core/templates/core/_route_loader.html").read_text()
+        site = (PROJECT_ROOT / "core/static/core/css/site.css").read_text()
+        for marker in ("app-welcome", "welcome-pending", "rvion-welcome-v1"):
+            for source in (base, loader, site, self.components, self.shell):
+                self.assertNotIn(marker, source)
+        self.assertIn("data-navigation-loader", loader)
+        self.assertIn("NAVIGATION_REVEAL_DELAY_MS = 160", self.shell)
+        self.assertIn("NAVIGATION_FAILSAFE_MS = 8000", self.shell)
+        self.assertIn("hideNavigationLoader", self.shell)
 
     def test_progressive_reveal_and_scrim_focus_recovery_are_real(self):
         self.assertIn('querySelectorAll("[data-ui-reveal]")', self.shell)

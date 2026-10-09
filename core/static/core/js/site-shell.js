@@ -69,7 +69,7 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js?v=5", {updateViaCache: "none"}).catch(() => {}));
   }
 
-  const welcome = document.querySelector("[data-app-welcome]");
+  const welcome = document.querySelector("[data-navigation-loader]");
   const routeShell = [...document.querySelectorAll("[data-route-shell]")];
   const navigationBackground = routeShell.length
     ? routeShell
@@ -78,7 +78,6 @@
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
   const NAVIGATION_REVEAL_DELAY_MS = 160;
   const NAVIGATION_FAILSAFE_MS = 8000;
-  const INITIAL_EXIT_MS = 300;
   const prefersReducedMotion = () => Boolean(reducedMotion?.matches);
   const setMainBusy = busy => main?.setAttribute("aria-busy", busy ? "true" : "false");
   const setNavigationLocked = locked => navigationBackground.forEach(item => item.toggleAttribute("inert", locked));
@@ -86,7 +85,6 @@
   let navigationRevealTimer = null;
   let navigationFailsafe = null;
   let navigationScheduled = false;
-  let finishInitialWelcome = null;
   const hideNavigationLoader = () => {
     if (navigationRevealTimer) window.clearTimeout(navigationRevealTimer);
     if (navigationFailsafe) window.clearTimeout(navigationFailsafe);
@@ -116,42 +114,8 @@
     }
     navigationFailsafe = window.setTimeout(hideNavigationLoader, NAVIGATION_FAILSAFE_MS);
   };
-  if (document.documentElement.classList.contains("welcome-pending") && welcome) {
-    let welcomeDismissed = false;
-    let exitTimer = null;
-    setWelcomeVisible(true);
-    setNavigationLocked(true);
-    setMainBusy(true);
-    const finishWelcome = () => {
-      welcomeDismissed = true;
-      if (exitTimer) window.clearTimeout(exitTimer);
-      exitTimer = null;
-      welcome.classList.remove("is-leaving");
-      document.documentElement.classList.remove("welcome-pending");
-      setWelcomeVisible(false);
-      setNavigationLocked(false);
-      setMainBusy(false);
-      try { sessionStorage.setItem("rvion-welcome-v1", "seen"); } catch (error) {}
-    };
-    finishInitialWelcome = finishWelcome;
-    const dismissWelcome = () => {
-      if (welcomeDismissed) return;
-      welcomeDismissed = true;
-      if (prefersReducedMotion()) {
-        finishWelcome();
-        return;
-      }
-      welcome.classList.add("is-leaving");
-      exitTimer = window.setTimeout(finishWelcome, INITIAL_EXIT_MS);
-    };
-    if (prefersReducedMotion() || document.readyState === "complete") dismissWelcome();
-    else window.addEventListener("load", dismissWelcome, { once: true });
-    window.setTimeout(dismissWelcome, 3500);
-  } else {
-    document.documentElement.classList.remove("welcome-pending");
-    setWelcomeVisible(false);
-    setMainBusy(false);
-  }
+  setWelcomeVisible(false);
+  setMainBusy(false);
 
   document.addEventListener("click", event => {
     const link = event.target.closest("a[href]");
@@ -171,13 +135,12 @@
     scheduleNavigationLoader();
   });
   window.addEventListener("pageshow", () => {
-    if (!document.documentElement.classList.contains("welcome-pending")) hideNavigationLoader();
+    hideNavigationLoader();
   });
   if (reducedMotion?.addEventListener) {
     reducedMotion.addEventListener("change", event => {
       if (!event.matches) return;
-      if (document.documentElement.classList.contains("welcome-pending")) finishInitialWelcome?.();
-      else hideNavigationLoader();
+      hideNavigationLoader();
     });
   }
 
