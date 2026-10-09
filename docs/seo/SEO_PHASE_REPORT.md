@@ -167,14 +167,21 @@ No new model field, schema, article publication or importer behavior changed.
 
 ### Task 3 — VERIFIED report; deployment retry BLOCKED
 
+Implementation/assets/checkpoint commit: 0492c76
+`feat(blog): refine editorial reader and prepare coherent v2 covers`.
+Only the 25 explicitly scoped files were staged. Working tree still contains
+the owner's unrelated gallery/editorial-desk work; it was not cleaned or committed.
+This follow-up records the immutable implementation hash; no test rerun needed
+for the documentation-only update.
+
 A bounded read-only SSH retry with the existing rvion.pem, BatchMode,
 IdentitiesOnly, IPQoS=none, ConnectTimeout=12 and server-alive limits returned
 "Connection to 188.121.101.173 port 22 timed out". No hostname/source/status could
 be read remotely. No pull, backup, release, migration, restart or image swap ran.
 GitHub CLI itself has no active auth; prior CI status was read via the public API.
 No new push/CI initiated after the first genuine deployment blocker.
-Last verified production runtime remains 66a7cbf; current health is checked
-separately and is not a new-version deployment claim.
+Last verified production runtime remains 66a7cbf; current public /health/ returned
+{"status": "ok"}, which is not a new-version deployment claim.
 
 Rollback: revert this bounded reader/assets change (and use the normal backed-up
 release path only after connectivity returns); no data/schema rollback needed.

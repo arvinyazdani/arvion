@@ -2,6 +2,8 @@
 
 ## SEO editorial reader / cover v2 — VERIFIED local; release BLOCKED (2026-10-09)
 
+- Implementation checkpoint: 0492c76 (25 scoped files), local and not pushed.
+
 - Direct owner request authorizes a deployment retry after tested commits; the
   attachment's v2-cover visual approval gate still applies. No live cover swap.
 - Rebuilt reading hierarchy, parser-based sanitized heading IDs, 700px column,
