@@ -33,6 +33,22 @@ restart or data change. Next:push/CI evidence then ops/release.sh through restor
 SSH/console, validate snapshot catalog and live paths. Rollback of this checkpoint
 is documentation-only; runtime remains6500491 until a real release succeeds.
 
+Push650de2a succeeded; quality run37938191382 failed in the first parallel test
+step. Exact primary finding:accounts.test_dashboard_draft.DashboardNoDraftStateTests.
+test_customer_without_active_draft_sees_shortcut_and_no_draft_card still expected
+`/fa/contact/` for a new order although the approved gateway now uses `/fa/start/`.
+Local reproduction1 test FAILED confirms this is real, not ignored as CI noise.
+Corrective change updates only this test/comment and anchors its assertion to
+the account-compass CTA, avoiding accidental success from a footer/header link.
+No production code, workflow or continuation behavior altered.
+Targeted command:`.venv/bin/python manage.py test accounts.test_dashboard_draft core.test_order_ui --verbosity 1`:27 tests OK.
+CI's subsequent closed-connection and traceback-pickling errors appeared after
+the initial failure during parallel shutdown; a fresh full CI is required to
+prove no independent failures remain. No tests skipped/removed to make it green.
+SSH attempts remain unsuccessful (timeout/closed before command execution),
+including a bounded secure curve25519/aes128-ctr retry; no VPN settings changed.
+Our local server8164 and its review tab stopped; existing user tabs untouched.
+
 ## Unified order entry — final local acceptance (2026-10-09)
 
 Status: VERIFIED for the committed, bounded local implementation. Owner visual

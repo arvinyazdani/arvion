@@ -15,6 +15,14 @@
   any remote command. No backup/release/migration/restart performed this turn.
 - Next: publish committed candidate, verify CI, then official release when SSH
   or authenticated server console becomes available. Do not claim deployed.
+- Push650de2a succeeded. CI37938191382 found a stale no-draft dashboard shortcut
+  assertion (still expected contact rather than the approved /start/ gateway).
+  Reproduced locally:1 failing test. Corrected only that expectation, anchored
+  to the actual account-compass CTA; existing continuation unchanged. Targeted
+  account-draft/order-UI tests27 OK. Remote parallel teardown emitted secondary
+  closed-connection/pickling errors after the first assertion; new CI required.
+- Our local review server8164 and its demo tab stopped/closed. Ready for next
+  instruction, but production release remains blocked on SSH and pending CI.
 
 ## Unified order entry — VERIFIED local candidate; owner acceptance/publication pending (2026-10-09)
 

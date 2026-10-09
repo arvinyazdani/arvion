@@ -89,10 +89,10 @@ class DashboardNoDraftStateTests(TestCase):
         content = response.content.decode("utf-8")
         self.assertNotIn('id="my-order-draft"', content)
         self.assertIn("شروع سفارش پروژه", content)
-        # The compact shortcut goes straight to the contact form, and the
+        # New orders enter the unified topic gateway, and the
         # sidebar offers the demo-browsing path too — no big empty-state
         # panel is rendered anywhere for this state.
-        self.assertIn(reverse("leads:contact"), content)
+        self.assertRegex(content, r'(?s)<nav class="account-compass"[^>]*>\s*<a href="/fa/start/">')
         self.assertIn(reverse("projects:demo_gallery"), content)
 
     def test_a_submitted_draft_is_not_treated_as_an_unfinished_one(self):
