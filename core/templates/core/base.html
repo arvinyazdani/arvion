@@ -1,4 +1,4 @@
-{% load static seo %}{% seo_documents as seo %}
+{% load static seo order_ui %}{% seo_documents as seo %}
 <!doctype html>
 <html lang="{{ lang|default:'fa' }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=7">
   <link rel="stylesheet" href="{% static 'core/css/public-shell.css' %}?v=2">
   <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'core/css/order-flow.css' %}?v=2">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/site-shell.js' %}?v=10" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
@@ -93,8 +94,8 @@
   <main id="main" tabindex="-1">{% include 'core/includes/seo_breadcrumbs.html' %}{% block content %}{% endblock %}</main>
   <nav class="mobile-tabbar" aria-label="{% if lang == 'fa' %}دسترسی سریع{% else %}Quick navigation{% endif %}">
     <a href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#home"></use></svg><span>{% if lang == 'fa' %}خانه{% else %}Home{% endif %}</span></a>
-    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}راهکارها{% else %}Solutions{% endif %}</span></a>
-    <a href="{% url 'projects:demo_gallery' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}انتخاب{% else %}Choose{% endif %}</span></a>
+    <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span></a>
+    <a href="{% url 'projects:demo_gallery' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}نمونه‌ها{% else %}Samples{% endif %}</span></a>
     <a href="{% url 'project_start' %}"{% if request.resolver_match.url_name == 'project_start' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contact"></use></svg><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start{% endif %}</span></a>
     {% if request.user.is_staff %}<a data-admin-shortcut href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Manage{% endif %}</span></a>{% else %}<a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>{% endif %}
   </nav>

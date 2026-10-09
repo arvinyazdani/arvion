@@ -45,6 +45,17 @@ class CrmOrderCreateView(LanguageViewMixin, FormView):
             form=form, error_count=sum(len(errors) for errors in form.errors.values()), error_step=error_step,
         ))
 
+    def get_initial(self):
+        from core.order_summary import specialist_initial
+        return {**super().get_initial(), **specialist_initial(self.request)}
+
+    def get_context_data(self, **kwargs):
+        from core.order_summary import summary_lines
+        from core.order_paths import parse_choices
+        context = super().get_context_data(**kwargs)
+        context.update(order_summary=summary_lines(self.request, "fa"), order_choices=parse_choices(self.request.GET))
+        return context
+
     def form_valid(self, form):
         key = f"crm-order:{normalized_fingerprint(client_address(self.request))}"
         if not cache.add(key, True, 300):

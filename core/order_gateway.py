@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from projects.models import DemoTemplate
 from projects.demo_briefs import brief_fields
-from .order_paths import ADDONS, CONSULTATION, TOPIC_BY_KEY, crm_choices, parse_choices, topic_cards
+from .order_paths import ADDONS, CONSULTATION, TOPIC_BY_KEY, crm_choices, parse_choices, start_url, topic_cards
 
 
 def final_form_url(choices, demo_token=""):
@@ -28,10 +28,15 @@ def gateway_context(request, lang):
     choices = parse_choices(request.GET)
     topic = TOPIC_BY_KEY.get(choices.get("type"))
     cards = topic_cards(lang)
+    for card in cards:
+        card["url"] = start_url(card["key"], addons=choices.get("addons", ""))
     selected = next((card for card in cards if topic and card["key"] == topic.key), None)
     demos = list(DemoTemplate.objects.filter(category=topic.key, is_active=True)) if topic and topic.key not in {"crm", "other"} else []
     return {"order_topics": cards, "order_topic": selected, "order_choices": choices,
             "order_demos": demos, "order_addons": [(key, fa if lang == "fa" else en) for key, fa, en in ADDONS],
+            "order_selected_addons": choices.get("addons", "").split(","),
+            "order_selected_modules": choices.get("modules", "").split(","),
+            "order_selected_extensions": choices.get("extensions", "").split(","),
             "order_consultation": CONSULTATION[0 if lang == "fa" else 1],
             "order_modules": crm_choices(lang)[0] if topic and topic.key == "crm" else (),
             "order_extensions": crm_choices(lang)[1] if topic and topic.key == "crm" else (),
@@ -71,4 +76,9 @@ def submit_existing_demo(request):
     if response.status_code == 302 and urlsplit(location).path == reverse("leads:contact"):
         token = parse_qs(urlsplit(location).query).get("demo", [""])[0]
         return redirect(final_form_url(choices, token))
+    if response.status_code == 302 and urlsplit(location).path == reverse("projects:demo_preview", args=[demo.slug]):
+        # Keep the existing validated error/retry payload and the bounded
+        # add-ons together. The configurator still mints the next token itself.
+        retry = {key: values[-1] for key, values in parse_qs(urlsplit(location).query, keep_blank_values=True).items()}
+        return redirect(urlsplit(location).path + "?" + urlencode({**retry, **choices}))
     return response

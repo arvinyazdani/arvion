@@ -1,0 +1,4 @@
+.order-summary{border:1px solid var(--border-default);border-inline-start:4px solid var(--color-brand-orange);border-radius:16px;padding:20px;background:var(--surface-card);margin-block:20px;overflow-wrap:anywhere}
+.order-summary h2{font-size:1.1rem;margin:0 0 12px}.order-summary ul{padding-inline-start:22px;line-height:1.9}.order-summary p{color:var(--text-secondary);line-height:1.8}.order-summary a{display:inline-flex;align-items:center;min-height:44px}
+.order-completion-steps{display:grid;gap:16px;padding-inline-start:24px;line-height:1.8;text-align:start}.order-completion-steps strong{display:block;color:var(--text-primary)}
+.order-summary summary{cursor:pointer;min-height:44px;line-height:1.8}.order-summary summary strong{font-size:1rem}.order-summary summary span{display:block;font-size:.875rem;color:var(--text-link)}

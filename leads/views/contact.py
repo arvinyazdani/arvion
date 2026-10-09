@@ -161,10 +161,15 @@ class LeadCreateView(LanguageViewMixin, FormView):
                 f"Selected demo: {selection.template.title_en}\n"
                 "Project goals and details: "
             )
-        return initial
+        from core.order_summary import lead_initial
+        return lead_initial(self.request, initial, self.lang)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from core.order_summary import summary_lines
+        from core.order_paths import parse_choices
+        context["order_summary"] = summary_lines(self.request, self.lang)
+        context["order_choices"] = parse_choices(self.request.GET)
         # A `demo` token in the URL that cannot be resolved for this session —
         # wrong session, wrong device, expired, or simply invalid — must not
         # block or explain itself (that would leak whether the token exists
@@ -190,7 +195,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
                 pointers[reference] = selection.pk
                 self.request.session["contact_demo_language_tokens"] = pointers
             other_lang = "en" if self.lang == "fa" else "fa"
-            context["language_switch_url"] = "/" + other_lang + reverse("leads:contact")[3:] + "?" + urlencode({"resume_demo": reference})
+            context["language_switch_url"] = "/" + other_lang + reverse("leads:contact")[3:] + "?" + urlencode({**context["order_choices"], "resume_demo": reference})
             # Only editor settings go into this public URL, never contact
             # fields or any session/submission/public token. Explicitly empty
             # features overrides a previous tab's stored defaults too.
@@ -211,7 +216,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
                     value = brief.get(field["key"])
                     if isinstance(value, str) and value in dict(field["options"]):
                         query["brief_" + field["key"]] = value
-            context["demo_edit_url"] = reverse("projects:demo_preview", args=[selection.template.slug]) + "?" + urlencode(query) + "#configurator"
+            context["demo_edit_url"] = reverse("projects:demo_preview", args=[selection.template.slug]) + "?" + urlencode({**context["order_choices"], **query}) + "#configurator"
         user = self.request.user
         if user.is_authenticated and not user.is_staff and not user.is_superuser:
             if not selection and not _demo_context_requested(self.request):
@@ -354,3 +359,8 @@ class LeadThanksView(LanguageViewMixin, DetailView):
 
     def get_queryset(self):
         return Lead.objects.select_related("service")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["completed_order_label"] = dict(LeadForm(lang=self.lang).fields["request_type"].choices).get(self.object.request_type, "")
+        return context

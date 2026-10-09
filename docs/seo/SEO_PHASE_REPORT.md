@@ -1,5 +1,35 @@
 # SEO phase report — Rvion
 
+### Order phases4–5 — final forms and confirmations (local)
+
+Existing final forms remain identity collectors. General requests preselect the
+source request type/service; CRM/clinic receive a readable initial summary in
+their existing additional_notes field, not new fields or storage. Clinic sample
+details are resolved exclusively by the existing session-bound validator. No
+FormDraft, model, CustomerCase signal or outbound message text changed.
+Three real final submissions in the test database still create their respective
+CustomerCase records and original tracking-code thank-you pages. All three
+confirmation templates now share the same four-step next-process component.
+The general confirmation's type label comes from existing localized form choices;
+specialist confirmations stay Persian. Personal data is neither pre-collected nor
+added to query/session/localStorage by this feature. The existing preview brand,
+language session and safe draft contracts are not redesigned.
+Targeted handoff/gateway:14 tests OK. Added retry coverage preserves add-ons after
+stale-token edits; language-switch/edit links keep safe order choices. No migration.
+Rollback: revert the scoped forms/confirmation commit; stored requests remain.
+
+Shared authenticated drafts — DESIGN ONLY, NOT_STARTED:
+Future CRM/clinic cross-device continuation needs an explicit new schema/ADR,
+not reuse of general FormDraft's contract. Separate versioned allowlists by domain,
+owner-bound permissions, optimistic revision checks, final-submit idempotency,
+expiry/retention and bounded cleanup would be required. Keep contact/free-text
+out of drafts by default; storing it needs an explicit owner privacy decision,
+purpose/retention statement and consent plus delete/withdraw controls. Test owner
+isolation, session eviction, concurrent edit/submit, expiry, interrupted networks,
+consent withdrawal, and cleanup never deleting final records. Proposed seven-day
+retention matches the current local safe drafts but is NOT a policy change.
+No model, migration, storage extension or new consent flow implemented here.
+
 ### Order entry phase3 checkpoint — local integration
 
 Existing DemoConfigureView remains authoritative for validation, ownership,

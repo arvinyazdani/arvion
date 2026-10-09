@@ -37,6 +37,17 @@ class ClinicOrderCreateView(LanguageViewMixin, FormView):
         step = min((self.field_steps.get(name, 1) for name in fields), default=1)
         return self.render_to_response(self.get_context_data(form=form, error_step=step, error_count=sum(len(e) for e in form.errors.values())))
 
+    def get_initial(self):
+        from core.order_summary import specialist_initial
+        return {**super().get_initial(), **specialist_initial(self.request)}
+
+    def get_context_data(self, **kwargs):
+        from core.order_summary import summary_lines
+        from core.order_paths import parse_choices
+        context = super().get_context_data(**kwargs)
+        context.update(order_summary=summary_lines(self.request, "fa"), order_choices=parse_choices(self.request.GET))
+        return context
+
     def form_valid(self, form):
         key = f"clinic-order:{normalized_fingerprint(client_address(self.request))}"
         if not cache.add(key, True, 300):
