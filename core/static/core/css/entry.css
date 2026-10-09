@@ -5,9 +5,9 @@
 #rvion-entry :is(button,a):focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #rvion-entry{position:fixed;inset:0;z-index:100;background:#050810;color:#e9eef9;overflow:hidden;transition:opacity .7s ease,visibility .7s}
 #rvion-entry.gone{opacity:0;visibility:hidden;pointer-events:none}
-#rvion-entry .vp{position:absolute;inset:0;perspective:var(--P);perspective-origin:50% 50%;overflow:hidden}
-#rvion-entry .world{position:absolute;left:0;top:0;width:100%;height:100%;transform-style:preserve-3d;will-change:transform}
-#rvion-entry .room{position:absolute;inset:0;transform-style:preserve-3d}
+#rvion-entry .vp{position:absolute;inset:0;overflow:hidden}
+#rvion-entry .world{position:absolute;left:0;top:0;width:100%;height:100%;contain:layout paint}
+#rvion-entry .room{position:absolute;inset:0;contain:layout paint;z-index:6}
 #rvion-entry .room.inside .wall,#rvion-entry .room.inside .desk,#rvion-entry .room.inside .lamp,#rvion-entry .room.inside .char,#rvion-entry .room.inside .mug,#rvion-entry .room.inside .base{display:none}
 #rvion-entry .o{position:absolute;left:50%;top:50%;transform:translate3d(calc(-50% + var(--x,0px)),calc(-50% + var(--y,0px)),var(--z,0px))}
 #rvion-entry .o.bt{top:auto;bottom:calc(50% - var(--yb) - 4px);transform:translate3d(calc(-50% + var(--x,0px)),0,var(--z,0px))}
@@ -16,7 +16,7 @@
 #rvion-entry .desk{position:absolute;left:50%;top:calc(50% + var(--yb) + var(--W)*.128);width:6000px;height:2000px;margin-left:-3000px;transform-origin:50% 0;transform:translate3d(0,0,-1500px) rotateX(90deg);
   background:radial-gradient(520px 300px at 50% 47%,rgba(150,185,255,.20),transparent 70%),radial-gradient(700px 340px at 66% 47%,rgba(255,170,70,.20),transparent 70%),linear-gradient(#0a0b10,#171310 55%,#241b14)}
 #rvion-entry .desk::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 160px,rgba(255,255,255,.018) 160px 161px)}
-#rvion-entry .laptop{position:absolute;left:50%;top:50%;width:var(--W);height:var(--Hs);transform-style:preserve-3d;transform:translate3d(-50%,calc(-50% + var(--y0)),0)}
+#rvion-entry .laptop{position:absolute;left:50%;top:50%;width:var(--W);height:var(--Hs);transform:translate3d(-50%,calc(-50% + var(--y0)),0)}
 #rvion-entry .screen{position:absolute;inset:0;transform-origin:50% 100%;transform:rotateX(var(--tilt,8deg));background:#07090f;border:1px solid #2a3552;border-radius:10px 10px 4px 4px;padding:2.4%;box-shadow:0 0 90px 10px rgba(120,160,255,.18)}
 #rvion-entry .glass{position:relative;width:100%;height:100%;border-radius:5px;background:#0b1424;overflow:hidden;direction:ltr;font:600 calc(var(--W)/54)/1.7 ui-monospace,Menlo,monospace;color:#8fa0c4;padding:4% 5%}
 #rvion-entry .glass .tb{display:flex;gap:6px;margin-bottom:3%}
@@ -84,6 +84,7 @@
 @keyframes rv-entry-gr{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-1%)}80%{transform:translate(3%,3%)}}
 #rvion-entry .cap{position:absolute;left:0;right:0;bottom:clamp(64px,11vh,110px);text-align:center;padding:0 18px;font-size:clamp(17px,2.3vw,28px);font-weight:700;text-shadow:0 2px 24px #000;transition:opacity .35s;opacity:0}
 #rvion-entry .cap.on{opacity:1}
+#rvion-entry .cap{height:5em;display:flex;flex-direction:column;justify-content:flex-end}
 #rvion-entry .cap small{display:block;font-size:.55em;font-weight:400;color:#b4bfd6;margin-top:.2em}
 #rvion-entry .ctl{position:absolute;top:14px;inset-inline:14px;display:flex;justify-content:space-between;gap:10px;z-index:5}
 #rvion-entry .ctl button{min-height:44px;padding:0 16px;border-radius:999px;background:rgba(5,8,16,.55);border:1px solid rgba(255,255,255,.22);font-size:14px;backdrop-filter:blur(6px)}

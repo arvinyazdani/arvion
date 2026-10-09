@@ -42,11 +42,11 @@
   <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=2">
   <link rel="stylesheet" href="{% static 'core/css/order-flow.css' %}?v=2">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=12" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=13" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
-  <script src="{% static 'core/js/welcome-sound.js' %}?v=3" defer></script>
+  <script src="{% static 'core/js/welcome-sound.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/wizard-engine.js' %}?v=4" defer></script>
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=2" defer></script>{% endif %}
   {% block extra_head %}{% endblock %}

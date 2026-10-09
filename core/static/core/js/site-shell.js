@@ -124,11 +124,17 @@ if (typeof document !== 'undefined') (() => {
       sheet.onerror = fail;script.onerror = fail;
       sheet.onload = () => {if (!canceled) document.head.append(script);};
       script.onload = () => {
-        window.clearTimeout(timer);
-        if (canceled || navigationScheduled || prefersReducedMotion()) return;
-        if (window.RvionEntry?.start(payload) && result.state && !localSeek) {
-          try { localStorage.setItem(guardKey, JSON.stringify(result.state)); } catch (error) {}
-        }
+        const open = scene => {
+          window.clearTimeout(timer);
+          if (canceled || navigationScheduled || prefersReducedMotion()) return;
+          if (window.RvionEntry?.start(scene) && result.state && !localSeek) {
+            try { localStorage.setItem(guardKey, JSON.stringify(result.state)); } catch (error) {}
+          }
+        };
+        if (payload.scene_gzip) {
+          if (!window.RvionEntry?.decode) {fail();return;}
+          window.RvionEntry.decode(payload).then(open).catch(fail);
+        } else open(payload);
       };
       document.head.append(sheet);
     };

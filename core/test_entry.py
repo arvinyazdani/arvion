@@ -1,4 +1,6 @@
 import json
+import base64
+import gzip
 from types import SimpleNamespace
 
 from django.contrib.auth.models import AnonymousUser
@@ -19,15 +21,17 @@ class EntryPayloadTests(SimpleTestCase):
         source, payload = self.payload()
         self.assertIn('type="application/json"', source)
         self.assertNotIn('<div', source)
-        self.assertEqual(set(payload), {"html", "css", "js"})
-        self.assertEqual(payload["css"], "/static/core/css/entry.css?v=2")
-        self.assertEqual(payload["js"], "/static/core/js/entry.js?v=1")
-        self.assertEqual(payload["html"].count('class="panel"'), 5)
+        self.assertEqual(set(payload), {"scene_gzip", "css", "js"})
+        self.assertEqual(payload["css"], "/static/core/css/entry.css?v=3")
+        self.assertEqual(payload["js"], "/static/core/js/entry.js?v=2")
+        html = gzip.decompress(base64.b64decode(payload["scene_gzip"])).decode("utf-8")
+        self.assertEqual(html.count('class="panel"'), 5)
+        self.assertLess(len(source.encode("utf-8")), 5000)
 
     def test_server_localization_and_gateway_routes(self):
         for lang in ("fa", "en"):
             _, payload = self.payload(lang)
-            html = payload["html"]
+            html = gzip.decompress(base64.b64decode(payload["scene_gzip"])).decode("utf-8")
             self.assertIn(f'href="/{lang}/start/"', html)
             self.assertIn(f'href="/{lang}/assessments/"', html)
             self.assertLess(html.index(f'href="/{lang}/start/"'),
@@ -45,7 +49,7 @@ class EntryPayloadTests(SimpleTestCase):
         self.assertEqual(self.payload(path="/fa/start/"), ("", None))
 
     @override_settings(RVION_ENTRY_ENABLED=False)
-    def test_failed_performance_gate_keeps_normal_home_disabled(self):
+    def test_rollout_switch_keeps_normal_home_disabled(self):
         self.assertEqual(self.payload(), ("", None))
 
     @override_settings(RVION_ENTRY_ENABLED=False, DEBUG=False)

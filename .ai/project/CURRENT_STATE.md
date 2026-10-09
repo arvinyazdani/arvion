@@ -2,11 +2,12 @@
 
 ## Current task — entry animation: BLOCKED (2026-10-09)
 
-Only Piece 1. Implementation and targeted tests are saved locally; automatic
-display is disabled by default. Read the final "Active checkpoint — entry
-animation" below and docs/seo/SEO_PHASE_REPORT.md. Owner authorized commit and
-deploy on 2026-10-09, but the performance gate still prevents activation/release.
-Mobile gateway correction is VERIFIED locally; publication remains BLOCKED.
+Only Piece 1. CLS diagnosis and targeted checks are VERIFIED locally; automatic
+display is disabled by default. Read the final "Entry CLS/audio diagnosis" below
+and docs/seo/SEO_PHASE_REPORT.md. Latest owner instruction supersedes deployment:
+NO push/deploy/migration; active LCP/TBT must not exceed the no-intro control.
+All three final active CLS values are zero, but LCP/TBT exceed the new control.
+Current corrections are UNCOMMITTED; HEAD remains f7b404d. Release stays BLOCKED.
 The preceding order-release section is historical context, not release evidence.
 
 ## Owner-authorized release and workspace cleanup — PARTIAL (2026-10-09)
@@ -5210,3 +5211,57 @@ No push, deploy, SSH, model/migration, sound-file, protected-file or policy chan
   3D scene CLS while retaining the reference, then final performance/full release
   gates and restore SSH connectivity. Revert only this scoped commit to roll
   back mobile correction; no data rollback. Preserved stash/bundle untouched.
+
+## Entry CLS/audio diagnosis — 2026-10-09, latest checkpoint
+
+Status: diagnosis VERIFIED; projection/caption/audio corrections VERIFIED locally;
+public activation/release BLOCKED by the owner's stricter control-relative gate.
+HEAD f7b404d, all new changes uncommitted. No push/deploy/migration. The preceding
+5%-regression gate is superseded, not waived. Full isolated suite NOT_RUN while
+this release gate is blocked. Single primary agent, no delegation.
+
+Evidence and full tables: final section of docs/seo/SEO_PHASE_REPORT.md.
+Control after splash removal, before audio change (3 runs): CLS 0/0/0,
+median LCP4051.90ms/TBT725ms. Original pre-removal captures: CLS0/0/0,
+median LCP4214.07ms/TBT1335.22ms. No evidence implicates splash removal in CLS.
+PerformanceObserver on isolated original HEAD:129 entries, all sources inside
+the intro, no recent input. CSS was loaded before fixed/inset-zero insertion.
+Guarded insertion still failed (CLS .67058/3.14751/.66812). Independent temporary
+ablations: typed text .03986; caption .79321; size-vars .64913; system font .76442.
+These diagnostics were NOT applied to the product. Full source/rect/time log:
+/tmp/rvion-entry-20261009/original-layout-shift-sources.json.
+
+Current correction keeps original camera coordinates but projects visual planes
+individually inside static paint/layout-contained parents; caption reserves5em.
+Geometry reads occur only on mount/resize; no animated width/height/top/left/
+margin/font-size. Localized scene is gzip/base64 encoded, native decoded after
+CSS load; codec/error/deadline/navigation failure returns normal home. Older
+browsers lacking DOMMatrix/DecompressionStream skip the intro; actual older
+Safari not verified. No HTTP cache, cookie, analytics or CSP policy changes.
+
+Welcome sound: AudioContext is created only after first pointer/keyboard/click
+interaction. Existing4-second welcome window, one-per-session/mute preferences,
+toggle states/labels and normal/urgent notification waveforms are pinned by
+core/tests_js/welcome_sound.test.cjs. No background sound queue or new audio asset.
+Sound cache version4; shared shell13, intro CSS3/JS2.
+
+Final matched after-audio measurements (3 control +3 active, same mobile defaults):
+control LCP4192.87/4007.06/3971.50, TBT178/131/0, CLS0/0/0;
+active LCP4250.09/4414.63/4351.70, TBT247/165/77, CLS0/0/0.
+Medians: active LCP4351.70 vs4007.06 (+8.60%), TBT165 vs131 (+25.95%): FAIL.
+Fresh full-timeline PerformanceObserver on corrected copy:0 entries.
+Do not enable publicly based only on zero CLS or the superseded5% gate.
+
+Targeted Python73/73; all four Node contract programs pass; syntax/check/diff
+clean; makemigrations --check --dry-run reports no changes (no migration run).
+32 responsive FA/EN/light/dark/timeline captures: no horizontal overflow, native
+finite matrices; representative views inspected. Direct/reload, pause/resume,
+Escape and reduced-motion browser checks passed. No actual-device Safari or
+audible subjective acceptance claimed. Protected gallery/customer records and
+preserved stash/bundle untouched. Read-only SSH begun before the latest owner
+instruction was terminated; no remote command/release completed.
+
+Next: investigate the remaining control-relative LCP/TBT cost without activation;
+retain current evidence and repeat matched three-run gate only after a scoped fix.
+Rollback: keep RVION_ENTRY_ENABLED=0/off; discard only reviewed correction hunks
+if needed, never broad reset/stash removal. No database rollback required.

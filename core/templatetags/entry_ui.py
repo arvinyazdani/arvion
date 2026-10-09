@@ -1,4 +1,6 @@
-"""Server-localized, inert payload; no overlay is rendered without JavaScript."""
+"""Server-localized, compressed inert payload; no overlay without JavaScript."""
+import base64
+import gzip
 from django import template
 from django.conf import settings
 from django.templatetags.static import static
@@ -14,7 +16,7 @@ def entry_payload(context):
     request = context.get("request")
     if not request or request.user.is_staff or request.path not in ("/fa/", "/en/"):
         return ""
-    # Performance gate is currently BLOCKED. No automatic rollout of this preview.
+    # Public activation remains off until the control-relative performance gate passes.
     local_preview = (settings.DEBUG and "entry_seek" in request.GET
                      and request.get_host().split(":")[0] in ("localhost", "127.0.0.1"))
     if not getattr(settings, "RVION_ENTRY_ENABLED", False) and not local_preview:
@@ -22,5 +24,6 @@ def entry_payload(context):
     lang = request.path.strip("/")
     with override(lang):
         html = render_to_string("core/_entry_scene.html", {"lang": lang})
-    return json_script({"html": html, "css": static("core/css/entry.css") + "?v=2",
-                        "js": static("core/js/entry.js") + "?v=1"}, "rvion-entry-payload")
+    scene = base64.b64encode(gzip.compress(html.encode("utf-8"), mtime=0)).decode("ascii")
+    return json_script({"scene_gzip": scene, "css": static("core/css/entry.css") + "?v=3",
+                        "js": static("core/js/entry.js") + "?v=2"}, "rvion-entry-payload")

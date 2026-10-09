@@ -38,7 +38,7 @@
   {% if messages %}<div class="contract-shell-width contract-messages" aria-live="polite">{% for message in messages %}<div class="ui-message ui-message--{{ message.tags|default:'info' }}" {% if 'error' in message.tags %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</div>{% endfor %}</div>{% endif %}
   <main id="contract-main" tabindex="-1" data-route-shell>{% block content %}{% endblock %}</main>
   <script src="{% static 'contracts/contract-v3.js' %}?v=2" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=12" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=13" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>

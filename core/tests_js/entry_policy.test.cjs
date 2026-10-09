@@ -20,19 +20,37 @@ assert.ok(admit({...base,state:{starts:['bad',Infinity],blockedUntil:'forever'}}
 // Exercise the real loader, including persistence of the fourth-start cooldown.
 const source=fs.readFileSync('core/static/core/js/site-shell.js','utf8');
 const boot=source.slice(source.indexOf("  const entryPayload ="),source.indexOf('  const setMainBusy ='));
-function run(saved, unavailable=false){
- const writes=[],assets=[];
+function run(saved, unavailable=false, protocol={}){
+ const writes=[],assets=[],opened=[],timeouts=[];
  const context={URL,URLSearchParams,Date:{now:()=>base.now+30000},rvionEntryAdmission:admit,
   localStorage:{getItem(){if(unavailable)throw Error('disabled');return JSON.stringify(saved);},setItem(k,v){writes.push(JSON.parse(v));}},
   location:{pathname:'/fa/',origin:base.origin,hostname:'rvionai.com',search:''},
   performance:{getEntriesByType:()=>[{type:'reload'}]},prefersReducedMotion:()=>false,navigationScheduled:false,
-  window:{setTimeout:()=>1,clearTimeout(){},RvionEntry:{start:()=>true}},
-  document:{readyState:'complete',referrer:'',getElementById:()=>({textContent:JSON.stringify({html:'x',css:'/static/core/css/entry.css?v=1',js:'/static/core/js/entry.js?v=1'})}),createElement:()=>({remove(){}}),head:{append(asset){assets.push(asset);asset.onload();}}}
+  window:{setTimeout:fn=>{timeouts.push(fn);return 1;},clearTimeout(){},RvionEntry:{start:scene=>{opened.push(scene);return true;},decode:protocol.decode}},
+  document:{readyState:'complete',referrer:'',getElementById:()=>({textContent:JSON.stringify({html:'x',...protocol.payload,css:'/static/core/css/entry.css?v=1',js:'/static/core/js/entry.js?v=1'})}),createElement:()=>({remove(){this.removed=true;}}),head:{append(asset){assets.push(asset);asset.onload();}}}
  };
- vm.runInNewContext(boot,context);return {writes,assets};
+ vm.runInNewContext(boot,context);return {writes,assets,opened,timeouts,context};
 }
 assert.equal(run(state).assets.length,0);
 assert.equal(run(state).writes[0].blockedUntil,fourth.state.blockedUntil);
 assert.equal(run(null).assets.length,2);
 assert.equal(run(null,true).assets.length,2);
-console.log('Entry admission: direct/reload/internal/back/reduced, 4th-start cooldown, expiry, denied persistence, unavailable storage and two-asset loader passed.');
+async function decodeChecks(){
+ for(const mode of ['success','navigation','timeout','failure']){
+  let resolve,reject;
+  const result=run(null,false,{payload:{scene_gzip:'x'},decode:()=>new Promise((yes,no)=>{resolve=yes;reject=no;})});
+  assert.equal(result.opened.length,0);
+  assert.equal(result.writes.length,0);
+  if(mode==='navigation')result.context.navigationScheduled=true;
+  if(mode==='timeout')result.timeouts[0]();
+  if(mode==='failure')reject(new Error('bad gzip'));else resolve({html:'decoded'});
+  await new Promise(setImmediate);
+  assert.equal(result.opened.length,mode==='success'?1:0);
+  assert.equal(result.writes.length,mode==='success'?1:0);
+  if(mode==='timeout'||mode==='failure')assert.ok(result.assets.every(asset=>asset.removed));
+ }
+ const unsupported=run(null,false,{payload:{scene_gzip:'x'}});
+ assert.equal(unsupported.opened.length,0);
+ assert.ok(unsupported.assets.every(asset=>asset.removed));
+}
+decodeChecks().then(()=>console.log('Entry admission/loader: policy, gzip success/error, deadline and navigation-race recovery passed.')).catch(error=>{console.error(error);process.exitCode=1;});

@@ -16,7 +16,12 @@ const captions=[...$('captions').children];
 const CAPSX=[[.3,2,captions[0].innerHTML],[2.3,4.1,captions[1].innerHTML]];
 const el={entry:root,world:$('world'),room:$('room'),scr:$('scr'),glass:$('glass'),bloom:$('bloom'),cap:$('cap'),fin:$('final'),prog:$('progbar'),fx:$('fx'),wall:$('wall'),lamp:$('lamp'),char:$('char'),mug:$('mug')};
 const panels=[...root.querySelectorAll('.panel')];
+panels.forEach((panel,i)=>{panel.style.zIndex=String(NP-i);});
 let vw=innerWidth,vh=innerHeight,W=560,Hs=350,y0=-40,fzFill=600,ez=254,Wp=0,Hp=0;
+let projection=[];
+const leaves=[el.wall,$('desk'),el.lamp,el.char,el.scr,root.querySelector('.base'),el.mug,...panels].filter(Boolean);
+const originalStyles=leaves.map(node=>({node,transform:node.style.transform,origin:node.style.transformOrigin}));
+const canProject=typeof DOMMatrix!=='undefined';
 const fzOf=i=>ez-(Z0-ZSTEP*i);
 
 function measure(){
@@ -28,6 +33,41 @@ function measure(){
   fzFill=P*(1-1/fill);
   const pw=Math.min(vw*.86,640);ez=P*(1-1/Math.min(1.5,Math.max(1,vw*.92/pw)));
   const dpr=Math.min(devicePixelRatio||1,2);el.fx.width=vw*dpr;el.fx.height=vh*dpr;
+  if(canProject)measureProjection();
+}
+
+// Bake the shared camera into each visual plane. Static viewport/room parents
+// no longer acquire changing projected bounds; the original scene coordinates
+// and vanishing point are retained. Geometry is read only on mount/resize.
+function localMatrix(node){
+  const style=getComputedStyle(node),origin=style.transformOrigin.split(' ').map(Number.parseFloat);
+  const transform=style.transform==='none'?new DOMMatrix():new DOMMatrix(style.transform);
+  return {origin,matrix:new DOMMatrix().translate(...origin).multiply(transform).translate(...origin.map(v=>-v))};
+}
+function ancestorMatrix(node){
+  if(node===root)return new DOMMatrix();
+  return ancestorMatrix(node.parentElement).translate(node.offsetLeft,node.offsetTop).multiply(localMatrix(node).matrix);
+}
+function measureProjection(){
+  for(const saved of originalStyles){saved.node.style.transform=saved.transform;saved.node.style.transformOrigin=saved.origin;}
+  projection=leaves.map(node=>{
+    const local=localMatrix(node),anchor=ancestorMatrix(node.parentElement).translate(node.offsetLeft,node.offsetTop);
+    node.style.transformOrigin='0 0';
+    return {node,anchor,inverse:anchor.inverse(),local:local.matrix,origin:local.origin};
+  });
+}
+function project(c){
+  const perspective=new DOMMatrix([1,0,0,0,0,1,0,0,0,0,1,-1/P,0,0,0,1]);
+  const view=new DOMMatrix().translate(vw/2,vh/2).multiply(perspective)
+    .translate(-c.cx,-c.cy,c.fz).rotateAxisAngle(1,0,0,c.pitch)
+    .rotateAxisAngle(0,1,0,c.yaw).translate(-vw/2,-vh/2);
+  for(const plane of projection){
+    let local=plane.local;
+    if(plane.node===el.scr){const origin=plane.origin;
+      local=new DOMMatrix().translate(...origin).rotateAxisAngle(1,0,0,c.tilt).translate(...origin.map(v=>-v));
+    }
+    plane.node.style.transform=plane.inverse.multiply(view).multiply(plane.anchor).multiply(local).toString();
+  }
 }
 
 /* typed code on the laptop screen */
@@ -100,8 +140,8 @@ function fx(t,c){
 
 function render(t){
   const c=camera(t);
-  el.world.style.transform='translate3d('+(-c.cx)+'px,'+(-c.cy)+'px,'+c.fz+'px) rotateX('+c.pitch+'deg) rotateY('+c.yaw+'deg)';
-  el.scr.style.setProperty('--tilt',c.tilt+'deg');
+  if(canProject)project(c);
+  else{el.world.style.transform='translate3d('+(-c.cx)+'px,'+(-c.cy)+'px,'+c.fz+'px) rotateX('+c.pitch+'deg) rotateY('+c.yaw+'deg)';el.scr.style.setProperty('--tilt',c.tilt+'deg');}
   typed(t);
   // Reference screen dissolve; hide the room leaves without flattening preserve-3d.
   el.room.classList.toggle('inside',t>=B_END-.05);el.scr.style.opacity=(1-sm(B_END-.1,B_END+.7,t)).toFixed(3);el.room.style.display=t<B_END+.8?'':'none';
@@ -135,6 +175,7 @@ function clockLeaves(t){
 return {measure,render,T_END,T_FINAL,camera};
 }
 function start(payload) {
+ if(typeof DOMMatrix==='undefined')return false;
  const holder=document.createElement('template');
  holder.innerHTML=payload.html;
  const root=holder.content.firstElementChild;
@@ -199,5 +240,11 @@ function start(payload) {
    skip.focus({preventScroll:true});resume();return true;
  }catch(error){close();return false;}
 }
-window.RvionEntry={mount,start};
+async function decode(payload){
+ if(typeof DecompressionStream==='undefined')throw new Error('Scene decompression unavailable');
+ const bytes=Uint8Array.from(atob(payload.scene_gzip),c=>c.charCodeAt(0));
+ const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+ return {...payload,html:await new Response(stream).text()};
+}
+window.RvionEntry={mount,start,decode};
 })();

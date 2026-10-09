@@ -1,5 +1,10 @@
 # SEO phase report — Rvion
 
+Current checkpoint (2026-10-09): entry CLS/audio diagnosis VERIFIED locally;
+public activation BLOCKED on control-relative LCP/TBT. Latest owner instruction:
+no push/deploy/migration. See final "Entry CLS/audio diagnosis" section. Changes
+remain uncommitted on f7b404d; older release entries below are historical.
+
 ## Owner-authorized cleanup/release checkpoint (2026-10-09)
 
 Status: cleanup VERIFIED; deployment BLOCKED on SSH connectivity, not on code.
@@ -3108,3 +3113,179 @@ No production command/release/migration/restart, push or deployment completed.
 Next: fix the actual scene performance issue and finish the final gate, then
 official snapshot-backed release with live checks when SSH is available.
 Rollback: revert only this mobile correction commit; no database changes.
+
+## Entry CLS/audio diagnosis — measured, not inferred (2026-10-09)
+
+Status: diagnosis VERIFIED; fixes VERIFIED locally; activation/release BLOCKED.
+Owner superseded deployment authorization and the earlier5% tolerance: no
+push/deploy/migration, and final active LCP/TBT may not exceed no-intro control.
+No new commit in this phase; HEAD f7b404d. Prior uncommitted projection/encoding
+corrections preserved; no redesign or protected gallery changes.
+
+### Method and control (step1)
+
+Chrome/Lighthouse13.5, default mobile simulated throttling, same local data.
+Serial successful runs; no concurrent agent browser/tests/builds during batches.
+Other OS/user activity is not controlled; localhost is not production/RUM.
+An initial control run failed NO_NAVSTART; retained as control-no-intro-1.json,
+then the entire clean batch was restarted. Failed runs do not enter medians.
+
+Common exact command, substituting PORT/NAME as listed:
+`CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' PATH=/opt/homebrew/bin:$PATH npx --yes lighthouse http://127.0.0.1:PORT/fa/ --quiet --chrome-flags='--headless --no-sandbox' --only-categories=performance --output=json --output-path=/tmp/rvion-entry-20261009/NAME.json`.
+Control8168: `RVION_ENTRY_ENABLED=off .venv/bin/python manage.py runserver 127.0.0.1:8168 --noreload`.
+Active8167: same command with RVION_ENTRY_ENABLED=1 and port8167, process-only.
+Before captures already existed from b390e02 before splash removal; they are
+historical measurements, not freshly rerun or claimed simultaneous controls.
+
+| Revision/capture | LCP ms | TBT ms | CLS |
+|---|---:|---:|---:|
+| Before removal, before-1 |4569.46|1623.31|0|
+| Before removal, before-2 |4121.43|1335.22|0|
+| Before removal, before-3 |4214.07|1277.99|0|
+| **Before removal median** |**4214.07**|**1335.22**|**0**|
+| After removal, intro OFF, control-no-intro-clean-1 |3932.35|725|0|
+| After removal, intro OFF, control-no-intro-clean-2 |4054.95|761|0|
+| After removal, intro OFF, control-no-intro-clean-3 |4051.90|698|0|
+| **After removal, OFF median** |**4051.90**|**725**|**0**|
+
+Conclusion: all six CLS values are zero; splash removal is not supported as
+the cause of the observed intro shifts. Timing differences alone do not prove
+that removal caused the TBT decrease (non-simultaneous measurements/OS noise).
+
+### Source trace (step2)
+
+Used PerformanceObserver({type:'layout-shift',buffered:true}) before page render
+in a disposable f7b404d checkout, not product instrumentation. CPU4x,390x844,
+normal full playback, no seek and no input.129 shift entries; every source was
+inside #rvion-entry, zero homepage sources, zero hadRecentInput entries.
+Full node/previousRect/currentRect/time JSON:
+`/tmp/rvion-entry-20261009/original-layout-shift-sources.json`.
+Counts below count source appearances, not additive CLS or distinct entries.
+
+| data-entry-id | Appearances | First–last time ms |
+|---|---:|---:|
+| char |6|565.10–714.50|
+| mug |6|565.10–714.50|
+| room |100|749.90–4317.10|
+| scr |23|933.90–4249.90|
+| cap |1|2835.80|
+| laptop |9|4649.20–4915.00|
+| world |1|5732.20|
+
+Examples (x,y,width,height): mug at565.10ms:
+(345.011,399.321,26.195,28.758)→(366.507,399.116,23.493,28.843).
+Screen at933.90ms: (0,125.547,390,464.804)→(0,124.904,390,465.713).
+Caption at2835.80ms: (0,695.008,390,90)→(0,677.008,390,109.266).
+Some room/laptop source rects are clipped to the full viewport and therefore
+equal despite a non-zero entry.value; do not infer no shift from clipped rects.
+
+Insertion observer:493.20ms, position=fixed/inset=0px, entry CSS already loaded.
+Original loader appends JS only after stylesheet.onload, then constructs DOM;
+no evidence for unstylized insertion/homepage reflow. Original camera rewrites
+world.transform every frame, screen --tilt changes rotation, typed() replaces
+glass.innerHTML; captions switch content and change intrinsic height. Source
+measure() sets size variables at mount/resize, not on animation frames. No
+font-family/font-size switch after ready exists in this code. Existing CSS
+keyframes animate only transform/opacity. The 3D parent's projected paint bounds
+and text relayout are implicated by source trace and isolation below, not by
+an invented animated width/top rule.
+
+### CSS-loaded/hidden theory and independent ablations (steps3–4)
+
+In disposable checkout only: root inert template has hidden and inline
+position:fixed;inset:0; hidden removed immediately before insertion AFTER CSS
+load. This strengthens an ordering already present. No instrumentation script
+in Lighthouse runs. These experimental changes are not product changes.
+
+| Independent experiment | LCP ms | TBT ms | CLS | Conclusion |
+|---|---:|---:|---:|---|
+| Guarded insertion run1 |4665.19|1259.70|.67058|FAIL|
+| Guarded insertion run2 |4373.26|1176|3.14751|FAIL|
+| Guarded insertion run3 |4639.05|1272.63|.66812|FAIL|
+| Disable typed text only |4184.35|1075.23|.03986|Large reduction, not zero|
+| Disable captions only |4274.94|1208|.79321|Not sufficient|
+| Suppress size-variable writes only |4382.94|1076|.64913|Not sufficient|
+| System-font diagnostic only |4063.91|854.48|.76442|Not sufficient|
+
+Ablations are single diagnostic runs, NOT three-run acceptance measurements or
+proof of precise contribution percentages. Each resets all other features to
+guarded original HEAD, not cumulative deletion. Captures: guarded-original-{1,2,3}
+and ablation-{typed,caption,measure,font}.json; the last four URLs have temporary
+?cls_probe=NAME, no entry_seek. User reference text/geometry is NOT removed.
+
+Prior pending fix retains camera coordinates but projects moving visual planes
+individually under static layout/paint-contained parents. This separates 3D
+paint-bound propagation from text relayout; reserved5em caption height removes
+the independently observed caption shift. Native browser post-fix full playback
+observer:0 entries, CSS loaded/fixed inset at1616ms. Full zero-entry record:
+`/tmp/rvion-entry-20261009/fixed-layout-shift-sources.json`.
+Geometry reads/size variables are only mount/resize; animation writes transforms
+and opacity (plus visibility/accessibility/content transitions), never animated
+width/height/top/left/margin/font-size. No metric-observer suppression, iframe,
+motion preference override, threshold waiver or removal of reference content.
+
+Localized inert HTML is stdlib gzip/base64 encoded (<5KB payload) and native
+decoded after CSS load. Codec absence/failure/deadline/navigation race leaves
+the ordinary home accessible. No new request/library/HTTP cache/privacy policy.
+Older Safari without DOMMatrix/DecompressionStream skips the intro; actual
+older-device Safari coverage NOT_RUN.
+
+### Audio timing change (step5) and final strict gate
+
+Original after-1 bootup-time attributes total1356.816ms/scripting1355.912ms to
+welcome-sound.js, not guessed from a generic document long task. Now no load-time
+playWelcome call or AudioContext creation; first pointer/keydown/click unlocks.
+Existing welcome four-second window/session/mute and toggle behavior retained;
+late interaction unlocks future notifications but never auto-plays welcome.
+Background notifications before interaction return false, not queued. Normal/
+urgent frequencies, gains, resume, toggle labels/preferences are regression tested.
+No audible aesthetic judgment or native phone-push audio proof is claimed.
+
+Both final control and active use the new audio code and matching data/runtime;
+all six are normal navigation, no seek/observer instrumentation/interaction.
+
+| Final capture | LCP ms | TBT ms | CLS |
+|---|---:|---:|---:|
+| lazy-audio-control-1 |4192.87|178|0|
+| lazy-audio-control-2 |4007.06|131|0|
+| lazy-audio-control-3 |3971.50|0|0|
+| **Control median** |**4007.06**|**131**|**0**|
+| lazy-audio-active-1 |4250.09|247|0|
+| lazy-audio-active-2 |4414.63|165|0|
+| lazy-audio-active-3 |4351.70|77|0|
+| **Active median** |**4351.70**|**165**|**0**|
+
+New gate: **FAIL**. CLS0 in all three, but active LCP+8.60%, TBT+25.95% vs
+the matched control. Sound absent from bootup-time's reported expensive-script
+items; this is not a claim of zero total sound-script work. Despite substantially
+lower overall TBT, do not activate on the superseded5% baseline gate. Setting
+RVION_ENTRY_ENABLED defaults0; off/0 keeps payload absent. Preview1 is local only.
+
+### Tests, files, rollback and continuation
+
+`.venv/bin/python manage.py test core.test_entry core.tests.CorePagesTests core.test_ui_system core.tests_seo_contract --verbosity 1`:73/73 passed.
+`node core/tests_js/{entry_scene,entry_policy,navigation_loader,welcome_sound}.test.cjs`
+(each executed separately):all passed. Scene projection test is structural;
+native geometry/zero CLS evidence is separate, not a mocked numerical proof.
+`node --check` for entry/site-shell/welcome-sound:pass; `manage.py check`:0 issues;
+`makemigrations --check --dry-run`:No changes detected; `git diff --check`:clean.
+32 final captures FA/EN×light/dark×390/1440×.8/3.6/7.5/12.5:zero horizontal
+overflow/invalid native matrices. Representative visuals inspected, not claimed
+all-pixel comparison. Normal entry/reload, pause/resume/resize, Escape and reduced
+motion verified; no console errors. Focused sound tests establish API/waveform,
+not subjective hearing. No full isolated suite while release gate BLOCKED.
+
+Files currently modified: core/static/core/{css/entry.css,js/entry.js,
+js/site-shell.js,js/welcome-sound.js}; core/templatetags/entry_ui.py;
+arvion/settings/base.py (default-off switch); core/test_entry.py;
+core/tests_js/{entry_scene,entry_policy,welcome_sound}.test.cjs;
+core/templates/core/{base,flow_base}.html; management_portal/v2/base.html;
+contracts/contract_base.html; crm_orders/{specialist_wizard,specialist_done}.html
+(shared version strings only); this report and CURRENT_STATE.md.
+Protected gallery files/stash/bundle/customer records untouched. All changes
+uncommitted; no push, deployment, production operation or permanent migration.
+Read-only SSH started before the owner's new instruction was terminated before
+completion. No later SSH attempted. No cron/background monitoring added.
+Rollback: keep switchoff and restore only reviewed scoped hunks when authorized;
+no broad reset or database rollback. Next permitted step is remaining LCP/TBT
+diagnosis/optimization, then a fresh matched3+3 gate, not public activation now.

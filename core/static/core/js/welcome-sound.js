@@ -8,8 +8,10 @@
   const write = (storage, key, value) => { try { storage.setItem(key, value); } catch (error) {} };
   const enabled = (kind) => read(localStorage, KEYS[kind]) !== "off";
   let context;
+  let interacted = false;
 
   const audioContext = () => {
+    if (!interacted) return undefined;
     if (!context) {
       const Context = window.AudioContext || window.webkitAudioContext;
       if (Context) context = new Context();
@@ -91,15 +93,19 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready, { once: true });
   else ready();
 
-  // Try immediately, before images and secondary scripts finish. If autoplay
-  // is blocked, only the first interaction in the next four seconds may play
-  // it; an unrelated late click must never trigger a surprise welcome sound.
-  playWelcome().catch(() => {});
-  const retry = () => playWelcome().catch(() => {});
-  window.addEventListener("pointerdown", retry, { once: true, passive: true });
-  window.addEventListener("keydown", retry, { once: true });
-  window.setTimeout(() => {
-    window.removeEventListener("pointerdown", retry);
-    window.removeEventListener("keydown", retry);
-  }, 4000);
+  // Do not construct an AudioContext during page load. Unlock on the first
+  // interaction; retain the existing four-second welcome window and preferences.
+  // Later interactions unlock notification/toggle playback, not a surprise welcome.
+  let welcomePending = true;
+  const interact = () => {
+    interacted = true;
+    window.removeEventListener("pointerdown", interact);
+    window.removeEventListener("keydown", interact);
+    window.removeEventListener("click", interact, true);
+    if (welcomePending) playWelcome().catch(() => {});
+  };
+  window.addEventListener("pointerdown", interact, { once: true, passive: true });
+  window.addEventListener("keydown", interact, { once: true });
+  window.addEventListener("click", interact, { once: true, capture: true });
+  window.setTimeout(() => { welcomePending = false; }, 4000);
 })();
