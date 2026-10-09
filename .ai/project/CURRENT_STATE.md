@@ -1,5 +1,20 @@
 # Rvion current state
 
+## Prototype retirement — VERIFIED (2026-10-09)
+
+- Owner rejected the local demos and requested removal + no further design work.
+- Reverted only44c6775/78032c1/4992c94 via9179164/bc1f9f4/913af80. Scoped source/docs
+  now match pre-prototype dc5db5a; no reset or unrelated user edits touched.
+- Closed only demo tabs3/4/5 and stopped validated loopback server PIDs
+  24628/25974/26868 (8160/8161/8162); follow-up lsof has no listeners.
+  prototypes/scroll-studio no longer exists; Git history preserves recoverability.
+- Read-only live /fa/blog/ HTTP200 lists exactly4 article links, no pagination:
+  corporate-website-cost-1405, custom-website-vs-template, custom-or-ready-made-crm,
+  english-teacher-assessment. All8 publication is NOT VERIFIED. No publication,
+  release or data write authorized/performed in this turn.
+- No tests needed for exact scoped revert; git diff dc5db5a HEAD was empty before
+  this checkpoint. Next: WAIT for owner's new design instructions.
+
 ## Homepage clarity — VERIFIED local; owner review NOT_STARTED (2026-10-09)
 
 - Baseline 5559e45; implementation commit d2dce41 (16 scoped files), local only.
