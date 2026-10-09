@@ -1,5 +1,6 @@
 """Server-localized, inert payload; no overlay is rendered without JavaScript."""
 from django import template
+from django.conf import settings
 from django.templatetags.static import static
 from django.template.loader import render_to_string
 from django.utils.html import json_script
@@ -12,6 +13,11 @@ register = template.Library()
 def entry_payload(context):
     request = context.get("request")
     if not request or request.user.is_staff or request.path not in ("/fa/", "/en/"):
+        return ""
+    # Performance gate is currently BLOCKED. No automatic rollout of this preview.
+    local_preview = (settings.DEBUG and "entry_seek" in request.GET
+                     and request.get_host().split(":")[0] in ("localhost", "127.0.0.1"))
+    if not getattr(settings, "RVION_ENTRY_ENABLED", False) and not local_preview:
         return ""
     lang = request.path.strip("/")
     with override(lang):

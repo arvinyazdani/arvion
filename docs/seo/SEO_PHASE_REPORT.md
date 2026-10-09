@@ -2913,6 +2913,12 @@ not newly invented pages or a claim of current production availability.
    Before any eventual release: verify these public targets on its real data.
 # Entry animation — 2026-10-09 (local only)
 
+**Final status: BLOCKED, not release-approved.** Automatic homepage display
+is disabled by default; no production change. Implemented preview is available
+only with DEBUG on loopback and `?entry_seek=0` (press Resume to play), unless
+a future verified release explicitly enables RVION_ENTRY_ENABLED. Do not
+enable it now. Earlier per-checkpoint statements below are historical evidence.
+
 Scope: supplied entry-src.html, Piece 1 only. No push/deploy/SSH, models,
 migrations, analytics/cookie-policy or protected gallery/content changes.
 
@@ -2949,3 +2955,115 @@ migrations, analytics/cookie-policy or protected gallery/content changes.
    No body overflow mutation/scrollbar shift. Localhost-only entry_seek query
    pauses at a deterministic time for browser testing; ignored on production.
    Node syntax and deterministic scene contracts pass. No network/audio calls.
+   Commit eade774.
+5. Display/cooldown: PARTIAL overall, policy tests VERIFIED. Reload takes
+   precedence over same-origin referrer; back_forward always excluded;
+   reduced motion skips the intro entirely (uninterrupted access, no motion).
+   Fourth start in 90s stores a 5-minute cooldown even though no assets load.
+   Unavailable/corrupt storage cannot lock the homepage. Staff and non-home
+   routes never receive the payload. CSS/JS load only after window load; an
+   8-second asset timeout restores the regular page without an overlay.
+   Shared loader consumers' cache versions updated together: components v8,
+   site-shell v12; otherwise standalone shells could cache the obsolete loader
+   selector. Their existing assertions now match this same shared version.
+
+### Exact source / differences / preserved scope
+
+Readable reference SHA256:
+`ce6d1fb230fc0dca162ac85f41034804d26527132518804378edb98153a97eac`.
+Copied only the entry scene/styles/timeline, not mock homepage, replay,
+pathIntro, options, tutorial or database-driven content. Django gettext owns
+the new copy; no client translation dictionary. Scoped IDs/classes prevent
+site collisions; palette respects explicit rvion-theme or system preference.
+Source constants and 11.1s gateway timing retained. Required differences are
+listed above; animated blur is omitted, so background panels are sharper than
+the prototype. This is NOT claimed as a visually identical/owner-approved
+delivery. Source nested `.path span` styling also reduces CTA contrast and
+title hierarchy; preserved rather than silently redesigned, still needs review.
+The new intro invokes no sound. Existing welcome sound is an independent
+startup module, not a connection to the removed overlay; its module, button
+and notification sound remain byte-identical (existing sound can still run).
+
+### Tests and browser evidence
+
+- `.venv/bin/python manage.py test core.test_entry core.tests.CorePagesTests core.test_ui_system core.tests_seo_contract --verbosity 1`: **73 passed**.
+- `node core/tests_js/entry_scene.test.cjs`: passed timing, deterministic seek,
+  finite narrow-screen camera, no network/audio, no filter/width animation.
+- `node core/tests_js/entry_policy.test.cjs`: passed admission, fourth-start
+  persistence, cooldown expiry, malformed/unavailable storage, two-asset loader.
+- `node core/tests_js/navigation_loader.test.cjs`: passed delayed reveal,
+  background lock, pageshow/failsafe recovery, reduced motion and exclusions.
+- `node --check core/static/core/js/{entry,site-shell}.js`: both passed separately.
+- `manage.py check`: zero issues; `makemigrations --check --dry-run`: no changes;
+  `git diff --check`: clean. No migration executed.
+- Raw homepage metadata comparison against isolated b390e02, using identical
+  copied local data: FA and EN title/description/JSON-LD/canonical/hreflang
+  unchanged; normal homepage has neither overlay DOM nor entry JSON payload.
+- 32 screenshot captures at .8/3.6/7.5/12.5s: fa/en × light/dark ×390×844 or
+  1440×900. DOM: scrollWidth equals viewport in every capture, correct dir,
+  controls >=44px, no Persian characters in EN. Representative views inspected
+  (not claimed as full visual acceptance of every capture).
+- Browser: six-step gateway focus cycle stays inside dialog, Escape returns
+  the accessible homepage, pause/resume aria-pressed toggles; no console errors
+  or warnings observed. Capture files: `/tmp/rvion-entry-20261009/screenshots/`.
+- Full isolated committed-candidate suite **NOT_RUN**: stopped at explicit
+  performance gate. It must run once after the blocker is fixed, not now.
+- No push/CI/deploy/SSH, permanent migrations, protected gallery/editor edits,
+  nginx/traffic changes, extra HTTP API/analytics or external assets.
+
+### Size / performance gate — failed evidence retained
+
+At final preview: entry.css 16,599 bytes raw / 4,419 gzip; entry.js 11,604 raw /
+4,782 gzip (9,201 gzip total, comfortably below 30KB; slight final CSS byte
+count can change with checkpoint comments). Font data was not copied.
+
+Command used for each measurement: `CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' PATH=/opt/homebrew/bin:$PATH npx --yes lighthouse http://127.0.0.1:PORT/fa/ --quiet --chrome-flags='--headless --no-sandbox' --only-categories=performance --output=json --output-path=/tmp/rvion-entry-20261009/NAME.json`.
+Baseline first run on 8165 before edits, runs2/3 on isolated b390e02 at8166;
+active after runs on8165. Same local database copy, Lighthouse mobile defaults.
+
+| Capture | LCP ms | TBT ms | CLS |
+|---|---:|---:|---:|
+| before-1 | 4569.46 | 1623.31 | 0 |
+| before-2 | 4121.43 | 1335.22 | 0 |
+| before-3 | 4214.07 | 1277.99 | 0 |
+| baseline median | 4214.07 | 1335.22 | 0 |
+| after-1 active intro | 4673.05 | 1503.82 | 0.3531 |
+| after-2 containment experiment | 4202.81 | 1275.18 | 0.7665 |
+
+After-1 exceeded current before median by10.89% LCP/12.63% TBT. The second
+attempt improved timings but still failed CLS; its containment change was
+removed, not accepted. These are two different candidate revisions, NOT a
+three-run after median. Per explicit stop condition, no third after or final
+approval fabricated. Historical 4500/600/0 baseline was not reproduced: current
+legacy welcome-sound startup dominates TBT (after-1 long task1357ms); sound
+behavior remains out of scope. Main 3D room movement is attributed in the
+layout-shift trace; ordinary page geometry/scrollWidth staying stable does NOT
+satisfy the CLS gate. Normal automatic activation was disabled as containment.
+
+### Server protection design ONLY — P1-3/P4-1 still DEFERRED
+
+Propose an nginx `limit_req_zone` keyed by trusted real client address, applied
+only to public HTML (e.g.2req/s plus a measured short burst), NOT static assets,
+health, payment callbacks or authenticated workflows. First audit Arvan trusted
+proxy/real-IP handling; incorrect trust can throttle all customers together or
+allow spoofing. Trial logging/dry monitoring before enforcement, then rollback
+by removing limit_req and reloading the prior validated nginx configuration.
+
+Optional short anonymous-home cache (e.g.10s) requires a separate owner decision:
+bypass any authenticated/session/CSRF/private response, never cache Set-Cookie
+or customer-specific HTML, explicit locale/cache invalidation, purge on change.
+Current middleware writes anonymous sessions/traffic, so safe caching requires
+policy/architecture work beyond this intro. Do NOT implement it or change
+analytics/cookies now. Rollback: remove home-cache rule and purge cache.
+
+### Continuation / rollback
+
+Resolve source-compatible compositor/CLS behavior and nested-span contrast
+before automatic activation. Then complete three AFTER measurements, reference
+visual comparison and full isolated suite once; owner visual acceptance remains
+separate. Local preview is not deployment evidence. Commit list begins
+501444b,761a1a5,cab3515,eade774; final guarded checkpoint is the commit titled
+`feat: add entry admission guard with performance-blocked local preview`.
+Rollback only these scoped commits in reverse, preserving all unrelated work;
+do not reset the repository or apply the preserved stash blindly. No database
+rollback required. Protected stash/bundle remain intact.

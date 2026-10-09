@@ -140,6 +140,7 @@ function start(payload) {
  const root=holder.content.firstElementChild;
  if(!root||root.id!=='rvion-entry'||document.getElementById(root.id))return false;
  root.dir=document.documentElement.dir;
+ root.dataset.entryTheme=document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
  const previous=document.activeElement;
  const background=[...document.body.children].filter(node=>!['SCRIPT','STYLE','LINK'].includes(node.tagName));
  const saved=background.map(node=>({node,inert:node.inert,hidden:node.getAttribute('aria-hidden')}));

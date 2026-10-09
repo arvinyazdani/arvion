@@ -3,9 +3,10 @@ from types import SimpleNamespace
 
 from django.contrib.auth.models import AnonymousUser
 from django.template import Context, Template
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, override_settings
 
 
+@override_settings(RVION_ENTRY_ENABLED=True)
 class EntryPayloadTests(SimpleTestCase):
     def payload(self, lang="fa", staff=False, path=None):
         request = RequestFactory().get(path or f"/{lang}/")
@@ -40,3 +41,14 @@ class EntryPayloadTests(SimpleTestCase):
     def test_staff_and_non_home_have_no_payload(self):
         self.assertEqual(self.payload(staff=True), ("", None))
         self.assertEqual(self.payload(path="/fa/start/"), ("", None))
+
+    @override_settings(RVION_ENTRY_ENABLED=False)
+    def test_failed_performance_gate_keeps_normal_home_disabled(self):
+        self.assertEqual(self.payload(), ("", None))
+
+    @override_settings(RVION_ENTRY_ENABLED=False, DEBUG=False)
+    def test_preview_query_cannot_enable_production(self):
+        request = RequestFactory().get("/fa/?entry_seek=0.8", HTTP_HOST="localhost")
+        request.user = AnonymousUser()
+        self.assertEqual(Template("{% load entry_ui %}{% entry_payload %}").render(
+            Context({"request": request, "lang": "fa"})), "")

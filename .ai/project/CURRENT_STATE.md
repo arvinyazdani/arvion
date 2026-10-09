@@ -1,5 +1,13 @@
 # Rvion current state
 
+## Current task — entry animation: BLOCKED (2026-10-09)
+
+Only Piece 1. Implementation and targeted tests are saved locally; automatic
+display is disabled by default. Read the final "Active checkpoint — entry
+animation" below and docs/seo/SEO_PHASE_REPORT.md. Performance gate failed;
+do not enable RVION_ENTRY_ENABLED, push or deploy this intro. The preceding
+order-release section is historical context, not authorization for this task.
+
 ## Owner-authorized release and workspace cleanup — PARTIAL (2026-10-09)
 
 - Release candidate:6500491; six order-entry implementation commits already saved.
@@ -5151,6 +5159,25 @@ skip/Escape, pause/resume, focus trap/restore, inert/aria-hidden preservation,
 resize/visibility/pagehide recovery. No body scroll lock (avoids scrollbar CLS).
 Localhost-only entry_seek query supports deterministic browser snapshots.
 Node scene/syntax contracts pass; runtime browser verification PARTIAL.
-Admission guard and final browser/performance gates NOT_STARTED.
+Controls checkpoint eade774. Admission guard implemented and Node-verified:
+direct/external/reload, internal/back_forward/reduced exclusions; fourth start
+in 90s sets 5-minute cooldown, including real loader persistence. Assets load
+after load only; failure has an 8s deadline with no background lock.
+Five entry payload tests plus CorePages/UI/SEO: 73 tests passed. Three Node
+contract scripts pass (scene, admission, functional navigation loader).
+32 screenshots captured across fa/en × light/dark × 390/1440 × four beats;
+DOM checks show no horizontal overflow, >=44px controls, no Persian in EN.
+Representative screenshots inspected; six-step focus cycle, Escape and
+pause/resume exercised in browser; no observed console errors/warnings.
+BLOCKED: before medians LCP 4214.07ms/TBT 1335.22ms/CLS 0 (three runs);
+first active intro 4673.05/1503.82/0.3531. Layout-shift attribution points to
+the animated 3D room. A containment experiment also failed (CLS 0.7665) and
+was removed. No third after-run or isolated full suite: stopped at explicit
+performance condition, not a release-ready candidate. Normal homes now have
+no payload; DEBUG + loopback + entry_seek is the only default preview path.
+Next safe action: resolve the 3D-motion performance/CLS gate while preserving
+the reference, then repeat final three-run performance and isolated full suite.
+Prototype nested-span styles also lower CTA text contrast; owner visual
+acceptance has NOT occurred. This is a self-review, not independent review.
 Protected stash and external preservation bundle remain untouched.
-Continue with the supplied reference, not a new design; full suite only at end.
+No push, deploy, SSH, model/migration, sound-file, protected-file or policy change.

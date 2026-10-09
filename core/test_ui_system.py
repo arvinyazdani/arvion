@@ -134,7 +134,7 @@ class UISystemFoundationTests(SimpleTestCase):
                 source = shell.read_text(encoding="utf-8")
                 self.assertIn('{% include "core/_pull_to_refresh.html" %}', source)
                 self.assertIn("core/js/pull-to-refresh.js' %}?v=1", source)
-                version = 8 if shell == shells[0] else (7 if shell == shells[1] else 5)
+                version = 8
                 self.assertIn(f"core/css/components.css' %}}?v={version}", source)
 
     def test_first_visit_welcome_is_removed_without_removing_navigation_loader(self):

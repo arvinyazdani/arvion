@@ -1,4 +1,17 @@
-(() => {
+// Timed UX guard only. No identity, analytics, or security authority.
+function rvionEntryAdmission({path, type, referrer, origin, reduced, now, state}) {
+  if (!['/fa/', '/en/'].includes(path) || type === 'back_forward' || reduced) return {show: false};
+  if (type !== 'reload' && referrer) {
+    try { if (new URL(referrer).origin === origin) return {show: false}; } catch (error) { return {show: false}; }
+  }
+  const blockedUntil = Number.isFinite(state?.blockedUntil) ? state.blockedUntil : 0;
+  if (blockedUntil > now && blockedUntil <= now + 300000) return {show: false};
+  const starts = Array.isArray(state?.starts) ? state.starts.filter(t => Number.isFinite(t) && t <= now && t >= now - 90000).slice(-3) : [];
+  if (starts.length >= 3) return {show: false, state: {starts: [], blockedUntil: now + 300000}};
+  return {show: true, state: {starts: [...starts, now], blockedUntil: 0}};
+}
+if (typeof module !== 'undefined') module.exports = {rvionEntryAdmission};
+if (typeof document !== 'undefined') (() => {
   const menuButton = document.querySelector(".menu-button");
   const nav = document.querySelector(".site-nav");
   const scrim = document.querySelector(".nav-scrim");
@@ -79,12 +92,52 @@
   const NAVIGATION_REVEAL_DELAY_MS = 160;
   const NAVIGATION_FAILSAFE_MS = 8000;
   const prefersReducedMotion = () => Boolean(reducedMotion?.matches);
-  const setMainBusy = busy => main?.setAttribute("aria-busy", busy ? "true" : "false");
-  const setNavigationLocked = locked => navigationBackground.forEach(item => item.toggleAttribute("inert", locked));
-  const setWelcomeVisible = visible => welcome?.setAttribute("aria-hidden", visible ? "false" : "true");
   let navigationRevealTimer = null;
   let navigationFailsafe = null;
   let navigationScheduled = false;
+  const entryPayload = document.getElementById('rvion-entry-payload');
+  if (entryPayload) {
+    const bootEntry = () => {
+      if (navigationScheduled) return;
+      const guardKey = 'rvion-entry-starts-v1';
+      let state = null;
+      try { state = JSON.parse(localStorage.getItem(guardKey)); } catch (error) {}
+      const result = rvionEntryAdmission({path: location.pathname,
+        type: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
+        referrer: document.referrer, origin: location.origin,
+        reduced: prefersReducedMotion(), now: Date.now(), state});
+      const localSeek = ['localhost','127.0.0.1','[::1]'].includes(location.hostname)
+        && new URLSearchParams(location.search).has('entry_seek') && !prefersReducedMotion();
+      if (!result.show && !localSeek) {
+        if (result.state) {try {localStorage.setItem(guardKey, JSON.stringify(result.state));} catch (error) {}}
+        return;
+      }
+      let payload;
+      try { payload = JSON.parse(entryPayload.textContent); } catch (error) { return; }
+      if (!payload.css?.startsWith('/static/core/css/entry.css?') || !payload.js?.startsWith('/static/core/js/entry.js?')) return;
+      const sheet = document.createElement('link');
+      sheet.rel = 'stylesheet';sheet.href = payload.css;
+      const script = document.createElement('script');script.src = payload.js;
+      let canceled = false;
+      const timer = window.setTimeout(() => {canceled = true;sheet.remove();script.remove();}, 8000);
+      const fail = () => {canceled = true;window.clearTimeout(timer);sheet.remove();script.remove();};
+      sheet.onerror = fail;script.onerror = fail;
+      sheet.onload = () => {if (!canceled) document.head.append(script);};
+      script.onload = () => {
+        window.clearTimeout(timer);
+        if (canceled || navigationScheduled || prefersReducedMotion()) return;
+        if (window.RvionEntry?.start(payload) && result.state && !localSeek) {
+          try { localStorage.setItem(guardKey, JSON.stringify(result.state)); } catch (error) {}
+        }
+      };
+      document.head.append(sheet);
+    };
+    if (document.readyState === 'complete') bootEntry();
+    else window.addEventListener('load', bootEntry, {once: true});
+  }
+  const setMainBusy = busy => main?.setAttribute("aria-busy", busy ? "true" : "false");
+  const setNavigationLocked = locked => navigationBackground.forEach(item => item.toggleAttribute("inert", locked));
+  const setWelcomeVisible = visible => welcome?.setAttribute("aria-hidden", visible ? "false" : "true");
   const hideNavigationLoader = () => {
     if (navigationRevealTimer) window.clearTimeout(navigationRevealTimer);
     if (navigationFailsafe) window.clearTimeout(navigationFailsafe);

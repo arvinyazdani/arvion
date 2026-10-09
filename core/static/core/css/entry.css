@@ -107,32 +107,32 @@
 #rvion-entry .path span{display:block;color:#aab6cf;font-size:14px;margin:2px 0 14px}
 #rvion-entry .path em{font-style:normal;display:inline-block;padding:6px 16px;border-radius:10px;background:var(--orange);color:#1a0d05;font-weight:700;font-size:14px}
 #rvion-entry .enter-link{color:#b7c1d6;text-decoration:underline;font-size:14px;min-height:44px;padding:0 12px}
-html[data-theme=light] #rvion-entry{background:#e6edf7;color:#121a2b}
-html[data-theme=light] #rvion-entry .wall{background:radial-gradient(900px 600px at 50% 40%,rgba(255,255,255,.95),transparent 70%),linear-gradient(#dbe6f4,#c3d2e8)}
-html[data-theme=light] #rvion-entry .wall::after{background:linear-gradient(160deg,rgba(255,255,255,.98),rgba(190,215,250,.55));box-shadow:0 0 180px 50px rgba(255,255,255,.8)}
-html[data-theme=light] #rvion-entry .desk{background:radial-gradient(520px 300px at 50% 47%,rgba(255,255,255,.6),transparent 70%),linear-gradient(#a99577,#cdb895 55%,#e3d0ad)}
-html[data-theme=light] #rvion-entry .desk::after{background:repeating-linear-gradient(90deg,transparent 0 160px,rgba(0,0,0,.05) 160px 161px)}
-html[data-theme=light] #rvion-entry .cone{display:none}
-html[data-theme=light] #rvion-entry .screen{box-shadow:0 0 70px 6px rgba(70,110,200,.25)}
-html[data-theme=light] #rvion-entry .vig{background:radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(40,60,100,.28))}
-html[data-theme=light] #rvion-entry .grain{opacity:.04}
-html[data-theme=light] #rvion-entry [data-entry-id="fx"]{mix-blend-mode:normal}
-html[data-theme=light] #rvion-entry .panel{background:linear-gradient(160deg,#ffffff,#eef2fa);border-color:rgba(15,25,50,.14);color:#121a2b;box-shadow:0 0 60px rgba(255,107,53,.1),0 30px 70px rgba(30,50,90,.25)}
-html[data-theme=light] #rvion-entry .panel p{color:#4a566e}
-html[data-theme=light] #rvion-entry .panel .n{color:rgba(255,107,53,.2)}
-html[data-theme=light] #rvion-entry .chip{border-color:rgba(15,25,50,.22)}
-html[data-theme=light] #rvion-entry .chip.on{border-color:var(--orange)}
-html[data-theme=light] #rvion-entry .live{background:#fff;border-color:rgba(15,25,50,.14);color:#121a2b}
-html[data-theme=light] #rvion-entry .live .u{background:#e8edf6;color:#44516b}
-html[data-theme=light] #rvion-entry .cap{text-shadow:0 2px 18px rgba(255,255,255,.95)}
-html[data-theme=light] #rvion-entry .cap small{color:#44516b}
-html[data-theme=light] #rvion-entry .ctl button{background:rgba(255,255,255,.78);border-color:rgba(15,25,50,.2);color:#121a2b}
-html[data-theme=light] #rvion-entry .ctl button:hover{background:#fff}
-html[data-theme=light] #rvion-entry .final{background:radial-gradient(ellipse at 50% 50%,rgba(230,237,247,.2),rgba(230,237,247,.93) 70%)}
-html[data-theme=light] #rvion-entry .final p,html[data-theme=light] #rvion-entry .enter-link{color:#44516b}
-html[data-theme=light] #rvion-entry .path{background:linear-gradient(160deg,#fff,#eef2fa);border-color:rgba(15,25,50,.14)}
-html[data-theme=light] #rvion-entry .path span{color:#4a566e}
-html[data-theme=light] #rvion-entry .path svg{stroke:#e0701c}
+#rvion-entry[data-entry-theme="light"]{background:#e6edf7;color:#121a2b}
+#rvion-entry[data-entry-theme="light"] .wall{background:radial-gradient(900px 600px at 50% 40%,rgba(255,255,255,.95),transparent 70%),linear-gradient(#dbe6f4,#c3d2e8)}
+#rvion-entry[data-entry-theme="light"] .wall::after{background:linear-gradient(160deg,rgba(255,255,255,.98),rgba(190,215,250,.55));box-shadow:0 0 180px 50px rgba(255,255,255,.8)}
+#rvion-entry[data-entry-theme="light"] .desk{background:radial-gradient(520px 300px at 50% 47%,rgba(255,255,255,.6),transparent 70%),linear-gradient(#a99577,#cdb895 55%,#e3d0ad)}
+#rvion-entry[data-entry-theme="light"] .desk::after{background:repeating-linear-gradient(90deg,transparent 0 160px,rgba(0,0,0,.05) 160px 161px)}
+#rvion-entry[data-entry-theme="light"] .cone{display:none}
+#rvion-entry[data-entry-theme="light"] .screen{box-shadow:0 0 70px 6px rgba(70,110,200,.25)}
+#rvion-entry[data-entry-theme="light"] .vig{background:radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(40,60,100,.28))}
+#rvion-entry[data-entry-theme="light"] .grain{opacity:.04}
+#rvion-entry[data-entry-theme="light"] [data-entry-id="fx"]{mix-blend-mode:normal}
+#rvion-entry[data-entry-theme="light"] .panel{background:linear-gradient(160deg,#ffffff,#eef2fa);border-color:rgba(15,25,50,.14);color:#121a2b;box-shadow:0 0 60px rgba(255,107,53,.1),0 30px 70px rgba(30,50,90,.25)}
+#rvion-entry[data-entry-theme="light"] .panel p{color:#4a566e}
+#rvion-entry[data-entry-theme="light"] .panel .n{color:rgba(255,107,53,.2)}
+#rvion-entry[data-entry-theme="light"] .chip{border-color:rgba(15,25,50,.22)}
+#rvion-entry[data-entry-theme="light"] .chip.on{border-color:var(--orange)}
+#rvion-entry[data-entry-theme="light"] .live{background:#fff;border-color:rgba(15,25,50,.14);color:#121a2b}
+#rvion-entry[data-entry-theme="light"] .live .u{background:#e8edf6;color:#44516b}
+#rvion-entry[data-entry-theme="light"] .cap{text-shadow:0 2px 18px rgba(255,255,255,.95)}
+#rvion-entry[data-entry-theme="light"] .cap small{color:#44516b}
+#rvion-entry[data-entry-theme="light"] .ctl button{background:rgba(255,255,255,.78);border-color:rgba(15,25,50,.2);color:#121a2b}
+#rvion-entry[data-entry-theme="light"] .ctl button:hover{background:#fff}
+#rvion-entry[data-entry-theme="light"] .final{background:radial-gradient(ellipse at 50% 50%,rgba(230,237,247,.2),rgba(230,237,247,.93) 70%)}
+#rvion-entry[data-entry-theme="light"] .final p,#rvion-entry[data-entry-theme="light"] .enter-link{color:#44516b}
+#rvion-entry[data-entry-theme="light"] .path{background:linear-gradient(160deg,#fff,#eef2fa);border-color:rgba(15,25,50,.14)}
+#rvion-entry[data-entry-theme="light"] .path span{color:#4a566e}
+#rvion-entry[data-entry-theme="light"] .path svg{stroke:#e0701c}
 
 #rvion-entry{z-index:2147483000}#rvion-entry [hidden]{display:none!important}#rvion-entry .path{text-decoration:none;color:inherit;text-align:start;min-height:44px}#rvion-entry[dir="ltr"] .paths{text-align:left}
 #rvion-entry .prog i{width:100%;transform-origin:left;transform:scaleX(0)}

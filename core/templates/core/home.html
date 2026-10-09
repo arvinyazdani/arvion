@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load order_ui static %}
+{% load order_ui static entry_ui %}
 {% block font_preload %}{% if lang == 'fa' %}
 <link rel="preload" href="{% static 'core/fonts/Vazirmatn-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{% static 'core/fonts/Vazirmatn-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
@@ -67,3 +67,4 @@
 <div class="home-device shell"><button class="button secondary" type="button" data-install-guide>{% if lang == 'fa' %}راهنمای افزودن آرویون به دستگاه{% else %}Add Rvion to your device{% endif %}</button></div>
 <section class="home-closing shell" aria-labelledby="closing-title"><h2 id="closing-title">{% if lang == 'fa' %}موضوع پروژه‌تان را انتخاب کنید{% else %}Start a free consultation{% endif %}</h2><div><a class="button home-primary" href="{% url 'project_start' %}">{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}<span aria-hidden="true">↗</span></a>{% if company.phone %}<a class="button secondary" href="tel:{{ company.phone|order_phone }}" dir="ltr">{{ company.phone }}</a>{% endif %}</div></section>
 {% endblock %}
+{% block extra_scripts %}{% entry_payload %}{% endblock %}
