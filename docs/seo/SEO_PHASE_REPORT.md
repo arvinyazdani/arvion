@@ -1,5 +1,358 @@
 # SEO phase report — Rvion
 
+## Editorial reader and coherent cover candidates — VERIFIED local / release BLOCKED (2026-10-09)
+
+### Authority, scope and provenance
+
+The owner's direct request authorizes a deployment retry after local tests/commits.
+It supersedes the attachment's general no-deploy wording, but not its explicit
+cover-approval boundary. **No v2 production hero_image assignment is authorized yet.**
+No migrations, article wording/front matter, publication flags, author metadata,
+analytics/session/cookie/cache policy, or protected gallery/editorial-desk changes.
+P1-3/P4-1 remain DEFERRED. Single primary agent: technical self-review, not
+independent review or owner visual acceptance.
+
+Starting HEAD fcb4d0b; live-equivalent baseline 66a7cbf; local previous design
+541c9ca. Reproducible isolated candidates were archived from these commits in
+/tmp/rvion-reader.xBtbsP/{live,before,after}. The candidate contains only the owned
+blog changes and home CSS version bump; unrelated dirty admin/gallery files are
+excluded. Browser fixtures contain the four real source drafts plus an explicitly
+synthetic bilingual code example (not a real translation or new published article).
+Only temporary test databases were created/destroyed; no permanent SQLite or
+production data was written.
+
+### Task 1 — VERIFIED locally
+
+Observed before: the live-equivalent article has an oversized title/dead space,
+a repeated title in the summary, narrow/light stock cover, tag-only sidebar and
+weak reading hierarchy. 541c9ca improves navigation but retains a long phone TOC,
+repeated intro and large title; the two columns constrain the reading measure.
+
+Implemented: content-height header with existing tag/category, exact-prefix-only
+dek deduplication, real publication date and estimated reading time; 700px desktop
+column, 18px/1.95 prose, 17px separate phone layout. Four actual article H1s
+rendered in two desktop lines. CSS-only first-paragraph lead, distinct H2/H3,
+real lists, tinted quotation callout, underlined links, LTR literal code and bdi
+for Latin phrases. A parser processes the already-bleached HTML to add stable,
+Persian-safe, duplicate-safe heading IDs without restoring unsafe attributes.
+External links gain noopener, never a new target.
+
+Contents: sticky desktop rail, collapsed native phone disclosure, current-section
+highlight and reading progress. Cover geometry 1200x630/eager/high priority and a
+neutral frame. Same-tag/published/same-language related posts, previous/next for
+3+ available posts, contextual existing service link and copy-link with a
+selectable-link recovery path. The corporate-cost CTA was corrected during
+self-review to prefer its existing corporate-design link rather than the first
+incidental ecommerce link. Copy stays disabled until its enhancement initializes.
+The list uses one featured item plus a grid without duplicating the first item;
+search/tag/pagination and intentional empty/single/no-cover states remain.
+
+Files: blog/presentation.py; blog/views/{post_detail,post_list}.py;
+blog/templates/blog/{detail,list}.html and includes/card.html;
+blog/templatetags/blog_extras.py; blog/static/blog/{css/journal.css,js/reader.js};
+blog/test_journal.py; core/templates/core/home.html (CSS version only); DESIGN.md.
+The v2-only alt helper is blog/covers.py; v1/unknown images retain their existing
+title-derived fallback, so new-image descriptions never misdescribe live v1 art.
+
+Browser evidence: all five route cases at 390/768/1440 in light/dark (30 after
+screens, 60 before), no document horizontal overflow. FA-only real article;
+FA/EN chrome verified with the temporary code fixture and localized list, not by
+inventing English versions of Persian-only articles. All four real article
+titles/700px width checked at 1440. Phone TOC starts closed; code remains LTR/pre
+and literal template syntax; copy succeeds. Injected clipboard rejection (QA
+stub, not a real device permission test) exposes/focuses the selectable link and
+reenables the button. Reduced-motion emulation gives auto scroll, no image
+transition; reset afterward. Keyboard TOC focus has a 3px outline. Search renders
+one real article and opens its matching service route; zero-result state offers
+a clear recovery. No real iPhone or screen-reader certification is claimed.
+
+Measured AA ratios from actual computed colors:
+dark body 16.05, links 9.04, callout 12.44;
+light body 16.60, links 6.01, callout 16.84 (all >=4.5).
+Lighthouse color-contrast audit passes in all three final light-theme runs;
+this is not a claim that every global shell accessibility issue is solved.
+
+### Local Lighthouse — three valid mobile runs, NOT production
+
+Chrome 154.0.8037.98, Lighthouse 13.5.0, default simulated Moto G Power.
+Same real article/source cover on the isolated previous and final candidates.
+The final benchmark ran after the test suite finished (no concurrent test load).
+
+| Candidate | LCP median ms | TBT median ms | CLS median |
+|---|---:|---:|---:|
+| 541c9ca | 4516.35 | 732 | 0.10159 |
+| final local reader | 4517.40 | 435 | 0 |
+
+Final individual runs: LCP 4365.90/4517.40/4517.77 ms;
+TBT 658/435/422 ms; CLS 0/0/0. LCP is effectively unchanged and remains
+above the good threshold; TBT is lower in this sample but still not good.
+No blanket speed or SEO ranking guarantee. Preloading the three existing
+Vazirmatn font weights removed the observed font-related shift without touching
+cache/session policy. v2 image performance is NOT included (covers are not swapped).
+
+Artifacts: before-lh-1.json, before-lh-2-retry.json, before-lh-3.json;
+final-lh-2.json, final-lh-3.json, final-lh-4.json in the same /tmp folder.
+Excluded but retained: before-lh-2.json (NO_NAVSTART); initial after-lh-* runs
+without preloads; after-preload-lh-* intermediate runs; final-lh-1.json overlapped
+the full test suite and is not used in the final median.
+
+Command (repeat 3 runs per candidate with distinct output files):
+```sh
+CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' PATH=/opt/homebrew/bin:$PATH npx --yes lighthouse http://127.0.0.1:8155/fa/blog/corporate-website-cost-1405/ --quiet --chrome-flags='--headless --no-sandbox' --only-categories=performance,accessibility --output=json --output-path=/tmp/rvion-reader.xBtbsP/final-lh-2.json
+```
+Previous candidate used port 8154 and --only-categories=performance.
+
+### Test evidence and review
+
+- Initial new parser expectations: 7 tests, 2 failures (ordinal anchor expectations,
+  and literal template text being bidi-wrapped). Both were corrected with real
+  parser/escaping fixes; neither unsafe-content nor literal-code assertions weakened.
+- Final targeted candidate:
+  `/Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py test blog core.tests_seo_contract --verbosity 1`
+  — 81/81 OK, 12.243s, including 15 journal tests and whole-sitemap four-post fixture.
+- Full suite run **once** at final code boundary:
+  `PYTHONPATH=/tmp/rvion-seo-qa.3snpId/test-deps /Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python manage.py test --parallel 4 --verbosity 1`
+  in isolated after checkout — 1098 tests, 1071 passed, 27 PostgreSQL-only skipped,
+  58.480s, OK. Log /tmp/rvion-reader.xBtbsP/full-suite.log.
+  Expected injected SMTP/provider failures are log evidence, not test failures.
+- check 0 issues; makemigrations --check --dry-run No changes detected;
+  git diff --check clean; node --check blog/static/blog/js/reader.js passed.
+- Premium strict scoped audit (brand-site, blog templates/static roots) 0 findings.
+  First static finding correctly exposed a copy action enabled before enhancement;
+  initialization now enables it only after binding. Existing projects-only manifest
+  was not weakened/edited; no claim of a clean unrelated gallery-wide audit.
+  Artifact blog-premium-audit.json and explicit scope blog-premium.json in /tmp.
+- Real PostgreSQL/full CI for this new patch not run; no transactional/model change.
+  Earlier 541c9ca quality run 37883116866 is now observed SUCCESS on both matrices
+  through GitHub's public API, **not evidence for this new unpushed patch**.
+- Self-review: source diff, sanitized text/links/code, four real titles, bilingual
+  presentation, media preservation and scoped dependencies. Unrelated dirty work
+  remains unchanged; protected-gallery diff SHA256
+  b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba.
+
+### Task 2 — VERIFIED prepared assets; owner visual approval pending
+
+22 built-in generated candidates inspected, two initial candidates per article;
+selected regenerated rounds for 01–04 (crop/frame), 06 (forbidden drawn hand)
+and 07 (flat four-stage rather than plant/isometric motif). Never more than two
+rounds per article. Selection, exact prompts and generated PNG provenance/date:
+[ARTICLE_COVER_PROMPTS_V2.md](ARTICLE_COVER_PROMPTS_V2.md).
+No stock assets, visible text/digits/logos/faces/hands, scoring guarantees,
+surveillance or medical cross in the selected set. Common dark/ivory/grey/orange
+palette, restrained linework, safe central composition. JPEG conversion/resampling
+only, no scripted creative editing; source images retained in generated_images.
+
+Final sRGB RGB JPEGs 1200x630 under blog/content_drafts/covers/, all with -v2 suffix.
+Existing v1 files and production image references are unchanged by this task.
+QA sheets /tmp/rvion-reader.xBtbsP/covers-v2-thumbnails.jpg (360px each, light
+surround) and covers-v2-crops.jpg (centered 4:3, dark surround), both visually
+inspected. Each individual thumbnail/crop is also retained as cover-N-360.jpg
+and cover-N-4x3.jpg. Labels in the QA sheets are outside the actual assets.
+
+| # | Filename stem (-v2.jpg) | No forbidden content | Series/colors | Clear idea | 360px | 4:3 | Both surrounds | Bytes <=150KB |
+|---|---|---|---|---|---|---|---|---:|
+| 1 | corporate-website-cost-1405 | YES | YES | YES | YES | YES | YES | 34804 |
+| 2 | custom-website-vs-template | YES | YES | YES | YES | YES | YES | 40268 |
+| 3 | custom-or-ready-made-crm | YES | YES | YES | YES | YES | YES | 30075 |
+| 4 | english-teacher-assessment | YES | YES | YES | YES | YES | YES | 34559 |
+| 5 | clinic-website-design-online-booking | YES | YES | YES | YES | YES | YES | 32706 |
+| 6 | academy-website-structure-webinar | YES | YES | YES | YES | YES | YES | 31557 |
+| 7 | enterprise-crm-development-cost-stages | YES | YES | YES | YES | YES | YES | 26793 |
+| 8 | django-interview-questions-with-short-answers | YES | YES | YES | YES | YES | YES | 27943 |
+
+Descriptive Persian/English one-sentence alt text is stored in blog/covers.py
+COVER_ALTS keyed by the generated filename's article slug; only known -v2.jpg
+assets use it. Tests cover all eight and prevent applying new descriptions to v1.
+No new model field, schema, article publication or importer behavior changed.
+
+### Task 3 — VERIFIED report; deployment retry BLOCKED
+
+A bounded read-only SSH retry with the existing rvion.pem, BatchMode,
+IdentitiesOnly, IPQoS=none, ConnectTimeout=12 and server-alive limits returned
+"Connection to 188.121.101.173 port 22 timed out". No hostname/source/status could
+be read remotely. No pull, backup, release, migration, restart or image swap ran.
+GitHub CLI itself has no active auth; prior CI status was read via the public API.
+No new push/CI initiated after the first genuine deployment blocker.
+Last verified production runtime remains 66a7cbf; current health is checked
+separately and is not a new-version deployment claim.
+
+Rollback: revert this bounded reader/assets change (and use the normal backed-up
+release path only after connectivity returns); no data/schema rollback needed.
+For eventual v2 cover swap, preserve old media files and the old hero_image mapping
+below so the image-reference-only write can be reversed independently.
+P1-3/P4-1 remain DEFERRED, byline is design-only, no migration authorized.
+
+### Exact v2 cover swap steps — PREPARED ONLY, do not run before visual approval
+
+1. Deploy the verified source through the existing ops/release.sh after CI;
+   do not import/publish articles 05–08 as part of the cover replacement.
+2. Take a PostgreSQL custom-format snapshot and verify its catalog:
+```sh
+RVION_COVER_STAMP=$(date -u +%Y%m%d-%H%M%S)
+sudo -u postgres pg_dump --format=custom --no-owner --no-privileges arvion | sudo tee /srv/arvion/backups/pre-cover-v2-$RVION_COVER_STAMP.dump >/dev/null
+sudo chmod 0600 /srv/arvion/backups/pre-cover-v2-$RVION_COVER_STAMP.dump
+sudo pg_restore --list /srv/arvion/backups/pre-cover-v2-$RVION_COVER_STAMP.dump
+```
+3. Execute the following only after approval. It changes only the four existing
+   posts' hero_image and keeps old files; it does not publish anything:
+```sh
+sudo -u arvion bash -c 'set -a; source /srv/arvion/.env.production; set +a; DJANGO_SETTINGS_MODULE=arvion.settings.production /srv/arvion/.venv/bin/python /srv/arvion/manage.py shell' <<'PY'
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+from django.core.files.base import ContentFile
+from django.db import transaction
+from blog.models import Post
+
+slugs = ['corporate-website-cost-1405', 'custom-website-vs-template',
+         'custom-or-ready-made-crm', 'english-teacher-assessment']
+source = Path('/srv/arvion/blog/content_drafts/covers')
+stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
+mapping_file = Path('/srv/arvion/backups') / ('hero-images-before-v2-' + stamp + '.json')
+with transaction.atomic():
+    posts = list(Post.objects.select_for_update().filter(slug_fa__in=slugs))
+    assert len(posts) == 4, 'Stop: expected all four existing articles'
+    assert all((source / (p.slug_fa + '-v2.jpg')).is_file() for p in posts)
+    mapping_file.write_text(json.dumps({p.slug_fa: p.hero_image.name for p in posts}))
+    mapping_file.chmod(0o600)
+    for post in posts:
+        name = post.slug_fa + '-v2.jpg'
+        post.hero_image.save(name, ContentFile((source / name).read_bytes()), save=False)
+        post.save(update_fields=['hero_image'])
+print('Updated 4 covers; rollback mapping:', mapping_file)
+PY
+```
+4. Check all four public article pages/media URLs, actual alt and OG image,
+   JPEG byte/dimension match, and phone/theme appearance. If anything fails,
+   restore only hero_image from the timestamped mapping inside transaction.atomic;
+   keep old media files intact. No full database restore unless separately needed.
+   Catalog inspection runs as root because the snapshot is intentionally 0600.
+
+### Owner decisions / remaining risks
+
+- Visual approval of reader layout and the eight v2 covers; live cover swap waits.
+- Author public name/role/bio and real modification date policy require a separately
+  authorized model field/migration; no invented identity or update date.
+- Restore authorized server SSH/console access; then push this verified patch,
+  wait for its own Python 3.11/3.12 CI, and run backed-up release/public smoke.
+- Local LCP/TBT still need wider shell-performance work; this scope does not
+  change deferred analytics/session/cookie/cache policy or sound startup.
+- Browser emulation is not real-device/screen-reader/production-performance proof.
+
+### Screenshot manifest
+
+Base /tmp/rvion-reader.xBtbsP. live=66a7cbf; before=541c9ca; after=this reader.
+fa-cost=corporate-website-cost-1405; fa/en-code=temporary code-fixture;
+fa/en-list=localized list. List includes a temporary extra code fixture, which
+tests the intentional no-cover featured state; the single-real-article search
+journey separately validates a cover-bearing featured card.
+
+live:
+
+- /tmp/rvion-reader.xBtbsP/live-fa-cost-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-cost-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-cost-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-cost-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-cost-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-cost-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-list-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-list-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-list-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-list-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-list-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-list-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-code-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-code-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-code-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-code-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-code-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-fa-code-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-code-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-code-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-code-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-code-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-code-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-code-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-list-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-list-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-list-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-list-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-list-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/live-en-list-1440-dark.jpg
+
+before:
+
+- /tmp/rvion-reader.xBtbsP/before-fa-cost-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-cost-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-cost-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-cost-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-cost-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-cost-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-list-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-list-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-list-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-list-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-list-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-list-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-code-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-code-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-code-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-code-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-code-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-fa-code-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-code-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-code-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-code-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-code-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-code-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-code-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-list-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-list-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-list-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-list-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-list-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/before-en-list-1440-dark.jpg
+
+after:
+
+- /tmp/rvion-reader.xBtbsP/after-fa-cost-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-cost-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-cost-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-cost-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-cost-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-cost-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-list-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-list-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-list-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-list-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-list-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-list-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-code-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-code-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-code-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-code-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-code-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-fa-code-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-code-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-code-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-code-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-code-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-code-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-code-1440-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-list-390-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-list-390-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-list-768-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-list-768-dark.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-list-1440-light.jpg
+- /tmp/rvion-reader.xBtbsP/after-en-list-1440-dark.jpg
+
+Additional interaction evidence: after-mobile-code-interaction.jpg,
+after-copy-recovery-mobile.jpg, after-mobile-empty.jpg,
+after-desktop-reading.jpg, final-mobile-article-light.jpg in the same folder.
+The empty-state first exact-string check omitted the period; a subsequent DOM
+snapshot confirmed the correct "مقاله‌ای پیدا نشد." message and recovery link.
+All paths are local QA artifacts, not production screenshots.
+
 ## Owner-authorized release and first four publications — VERIFIED deployment/data (2026-10-08)
 
 Owner directly authorized publication, the custom dashboard article editor and

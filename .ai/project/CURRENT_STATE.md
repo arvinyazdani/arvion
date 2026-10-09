@@ -1,5 +1,37 @@
 # Rvion current state
 
+## SEO editorial reader / cover v2 — VERIFIED local; release BLOCKED (2026-10-09)
+
+- Direct owner request authorizes a deployment retry after tested commits; the
+  attachment's v2-cover visual approval gate still applies. No live cover swap.
+- Rebuilt reading hierarchy, parser-based sanitized heading IDs, 700px column,
+  separate 17px phone layout, current-section TOC/progress, contextual service
+  links, clipboard recovery and featured-list/search states. Metadata/body text,
+  published flags and deferred privacy/cache policy remain untouched.
+- 81 blog/SEO tests passed. Final isolated release candidate: full suite run once,
+  1098 tests, 27 PostgreSQL-only skips, OK. No assertion weakened or failure hidden.
+  Local Python 3.9; no new PostgreSQL/CI evidence claimed for this patch.
+- 90 before/after browser screenshots: 390/768/1440, FA/EN chrome, light/dark.
+  Four real desktop H1s two lines, column 700px, overflow zero; copy success/error,
+  keyboard focus, reduced motion and single/empty search checked.
+- Final local 3-run Lighthouse medians: LCP 4517.40ms, TBT 435ms, CLS 0.
+  Before: 4516.35ms/732ms/0.10159. Not production timings; LCP is not improved.
+- Eight 1200x630 sRGB v2 JPEG candidates (26,793–40,268 bytes), built-in generated,
+  inspected at 360px and 4:3. Prompts/provenance and checklists recorded; v1 assets
+  intact. Alt lookup only describes known v2 images. No model or migration.
+- Existing 541c9ca quality run 37883116866 now SUCCESS. Current patch not pushed
+  or run in CI. Read-only SSH retry again timed out before any remote operation;
+  current public health returns status=ok, not evidence of the new version.
+- No pull, backup, release, migration, restart, media assignment or publication
+  was performed. Last verified production runtime remains 66a7cbf.
+- Protected gallery/editorial-desk working-tree changes preserved/excluded.
+  Full evidence, screenshots, exact prepared image-swap steps and rollback in
+  docs/seo/SEO_PHASE_REPORT.md; prompts in ARTICLE_COVER_PROMPTS_V2.md.
+- Next: owner reviews layout/covers; restore SSH/console access, then push only
+  verified commits, wait for their own CI and run the official backed-up release.
+  Cover assignments remain a separate approved operation. Byline stays design-only.
+
+
 ## Public journal release — PARTIAL, SSH blocked (2026-10-09)
 
 - Owner explicitly requested deployment of the preceding public-journal change.

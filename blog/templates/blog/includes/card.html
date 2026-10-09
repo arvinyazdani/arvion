@@ -2,12 +2,13 @@
 <article class="journal-card{% if featured %} journal-card--featured{% endif %}">
   <a class="journal-card-link" href="{% if lang == 'fa' %}{% url 'blog:detail' post.slug_fa %}{% else %}{% url 'blog:detail' post.slug_en %}{% endif %}">
     <div class="journal-cover">
-      {% if post.hero_image %}<img src="{{ post.hero_image.url }}" alt="" width="1200" height="800" loading="lazy" decoding="async">{% else %}<span class="journal-cover-placeholder" aria-hidden="true"><svg viewBox="0 0 240 160"><path d="M60 35h78l38 38v52H60z M138 35v38h38 M80 90h76 M80 107h46" fill="none" stroke="currentColor" stroke-width="3"/></svg></span>{% endif %}
+      {% if post.hero_image %}<img src="{{ post.hero_image.url }}" alt="" width="1200" height="630" loading="{% if featured %}eager{% else %}lazy{% endif %}"{% if featured %} fetchpriority="high"{% endif %} decoding="async">{% else %}<span class="journal-cover-placeholder" aria-hidden="true"><svg viewBox="0 0 240 160"><path d="M60 35h78l38 38v52H60z M138 35v38h38 M80 90h76 M80 107h46" fill="none" stroke="currentColor" stroke-width="3"/></svg></span>{% endif %}
     </div>
     <div class="journal-card-copy">
       <div class="journal-meta"><time datetime="{{ post.published_at|date:'c' }}">{% if lang == 'fa' %}{{ post.published_at|date:'Y.m.d'|fa_digits }}{% else %}{{ post.published_at|date:'M j, Y' }}{% endif %}</time><span>{% if lang == 'fa' %}{{ post|read_minutes:lang|fa_digits }} دقیقه مطالعه{% else %}{{ post|read_minutes:lang }} min read{% endif %}</span></div>
       <h3>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</h3>
       <p>{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}</p>
+      {% if show_tags %}<div class="journal-card-tags">{% for tag in post.tags.all %}{% if lang == 'fa' %}<span>{{ tag.name }}</span>{% else %}{% if not tag.name|contains_persian %}<span>{{ tag.name }}</span>{% endif %}{% endif %}{% endfor %}</div>{% endif %}
       <span class="journal-read">{% if lang == 'fa' %}مطالعه مقاله{% else %}Read article{% endif %}<span aria-hidden="true">↗</span></span>
     </div>
   </a>

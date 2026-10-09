@@ -34,6 +34,23 @@ components:
 ---
 # Rvion design context
 
+## Editorial reader — 2026-10-09
+
+Public articles use a content-driven header, a 700px desktop reading column,
+18px/1.95 body text and a separate 17px phone layout. The existing published
+body and SEO summary remain authoritative; presentation removes only an exact
+duplicated title prefix. Heading IDs are generated after sanitization, with a
+sticky desktop contents rail and a collapsed native disclosure on phones.
+Callouts use an accent border and quiet tint, never a decorative warning icon.
+Code remains literal, LTR and independently scrollable. Font preloads and image
+dimensions reserve the final geometry. Copy-link is disabled until its local
+enhancement initializes; denied clipboard access reveals a selectable link.
+No tracking, cookie, publication, author or modified-date policy is introduced.
+New cover candidates use navy #12161f, ivory #f4f1ea, grey #a9b0bd and orange
+#ff6b35; central safe-area line illustrations are versioned assets, not an
+implicit production replacement. Owner visual approval remains separate from
+the primary agent's technical self-review.
+
 Phase 4 enquiry receipt uses existing card/border/text/action tokens, a
 two-column definition list on desktop and a single readable column on phones.
 Values wrap rather than hiding overflow; the separate-tab settings action has

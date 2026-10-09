@@ -34,7 +34,7 @@ class PostListView(LanguageViewMixin, ListView):
         tag = self.request.GET.get("tag")
         if tag:
             qs = qs.filter(tags__name__iexact=tag)
-        return qs.distinct()
+        return qs.distinct().prefetch_related("tags")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -50,4 +50,7 @@ class PostListView(LanguageViewMixin, ListView):
         context["article_tags"] = [name for name in tag_names if self.lang == "fa" or not re.search(r"[\u0600-\u06ff]", name)]
         context["search_query"] = self.request.GET.get("q", "")
         context["selected_tag"] = self.request.GET.get("tag", "")
+        posts = list(context["posts"])
+        context["featured_post"] = posts[0] if posts else None
+        context["grid_posts"] = posts[1:]
         return context
