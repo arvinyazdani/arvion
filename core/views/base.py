@@ -7,6 +7,8 @@ from blog.models import Post
 from blog.languages import translated_posts
 from projects.models import DemoTemplate
 from projects.demo_labels import CATEGORY_LABELS_EN
+from services.models import Service
+from django.urls import reverse
 from .lang import LanguageViewMixin  # میکسین مدیریت زبان
 
 # ==== ویو خانه ====
@@ -40,8 +42,35 @@ class HomeView(LanguageViewMixin, TemplateView):
 
         # افزودن به context
         ctx["latest_posts"] = posts
-        ctx["featured_demos"] = demos
+        ctx["featured_demos"] = demos[:3]
+        ctx["home_demo_categories"] = [
+            {"label": demo.category_label,
+             "url": reverse("projects:demo_gallery") + "#demo-" + demo.slug}
+            for demo in demos
+        ]
         ctx["available_demo_count"] = DemoTemplate.objects.filter(is_active=True).count()
+
+        # Copy remains owned by the live catalogue, not a second home catalogue.
+        ranks = {slug: index for index, slug in enumerate((
+            "corporate-website-design", "ecommerce-platform", "custom-web-application",
+            "digital-product-consulting", "maintenance-and-growth",
+        ))}
+        services = list(Service.objects.filter(is_active=True))
+        if all(service.slug in ranks for service in services):
+            services.sort(key=lambda service: ranks[service.slug])
+        icons = {"corporate-website-design": "globe", "ecommerce-platform": "payment",
+                 "custom-web-application": "settings", "digital-product-consulting": "message",
+                 "maintenance-and-growth": "services"}
+        cards = [{"slug": service.slug, "title": getattr(service, f"title_{self.lang}"),
+                  "summary": getattr(service, f"short_description_{self.lang}"),
+                  "url": service.get_absolute_url(), "icon": icons.get(service.slug, "services")}
+                 for service in services]
+        cards.insert(min(3, len(cards)), {
+            "slug": "crm", "title": "CRM سازمانی" if self.lang == "fa" else "Enterprise CRM",
+            "summary": "مشتری، فروش و عملیات" if self.lang == "fa" else "Customers, sales & operations",
+            "url": reverse("crm_product"), "icon": "customers",
+        })
+        ctx["home_services"] = cards
 
         return ctx
 

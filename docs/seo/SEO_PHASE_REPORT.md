@@ -1,5 +1,149 @@
 # SEO phase report — Rvion
 
+## Homepage clarity — VERIFIED local; owner review NOT_STARTED (2026-10-09)
+
+### Scope and checkpoint
+
+Baseline 5559e45. Single primary agent; this is technical self-review, not independent
+review or a completed five-second user study. Implementation commit is recorded in
+the following checkpoint update. No push, SSH, deployment, production access or
+permanent database migration. P1-3/P4-1 remain DEFERRED. Earlier P3-5 is superseded
+by the owner's approved bilingual hero. Overall SEO programme remains PARTIAL.
+
+Implemented: visible offer/audience H1, two commitment-level CTAs within the phone
+first fold, database-driven active service cards plus CRM, three featured samples
+and all category links, explicit fictional-sample disclosure, compact existing
+process, one custom-system band, one assessment band, real CompanyProfile identity,
+existing journal and closing consultation CTA. Header has the six requested entries
+and persistent project CTA. Phone has a separate layout, native sample scrolling
+with a visible hint, two-column services, no decorative hero art and 44px+ targets.
+No counters, testimonials, prices, invented customers or new performance promises.
+English secondary section labels are direct neutral translations; owner may review
+them, whereas the H1 and lead use the explicitly approved copy.
+
+Home title, description and raw JSON-LD are byte-identical to baseline in FA and EN
+(sequential local HTTP comparison), including existing metadata contract tests.
+PWA sheet, welcome sound, mobile tabs and shared shell scripts remain untouched;
+the retained install-guide trigger and delegated close/open behavior were checked.
+
+Owned files: core/views/base.py; core/templates/core/{home,base}.html;
+core/static/core/css/{home-studio,public-shell}.css; core/{tests.py,test_home.py,
+tests_seo_contract.py}; DESIGN.md; UX-CONTRACT.md; this report; CURRENT_STATE.md;
+PROJECT_STATUS.md. Removed confirmed-unused home-studio.js, home_journey.html and
+home_journey_art.html. Kept shared demo-studio.css, demo art and journal components
+because gallery/detail/reader surfaces still use them. No new assets/dependencies,
+models or migrations. Three protected gallery files and unfinished editorial-desk
+work are excluded; protected diff SHA256 stayed
+`b60bd5ef5b115893aecd5fe3ca330e72cedccc4c2bd48a8b85891d9e8c665aba`.
+
+### Test evidence
+
+Artefact root: /tmp/rvion-home.xbtPni (before/after isolated baseline archives).
+Temporary test databases only; public fixture data is from existing seeds/drafts.
+Candidate archive excludes unrelated dirty work without resetting/stashing it.
+
+| Gate | Result |
+| --- | --- |
+| Red: initial core.test_home against old homepage | 9 tests: 5 failures, 3 errors, 1 pass; red.txt |
+| Initial green: core.test_home | 9/9 OK; green-home.txt |
+| Working-tree core.tests + core.test_home + blog.test_journal | 56/56 OK |
+| Isolated core.tests + core.test_home + core.tests_seo_contract + blog | 122/122 OK |
+| Final full candidate suite, once after the last two tests | 1109 tests, OK; 27 pre-existing PostgreSQL-only skips; full.txt |
+| manage.py check / compileall -q core / pip check | 0 issues / success / no broken requirements |
+| git diff --check | clean |
+| designmd lint DESIGN.md | 0 errors; 2 existing unused-token warnings |
+
+Exact commands used the project's /Users/rwin/Desktop/rwin-tech/arvion/.venv/bin/python:
+`manage.py test core.test_home --verbosity 1`;
+`manage.py test core.tests core.test_home blog.test_journal --verbosity 1`;
+`manage.py test core.tests core.test_home core.tests_seo_contract blog --verbosity 1`;
+final `PYTHONPATH=/tmp/rvion-seo-qa.3snpId/test-deps <python> manage.py test --parallel 4 --verbosity 1`.
+Final suite ran in /tmp/rvion-home.xbtPni/after; 1082 executed tests passed.
+No repeat full suite, CI, real PostgreSQL, physical iPhone or screen-reader study.
+
+Existing tests changed explicitly: approved hero H1 replaces slogan-only assertion;
+project CTA count 3→4 accounts for closing CTA; obsolete journey assertions now
+check single custom/assessment bands and both exam briefings; seven featured-card
+expectation becomes three cards plus all seven category links. Contextual SEO home
+contract now checks the real service grid plus CRM instead of a duplicate appendix.
+Eleven new tests cover bilingual copy, real/edited/inactive service data, slug/order
+fallback, sample categories, empty catalogue, public identity, all required target
+URLs (200 without redirects), unchanged metadata and retained header/shell.
+
+### Browser and local performance
+
+Twelve before and twelve after screenshots, each FA/EN × light/dark × 390/768/1440:
+all listed below are under /tmp/rvion-home.xbtPni/.
+
+| Language/theme | Before screenshots | After screenshots |
+| --- | --- | --- |
+| FA/light | before-fa-light-390.png, before-fa-light-768.png, before-fa-light-1440.png | after-fa-light-390.png, after-fa-light-768.png, after-fa-light-1440.png |
+| FA/dark | before-fa-dark-390.png, before-fa-dark-768.png, before-fa-dark-1440.png | after-fa-dark-390.png, after-fa-dark-768.png, after-fa-dark-1440.png |
+| EN/light | before-en-light-390.png, before-en-light-768.png, before-en-light-1440.png | after-en-light-390.png, after-en-light-768.png, after-en-light-1440.png |
+| EN/dark | before-en-dark-390.png, before-en-dark-768.png, before-en-dark-1440.png | after-en-dark-390.png, after-en-dark-768.png, after-en-dark-1440.png |
+
+browser-layout.json: zero page/header horizontal overflow in all 12 after states;
+EN main has no Persian text. Both phone CTAs end before y459 (844px viewport);
+services begin at y654 FA / y696 EN. Native samples scroll inside their region,
+not the page. Keyboard outline 3px; mobile menu opens/closes and clears tab bar;
+reduced-motion transition 0s / scroll auto; no browser console errors. A sibling
+corporate service page also has zero mobile overflow after the header change.
+contrast.json: checked text ratios 4.98–16.60 light / 6.60–13.33 dark, all >=4.5;
+Lighthouse contrast and accessibility scores 1 in all three after runs. This is not
+a whole-site WCAG certification.
+
+Local Lighthouse 13.5 / Chrome 154, same fixtures, default simulated mobile throttle:
+`CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' PATH=/opt/homebrew/bin:$PATH npx --yes lighthouse http://127.0.0.1:<port>/fa/ --quiet --chrome-flags='--headless --no-sandbox' --only-categories=performance,accessibility --output=json --output-path=<artefact>`
+Three runs each: baseline port8153, candidate8154; before-lh-1..3.json / after-lh-1..3.json.
+
+| Local measurement | Before runs | After runs | Median before → after |
+| --- | --- | --- | --- |
+| LCP ms | 4816.34, 4815.12, 4823.04 | 4527.80, 4520.39, 4670.03 | 4816.34 → 4527.80 |
+| TBT ms | 882, 803, 719 | 923, 525, 603 | 803 → 603 |
+| CLS | 0, 0, 0 | 0, 0, 0 | 0 → 0 |
+| Render-blocking CSS count | 8, 8, 8 | 8, 8, 8 | 8 → 8 |
+
+Median acceptance passes. First after TBT is worse than baseline median; variability
+is not hidden. These are local comparisons, not production performance evidence.
+
+### Tool limitations and risk triage
+
+Premium strict audit raw result is NOT green: premium-audit.json has 10 findings.
+Nine actionless-button findings are delegated data-attribute controls (eight existing
+shared controls, one retained home install trigger); binding source and browser
+behavior verify the actual handlers. One pre-existing WebKit-scrollbar finding
+misses the standards scrollbar-color/width and forced-colors rules in tokens.css.
+No fake inline handlers or weakened audit config were introduced. No genuine P0/P1
+identified for this patch; raw tool output is retained, not relabeled as a clean run.
+UI/UX catalogue searches for service-studio/mobile-clarity and hero/clear-CTA returned
+no matches: no component research match is claimed. Approved brief, shared tokens,
+frontend design guidance and browser evidence drove the implementation instead.
+
+A concurrent local metadata probe hit an unchanged traffic-middleware SQLite write
+lock (HTTP400 / OperationalError); the sequential probe then passed both languages
+and both candidates. This temporary SQLite concurrency limitation is recorded,
+not patched by changing deferred analytics/session behavior. No PostgreSQL release
+concurrency result is claimed. No permanent data, article body/publication flags,
+exam bank, registration or customer contract was modified.
+
+### Owner review, remaining decisions and rollback
+
+Five-second pack: owner-390-first-fold.png; owner-1440-first-fold.png;
+owner-services.png, in the artefact root above. Ask without prompting answers:
+1. What does this company sell? 2. Who is it for? 3. What would you click first?
+Owner runs this test; no participant results or approval are claimed here.
+
+Owner decisions needed: visual acceptance and any secondary EN microcopy changes;
+existing sameAs/author/byline, dates/order and v2 cover approvals remain open from
+earlier phases. No author model/migration. Publication NOT_STARTED by this task's
+explicit restriction. After approval, a separate authorized release must preserve
+dirty work, pass its own CI, restore SSH and use the backed-up official release path.
+
+Rollback: revert this scoped homepage commit (and documentation checkpoint if
+desired) back to 5559e45; no database/media rollback is needed. Do not reset the
+working tree or revert unrelated editorial-desk/gallery work. Temporary screenshots
+remain for owner review; only agent-created browser/test-server resources are closed.
+
 ## Editorial reader and coherent cover candidates — VERIFIED local / release BLOCKED (2026-10-09)
 
 ### Authority, scope and provenance

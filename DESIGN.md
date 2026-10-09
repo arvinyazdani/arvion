@@ -34,6 +34,25 @@ components:
 ---
 # Rvion design context
 
+## Homepage clarity — 2026-10-09
+
+Approved headline names websites, storefronts and CRM and their business
+audience. The existing slogan is subordinate. One orange sample action and
+one outlined free-consultation action express different commitment levels.
+The five active database services plus CRM own the offering; no parallel
+hard-coded service copy. Known slugs determine the requested ordering; renamed
+catalogues retain display_order. Three samples, all category links and the
+explicit fictional-sample label replace the seven-card/chapter duplication.
+Phones hide only the decorative hero preview, not its real sample links; the
+first fold keeps both actions and services immediately follow the introduction.
+Services use three columns on desktop and two on phones, with native horizontal
+sample browsing and a visible hint. Existing process copy, single custom/exam
+bands, real public legal/contact/support fields and the shared journal conclude
+the page. No metrics, testimonials or fabricated customer/experience claims.
+Header navigation gains the approved six destinations and a persistent project
+action; mobile tabs, PWA sheet and welcome-sound behavior remain unchanged.
+Runtime semantic token ownership remains Model B, with no palette/font rebrand.
+
 ## Editorial reader — 2026-10-09
 
 Public articles use a content-driven header, a 700px desktop reading column,
@@ -84,14 +103,14 @@ settings; [Framer's template marketplace](https://www.framer.com/marketplace/tem
 informed browse/preview separation. These are design references, not copied code
 or a change to our Django stack.
 
-Homepage journey reference (2026-10-05): [Apple's iPhone landing page](https://www.apple.com/iphone/)
+Historical homepage journey reference (2026-10-05): [Apple's iPhone landing page](https://www.apple.com/iphone/)
 was read and visually inspected for focused chapters, large graphical subjects
 and clearly differentiated actions, not copied assets or typography.
 [WebKit's scroll animation guide](https://webkit.org/blog/17101/a-guide-to-scroll-driven-animations-with-just-css/)
-informed progressive enhancement and reduced-motion behavior. Rvion uses its
-own lightweight illustrations and an IntersectionObserver, not scroll hijacking,
-video downloads or a new animation dependency. Three paths remain distinct:
-website design (primary), tailored CRM/clinic systems, and assessments.
+informed the earlier chapter experiment. The owner-approved 2026-10-09 clarity
+brief supersedes that experiment: decorative sticky chapters and their observer
+are retired. Shared sample illustrations remain on home/gallery/preview; no
+scroll hijacking, video downloads or new animation dependency is introduced.
 
 ## Colors
 
@@ -125,10 +144,9 @@ so their layout follows their actual width, not the outer viewport alone.
 Marketing sections use 80px desktop/42px phone rhythm. Existing data and
 session-bound order handoff remain authoritative.
 
-The homepage offers immediate route buttons before its hero. Its three-chapter
-journey uses a bounded sticky graphical stage on desktop; phones receive one
-in-flow graphic per chapter with no sticky obstruction. All copy and real links
-are available without JavaScript. Reduced motion disables graphical transitions.
+The homepage offers explicit sample/consultation actions below its headline,
+then database-driven services. All copy and real links are available without
+JavaScript. Reduced motion disables the new feedback transitions.
 Demo collections own explicit grid tracks; phone dish names and prices occupy
 separate rows, and all scene buttons/disclosure triggers have a 44px minimum
 height, visible borders and an explicit selected state.

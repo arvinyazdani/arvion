@@ -1,5 +1,25 @@
 # Rvion current state
 
+## Homepage clarity — VERIFIED local; owner review NOT_STARTED (2026-10-09)
+
+- Baseline 5559e45; implementation commit recorded in the next checkpoint update.
+- Approved bilingual offer-first hero, persistent header project CTA, database-driven
+  six-service grid, three fictional samples/all categories, single custom and exam
+  bands, real CompanyProfile identity, retained journal and final consultation CTA.
+- Separate phone layout: both CTAs in first fold, services in first scroll, native
+  sample row; zero page overflow in FA/EN, both themes, 390/768/1440. Shared PWA,
+  welcome sound and mobile tabs preserved. No home metadata/JSON-LD change.
+- Red evidence 5 failures/3 errors out of 9; targeted suites green (122 tests).
+  Final isolated full suite once: 1109 tests OK, 27 PostgreSQL-only skips.
+- Local 3-run median LCP 4816.34→4527.80ms; TBT 803→603ms; CLS0; blocking CSS8→8.
+- Strict static audit has 10 documented false positives, NOT a raw passing audit;
+  temporary SQLite concurrent-probe lock recorded. No PG/CI/physical-device claim.
+- Owner five-second pack and 24 screenshots in /tmp/rvion-home.xbtPni; report at
+  docs/seo/SEO_PHASE_REPORT.md. Owner study/visual approval remain NOT_STARTED.
+- Protected gallery and unfinished editorial-desk files unchanged/excluded.
+  No push, SSH, deploy, permanent migration or production mutation. Privacy/cache
+  decisions stay DEFERRED; overall SEO remains PARTIAL. Next: owner screenshot review.
+
 ## SEO editorial reader / cover v2 — VERIFIED local; release BLOCKED (2026-10-09)
 
 - Implementation checkpoint: 0492c76 (25 scoped files), local and not pushed.

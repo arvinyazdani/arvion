@@ -67,17 +67,18 @@ assessment, contract, authentication or admin workflows. Visual context:
   collect no health, address, payment or contact data and create no booking,
   enrollment or product order. Only the unchanged design form submits.
 
-- Homepage journey: `home-studio.js` owns only decorative chapter switching;
-  `home_journey.html` owns real navigation and copy. No scroll interception,
-  account mutation or submission. Desktop stage follows the visible chapter;
-  mobile graphics stay in normal document flow. JavaScript failure leaves
-  every real link usable; reduced motion removes transitions.
+- Homepage clarity (owner brief 2026-10-09): native links own services,
+  sample selection and consultation. No home-specific JavaScript, observer,
+  account mutation or submission. The previous decorative journey is retired.
+  Phone samples scroll inside their own keyboard-focusable region; the page
+  retains normal document scrolling. Reduced motion removes feedback transitions.
 - Scene button affordance: visible border/fill and minimum 44px height. Native
   disclosure summaries use the same touch target; bold hero actions must retain
   inverse text contrast despite the hero's higher-specificity text rules.
 
-- Home sample switch is transient browsing, not an order mutation. No account
-  or storage is required. No JS leaves the first sample and full library usable.
+- Home sample links are transient browsing, not an order mutation. No account
+  or storage is required. The single hero example is explicitly fictional;
+  three library samples and category destinations work without JavaScript.
 - Demo choices use the existing query/sessionStorage state. Server POST remains
   authoritative; the redesign never creates a new draft or data lifecycle.
 - Only Continue submits the design choices. No illustrative booking, basket or

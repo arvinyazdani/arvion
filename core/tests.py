@@ -64,7 +64,8 @@ class CorePagesTests(TestCase):
         mobile_nav = html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
         self.assertEqual(mobile_nav.count("<a "), 5)
         self.assertEqual(html.count('class="nav-cta"'), 1)
-        self.assertContains(response, 'href="/fa/start/"', count=3, html=False)
+        # Header, unchanged tab bar/footer and the new closing project CTA.
+        self.assertContains(response, 'href="/fa/start/"', count=4, html=False)
         self.assertIn('href="/fa/projects/demos/"', mobile_nav)
 
         staff = get_user_model().objects.create_user(
@@ -234,24 +235,26 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
-        self.assertContains(response, "سایت شما،")
+        self.assertContains(response, "طراحی سایت، فروشگاه و CRM اختصاصی برای کسب‌وکار شما")
         self.assertContains(response, "نمونه مناسب من را پیدا کن")
         self.assertContains(response, "سفارش ساده. مسیر روشن.")
         self.assertContains(response, "شروع آزمون زبان انگلیسی")
         self.assertNotContains(response, "۲۴ پروژه")
 
-    def test_home_journey_keeps_all_three_paths_localized_and_reachable(self):
+    def test_home_consolidated_bands_keep_discovery_and_assessment_paths_reachable(self):
         for language in ("fa", "en"):
             response = self.client.get(f"/{language}/")
-            self.assertContains(response, 'data-home-journey', count=1)
-            for topic in ("site", "system", "exam"):
-                self.assertContains(response, f'data-home-chapter="{topic}"', count=1)
+            self.assertNotContains(response, 'data-home-journey')
+            self.assertContains(response, 'id="solutions-title"', count=1)
+            self.assertContains(response, 'id="assessment-title"', count=1)
             self.assertContains(response, reverse("crm_orders:create"))
             self.assertContains(response, reverse("clinic_orders:create"))
             self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
+            self.assertContains(response, reverse("assessments:briefing", args=["python-django-professional"]))
             if language == "en":
-                journey = response.content.decode().split('data-home-journey>', 1)[1].split('</section>', 1)[0]
-                self.assertNotRegex(journey, r"[\u0600-\u06ff]")
+                for section in ('class="website-beyond shell"', 'class="website-assessments shell"'):
+                    band = response.content.decode().split(section, 1)[1].split('</section>', 1)[0]
+                    self.assertNotRegex(band, r"[\u0600-\u06ff]")
 
     def test_home_replaces_project_showcase_with_zero_data_demo_choices(self):
         Project.objects.create(title_fa="نمونه واقعی", title_en="Real case", slug="real-case", is_active=True)
@@ -263,11 +266,11 @@ class CorePagesTests(TestCase):
         self.assertNotContains(response, "منتخب پروژه‌ها")
         self.assertEqual(response.context["available_demo_count"], DemoTemplate.objects.filter(is_active=True).count())
 
-    def test_home_covers_each_business_type_and_hides_inactive_samples(self):
+    def test_home_shows_three_samples_and_links_every_available_business_type(self):
         response = self.client.get("/en/")
         demos = response.context["featured_demos"]
-        self.assertEqual({demo.category for demo in demos},
-                         {key for key, _ in DemoTemplate.CATEGORY_CHOICES})
+        self.assertEqual(len(demos), 3)
+        self.assertEqual(len(response.context["home_demo_categories"]), len(DemoTemplate.CATEGORY_CHOICES))
         for demo in demos:
             self.assertContains(response, reverse("projects:demo_preview", args=[demo.slug]))
             self.assertNotRegex(demo.category_label, r"[\u0600-\u06ff]")

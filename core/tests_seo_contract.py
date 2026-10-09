@@ -409,7 +409,18 @@ class WholeSitemapContractTests(TestCase):
             'custom-web-application': ['roshna-clinic', 'ariana-academy', 'saffron-table'],
             'digital-product-consulting': [], 'maintenance-and-growth': [],
         }
-        cases = [('', ['services/', 'crm/', 'assessments/'])]
+        # The home now exposes contextual links inside its real catalogue grid,
+        # rather than a duplicate three-button appendix. Other route contracts
+        # remain unchanged; core.test_home verifies all additional destinations.
+        home_slugs = list(Service.objects.filter(is_active=True).values_list('slug', flat=True))
+        ranks = {slug: index for index, slug in enumerate((
+            'corporate-website-design', 'ecommerce-platform', 'custom-web-application',
+            'digital-product-consulting', 'maintenance-and-growth'))}
+        if all(slug in ranks for slug in home_slugs):
+            home_slugs.sort(key=lambda slug: ranks[slug])
+        home_targets = [f'services/{slug}/' for slug in home_slugs]
+        home_targets.insert(min(3, len(home_targets)), 'crm/')
+        cases = [('', home_targets)]
         for slug, demos in service_targets.items():
             targets = [f'projects/demos/{demo}/' for demo in demos] or ['projects/demos/']
             if slug in ('custom-web-application', 'digital-product-consulting'):
