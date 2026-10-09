@@ -1,5 +1,5 @@
 """Read-only order presentation; customer identity stays in final domain forms."""
-from core.order_paths import ADDONS, TOPIC_BY_KEY, crm_choices, parse_choices, request_type
+from core.order_paths import ADDONS, LOOKS, PALETTES, TOPIC_BY_KEY, crm_choices, parse_choices, request_type
 from projects.demo_briefs import brief_fields
 
 
@@ -9,6 +9,11 @@ def summary_lines(request, lang):
     if not topic:
         return []
     lines = [getattr(topic, "title_" + lang)]
+    for key, options, heading in (("palette", PALETTES, "رنگ" if lang == "fa" else "Colour"),
+                                   ("look", LOOKS, "حال‌وهوا" if lang == "fa" else "Look")):
+        labels = {row[0]: row[1 if lang == "fa" else 2] for row in options}
+        if choices.get(key) in labels:
+            lines.append(heading + ": " + labels[choices[key]])
     addon_labels = {key: fa if lang == "fa" else en for key, fa, en in ADDONS}
     lines.extend(addon_labels[key] for key in choices.get("addons", "").split(",") if key in addon_labels)
     modules, extensions = crm_choices(lang)

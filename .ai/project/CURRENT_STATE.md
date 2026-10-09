@@ -1,13 +1,46 @@
 # Rvion current state
 
-## Current task — entry animation: BLOCKED (2026-10-09)
+## Current task — Piece 2 order wizard: PARTIAL (2026-10-10)
+
+- Owner attachment: `040cebcb-c069-4097-ac08-96f025d4d3bd/Pasted text.txt`.
+  Single primary, local commits only; no push/deploy/SSH/migration/new model.
+- Piece 1 saved separately as328630f:73 Python tests and4 Node contracts green.
+  Public intro remains default-off; the strict control-relative LCP/TBT gate
+  below remains BLOCKED. Saving the correction is not public activation.
+- Piece 2 phase1 VERIFIED locally: closed palette8/look6 vocabulary, server
+  catalogue via json_script from actual topics/category features/CRM/add-ons,
+  strict final URL boundary, bilingual read-only summaries, no-JS handoff.
+  No brand/identity transported; no implicit choices; no new free query key.
+  This checkpoint belongs to the phase1 vocabulary commit (see Git log).
+- Red:7 new tests,3 failures/3 errors/1 pass before implementation. Green:
+  core.test_order_vocabulary + core.test_order_paths + core.test_order_gateway
+  + core.test_order_handoff + core.test_order_ui:32/32 tests OK. check0,
+  makemigrations --check --dry-run:No changes detected; diff check clean.
+  Tests use disposable test DB only; permanent local DB unchanged.
+- Phase2 BLOCKED before visual implementation: CUA could not select the known
+  preview tab. First request required an explicit browser; the explicit iab
+  request was rejected by browser security policy. No alternate browser,
+  raw CDP, proxy, or indirect execution used to bypass it. No prototype browser
+  journey, screenshot, CLS or new CSS/JS gzip evidence claimed in this phase.
+- Phases3/4/5 NOT_STARTED. Do not present phase1's catalogue as a working wizard.
+- Next: restore authorized browser access and inspect the owner's prototype
+  project/exam journeys (fa and en/light), then phase2. Before final wizard
+  handoff, use the existing validated demo adapter for real feature selections
+  or surface a contract conflict; never silently discard selected capabilities
+  or add arbitrary URL text/brand. Existing gallery files stay protected.
+- Scope guard: protected files, preserved stash/bundle, customer records,
+  settings/CSP/theme policies untouched in phase1. No full-suite/release claim.
+- Rollback: revert only the phase1 vocabulary commit if needed; no DB rollback.
+
+## Previous task — entry animation: BLOCKED (2026-10-09)
 
 Only Piece 1. CLS diagnosis and targeted checks are VERIFIED locally; automatic
 display is disabled by default. Read the final "Entry CLS/audio diagnosis" below
 and docs/seo/SEO_PHASE_REPORT.md. Latest owner instruction supersedes deployment:
 NO push/deploy/migration; active LCP/TBT must not exceed the no-intro control.
 All three final active CLS values are zero, but LCP/TBT exceed the new control.
-Current corrections are UNCOMMITTED; HEAD remains f7b404d. Release stays BLOCKED.
+Corrections saved locally as328630f at Piece2's start after green targeted tests.
+Public activation/release stays BLOCKED.
 The preceding order-release section is historical context, not release evidence.
 
 ## Owner-authorized release and workspace cleanup — PARTIAL (2026-10-09)

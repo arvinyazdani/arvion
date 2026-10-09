@@ -94,8 +94,10 @@ class ProjectStartView(LanguageViewMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from core.order_gateway import gateway_context
+        from core.order_wizard import wizard_catalogue
         context = super().get_context_data(**kwargs)
         context.update(gateway_context(self.request, self.lang))
+        context["order_wizard_data"] = wizard_catalogue(self.request.GET, self.lang)
         return context
 
 

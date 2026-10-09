@@ -37,6 +37,22 @@ TOPIC_BY_KEY = {topic.key: topic for topic in TOPICS}
 ADDONS = (("webapp", "سامانه یا پنل اختصاصی", "Custom application or portal"),
           ("support", "پشتیبانی و توسعه", "Support and development"))
 CONSULTATION = ("مطمئن نیستم؛ اول مشاوره رایگان", "Not sure? Start with a free consultation")
+# Order-scene preferences are separate from the existing gallery's theme and
+# personality vocabulary. Never reinterpret one as the other.
+PALETTES = (
+    ("warm", "گرم", "Ember"), ("midnight", "نیمه‌شب", "Midnight"),
+    ("sage", "سبز", "Sage"), ("rose", "گل‌رز", "Rose"),
+    ("ocean", "اقیانوس", "Ocean"), ("gold", "طلایی", "Gold"),
+    ("violet", "بنفش", "Violet"), ("graphite", "گرافیت", "Graphite"),
+)
+LOOKS = (
+    ("modern", "مدرن و مینیمال", "Modern & minimal"),
+    ("industrial", "صنعتی", "Industrial"),
+    ("cinematic", "سینمایی", "Cinematic"),
+    ("video", "ویدیویی و پویا", "Video-first"),
+    ("classic", "کلاسیک و لوکس", "Classic & luxe"),
+    ("soft", "صمیمی و نرم", "Friendly & soft"),
+)
 CRM_MODULE_KEYS = ("customers", "sales", "visits", "correspondence", "support", "accounting", "inventory", "automation", "security")
 CRM_ROADMAP_KEYS = ("ai", "accounting", "channels", "workflows", "mobile", "portal")
 
@@ -53,6 +69,10 @@ def parse_choices(query):
     """Discard unknown keys/values; never pass through arbitrary query text."""
     topic = query.get("type", "")
     result = {"type": topic} if topic in TOPIC_BY_KEY else {}
+    for key, options in (("palette", PALETTES), ("look", LOOKS)):
+        value = query.get(key, "")
+        if value in {row[0] for row in options}:
+            result[key] = value
     for key, allowed in (("addons", {row[0] for row in ADDONS}),
                          ("modules", set(CRM_MODULE_KEYS) if topic == "crm" else set()),
                          ("extensions", set(CRM_ROADMAP_KEYS) if topic == "crm" else set())):

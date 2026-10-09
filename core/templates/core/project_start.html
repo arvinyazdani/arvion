@@ -13,6 +13,7 @@
       <p>{% if lang == 'fa' %}موضوع را انتخاب کنید، نمونه و امکاناتش را ببینید و در پایان درخواستتان را ثبت کنید. هنوز تصمیم نگرفته‌اید؟ از مشاوره شروع کنید.{% else %}Choose a topic, explore its sample and features, then send your enquiry. Still deciding? Start with a consultation.{% endif %}</p>
     </header>
     {% include 'core/includes/order_gateway.html' %}
+    {{ order_wizard_data|json_script:"order-wizard-data" }}
   </div>
 </section>
 {% endblock %}

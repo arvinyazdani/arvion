@@ -10,6 +10,8 @@ from .order_paths import ADDONS, CONSULTATION, TOPIC_BY_KEY, crm_choices, parse_
 
 
 def final_form_url(choices, demo_token=""):
+    # Apply the same boundary even to direct callers, not only view GET data.
+    choices = parse_choices(choices)
     topic = TOPIC_BY_KEY.get(choices.get("type"))
     form = topic.form_name if topic else "leads:contact"
     # Consultation should not ask for an entire specialist specification.
@@ -29,7 +31,8 @@ def gateway_context(request, lang):
     topic = TOPIC_BY_KEY.get(choices.get("type"))
     cards = topic_cards(lang)
     for card in cards:
-        card["url"] = start_url(card["key"], addons=choices.get("addons", ""))
+        card["url"] = start_url(card["key"], addons=choices.get("addons", ""),
+                                palette=choices.get("palette", ""), look=choices.get("look", ""))
     selected = next((card for card in cards if topic and card["key"] == topic.key), None)
     demos = list(DemoTemplate.objects.filter(category=topic.key, is_active=True)) if topic and topic.key not in {"crm", "other"} else []
     return {"order_topics": cards, "order_topic": selected, "order_choices": choices,
@@ -38,6 +41,7 @@ def gateway_context(request, lang):
             "order_selected_modules": choices.get("modules", "").split(","),
             "order_selected_extensions": choices.get("extensions", "").split(","),
             "order_consultation": CONSULTATION[0 if lang == "fa" else 1],
+            "order_consultation_url": start_url(**{**choices, "consult": "1"}),
             "order_modules": crm_choices(lang)[0] if topic and topic.key == "crm" else (),
             "order_extensions": crm_choices(lang)[1] if topic and topic.key == "crm" else (),
             "order_brief": [field for field in brief_fields("corporate", lang) if field["key"] != "timing"] if topic and topic.key == "other" else (),

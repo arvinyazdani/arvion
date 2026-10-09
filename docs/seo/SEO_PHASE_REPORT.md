@@ -3289,3 +3289,52 @@ completion. No later SSH attempted. No cron/background monitoring added.
 Rollback: keep switchoff and restore only reviewed scoped hunks when authorized;
 no broad reset or database rollback. Next permitted step is remaining LCP/TBT
 diagnosis/optimization, then a fresh matched3+3 gate, not public activation now.
+
+## Piece 2 — phase 1 server vocabulary (2026-10-10): VERIFIED locally / programme PARTIAL
+
+Owner authorizes local commits only. No push/deploy/SSH/migration/new model.
+The preceding Piece1 working tree was saved separately as328630f after73 Python
+tests and four Node contracts passed. That supersedes its historical
+"uncommitted" wording above, not its failed public LCP/TBT activation gate.
+
+Phase1 files:core/order_paths.py, core/order_gateway.py, core/order_summary.py,
+core/order_wizard.py, core/views/base.py,
+core/templates/core/project_start.html,
+core/templates/core/includes/order_gateway.html,
+core/test_order_vocabulary.py, this report and CURRENT_STATE.md.
+Associated local commit subject:`feat: add closed order-scene vocabulary and server catalogue`.
+
+Palette8/look6 are explicit closed sets, independent of existing gallery
+theme/personality semantics. Server JSON uses TOPICS/CATEGORY_FEATURE_KEYS/
+demo_config_labels/crm_choices/ADDONS/CONSULTATION, never duplicate feature
+inventories. Empty entry has no implicit preference. final_form_url revalidates
+even direct callers. Topic links, fallback GET forms and consultation carry the
+two preferences; final existing lead/specialist summary fields show bilingual
+labels, not editable new fields. request_type precedence is unchanged.
+Brand/phone/arbitrary query text is not included in the catalogue or handoff.
+
+Red evidence BEFORE implementation:
+`.venv/bin/python manage.py test core.test_order_vocabulary --verbosity 1`
+7 tests:3 failures,3 errors,1 pass (missing allowlists/JSON/summary/handoff).
+Green exact command:
+`.venv/bin/python manage.py test core.test_order_vocabulary core.test_order_paths core.test_order_gateway core.test_order_handoff core.test_order_ui --verbosity 1`
+32/32 OK,1.575s; disposable test DB destroyed. Also:
+`.venv/bin/python manage.py check` →0 issues;
+`.venv/bin/python manage.py makemigrations --check --dry-run` →No changes detected;
+`git diff --check` →clean. No full-suite run at this small server-only checkpoint.
+
+Browser gate BLOCKED: selecting known localhost8167 preview tab first required
+an explicit browser; the explicit iab selection was denied by browser security
+policy (reported protocol restriction despite the supplied http URL). No
+workaround attempted. Therefore prototype journeys, new visual implementation,
+screenshots, CLS/gzip measurements and phases2–5 are NOT verified or complete.
+No new animation assets have been added or enabled. Need authorized browser
+access before implementing exact visual parity with the owner's reference.
+Do not confuse the earlier Piece1 screenshot/performance evidence with Piece2.
+
+Protected gallery/article files, stash/bundle and permanent DB unchanged.
+P1-3/P4-1 remain DEFERRED; no analytics/session/cookie/cache/CSP change.
+Rollback:revert only this phase1 commit; no schema or data rollback required.
+Next:reference browser journeys → wizard → introductions → DB-backed exam
+options → accessibility/performance validation. Check feature-selection handoff
+through the existing validated adapter; do not invent a free-text query channel.
