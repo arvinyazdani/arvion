@@ -2,6 +2,7 @@
 # لیست پست‌ها با جستجو و فیلتر برچسب — کلاسی
 from django.views.generic import ListView
 from django.db.models import Q
+from collections import Counter
 from blog.models import Post
 from blog.languages import indexable_list_languages, translated_posts
 from django.conf import settings
@@ -26,10 +27,9 @@ class PostListView(LanguageViewMixin, ListView):
         q = self.request.GET.get("q")
         if q:
             qs = qs.filter(
-                Q(title_fa__icontains=q) |
-                Q(title_en__icontains=q) |
-                Q(summary_fa__icontains=q) |
-                Q(summary_en__icontains=q)
+                Q(**{f"title_{self.lang}__icontains": q}) |
+                Q(**{f"summary_{self.lang}__icontains": q}) |
+                Q(tags__name__icontains=q)
             )
         tag = self.request.GET.get("tag")
         if tag:
@@ -46,11 +46,16 @@ class PostListView(LanguageViewMixin, ListView):
                 urls[language] = f"{settings.SITE_URL}{reverse('blog:list')}"
         context["alternate_urls"] = urls
         available = translated_posts(Post.objects.published(), self.lang)
-        tag_names = available.values_list("tags__name", flat=True).exclude(tags__name__isnull=True).order_by("tags__name").distinct()
-        context["article_tags"] = [name for name in tag_names if self.lang == "fa" or not re.search(r"[\u0600-\u06ff]", name)]
+        counts = Counter(available.values_list("tags__name", flat=True))
+        context["article_tags"] = [{"name": name, "count": count} for name, count in sorted(
+            ((name, count) for name, count in counts.items() if name), key=lambda item: item[0])
+            if self.lang == "fa" or not re.search(r"[\u0600-\u06ff]", name)]
+        context["article_total"] = available.count()
         context["search_query"] = self.request.GET.get("q", "")
         context["selected_tag"] = self.request.GET.get("tag", "")
         posts = list(context["posts"])
-        context["featured_post"] = posts[0] if posts else None
-        context["grid_posts"] = posts[1:]
+        featured = bool(posts and not context["search_query"] and not context["selected_tag"]
+                        and context["page_obj"].number == 1)
+        context["featured_post"] = posts[0] if featured else None
+        context["grid_posts"] = posts[1:] if featured else posts
         return context

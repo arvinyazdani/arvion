@@ -5,6 +5,15 @@ from blog.covers import cover_alt as editorial_cover_alt
 register = template.Library()
 
 @register.filter
+def local_number(value, language):
+    return str(value).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")) if language == "fa" else value
+
+@register.filter
+def primary_tag(post, language):
+    return next((tag.name for tag in post.tags.all()
+                 if language == "fa" or not contains_persian(tag.name)), "")
+
+@register.filter
 def cover_alt(post, language):
     return editorial_cover_alt(post, language)
 

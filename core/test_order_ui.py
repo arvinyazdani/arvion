@@ -51,7 +51,7 @@ class OrderEntryUIContractTests(TestCase):
         from django.utils import timezone
         Post.objects.create(slug_fa="order-home-article", slug_en="order-home-article-en", title_fa="مقاله", title_en="Article", summary_fa="شرح", summary_en="Summary", is_published=True, published_at=timezone.now(), hero_image="blog/test.jpg")
         html = self.client.get("/fa/").content.decode()
-        section = html.split('class="journal-home shell"', 1)[1].split("</section>", 1)[0]
+        section = html.split('class="ar-home shell"', 1)[1].split("</section>", 1)[0]
         self.assertIn('loading="lazy"', section)
         self.assertNotIn('loading="eager"', section)
 

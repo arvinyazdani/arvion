@@ -57,7 +57,7 @@ class JournalTests(TestCase):
         response = self.client.get("/fa/blog/", {"q": "missing-string"})
         self.assertContains(response, "مقاله‌ای پیدا نشد")
         self.assertContains(response, "عبارت کوتاه‌تر")
-        self.assertContains(self.client.get("/fa/blog/"), "journal-cover-placeholder")
+        self.assertContains(self.client.get("/fa/blog/"), "ar-cover-placeholder")
 
     def test_detail_stable_toc_preserves_safe_body_and_navigation(self):
         response = self.client.get("/fa/blog/guide/")
@@ -139,9 +139,9 @@ class JournalTests(TestCase):
         response = self.client.get('/fa/blog/')
         self.assertEqual(response.context['featured_post'], self.post)
         self.assertEqual(response.context['grid_posts'], [])
-        self.assertContains(response, 'journal-featured')
+        self.assertContains(response, 'ar-featured')
         self.assertNotContains(response, 'مقاله‌ای پیدا نشد')
-        self.assertEqual(response.content.decode().count('class="journal-card-link"'), 1)
+        self.assertEqual(response.content.decode().count('class="ar-card-link"'), 1)
 
     def test_related_requires_shared_tag_and_neighbors_public_same_language(self):
         self.post.tags.add('Web')

@@ -6,7 +6,12 @@ Scope: public list/detail/cards/home + entry reading links. No article content,
 slug/tag/cover/model/SEO metadata or protected management/gallery changes.
 Phase1 retires the unreferenced Tailwind post_card; active journal files remain
 until their replacement consumers are ready (no broken intermediate routes).
-Phase2 list NOT_STARTED; phase3 reader NOT_STARTED; phase4 gateway NOT_STARTED.
+Phase1:24d0316;13 legacy/language tests PASS. Phase2 list VERIFIED at server layer:
+25 journal/list/order-UI tests PASS (four new list contracts). Locale-only title/
+summary + tags search, published tag counts, unfiltered-page1 latest, GET filters,
+pagination, 3/2/1 cards and shared home cards. Initial URL namespace error found
+by tests and fixed before commit. Browser matrix pending until integrated build.
+Phase3 reader NOT_STARTED; phase4 gateway NOT_STARTED.
 Rollback: revert scoped local commits in reverse order; no DB rollback.
 
 ## Review sample-first layout — 2026-10-10 — VERIFIED locally
