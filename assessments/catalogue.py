@@ -7,11 +7,11 @@ from .models import Exam, ExamVersion
 PUBLIC_EXAM_SLUGS = ("english-placement-a1-c1", "python-django-professional")
 
 
-def public_exam_catalogue(lang):
+def public_exam_catalogue(lang, exams=None):
     versions = ExamVersion.objects.filter(is_published=True).order_by("-version").annotate(
         bank_count=Count("questions", filter=Q(questions__is_active=True, questions__status="active"))
     ).prefetch_related("sections")
-    exams = Exam.objects.filter(is_active=True, slug__in=PUBLIC_EXAM_SLUGS).prefetch_related(
+    exams = (exams if exams is not None else Exam.objects.filter(is_active=True, slug__in=PUBLIC_EXAM_SLUGS)).prefetch_related(
         Prefetch("versions", queryset=versions, to_attr="public_versions"))
     rows = []
     for exam in exams:
@@ -24,6 +24,7 @@ def public_exam_catalogue(lang):
                      "description": getattr(exam, "description_" + lang),
                      "questions": exam.question_count, "minutes": exam.duration_minutes,
                      "sections": sections, "bank_count": version.bank_count if version else 0,
+                     "teacher_version": exam.slug == PUBLIC_EXAM_SLUGS[0] and bool(version and version.version >= 5),
                      "language": "English" if exam.language_mode == "en" else "فارسی و انگلیسی" if lang == "fa" else "Persian & English",
                      "url": url})
     return sorted(rows, key=lambda row: PUBLIC_EXAM_SLUGS.index(row["slug"]))

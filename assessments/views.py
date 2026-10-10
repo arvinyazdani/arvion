@@ -90,13 +90,20 @@ class ExamListView(LanguageViewMixin, ListView):
     context_object_name = "exams"
 
     def get_queryset(self):
-        return Exam.objects.filter(is_active=True)
+        from .catalogue import PUBLIC_EXAM_SLUGS
+        return Exam.objects.filter(is_active=True, slug__in=PUBLIC_EXAM_SLUGS)
+
+    def get(self, request, *args, **kwargs):
+        from .catalogue import PUBLIC_EXAM_SLUGS
+        slug = request.GET.get("exam", "")
+        if slug in PUBLIC_EXAM_SLUGS and self.get_queryset().filter(slug=slug).exists():
+            return redirect("assessments:briefing", slug=slug)
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        quote_time = timezone.now()
-        for exam in context["exams"]:
-            exam.purchase_quote = exam.price_quote(quote_time)
+        from .catalogue import public_exam_catalogue
+        context["assessment_options"] = public_exam_catalogue(self.lang, context["exams"])
         return context
 
 

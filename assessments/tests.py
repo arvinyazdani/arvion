@@ -177,9 +177,11 @@ class AssessmentCommerceTests(TestCase):
         )
 
     def test_catalog_is_public(self):
+        Exam.objects.update_or_create(slug="python-django-professional", defaults={"title_fa": "آزمون پایتون حرفه‌ای", "title_en": "Professional Python"})
         response = self.client.get("/fa/assessments/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "آزمون پایتون")
+        self.assertContains(response, "آزمون پایتون حرفه‌ای")
+        self.assertNotContains(response, 'value="python-test"')
 
     def test_order_requires_login(self):
         response = self.client.post(reverse("assessments:create_order", args=[self.exam.slug]))

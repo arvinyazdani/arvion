@@ -1,6 +1,6 @@
 {% extends "assessments/base.html" %}
 {% load static assessment_extras %}
-{% block extra_head %}{{ block.super }}{% include 'core/includes/path_intro_assets.html' %}{% endblock %}
+{% block extra_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'assessments/css/exam-options.css' %}?v=1">{% include 'core/includes/path_intro_assets.html' %}{% endblock %}
 {% block title %}{% if lang == 'fa' %}مرکز آزمون آرویون{% else %}Rvion Assessment Center{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}آزمون‌های ساختاریافته زبان انگلیسی و پایتون/جنگو همراه تحلیل مهارتی و گواهی قابل اعتبارسنجی.{% else %}Structured English and Python/Django assessments with skill analysis and verifiable certificates.{% endif %}{% endblock %}
 {% block og_title %}{% if lang == 'fa' %}مرکز آزمون آرویون | سنجش مهارت واقعی{% else %}Rvion Assessment Center{% endif %}{% endblock %}
@@ -34,29 +34,32 @@
   <div class="shell">
     <div class="section-head">
       <div><span class="eyebrow">{% if lang == 'fa' %}آزمون‌های فعال{% else %}AVAILABLE ASSESSMENTS{% endif %}</span><h2>{% if lang == 'fa' %}مسیر خودت را انتخاب کن{% else %}Choose your path{% endif %}</h2></div>
-      <p>{% if lang == 'fa' %}هر آزمون ۵۰ سؤال تصادفی دارد و پاسخ‌ها امن و خودکار ذخیره می‌شوند.{% else %}Each assessment contains 50 randomized questions with secure automatic saving.{% endif %}</p>
+      <p>{% if lang == 'fa' %}ساختار و زمان هر آزمون از نسخهٔ فعال نمایش داده می‌شود. ابتدا راهنما را بخوانید؛ قیمت و هدیهٔ احتمالی پس از ورود مشخص می‌شوند.{% else %}See each assessment’s current structure and duration. Read its briefing first; pricing and any eligible welcome credit follow sign-in.{% endif %}</p>
     </div>
-    <div class="assessment-list">
-      {% for exam in exams %}
-      <a class="assessment-card" href="{% url 'assessments:briefing' exam.slug %}">
-        <div>
-          <span class="card-number">{% if lang == 'fa' %}آزمون{% else %}ASSESSMENT{% endif %} / 0{{ forloop.counter }}</span>
-          <h2>{% if lang == 'fa' %}{{ exam.title_fa }}{% else %}{{ exam.title_en }}{% endif %}</h2>
-          <p>{% if lang == 'fa' %}{{ exam.description_fa }}{% else %}{{ exam.description_en }}{% endif %}</p>
-        </div>
-        <div class="assessment-meta">
-          <span><strong>{{ exam.question_count }}</strong>{% if lang == 'fa' %} سؤال{% else %} questions{% endif %}</span>
-          <span><strong>{{ exam.duration_minutes }}</strong>{% if lang == 'fa' %} دقیقه{% else %} minutes{% endif %}</span>
-          {% if request.user.is_authenticated %}
-          <span><strong>{{ exam.purchase_quote.amount_irr|group_digits }}</strong>{% if lang == 'fa' %} ریال{% else %} IRR{% endif %}{% if assessment_free_checkout %}<small> · {% if lang == 'fa' %}رایگان در محیط آزمایشی{% else %}Free in local preview{% endif %}</small>{% endif %}</span>
-          {% else %}
-          <span><strong>{% if lang == 'fa' %}پس از ورود{% else %}After sign-in{% endif %}</strong>{% if lang == 'fa' %} قیمت نمایش داده می‌شود{% else %} the price is shown{% endif %}</span>
-          {% endif %}
-          <b aria-hidden="true"><svg class="ui-icon ui-icon--directional"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></b>
-        </div>
-      </a>
-      {% endfor %}
-    </div>
+    <form class="os-exam-form" method="get" action="{% url 'assessments:list' %}" novalidate>
+      <fieldset><legend class="os-exam-legend">{% if lang == 'fa' %}کدام مهارت را می‌سنجید؟{% else %}Which skill would you like to assess?{% endif %}</legend>
+      <div class="os-exam-grid">
+      {% for option in assessment_options %}
+      <article class="os-exam-option">
+        <label class="os-exam-label" for="exam-{{ option.slug }}">
+          <input type="radio" name="exam" id="exam-{{ option.slug }}" value="{{ option.slug }}" required aria-describedby="exam-meta-{{ option.slug }}">
+          <span class="os-exam-symbol" aria-hidden="true">{% if option.slug == 'english-placement-a1-c1' %}Aa{% else %}&lt;/&gt;{% endif %}</span>
+          <span><strong>{{ option.title }}</strong><span class="os-exam-description">{{ option.description }}</span></span>
+        </label>
+        {% if option.slug == 'english-placement-a1-c1' %}<p class="os-exam-focus">{% if option.teacher_version %}{% if lang == 'fa' %}نسخهٔ پیشرفته برای ارزیابی متقاضیان تدریس زبان.{% else %}Advanced screening for English teaching applicants.{% endif %} {% endif %}{% if lang == 'fa' %}ساختار نسخهٔ فعال را پایین ببینید. این آزمون جای سنجش گفتاری یا تدریس عملی را نمی‌گیرد.{% else %}See the active structure below. This does not replace a speaking or live teaching assessment.{% endif %}</p>{% endif %}
+        <div class="os-exam-facts" id="exam-meta-{{ option.slug }}"><span><b>{{ option.questions }}</b> {% if lang == 'fa' %}سؤال{% else %}questions{% endif %}</span><span><b>{{ option.minutes }}</b> {% if lang == 'fa' %}دقیقه{% else %}minutes{% endif %}</span><span>{{ option.language }}</span></div>
+        {% if option.sections %}
+        <details class="os-exam-structure"><summary>{% if lang == 'fa' %}ساختار و سهم بخش‌ها{% else %}Structure and section allocation{% endif %}</summary>
+          <ul>{% for section in option.sections %}<li><span>{{ section.title }}</span><b>{{ section.count }} {% if lang == 'fa' %}سؤال{% else %}questions{% endif %}</b></li>{% endfor %}</ul>
+        </details>
+        {% else %}<p class="os-exam-focus">{% if lang == 'fa' %}ساختار نسخهٔ منتشرشده هنوز در دسترس نیست؛ پیش از پرداخت با پشتیبانی بررسی کنید.{% else %}Published section details are not available yet. Check with support before payment.{% endif %}</p>{% endif %}
+        <a class="os-exam-brief" href="{{ option.url }}">{% if lang == 'fa' %}مطالعهٔ راهنمای این آزمون{% else %}Read this assessment’s briefing{% endif %} <span aria-hidden="true">↗</span></a>
+      </article>
+      {% empty %}<p role="status">{% if lang == 'fa' %}در حال حاضر آزمون فعالی برای انتخاب وجود ندارد. لطفاً بعداً مراجعه کنید.{% else %}No assessment is currently available. Please check back later.{% endif %}</p>{% endfor %}
+      </div></fieldset>
+      {% if assessment_options %}<div class="os-exam-actions"><p id="os-exam-feedback" role="status">{% if lang == 'fa' %}یکی از دو مسیر را انتخاب کنید.{% else %}Choose one of the two paths.{% endif %}</p><button class="button primary" type="submit">{% if lang == 'fa' %}ادامه به راهنمای آزمون{% else %}Continue to the assessment briefing{% endif %}</button></div>{% endif %}
+    </form>
   </div>
 </section>
 {% endblock %}
+{% block extra_scripts %}{{ block.super }}<script src="{% static 'assessments/js/exam-options.js' %}?v=1" defer></script>{% endblock %}

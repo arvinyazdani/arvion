@@ -3378,3 +3378,23 @@ Certificate verification and recorded-answer explanations exist in current
 models/services/routes; no promise of a formal language qualification is made.
 Rollback: revert scoped phase3 commit; no data rollback. Final visual/performance
 matrix is still phase5, not implied by these representative checks.
+# Piece 2 — phase4 official exam options (2026-10-10)
+
+Status: implementation VERIFIED locally. Phase3 commitc333c99.
+Files: assessments/catalogue.py/views.py/list.html, new exam-options CSS/JS,
+core/test_exam_options.py; existing public-catalogue test fixture updated to
+the owner-required official slug instead of exposing an arbitrary test exam.
+Assertions strengthened: arbitrary/private slug must not be offered. Pricing,
+checkout, attempts, bank contents and grading are untouched.
+Tests: manage.py test core.test_exam_options core.test_path_intro
+assessments.tests.AssessmentCommerceTests →40/40 PASS. Expected mocked SMTP
+exception was logged in the recovery test; no actual email/SMS sent. Syntax
+and diff clean. Constant3-query public facts helper tested; no question/answer
+content returned. Unknown/external/inactive selections never redirect.
+Browser: English mobile option selection correctly reached
+/en/assessments/english-placement-a1-c1/about/, not the list or pricing.
+Teacher focus is conditional on published bank version≥5, matching the curated
+teacher_v5 upgrade; the title itself remains the owner's current DB wording.
+Speaking/live teaching are explicitly not claimed. General English is absent.
+Final mobile/desktop/theme/language matrix, gzip and full suite remain phase5.
+No push/deploy/migration. Rollback this scoped commit; no data rollback.

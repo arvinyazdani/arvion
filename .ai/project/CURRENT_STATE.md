@@ -36,8 +36,16 @@
   12/12 targeted Python tests, Node intro and existing entry-scene contracts
   PASS. Chrome390px project intro inspected; reload correctly goes straight
   to the studio. Full matrix/performance remains phase5.
-- Phases4/5 NOT_STARTED. Next: official exam
-  options, then full responsive/performance/cleanup gate. Public entry remains
+- Phase3 commitc333c99. Phase4 implementation VERIFIED locally: only official
+  active English/Python options, DB-backed counts/durations/published section
+  allocations, radio selection→existing briefing; no-JS GET and direct briefing
+  links. Advanced teacher label depends on published bank version≥5; no general
+  English third option, no unverified AI scoring claims. Empty/inactive/error
+  states have readable recovery. No bank question or answer is returned.
+  40/40 targeted Python tests PASS; syntax/diff clean; Chrome390px English
+  selection→correct English briefing verified. Expected mocked SMTP-failure log
+  is part of a passing test, not an actual message send.
+- Phase5 NOT_STARTED. Next: full responsive/performance/cleanup gate. Public entry remains
   default-off, and Piece1's stricter activation gate remains BLOCKED.
 - Scope guard: protected files, preserved stash/bundle, customer records,
   settings/CSP/theme policies untouched in phase1. No full-suite/release claim.
