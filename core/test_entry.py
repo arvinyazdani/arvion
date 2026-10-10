@@ -32,10 +32,10 @@ class EntryPayloadTests(SimpleTestCase):
         for lang in ("fa", "en"):
             _, payload = self.payload(lang)
             html = gzip.decompress(base64.b64decode(payload["scene_gzip"])).decode("utf-8")
-            self.assertIn(f'href="/{lang}/start/"', html)
-            self.assertIn(f'href="/{lang}/assessments/"', html)
-            self.assertLess(html.index(f'href="/{lang}/start/"'),
-                            html.index(f'href="/{lang}/assessments/"'))
+            self.assertIn(f'href="/{lang}/start/?from=entry"', html)
+            self.assertIn(f'href="/{lang}/assessments/?from=entry"', html)
+            self.assertLess(html.index(f'href="/{lang}/start/?from=entry"'),
+                            html.index(f'href="/{lang}/assessments/?from=entry"'))
             self.assertNotIn("data-fa=", html)
             self.assertNotIn("data-en=", html)
             if lang == "en":

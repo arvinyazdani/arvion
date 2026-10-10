@@ -1,0 +1,18 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('core/static/core/js/path-intro.js', 'utf8');
+let href = 'http://localhost/fa/start/?from=entry&type=crm', listener, replaced;
+const context = {URL, location:{get href(){return href;}}, history:{state:null, replaceState(state,title,url){replaced=String(url);href=String(url);}},matchMedia:()=>({matches:true}), document:{readyState:'complete',getElementById:()=>({})}};
+vm.runInNewContext(source, context);
+assert.equal(replaced,'http://localhost/fa/start/?type=crm');
+assert.doesNotMatch(source,/localStorage|sessionStorage|fetch\(|requestAnimationFrame/);
+assert.match(source,/document\.hidden/);
+assert.match(source,/clearTimeout\(timer\)/);
+assert.match(source,/visibilitychange/);
+assert.match(source,/prefers-reduced-motion/);
+assert.match(source,/rvion:path-intro-done/);
+assert.doesNotMatch(source,/50 questions|75 minutes|AI-powered/);
+const css=fs.readFileSync('core/static/core/css/path-intro.css','utf8');
+assert.doesNotMatch(css, /@keyframes[^}]*\{[^}]*\b(width|height|top|left|margin|font-size):/);
+console.log('Path intro: one-shot flag removal/reduced-motion, lifecycle and motion contracts PASS');

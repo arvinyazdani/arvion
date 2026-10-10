@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const boot = () => {
+    if (document.documentElement.dataset.pathIntro === 'active') {document.addEventListener('rvion:path-intro-done', boot, {once: true}); return;}
     const data = document.getElementById('order-wizard-data');
     const form = document.getElementById('os-handoff');
     if (!data || !form || !window.RvionOrderState || document.querySelector('[data-os-error]')) return;

@@ -3356,3 +3356,25 @@ replaced by normal-order flow; no horizontal overflow observed. Full matrix
 and permanent screenshot evidence deferred to phase5, not claimed here.
 No database migration/production access/push/deploy. Rollback only this phase's
 scoped commit; no database rollback. Phase1 baseline efea14d retained.
+# Piece 2 — phase3 path introduction checkpoint (2026-10-10)
+
+Status: implementation VERIFIED locally. Phase2 commit9437671.
+Files: assessments/catalogue.py; path_intro tag/assets/CSS/JS; entry CTA URLs,
+project/list includes, order-scene coordination, targeted intro tests.
+Commands: manage.py test core.test_path_intro core.test_entry core.test_order_scene
+(12/12 PASS); node core/tests_js/path_intro.test.cjs and entry_scene.test.cjs
+(PASS); node --check path-intro.js; diff check clean.
+Chrome390px project opening inspected: fixed grid background, animated form,
+six-step journey, skip always visible. Direct/reload omit the consumed flag.
+The payload is scoped to two destinations; elsewhere no assets are emitted.
+Public entrance is still default-off. No activation, migration or release.
+Read-only local exam facts: English50/75, Python50/70,7 sections each; active
+local pools200 each. These are DB values, not constants in the animation.
+Prototype claims adjusted: no guarantee of AI scoring (actual scoring in
+assessments/services.py is rule-based); page-exit/copy/timing evidence is not
+conclusive cheating; welcome attempt requires an eligible new account, accepted
+terms and one credit total (accounts/views.py and redeem_welcome_assessment).
+Certificate verification and recorded-answer explanations exist in current
+models/services/routes; no promise of a formal language qualification is made.
+Rollback: revert scoped phase3 commit; no data rollback. Final visual/performance
+matrix is still phase5, not implied by these representative checks.

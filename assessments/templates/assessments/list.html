@@ -1,5 +1,6 @@
 {% extends "assessments/base.html" %}
 {% load static assessment_extras %}
+{% block extra_head %}{{ block.super }}{% include 'core/includes/path_intro_assets.html' %}{% endblock %}
 {% block title %}{% if lang == 'fa' %}مرکز آزمون آرویون{% else %}Rvion Assessment Center{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}آزمون‌های ساختاریافته زبان انگلیسی و پایتون/جنگو همراه تحلیل مهارتی و گواهی قابل اعتبارسنجی.{% else %}Structured English and Python/Django assessments with skill analysis and verifiable certificates.{% endif %}{% endblock %}
 {% block og_title %}{% if lang == 'fa' %}مرکز آزمون آرویون | سنجش مهارت واقعی{% else %}Rvion Assessment Center{% endif %}{% endblock %}

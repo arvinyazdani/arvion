@@ -29,7 +29,14 @@
   and diff checks clean. Real Chrome390px selection→review and edit navigation
   checked. Mobile reverse-flow clipping reproduced and corrected. The full
   40-view matrix, timings, gzip and full suite remain phase5, NOT_RUN yet.
-- Phases3/4/5 NOT_STARTED. Next: one-shot path introductions, official exam
+- Phase2 commit9437671. Phase3 implementation VERIFIED locally: one-shot
+  from=entry flag removed with history.replaceState (no cookie/storage);18s
+  project journey and10.4s assessment intro. Skip/Escape, pause, hidden-page
+  clock suspension, reduced-motion bypass and subsequent wizard startup.
+  12/12 targeted Python tests, Node intro and existing entry-scene contracts
+  PASS. Chrome390px project intro inspected; reload correctly goes straight
+  to the studio. Full matrix/performance remains phase5.
+- Phases4/5 NOT_STARTED. Next: official exam
   options, then full responsive/performance/cleanup gate. Public entry remains
   default-off, and Piece1's stricter activation gate remains BLOCKED.
 - Scope guard: protected files, preserved stash/bundle, customer records,

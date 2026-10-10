@@ -1,0 +1,5 @@
+{% load static path_intro %}{% path_intro_data as path_intro %}{% if path_intro %}
+{{ path_intro|json_script:"os-path-data" }}
+<link rel="stylesheet" href="{% static 'core/css/path-intro.css' %}?v=1">
+<script src="{% static 'core/js/path-intro.js' %}?v=1" defer></script>
+{% endif %}
