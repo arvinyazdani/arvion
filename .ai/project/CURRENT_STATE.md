@@ -1,5 +1,14 @@
 # Rvion current state
 
+## Article reference replacement — 2026-10-10 — PARTIAL
+
+Scope: public list/detail/cards/home + entry reading links. No article content,
+slug/tag/cover/model/SEO metadata or protected management/gallery changes.
+Phase1 retires the unreferenced Tailwind post_card; active journal files remain
+until their replacement consumers are ready (no broken intermediate routes).
+Phase2 list NOT_STARTED; phase3 reader NOT_STARTED; phase4 gateway NOT_STARTED.
+Rollback: revert scoped local commits in reverse order; no DB rollback.
+
 ## Review sample-first layout — 2026-10-10 — VERIFIED locally
 
 Owner requested complete final sample before settings. Review now uses full
