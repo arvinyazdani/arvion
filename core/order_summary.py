@@ -29,6 +29,7 @@ def summary_lines(request, lang):
 
 def specialist_initial(request):
     """Only put a readable non-personal selection summary in an existing field."""
+    choices = parse_choices(request.GET)
     lines = summary_lines(request, "fa")
     # A demo is readable only through the existing session-bound validator.
     from leads.views.contact import _session_demo_selection
@@ -36,7 +37,10 @@ def specialist_initial(request):
     if selection:
         from projects.demo_snapshots import build_demo_selection_snapshot
         snapshot = build_demo_selection_snapshot(selection)
-        lines.extend(str(snapshot[key]) for key in ("template_title_fa", "theme_fa", "personality_fa") if snapshot.get(key))
+        if choices.get("palette") and choices.get("look"):
+            lines.append("مرجع فنی امکانات (نه طرح نهایی): " + snapshot["template_title_fa"])
+        else:
+            lines.extend(str(snapshot[key]) for key in ("template_title_fa", "theme_fa", "personality_fa") if snapshot.get(key))
         lines.extend(snapshot.get("features_fa", []))
         lines.extend(snapshot.get("brief_fa", []))
     return {"additional_notes": "انتخاب‌های اولیه (نمونه، نه تعهد):\n" + "\n".join(lines)} if lines else {}
@@ -57,5 +61,11 @@ def lead_initial(request, initial, lang):
     lines = summary_lines(request, lang)
     if lines:
         heading = "انتخاب‌های اولیه (نمونه، نه تعهد):" if lang == "fa" else "Initial choices (sample, not a commitment):"
+        if choices.get("palette") and choices.get("look"):
+            # A neutral demo record carries capabilities only. Its template
+            # was not a visual template the studio visitor explicitly chose.
+            prefix = "نمونه انتخاب‌شده:" if lang == "fa" else "Selected demo:"
+            replacement = "مرجع فنی امکانات (نه طرح انتخابی):" if lang == "fa" else "Functional reference (not a chosen visual template):"
+            initial["message"] = initial.get("message", "").replace(prefix, replacement, 1)
         initial["message"] = (initial.get("message", "") + "\n" + heading + "\n" + "\n".join(lines)).strip()
     return initial

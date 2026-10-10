@@ -5,7 +5,7 @@
   const feedback = form.querySelector('[role=status]'), fa = document.documentElement.lang === 'fa';
   form.addEventListener('change', () => {
     const selected = form.querySelector('input[name=exam]:checked');
-    form.querySelectorAll('input[name=exam]').forEach(n => n.removeAttribute('aria-invalid'));
+    form.querySelectorAll('input[name=exam]').forEach(n => {n.removeAttribute('aria-invalid'); n.setAttribute('aria-describedby', 'exam-meta-' + n.value);});
     if (selected) feedback.textContent = selected.closest('label').querySelector('strong').textContent;
   });
   form.addEventListener('submit', event => {

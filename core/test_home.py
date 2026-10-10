@@ -99,7 +99,7 @@ class HomeClarityTests(TestCase):
         response = self.client.get('/en/')
         self.assertEqual(len(response.context['home_services']), 1)
         self.assertContains(response, 'Samples are being prepared')
-        self.assertContains(response, 'href="/en/contact/"')
+        self.assertContains(response, 'href="/en/start/"')
         self.assertContains(response, 'href="/en/crm/"')
 
     def test_public_identity_is_database_driven_and_not_fabricated(self):
@@ -124,7 +124,8 @@ class HomeClarityTests(TestCase):
         for lang in ('fa', 'en'):
             response = self.client.get(f'/{lang}/')
             links = HomeStructureParser(response.content.decode()).links
-            paths = ['crm/', 'projects/demos/', 'contact/', 'company/', 'blog/',
+            # Ordering now starts at the unified gateway, not the final form.
+            paths = ['crm/', 'projects/demos/', 'start/', 'company/', 'blog/',
                      'assessments/english-placement-a1-c1/about/',
                      'assessments/python-django-professional/about/']
             paths += [f'services/{slug}/' for slug in Service.objects.filter(
@@ -155,7 +156,7 @@ class HomeClarityTests(TestCase):
             navigation = html.split('<div class="nav-primary">', 1)[1].split('</div>', 1)[0]
             self.assertEqual(HomeStructureParser(navigation).links, [
                 f'/{lang}/services/', f'/{lang}/projects/demos/', f'/{lang}/crm/',
-                f'/{lang}/assessments/', f'/{lang}/blog/', f'/{lang}/contact/',
+                f'/{lang}/assessments/', f'/{lang}/blog/', f'/{lang}/start/?consult=1',
             ])
             self.assertEqual(html.count('class="nav-cta"'), 1)
             self.assertLess(html.index('</nav>'), html.index('class="nav-cta"'))

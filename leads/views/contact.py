@@ -187,6 +187,12 @@ class LeadCreateView(LanguageViewMixin, FormView):
             }
             snapshot = build_demo_selection_snapshot(selection)
             context["demo_summary"] = _demo_summary(snapshot, self.lang)
+            # The order studio is a schematic, not the gallery template used
+            # as the existing functional hand-off carrier. Do not display its
+            # neutral gallery colour/personality as the customer's selection.
+            scene = context["order_choices"]
+            context["order_scene_receipt"] = bool(scene.get("palette") and scene.get("look")
+                                                  and scene.get("type") == selection.template.category)
             pointers = self.request.session.get("contact_demo_language_tokens", {})
             reference = next((key for key, value in pointers.items() if value == selection.pk), None)
             if reference is None:

@@ -1,6 +1,65 @@
 # SEO phase report — Rvion
 
-Current checkpoint (2026-10-09): entry CLS/audio diagnosis VERIFIED locally;
+## Piece 2 — phase5 final verification (2026-10-10)
+
+Status: scoped implementation/local evidence VERIFIED; programme PARTIAL for
+the unchanged strict gallery audit, owner visual acceptance and Piece1 public
+activation gate. Final serial recovery:`.venv/bin/python manage.py test --parallel 1
+--verbosity 1` →1160 tests, OK(skipped=27),338.248s. Log:
+/tmp/rvion-piece2-20261010/full-suite-recovery.log. Skips are retained existing
+backend-specific conditions, not added to hide failures. No claim of PostgreSQL
+or actual-device execution. Final checkpoint commit is the phase5 commit that
+contains this section (resolve with Git log, no fabricated forward hash).
+
+Scope: local order studio, one-shot path introductions and official assessment
+options. Implementation commits:9437671, c333c99, 5c2b223. Single primary agent;
+self-review, not independent review. No push/deploy/SSH/migration. Protected
+gallery files, customer records and preserved stash/bundle unchanged.
+
+Corrections: pausing motion now leaves a fully visible preview (not an entrance
+animation frozen at opacity zero); desktop step targets are at least44px;
+step changes cancel old overlay timers; missing studio CSS restores the simple
+form; exam validation restores each option's descriptive association. The final
+form distinguishes a neutral functional carrier from the customer's actual
+colour/look; no gallery style is falsely presented as the selected visual style.
+The first targeted run caught a missing local `choices` variable in the clinic
+summary; corrected and26/26 targeted tests passed. Later25 home/handoff tests
+passed after correcting three stale home expectations to the already-approved
+unified /start/ gateway (no production route changed to satisfy these tests).
+
+Evidence: /tmp/rvion-piece2-20261010/matrix.json and40 JPEG views:
+5 stages x390/1280px xfa/en xlight/dark. DOM checks: no horizontal overflow,
+preview opacity1, no enabled button below44px tolerance, no Persian characters
+in the English studio. Representative screenshots inspected. English project
+intro completed to studio; browser studio→contact form preserved choices, with
+no customer submission. Feature-bearing handoff and session/idempotency/error
+cases are covered in disposable Django test databases, not a browser-created
+production/customer record. Actual iPhone/Safari and subjective owner acceptance
+remain unverified; this is not a pixel-identical/reference acceptance claim.
+
+Seven new JS/CSS assets total20847 gzip bytes (<35KiB). Three mobile Lighthouse
+runs on /fa/start/: CLS0/0/0, TBT93/96/83ms, LCP4005.33/3922.79/3919.79ms.
+JSON files:lighthouse-1/2/3.json in the evidence directory. Temporary local
+PerformanceObserver also recorded zero shifts/long tasks on three loads; its
+script was removed before these Lighthouse runs and is not committed. These
+measurements do NOT supersede Piece1's control-relative public activation gate.
+
+Commands: manage.py test core.test_order_scene core.test_order_handoff leads.tests
+(26 PASS); manage.py test core.test_home core.test_order_scene core.test_order_handoff
+(25 PASS); all6 core/tests_js/*.test.cjs PASS; JS syntax PASS; manage.py check0;
+makemigrations --check --dry-run:No changes detected; git diff --check clean.
+Manifest unit command initially232 tests/3 failures, all stale home routes.
+Full --parallel4 discovered1160 tests but stopped on traceback-pickling while
+reporting a failure, so it is NOT a full passing gate. A serial recovery run is
+recorded below; it is an explicit diagnostic recovery, not an unreported second
+routine full run. Strict premium audit:FAIL,55 existing actionless-button
+findings in unchanged gallery templates; no suppressions or protected-file edits.
+
+Rollback: revert only the four scoped Piece2 implementation commits in reverse
+order if needed; no database rollback. Keep RVION_ENTRY_ENABLED off. No cleanup
+of customer data, existing stash, backup, media or secrets is authorized here.
+
+Historical checkpoint (2026-10-09): entry CLS/audio diagnosis VERIFIED locally;
 public activation BLOCKED on control-relative LCP/TBT. Latest owner instruction:
 no push/deploy/migration. See final "Entry CLS/audio diagnosis" section. Changes
 remain uncommitted on f7b404d; older release entries below are historical.

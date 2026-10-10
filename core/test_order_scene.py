@@ -19,6 +19,19 @@ class OrderSceneHandoffTests(TestCase):
         self.assertNotIn("foreign", str(row.selections) + response.url)
         self.assertEqual(parse_qs(urlsplit(response.url).query)["palette"], ["rose"])
         self.assertEqual(row.session_key, self.client.session.session_key)
+        page = self.client.get(response.url)
+        self.assertContains(page, "امکانات انتخاب‌شدهٔ شما")
+        self.assertContains(page, "مرجع فنی")
+        self.assertNotContains(page, 'Design personality')
+        self.assertTrue(page.context["order_scene_receipt"])
+
+    def test_english_functional_receipt_never_implies_neutral_carrier_look_is_selected(self):
+        response = self.client.post("/en/start/", self.payload)
+        page = self.client.get(response.url)
+        self.assertContains(page, "Your selected capabilities")
+        self.assertContains(page, "not your final visual design")
+        self.assertNotContains(page, "Design personality")
+        self.assertNotContains(page, 'Colour</dt>')
 
     def test_retry_is_idempotent_and_different_payload_never_overwrites(self):
         first = self.client.post("/fa/start/", self.payload)

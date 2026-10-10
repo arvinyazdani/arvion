@@ -45,11 +45,27 @@
   40/40 targeted Python tests PASS; syntax/diff clean; Chrome390px English
   selection→correct English briefing verified. Expected mocked SMTP-failure log
   is part of a passing test, not an actual message send.
-- Phase5 NOT_STARTED. Next: full responsive/performance/cleanup gate. Public entry remains
-  default-off, and Piece1's stricter activation gate remains BLOCKED.
+- Phase4 commit5c2b223. Phase5 implementation and local evidence completed;
+  programme remains PARTIAL for the existing strict audit/public activation gates.
+  40 Chrome views:5 stages x390/1280 xfa/en xlight/dark, no horizontal overflow,
+  invisible preview, sub44px enabled targets or Persian text in English studio.
+  Motion-pause opacity bug, stale step-effect timer, missing-CSS fallback and
+  misleading neutral-template receipt corrected.26 handoff tests and25 home/
+  handoff tests PASS;6 Node contracts PASS. Seven assets20847 gzip bytes.
+  Lighthouse mobile3 runs:CLS0/0/0,TBT93/96/83ms,LCP4005/3923/3920ms.
+  Full parallel run1160 discovered tests stopped at traceback-pickling while
+  reporting failure; scoped serial manifest232 tests exposed3 stale home route
+  expectations. Corrected to existing unified gateway;25 tests re-verified.
+  Full serial diagnostic recovery finished successfully (exact count recorded
+  in docs/seo/SEO_PHASE_REPORT.md); never call the aborted parallel run PASS.
+  Strict premium audit still FAILS on55 unchanged gallery findings (out of
+  scope/protected); no suppressions. Actual iPhone/Safari and owner visual
+  acceptance unverified. No claim of pixel-identical reference implementation.
+  Public entry remains default-off; Piece1 activation gate remains BLOCKED.
 - Scope guard: protected files, preserved stash/bundle, customer records,
   settings/CSP/theme policies untouched in phase1. No full-suite/release claim.
-- Rollback: revert only the phase1 vocabulary commit if needed; no DB rollback.
+- Rollback: revert the scoped Piece2 implementation commits in reverse order
+  if required; phase1 vocabulary remains separately revertible. No DB rollback.
 
 ## Previous task — entry animation: BLOCKED (2026-10-09)
 

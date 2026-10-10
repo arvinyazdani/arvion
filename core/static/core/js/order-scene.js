@@ -59,7 +59,9 @@
     }
     function dispatch(action) {
       const focused = document.activeElement?.textContent, oldStep = state.step;
-      state = api.transition(state, action, catalogue); render(); schedule();
+      state = api.transition(state, action, catalogue);
+      if (oldStep !== state.step) {clearTimeout(effectTimer); stage.classList.remove('os-code-reveal', 'os-topic-reveal', 'os-feature-reveal');}
+      render(); schedule();
       if (oldStep !== state.step) {body.scrollTop = 0; stage.scrollTop = 0; title.focus({preventScroll: true});}
       else [...root.querySelectorAll('button')].find(b => b.textContent === focused)?.focus({preventScroll: true});
     }
@@ -167,7 +169,9 @@
       else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
     }
     try {
-      render(); document.body.append(root); saved.forEach(([n]) => {n.inert = true;}); document.body.classList.add('os-open'); root.hidden = false;
+      render(); document.body.append(root); root.hidden = false;
+      if (getComputedStyle(root).position !== 'fixed') {close(); return;}
+      saved.forEach(([n]) => {n.inert = true;}); document.body.classList.add('os-open');
       document.addEventListener('visibilitychange', visibility); document.addEventListener('keydown', keyboard); window.addEventListener('pagehide', close); motion.addEventListener?.('change', motionChange);
       title.focus({preventScroll: true}); schedule();
     } catch (error) {close();}
