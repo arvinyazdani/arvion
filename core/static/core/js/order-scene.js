@@ -5,11 +5,12 @@
     if (document.documentElement.dataset.pathIntro === 'active') {document.addEventListener('rvion:path-intro-done', boot, {once: true}); return;}
     const data = document.getElementById('order-wizard-data');
     const form = document.getElementById('os-handoff');
-    if (!data || !form || !window.RvionOrderState || document.querySelector('[data-os-error]')) return;
+    if (!data || !form || !window.RvionOrderState || !window.RvionOrderMotion || !window.RvionOrderArt || document.querySelector('[data-os-error]')) return;
     const catalogue = JSON.parse(data.textContent), api = window.RvionOrderState, fa = catalogue.lang === 'fa';
     const say = (a, b) => fa ? a : b;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let state = api.create(catalogue), timer = 0, effectTimer = 0, paused = false, closed = false, preview = 0;
+    const clock = window.RvionOrderMotion.create(window), art = window.RvionOrderArt;
+    let state = api.create(catalogue), paused = false, closed = false, preview = 0, introducing = false;
     const headings = [say('رنگِ شما، شروعِ داستان', 'Your colour. Your starting point.'), say('حال‌وهوای سایت را انتخاب کنید', 'Find your visual character.'), say('برای چه کسب‌وکاری می‌سازیم؟', 'What are we building for?'), say('چه امکاناتی لازم دارید؟', 'What should your website do?'), say('این نقطهٔ شروع شماست', 'Your starting point is ready.')];
     const stepNames = [say('رنگ', 'Colour'), say('سبک', 'Look'), say('موضوع', 'Topic'), say('امکانات', 'Features'), say('مرور', 'Review')];
     const copy = {
@@ -29,7 +30,7 @@
     const icon = topic => {const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('aria-hidden', 'true'); const p = document.createElementNS(svg.namespaceURI, 'path'); p.setAttribute('d', glyphs[topic] || glyphs.other); svg.append(p); return svg;};
     const root = node('section', 'os-root'); root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-labelledby', 'os-title'); root.dir = fa ? 'rtl' : 'ltr'; root.hidden = true;
     const head = node('header', 'os-head'); head.append(node('strong', 'os-logo', 'RVION'), node('span', 'os-kicker', say('استودیوی انتخاب شما', 'YOUR DESIGN STUDIO')));
-    const pause = button('', () => {paused = !paused; syncPause(); schedule();}, 'os-tool');
+    const pause = button('', () => {paused = !paused; introducing = false; render(); schedule();}, 'os-tool');
     const simple = button(say('فرم ساده', 'Simple form'), close, 'os-tool');
     head.append(pause, simple);
     const nav = node('nav', 'os-steps'); nav.setAttribute('aria-label', say('مراحل انتخاب', 'Design steps'));
@@ -45,7 +46,7 @@
     const saved = siblings.map(n => [n, n.inert]);
     const previousFocus = document.activeElement;
     function close() {
-      if (closed) return; closed = true; clearTimeout(timer); clearTimeout(effectTimer);
+      if (closed) return; closed = true; clock.stop();
       document.removeEventListener('visibilitychange', visibility); document.removeEventListener('keydown', keyboard);
       window.removeEventListener('pagehide', close); motion.removeEventListener?.('change', motionChange);
       root.remove(); document.body.classList.remove('os-open'); saved.forEach(([n, inert]) => {n.inert = inert;});
@@ -53,39 +54,52 @@
     }
     function syncPause() {pause.textContent = paused ? say('ادامهٔ حرکت', 'Resume motion') : say('توقف حرکت', 'Pause motion'); pause.setAttribute('aria-pressed', String(paused)); root.classList.toggle('os-paused', paused || document.hidden);}
     function schedule() {
-      clearTimeout(timer);
-      if (closed || paused || motion.matches || document.hidden || state.step > 1 || state[ state.step === 0 ? 'palette' : 'look']) return;
-      timer = setTimeout(() => {preview++; drawScene(); schedule();}, state.step === 0 ? 4200 : 4300);
+      clock.cycle(state.step === 0 ? 4200 : 4300,
+        () => !closed && !paused && !motion.matches && !document.hidden && state.step < 2 && !state[state.step === 0 ? 'palette' : 'look'],
+        () => {preview++; drawScene(true); schedule();});
     }
     function dispatch(action) {
       const focused = document.activeElement?.textContent, oldStep = state.step;
       state = api.transition(state, action, catalogue);
-      if (oldStep !== state.step) {clearTimeout(effectTimer); stage.classList.remove('os-code-reveal', 'os-topic-reveal', 'os-feature-reveal');}
-      render(); schedule();
+      introducing = false;
+      render(action.type === 'choose' || state.step < 2); schedule();
       if (oldStep !== state.step) {body.scrollTop = 0; stage.scrollTop = 0; title.focus({preventScroll: true});}
       else [...root.querySelectorAll('button')].find(b => b.textContent === focused)?.focus({preventScroll: true});
     }
     function advance() {
+      if (introducing) return;
       if (state.step === 4) {submit(); return;}
-      const topicStep = state.step === 2;
+      if (state.step === 2 && state.topic && !motion.matches && !paused && !document.hidden && api.transition(state, {type: 'next'}, catalogue).step === 3) {
+        clock.stop(); introducing = true; next.disabled = true;
+        const overlay = node('div', 'os-topic-intro'); overlay.append(art.intro(state.topic, icon), node('h3', '', catalogue.topics.find(t => t.key === state.topic).title), node('p', '', copy[state.topic][1]));
+        const finish = () => {if (!introducing) return; dispatch({type: 'next'});};
+        const skip = button(say('رد کردن مقدمه', 'Skip introduction'), finish, 'os-tool'); overlay.append(skip); overlay.dataset.palette = state.palette;
+        (window.matchMedia('(max-width: 700px)').matches ? root : stage).append(overlay);
+        skip.focus({preventScroll: true}); clock.after(3600, finish); return;
+      }
       dispatch({type: 'next'});
-      if (topicStep && !motion.matches && !paused) effect('os-topic-reveal', 1600);
       title.focus({preventScroll: true});
     }
-    function effect(cls, duration) {
-      clearTimeout(effectTimer); stage.classList.remove('os-code-reveal', 'os-topic-reveal', 'os-feature-reveal');
-      if (motion.matches || paused || document.hidden) return;
-      stage.classList.add(cls); effectTimer = setTimeout(() => stage.classList.remove(cls), duration);
-    }
-    function pick(field, value) {dispatch({type: 'choose', field, value}); if (field !== 'topic') effect('os-code-reveal', 1250);}
+    function pick(field, value) {dispatch({type: 'choose', field, value});}
     function edit(step) {dispatch({type: 'edit', step}); title.focus({preventScroll: true});}
     function checkList(rows, field, container = choices) {
       rows.forEach(([key, label]) => {
-        const b = button(label, () => {dispatch({type: 'toggle', field, value: key}); effect('os-feature-reveal', 1500);});
+        const b = button(label, () => {
+          const adding = !state[field].includes(key); dispatch({type: 'toggle', field, value: key});
+          if (!adding) {status.textContent = label + say(' برداشته شد.', ' removed.'); return;}
+          status.textContent = label + say(' اضافه شد.', ' added.');
+          if (!motion.matches && !paused && !document.hidden) {
+            const pop = node('div', 'os-feature-pop'); pop.dataset.palette = state.palette;
+            pop.append(art.section(key, label, sceneContext()));
+            (window.matchMedia('(max-width: 700px)').matches ? root : stage).append(pop);
+            clock.after(2000, () => {pop.remove(); const section = [...stage.querySelectorAll('.os-designed-section')].find(n => n.dataset.feature === key); if (section) {section.classList.add('os-section-new'); const page = stage.querySelector('.os-page'); page.scrollTo({top: section.offsetTop - page.offsetTop - 24, behavior: 'smooth'});}});
+          }
+        });
         b.setAttribute('aria-pressed', String(state[field].includes(key))); container.append(b);
       });
     }
-    function render() {
+    function render(play = state.step < 2) {
+      root.querySelectorAll('.os-topic-intro, .os-feature-pop').forEach(n => n.remove());
       root.dataset.step = String(state.step); nav.replaceChildren(); choices.replaceChildren();
       stepNames.forEach((name, i) => {const b = button(name, () => dispatch({type: 'go', step: i}), 'os-step'); b.disabled = i > state.visited; if (i === state.step) b.setAttribute('aria-current', 'step'); nav.append(b);});
       title.textContent = headings[state.step];
@@ -100,7 +114,7 @@
         catalogue.topics.forEach(topic => {const b = button(topic.title, () => pick('topic', topic.key)); b.prepend(icon(topic.key)); b.setAttribute('aria-pressed', String(state.topic === topic.key)); choices.append(b);});
         const label = node('label', 'os-brand-label', say('نام نمایشی برند (اختیاری)', 'Preview brand (optional)')); label.htmlFor = 'os-brand';
         const input = node('input', 'os-brand'); input.id = 'os-brand'; input.type = 'text'; input.maxLength = 40; input.autocomplete = 'off'; input.value = state.brand;
-        input.addEventListener('input', () => {state = api.transition(state, {type: 'brand', value: input.value}, catalogue); drawScene();}); choices.append(label, input);
+        input.addEventListener('input', () => {state = api.transition(state, {type: 'brand', value: input.value}, catalogue); stage.querySelectorAll('[data-os-brand]').forEach(n => {n.textContent = state.brand || say('برند شما', 'Your brand');});}); choices.append(label, input);
       } else if (state.step === 3) {
         const topic = catalogue.topics.find(t => t.key === state.topic);
         checkList(topic?.features || [], 'features');
@@ -121,34 +135,41 @@
       }
       back.hidden = state.step === 0; next.disabled = state.step === 0 && !state.palette || state.step === 1 && !state.look || state.step === 2 && !state.topic;
       next.textContent = state.step === 4 ? say('ادامه به فرم نیازسنجی', 'Continue to discovery') : state.editing && state.step !== 2 ? say('ذخیره و بازگشت', 'Save and return') : say('ادامه', 'Continue');
-      status.textContent = say('مرحلهٔ ', 'Step ') + new Intl.NumberFormat(fa ? 'fa' : 'en').format(state.step + 1) + say(' از ۵', ' of 5'); drawScene(); syncPause();
+      status.textContent = say('مرحلهٔ ', 'Step ') + new Intl.NumberFormat(fa ? 'fa' : 'en').format(state.step + 1) + say(' از ۵', ' of 5'); drawScene(play); syncPause();
     }
-    function drawScene() {
+    function sceneContext() {
       const palette = state.palette || catalogue.palettes[state.step === 0 ? preview % catalogue.palettes.length : 0][0];
       const look = state.look || catalogue.looks[state.step === 1 ? preview % catalogue.looks.length : 0][0];
       const topic = state.topic || 'corporate', content = copy[topic], name = state.brand || say('برند شما', 'Your brand');
+      const topicData = catalogue.topics.find(t => t.key === topic);
+      const selected = [...(topicData?.features || []).filter(r => state.features.includes(r[0])), ...(topicData?.extensions || []).filter(r => state.extensions.includes(r[0])), ...catalogue.addons.filter(r => state.addons.includes(r[0]))];
+      return {say, icon, palette, look, topic, name, copy: content, selected};
+    }
+    function drawScene(play = false) {
+      clock.stop(); const ctx = sceneContext(); const {palette, look, topic} = ctx;
       stage.replaceChildren(); stage.dataset.palette = palette;
       const windowBar = node('div', 'os-windowbar', say('نمونهٔ نمایشی · نه سایت نهایی', 'ILLUSTRATIVE SAMPLE · NOT A FINAL WEBSITE')); windowBar.prepend(node('span', 'os-window-dots', '● ● ●')); stage.append(windowBar);
-      const site = node('div', 'os-site os-look-' + look); site.dataset.palette = palette;
-      site.setAttribute('aria-label', say('پیش‌نمایش طراحی', 'Design preview'));
-      const utility = node('div', 'os-utility', look === 'industrial' ? say('مهندسی · ساخت · توسعه', 'ENGINEERED / BUILT / CONNECTED') : look === 'classic' ? say('طراحی با دقت به جزئیات', 'CONSIDERED IN EVERY DETAIL') : say('یک نمونه برای کشف سلیقهٔ شما', 'A SAMPLE TO EXPLORE YOUR TASTE'));
-      const sh = node('div', 'os-site-head'); sh.append(node('strong', 'os-site-brand', name), node('span', 'os-site-links', say('خانه　خدمات　ارتباط', 'Home　Explore　Contact')));
-      const hero = node('div', 'os-hero'), text = node('div', 'os-hero-copy');
-      text.append(node('span', 'os-eyebrow', content[2]), node('h3', '', content[0]), node('p', '', content[1]), node('span', 'os-mock-cta', say('بیشتر ببینید ←', 'Explore more →')));
-      const visual = node('div', 'os-visual'); visual.setAttribute('aria-hidden', 'true'); visual.append(node('i', 'os-orbit'), icon(topic));
-      if (look === 'modern' || look === 'industrial') {const dash = node('div', 'os-mini-dash'); [40, 75, 55, 90, 65].forEach(height => {const bar = node('i'); bar.style.setProperty('--os-bar', height + '%'); dash.append(bar);}); visual.append(dash);}
-      if (look === 'soft') {const phone = node('div', 'os-phone'); phone.append(node('span', '', say('سلام، چطور کمک کنیم؟', 'Hi, how can we help?')), node('span', '', say('می‌خواهم بیشتر بدانم', 'I would like to know more')), icon(topic)); visual.append(phone);}
-      if (look === 'video') visual.append(node('span', 'os-play', '▷'));
-      hero.append(text, visual); site.append(utility, sh, hero);
-      const modules = node('div', 'os-modules');
-      const topicData = catalogue.topics.find(t => t.key === topic), selected = (topicData?.features || []).filter(r => state.features.includes(r[0]));
-      const cards = selected.length ? selected : [[topic, content[2]], [topic, say('جزئیات و معرفی', 'Details & information')], [topic, say('ارتباط با ما', 'Get in touch')]];
-      cards.forEach(([key, label], index) => {const card = node('div', 'os-module'); card.append(node('span', 'os-card-number', String(index + 1).padStart(2, '0')), icon(topic), node('strong', '', label), node('span', '', say('بخشی از تجربهٔ پیشنهادی', 'Part of your proposed experience'))); modules.append(card);});
-      site.append(modules, node('div', 'os-site-footer', name + ' · ' + say('نمونهٔ طراحی', 'Design sample')));
-      const editor = node('div', 'os-editor'); editor.setAttribute('aria-hidden', 'true'); editor.append(node('span', '', 'design.css'), node('pre', '', ':root {\n  palette: ' + palette + ';\n  character: ' + look + ';\n}\n\n<section>\n  Your next chapter\n</section>'));
-      stage.append(site, editor);
+      if (state.step === 1) {
+        const stories = node('div', 'os-stories'), prevStory = button('‹', () => browse(-1), 'os-story-arrow'); prevStory.setAttribute('aria-label', say('سبک قبلی', 'Previous look')); stories.append(prevStory);
+        catalogue.looks.forEach(([key]) => {const segment = node('span', 'os-story'); segment.setAttribute('aria-hidden', 'true'); segment.dataset.active = String(key === look); stories.append(segment);}); const nextStory = button('›', () => browse(1), 'os-story-arrow'); nextStory.setAttribute('aria-label', say('سبک بعدی', 'Next look')); stories.append(nextStory); stage.append(stories);
+      }
+      const playback = node('div', 'os-playback'), page = node('div', 'os-page'); page.tabIndex = 0; page.setAttribute('aria-label', say('پیش‌نمایش طراحی؛ قابل پیمایش', 'Scrollable design preview')); page.append(art.site(ctx)); playback.append(page); stage.append(playback);
+      const caption = node('div', 'os-scene-caption'); caption.append(node('strong', '', catalogue.looks.find(r => r[0] === look)[1]), node('span', '', say(...art.looks[look]))); stage.append(caption);
+      let startX = null; playback.addEventListener('pointerdown', e => {startX = e.clientX;}); playback.addEventListener('pointercancel', () => {startX = null;}); playback.addEventListener('pointerup', e => {if (startX !== null && state.step === 1 && Math.abs(e.clientX - startX) > 50) browse(e.clientX > startX ? -1 : 1); startX = null;});
+      if (play && !motion.matches && !paused && !document.hidden) {
+        playback.classList.add('os-building'); const editor = node('div', 'os-editor'); editor.setAttribute('aria-hidden', 'true');
+        const pre = node('pre'), build = node('div', 'os-build'); build.append(node('i')); editor.append(node('span', '', state.step === 2 ? 'site.config.js' : 'design.css'), pre, node('span', 'os-code-chip'), build); playback.append(editor);
+        // Palette values have one owner: CSS. Never replace the contrast-adjusted warm token.
+        const tokens = getComputedStyle(stage.querySelector('.os-site'));
+        const code = state.step === 0 ? '/* palette — ' + catalogue.palettes.find(r => r[0] === palette)[1] + ' */\n:root {\n  --brand: ' + tokens.getPropertyValue('--s-ac').trim() + ';\n  --surface: ' + tokens.getPropertyValue('--s-bg').trim() + ';\n  --radius: 16px\n}' : state.step === 1 ? '/* look — ' + look + ' */\n' + art.lookCode[look] : 'site.type = ' + JSON.stringify(topic) + ';\nsite.name = ' + JSON.stringify(ctx.name) + ';\nsite.modules = ' + JSON.stringify(ctx.selected.map(r => r[0])) + ';';
+        clock.animate(950, p => {pre.textContent = code.slice(0, Math.floor(code.length * p)); build.style.setProperty('--os-built', p);});
+        clock.after(1250, () => {pre.textContent = code; playback.classList.remove('os-building'); playback.classList.add('os-page-arrived'); editor.remove();});
+        clock.after(1650, () => {const distance = Math.min(420, page.scrollHeight - page.clientHeight); if (distance > 0) clock.animate(2400, p => {page.scrollTop = distance * (p * p * (3 - 2 * p));});});
+      }
       if (state.step === 4) {const pens = node('div', 'os-pens'); [0, 1, 2, 3].forEach(i => {const b = button('✎', () => edit(i), 'os-pen'); b.setAttribute('aria-label', say('ویرایش ', 'Edit ') + stepNames[i]); pens.append(b);}); stage.append(pens);}
+      if (state.step === 4) {const top = node('div', 'os-top-pens'); [0, 1].forEach(i => {const b = button('✎', () => edit(i), 'os-pen'); b.setAttribute('aria-label', say('ویرایش ', 'Edit ') + stepNames[i]); top.append(b);}); playback.append(top);}
     }
+    function browse(delta) {const current = state.look ? catalogue.looks.findIndex(r => r[0] === state.look) : preview; preview = (current + delta + catalogue.looks.length) % catalogue.looks.length; if (state.look) {pick('look', catalogue.looks[preview][0]);} else {drawScene(true); schedule();}}
     function submit() {
       next.disabled = true; next.textContent = say('در حال آماده‌سازی فرم…', 'Preparing your form…');
       // Never serialize brand, arbitrary URLs, or presentation copy.
@@ -158,8 +179,8 @@
       if (state.topic !== 'crm') state.features.forEach(value => append('features', value));
       form.requestSubmit();
     }
-    function visibility() {clearTimeout(effectTimer); stage.classList.remove('os-code-reveal', 'os-topic-reveal', 'os-feature-reveal'); syncPause(); schedule();}
-    function motionChange() {clearTimeout(effectTimer); stage.classList.remove('os-code-reveal', 'os-topic-reveal', 'os-feature-reveal'); syncPause(); schedule();}
+    function visibility() {introducing = false; render(); schedule();}
+    function motionChange() {introducing = false; render(); schedule();}
     function keyboard(event) {
       if (event.key === 'Escape') {close(); return;}
       if (event.key !== 'Tab') return;
@@ -169,8 +190,9 @@
       else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
     }
     try {
-      render(); document.body.append(root); root.hidden = false;
+      render(false); document.body.append(root); root.hidden = false;
       if (getComputedStyle(root).position !== 'fixed') {close(); return;}
+      drawScene(state.step < 2);
       saved.forEach(([n]) => {n.inert = true;}); document.body.classList.add('os-open');
       document.addEventListener('visibilitychange', visibility); document.addEventListener('keydown', keyboard); window.addEventListener('pagehide', close); motion.addEventListener?.('change', motionChange);
       title.focus({preventScroll: true}); schedule();

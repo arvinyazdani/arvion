@@ -1,5 +1,27 @@
 # Rvion current state
 
+## Piece 2 scene/motion correction — 2026-10-10
+
+Implementation VERIFIED locally; owner visual acceptance and the earlier public
+intro activation gate remain separate/PARTIAL. Reference inspected in Chrome;
+os-* rewrite only, canonical state/vocabulary/handoff/contrast tokens unchanged.
+Code→build→page cycles (4.2/4.3s), six structural looks, shared static topic SVG,
+live text-only brand, skippable 3.6s intro, 2s designed feature sections and top
+review edit buttons. One cancellable timer/RAF controller; reduced motion static.
+Self-review found mobile paint-containment clipping of transient overlays; fixed
+by root-mounting mobile layers and repeated intro/feature/Skip browser journeys.
+Tests: 232/232 core+projects+leads.tests PASS; focused scene/paths10 PASS;
+Node motion/art/state contracts PASS, syntax/check/diff clean. No full-suite rerun.
+60 implementation +60 reference captures: fa,390x844/1280x800,light/dark,
+15 requested states; comparison index /tmp/rvion-piece2-correction-20261010/index.html.
+Studio gzip23577 bytes; conservative ten-asset sum33073 bytes, below45000.
+Final Lighthouse3: CLS .004297689/.002625170/.004220957; LCP4218/4231/3959ms;
+TBT88/239/44.5ms. Sources: fallback h1/header web-font loading, not studio nodes.
+Strict premium audit still has55 pre-existing protected-gallery errors; not waived.
+No PII, protected-gallery edits, migration, SSH, push or deploy. iPhone/Safari
+hardware not tested. Rollback: revert this scoped local correction commit;
+no database rollback. Commit identity is the commit containing this checkpoint.
+
 ## Current task — Piece 2 order wizard: PARTIAL (2026-10-10)
 
 - Owner attachment: `040cebcb-c069-4097-ac08-96f025d4d3bd/Pasted text.txt`.

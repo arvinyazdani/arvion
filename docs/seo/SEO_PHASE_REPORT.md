@@ -3457,3 +3457,39 @@ teacher_v5 upgrade; the title itself remains the owner's current DB wording.
 Speaking/live teaching are explicitly not claimed. General English is absent.
 Final mobile/desktop/theme/language matrix, gzip and full suite remain phase5.
 No push/deploy/migration. Rollback this scoped commit; no data rollback.
+
+## Piece 2 scene/motion corrective checkpoint — 2026-10-10
+
+Status: implementation VERIFIED local; overall programme PARTIAL (existing
+strict-gallery audit/public-intro activation gates unchanged). Single-agent
+self-review, not independent approval. No SEO metadata or business flow changes.
+Files: core order-scene.js/css, new order-scene-art.js/order-scene-motion.js,
+project_start.html script loading, two new core/tests_js contracts, DESIGN.md,
+UX-CONTRACT.md and existing status records. Reference is specification, not copied
+runtime. Canonical warm contrast palette and actual feature catalogue retained.
+Evidence: `python manage.py test core projects leads.tests --verbosity 1`:
+232/232 PASS. `python manage.py test core.test_order_scene core.test_order_paths
+--verbosity 1`:10/10 PASS. Node order_scene_motion.test.cjs (also state contract)
+and order_scene_art.test.cjs PASS; syntax checks, manage.py check and diff clean.
+Cycle cadence, eligibility/pause, stale callbacks/timer cleanup and closed query
+payload tested. No full all-app suite rerun and no migration check requiring a DB
+write. Permanent local database, customer records and production untouched.
+Browser: actual Chrome responsive390x844/1280x800,fa,light/dark;60 own +60
+reference screenshots at `/tmp/rvion-piece2-correction-20261010/`, index.html
+provides eight side-by-side sheets. Palette code/page, six looks, topic before/
+after, restaurant/clinic intro, booking/catalog motion, review inspected. Brand
+live update, swipe, previous/next, pause, reduced motion, intro Skip and navigating
+away during motion checked. Root-mounted mobile overlays fix paint containment
+clipping found during comparison. Actual iPhone/Safari remains NOT_RUN.
+Gzip: five studio assets23577 bytes; conservative10 assets33073 (<45000).
+Final Lighthouse mobile: run1 CLS0.004297689/LCP4218ms/TBT88ms;
+run2 CLS0.002625170/LCP4231ms/TBT239ms;
+run3 CLS0.004220957/LCP3959ms/TBT44.5ms. JSONs final-lh-{1,2,3}.json in evidence
+folder. Layout-shift sources are fallback project-start h1 and header brand;
+reported cause Web font loaded (Vazirmatn), not os-* scene nodes. Not a zero-CLS
+claim or waiver of the earlier control-relative activation gate.
+Premium strict audit:55 unchanged pre-existing actionless gallery-button errors;
+protected files intentionally untouched, so this gate is not PASS.
+Local commit: the commit containing this checkpoint (see Git log).
+Not run: SSH/push/deploy/migrations, customer handoff submission, full suite.
+Rollback: revert only this correction commit; no data rollback is needed.

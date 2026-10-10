@@ -958,3 +958,12 @@ Whole-sitemap contract and factual metadata verified locally (375 tests,
 16 PostgreSQL-only skips; final focused 7/7). Localized brand context;
 gallery edits preserved. Analytics/cookie/cache DEFERRED. No push/deploy.
 Details: `docs/seo/SEO_PHASE_REPORT.md`.
+
+## Order studio correction — 2026-10-10
+
+Local os-* scene/motion correction: code/build/page cycles, six structural looks,
+topic intro and feature motion; mobile overlay clipping corrected by self-review.
+232 scoped Python tests and Node contracts passed; 120 comparison captures.
+No customer data/production/protected gallery change. Overall programme remains
+PARTIAL at the previously recorded audit/activation gates; detailed evidence in
+`.ai/project/CURRENT_STATE.md`. This is not a release or public activation.

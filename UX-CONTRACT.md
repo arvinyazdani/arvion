@@ -119,6 +119,14 @@ Brand≤40 characters remains memory-only and is rendered with textContent.
 Only closed choices and selected capability keys are submitted. The existing
 session-bound, idempotent demo hand-off carries non-CRM capabilities; no brand
 input reaches that adapter. CRM uses its existing modules/extensions vocabulary.
-Mobile choices precede the scene; features hide the scene; review uses ordinary
+Mobile choices precede a large, visible scene on every step; review uses ordinary
 scroll flow so no reversed-layout content is stranded. Submission failures show
 a bilingual recovery message and retain the canonical simple-form route.
+
+Scene correction: palette/look code→build→page cycles use one cancellable clock;
+explicit choice plays once, pause/hidden/reduced-motion suppress autoplay. Topic
+intro is skippable (3.6s); feature additions show a 2s designed section, removals
+only announce status. Mobile transient overlays are root-mounted, outside the
+scene's paint containment, so their content and Skip control cannot be clipped.
+Brand updates only textContent in memory. Six looks have distinct structures;
+the same topic SVG is static inside the site and animated only in its intro.
