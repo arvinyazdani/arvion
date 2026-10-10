@@ -27,7 +27,7 @@ class HomeView(LanguageViewMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
 
         # آخرین ۳ پست منتشر شده
-        posts = list(translated_posts(Post.objects.published(), self.lang)[:3])
+        posts = list(translated_posts(Post.objects.published(), self.lang).prefetch_related("tags")[:3])
         # One active representative per business type; no dead demo links.
         featured_slugs = ("nava-market", "sarvin-atelier", "saffron-table", "linea-studio",
                           "parsa-advisory", "roshna-clinic", "ariana-academy")

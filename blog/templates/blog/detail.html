@@ -16,7 +16,7 @@
 <article class="ar-article shell" data-reader>
   <header class="ar-article-header">
     <nav class="ar-breadcrumb" aria-label="{% if lang == 'fa' %}مسیر صفحه{% else %}Breadcrumb{% endif %}"><a href="{% url 'blog:list' %}" aria-label="{% if lang == 'fa' %}بازگشت به مقاله‌ها{% else %}Back to articles{% endif %}">{% if lang == 'fa' %}مقاله‌ها{% else %}Articles{% endif %}</a>{% if article_tags %}<span aria-hidden="true">›</span><a href="{% url 'blog:list' %}?tag={{ article_tags.0|urlencode }}">{{ article_tags.0 }}</a>{% endif %}<span class="sr-only" aria-current="page">{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</span></nav>
-    <div class="ar-tags">{% for tag in article_tags %}<a href="{% url 'blog:list' %}?tag={{ tag|urlencode }}">{{ tag }}</a>{% endfor %}</div>
+    <div class="ar-tags"><span class="sr-only">{% if lang == 'fa' %}موضوع‌ها{% else %}Topics{% endif %}</span>{% for tag in article_tags %}<a href="{% url 'blog:list' %}?tag={{ tag|urlencode }}">{{ tag }}</a>{% endfor %}</div>
     <h1>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</h1>
     <p class="ar-dek">{{ article_dek }}</p>
     <div class="ar-meta"><span>{% if lang == 'fa' %}{{ reading_minutes|fa_digits }} دقیقه مطالعه{% else %}{{ reading_minutes }} min read{% endif %}</span><span>{% if lang == 'fa' %}{{ article_toc|length|fa_digits }} بخش{% else %}{{ article_toc|length }} sections{% endif %}</span><span>{% if lang == 'fa' %}دیدگاه‌های آرویون{% else %}Rvion insights{% endif %}</span><time datetime="{{ post.published_at|date:'c' }}">{% if lang == 'fa' %}{{ post.published_at|date:'Y.m.d'|fa_digits }}{% else %}{{ post.published_at|date:'M j, Y' }}{% endif %}</time></div>
@@ -25,6 +25,7 @@
   <div class="ar-hero">{% include 'blog/includes/cover.html' with hero=True decorative=False %}</div>
   <div class="ar-reader-layout{% if not article_toc %} ar-reader-layout--plain{% endif %}">
     {% if article_toc %}<aside class="ar-reader-nav"><details class="ar-toc" open><summary>{% if lang == 'fa' %}فهرست مطالب{% else %}Contents{% endif %}</summary>{% include 'blog/includes/toc.html' %}</details></aside>{% endif %}
+    {% if article_toc %}<noscript><div class="ar-mobile-toc"><details class="ar-toc" open><summary>{% if lang == 'fa' %}فهرست مطالب{% else %}Contents{% endif %}</summary>{% include 'blog/includes/toc.html' %}</details></div></noscript>{% endif %}
     <div class="ar-reader-main"><div class="ar-prose" id="article-body" tabindex="-1">{{ article_body|safe }}</div>
       <footer class="ar-end">
         {% if article_actions %}<h2>{% if lang == 'fa' %}از مطالعه به یک قدم عملی{% else %}From reading to a practical step{% endif %}</h2><div class="ar-actions">{% for action in article_actions %}<a href="{{ action.url }}">{{ action.label }}<span aria-hidden="true">↗</span></a>{% endfor %}</div>{% endif %}

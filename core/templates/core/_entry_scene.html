@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n blog_extras %}
 <div class="entry" id="rvion-entry" role="dialog" aria-modal="true" aria-label="{% translate "Rvion introduction" %}" tabindex="-1">
  <div aria-hidden="true" class="vp" data-entry-id="vp"><div class="world" data-entry-id="world">
   <div class="room" data-entry-id="room">
@@ -51,6 +51,7 @@
     <a class="path" href="{% url 'project_start' %}?from=entry" data-no-loader><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="38" rx="5"/><path d="M6 20h52M14 15h2M20 15h2M18 30h16M18 38h26M22 56h20"/></svg><b><span>{% translate "Build a website or system" %}</span></b><span><span>{% translate "Store, clinic, CRM, corporate and more; from idea to launch" %}</span></span><em><span>{% translate "Start a project →" %}</span></em></a>
     <a class="path" href="{% url 'assessments:list' %}?from=entry" data-no-loader><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 14h34a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H26l-10 8v-8H8z"/><path d="M20 24l5 8 5-8M36 24v8M52 26h4v22H34v-6"/></svg><b><span>{% translate "Language & programming assessments" %}</span></b><span><span>{% translate "English level test and Python/Django assessment; with result analysis" %}</span></span><em><span>{% translate "Start an assessment →" %}</span></em></a>
    </div>
+   {% if latest_posts %}<section class="ar-gate" aria-labelledby="entry-articles-title"><header><h3 id="entry-articles-title">{% if lang == 'fa' %}پیش از تصمیم، بخوانید{% else %}Before you decide, read{% endif %}</h3><a href="{% url 'blog:list' %}" data-no-loader>{% if lang == 'fa' %}همه مقاله‌ها{% else %}All articles{% endif %}<span aria-hidden="true">↗</span></a></header><div class="ar-gate-grid">{% for post in latest_posts %}<a class="ar-gate-item" href="{% if lang == 'fa' %}{% url 'blog:detail' post.slug_fa %}{% else %}{% url 'blog:detail' post.slug_en %}{% endif %}" data-no-loader><div class="ar-gate-cover">{% include 'blog/includes/cover.html' with decorative=True hero=False featured=False %}</div><div class="ar-gate-copy"><b>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</b><small><span>{{ post|primary_tag:lang }}</span><span>{% if lang == 'fa' %}{{ post|read_minutes:lang|local_number:lang }} دقیقه{% else %}{{ post|read_minutes:lang }} min read{% endif %}</span></small></div></a>{% endfor %}</div></section>{% endif %}
    <button class="enter-link" data-entry-id="enter" type="button"><span>{% translate "I just want to enter the site" %}</span></button>
  </div></div>
  

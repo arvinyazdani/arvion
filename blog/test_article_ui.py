@@ -60,6 +60,7 @@ class ArticleDetailTests(ArticleListTests):
         self.assertContains(response, '<dialog')
         self.assertContains(response, 'aria-controls="article-toc-sheet"')
         self.assertContains(response, 'href="#article-body"')
+        self.assertContains(response, '<noscript><div class="ar-mobile-toc">')
         self.assertContains(response, '۲ بخش')
 
     def test_hero_one_eager_image_explicit_size_and_alt(self):

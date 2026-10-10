@@ -4,7 +4,7 @@
     {% include 'blog/includes/cover.html' with decorative=True %}
     <div class="ar-card-copy">
       <div class="ar-meta"><span class="ar-category">{{ post|primary_tag:lang }}</span><span>{% if lang == 'fa' %}{{ post|read_minutes:lang|fa_digits }} دقیقه مطالعه{% else %}{{ post|read_minutes:lang }} min read{% endif %}</span>{% if featured %}<span class="ar-badge">{% if lang == 'fa' %}تازه‌ترین{% else %}Latest{% endif %}</span>{% endif %}</div>
-      <h3>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</h3>
+      {% if library %}<h2>{% else %}<h3>{% endif %}{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}{% if library %}</h2>{% else %}</h3>{% endif %}
       <p>{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}</p>
       <span class="ar-read">{% if lang == 'fa' %}مطالعه مقاله{% else %}Read article{% endif %}<span aria-hidden="true">↗</span></span>
     </div>

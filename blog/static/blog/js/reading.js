@@ -70,7 +70,6 @@
     var supported = sheet && typeof sheet.showModal === 'function';
     if (supported) {
       bindSheet(sheet, button, doc);
-      article.setAttribute('data-reader-ready', '');
     }
     headings.forEach(function (heading) {
       var link = doc.createElement('a');

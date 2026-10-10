@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Article reference replacement — 2026-10-10 — PARTIAL
+## Article reference replacement — 2026-10-10 — VERIFIED locally
 
 Scope: public list/detail/cards/home + entry reading links. No article content,
 slug/tag/cover/model/SEO metadata or protected management/gallery changes.
@@ -19,7 +19,33 @@ updated the SEO contract to recognize the article-owned breadcrumb (JSON-LD
 unchanged). Hero always reserves1200/630; native dialog has focus return/trap/Esc;
 practical actions only from sanitized article links; no live content edits.
 Removed journal.css/reader.js, replaced (not layered) by articles.css/reading.js.
-Browser/CLS matrix pending; phase4 gateway NOT_STARTED.
+Phase3 commit:5c89330. Phase4 gateway VERIFIED: reuses the same prefetched
+HomeView latest3, zero rendering queries/no AJAX, published/current-language
+real links, absent when empty. Entry policy/activation, scene JS and default-off
+public performance gate unchanged. No new animation or library.
+Final targeted integration:305 blog/core/projects/leads.tests PASS (51.207s).
+First broad run found one missing accessible Topics label; restored it rather
+than weakening its test.4 Node reader contracts PASS; entry scene/policy contracts
+PASS; JS syntax/check/makemigrations --check --dry-run/diff checks clean.
+Chrome32 final captures:FA/EN × light/dark ×390x844/1280x800 × gateway/list/
+detail/no-cover, all CLS0 and zero horizontal overflow; every group visually
+compared beside the reference. Evidence:/tmp/rvion-articles-jjXm3U/index.html,
+shots/,browser-matrix.json. Reference contains FA only; EN uses disposable
+fixture content, not new articles. No production/customer data used.
+Actual CLS defects fixed:mobile TOC initial removal(.12114) and image intrinsic
+height changing EN card geometry(.05778). Stable first-paint CSS/no-script TOC
+and positioned images corrected both. Native mobile sheet/Escape/focus return
+and no-JS inline contents independently browser-verified; screenshots in shots/.
+Lighthouse mobile detail/list measured CLS0; LCP4254/3474ms and TBT144/48ms
+are measurements, not a general performance pass. Final-detail Lighthouse:
+CLS0/LCP4241.89ms/TBT0. New CSS gzip3454B, reader JS1991B. Existing55 gallery audit
+errors remain outside scope, not suppressed or claimed fixed.
+Differences:retained production header/mobile tabs and approved list lead;
+many real tags use a horizontal strip; no-cover uses branded CSS tokens rather
+than reference artwork. Existing article text/metadata/sanitize output unchanged.
+Disposable visual database tables were built directly (no migration command);
+permanent local/production databases untouched. Protected files untouched.
+No push/deploy/SSH/migration. Phase4 commit contains this checkpoint.
 Rollback: revert scoped local commits in reverse order; no DB rollback.
 
 ## Review sample-first layout — 2026-10-10 — VERIFIED locally
