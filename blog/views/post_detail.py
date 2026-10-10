@@ -8,9 +8,10 @@ from core.views.lang import LanguageViewMixin
 from django.conf import settings
 from django.urls import reverse
 from django.utils import translation
-from blog.presentation import reader_content, reading_minutes, article_dek
+from blog.presentation import reader_content, reading_minutes, article_dek, article_topics
 from django.db.models import Q
 from blog.actions import article_actions
+import mimetypes
 
 class PostDetailView(LanguageViewMixin, DetailView):
     """
@@ -31,6 +32,8 @@ class PostDetailView(LanguageViewMixin, DetailView):
         context = super().get_context_data(**kwargs)
         body, toc = reader_content(self.object, self.lang)
         context.update(article_body=body, article_toc=toc,
+                       article_topics=article_topics(body, toc),
+                       article_cover_type=mimetypes.guess_type(self.object.hero_image.name or "")[0] or "image/jpeg",
                        reading_minutes=reading_minutes(body, self.lang),
                        article_dek=article_dek(self.object, self.lang))
         candidates = translated_posts(Post.objects.published(), self.lang).exclude(pk=self.object.pk)

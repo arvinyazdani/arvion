@@ -2,6 +2,12 @@
 {% block title %}{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %} | {{ brand_name }}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}{% endblock %}
 {% block og_type %}article{% endblock %}
+{% block og_image %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_url %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_secure %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_alt %}{% if post.hero_image %}{{ post|cover_alt:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_type %}{% if post.hero_image %}{{ article_cover_type }}{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block page_breadcrumbs %}{% endblock %}
 {% block og_title %}{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %} | {{ brand_name }}{% endblock %}
 {% block og_description %}{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}{% endblock %}
@@ -10,17 +16,20 @@
   <link rel="preload" href="{% static 'core/fonts/Vazirmatn-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'core/fonts/Vazirmatn-Black.woff2' %}" as="font" type="font/woff2" crossorigin>
   <meta property="article:published_time" content="{{ post.published_at|date:'c' }}">
-  <link rel="stylesheet" href="{% static 'blog/css/articles.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'blog/css/articles.css' %}?v=2">
 {% endblock %}
 {% block content %}
 <article class="ar-article shell" data-reader>
-  <header class="ar-article-header">
+  <header class="ar-article-header ar-opener" data-article-opener>
+   <div class="ar-opener-copy">
     <nav class="ar-breadcrumb" aria-label="{% if lang == 'fa' %}مسیر صفحه{% else %}Breadcrumb{% endif %}"><a href="{% url 'blog:list' %}" aria-label="{% if lang == 'fa' %}بازگشت به مقاله‌ها{% else %}Back to articles{% endif %}">{% if lang == 'fa' %}مقاله‌ها{% else %}Articles{% endif %}</a>{% if article_tags %}<span aria-hidden="true">›</span><a href="{% url 'blog:list' %}?tag={{ article_tags.0|urlencode }}">{{ article_tags.0 }}</a>{% endif %}<span class="sr-only" aria-current="page">{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</span></nav>
     <div class="ar-tags"><span class="sr-only">{% if lang == 'fa' %}موضوع‌ها{% else %}Topics{% endif %}</span>{% for tag in article_tags %}<a href="{% url 'blog:list' %}?tag={{ tag|urlencode }}">{{ tag }}</a>{% endfor %}</div>
     <h1>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</h1>
     <p class="ar-dek">{{ article_dek }}</p>
     <div class="ar-meta"><span>{% if lang == 'fa' %}{{ reading_minutes|fa_digits }} دقیقه مطالعه{% else %}{{ reading_minutes }} min read{% endif %}</span><span>{% if lang == 'fa' %}{{ article_toc|length|fa_digits }} بخش{% else %}{{ article_toc|length }} sections{% endif %}</span><span>{% if lang == 'fa' %}دیدگاه‌های آرویون{% else %}Rvion insights{% endif %}</span><time datetime="{{ post.published_at|date:'c' }}">{% if lang == 'fa' %}{{ post.published_at|date:'Y.m.d'|fa_digits }}{% else %}{{ post.published_at|date:'M j, Y' }}{% endif %}</time></div>
-    <a class="ar-skip" href="#article-body">{% if lang == 'fa' %}پرش به متن مقاله{% else %}Skip to article text{% endif %}</a>
+    <div class="ar-opener-actions"><a class="button primary ar-opener-start" href="#article-body">{% if lang == 'fa' %}شروع مطالعه ↓{% else %}Start reading ↓{% endif %}</a><span class="ar-opener-controls"><button class="button secondary" type="button" data-opener-skip hidden>{% if lang == 'fa' %}رد کردن انیمیشن{% else %}Skip animation{% endif %}</button><button class="button secondary" type="button" data-opener-replay hidden>{% if lang == 'fa' %}↻ پخش دوباره{% else %}↻ Replay{% endif %}</button></span></div>
+   </div>
+   {% if article_topics %}<nav class="ar-opener-route" aria-labelledby="article-route-title"><h2 id="article-route-title">{% if lang == 'fa' %}در این مقاله{% else %}In this article{% endif %}</h2><ol>{% for topic in article_topics %}<li><a href="#{{ topic.id }}"><span class="ar-opener-node" aria-hidden="true"></span><span><b>{{ topic.title }}</b><small>{{ topic.description }}</small></span></a></li>{% endfor %}</ol></nav>{% endif %}
   </header>
   <div class="ar-hero">{% include 'blog/includes/cover.html' with hero=True decorative=False %}</div>
   <div class="ar-reader-layout{% if not article_toc %} ar-reader-layout--plain{% endif %}">
@@ -39,4 +48,4 @@
 </article>
 <div class="ar-progress" role="progressbar" aria-label="{% if lang == 'fa' %}پیشرفت مطالعه{% else %}Reading progress{% endif %}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
 {% endblock %}
-{% block extra_scripts %}<script src="{% static 'blog/js/reading.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'blog/js/reading.js' %}?v=2" defer></script>{% endblock %}

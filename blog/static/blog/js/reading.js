@@ -1,4 +1,4 @@
-/* Read-only progressive enhancement: no requests, tracking, storage or animation. */
+/* Read-only reader enhancements; only the opener's per-session seen flag is stored. */
 (function (root, factory) {
   'use strict';
   var api = factory();
@@ -18,6 +18,55 @@
   }
   function showContents(top, bottom, viewport, mobile) {
     return mobile && top < viewport * .65 && bottom > 160;
+  }
+  function bindOpener(opener, win, doc) {
+    var rows = Array.from(opener.querySelectorAll('.ar-opener-route li'));
+    var skip = opener.querySelector('[data-opener-skip]');
+    var replay = opener.querySelector('[data-opener-replay]');
+    var reduced = win.matchMedia('(prefers-reduced-motion: reduce)');
+    var timer = null, key = 'rvion:article-opener:seen';
+    var step = Math.max(.3, Math.min(.55, 3.9 / Math.max(1, rows.length)));
+    var pulse = 1.5 + rows.length * step + .4;
+    rows.forEach(function (row, index) {
+      row.style.setProperty('--op-enter', (1 + index * .1) + 's');
+      row.style.setProperty('--op-delay', (1.5 + index * step) + 's');
+      row.style.setProperty('--op-highlight', step * 1.8 + 's');
+    });
+    opener.style.setProperty('--op-line', (rows.length * step + .6) + 's');
+    opener.style.setProperty('--op-pulse', pulse + 's');
+    function finish() {
+      if (timer !== null) win.clearTimeout(timer);
+      timer = null;
+      opener.classList.remove('play');
+      skip.hidden = true;
+      replay.hidden = !rows.length || reduced.matches;
+    }
+    function play() {
+      finish();
+      if (!rows.length || reduced.matches) return;
+      // Restart only explicit animation, never move focus or scroll the page.
+      void opener.offsetWidth;
+      opener.classList.add('play');
+      skip.hidden = false;
+      replay.hidden = true;
+      timer = win.setTimeout(finish, (pulse + 2.8) * 1000);
+    }
+    skip.addEventListener('click', finish);
+    replay.addEventListener('click', play);
+    opener.addEventListener('click', function (event) {
+      if (event.target.closest('a[href]')) finish();
+    });
+    win.addEventListener('pagehide', finish);
+    doc.addEventListener('visibilitychange', function () { if (doc.hidden) finish(); });
+    if (reduced.addEventListener) reduced.addEventListener('change', finish);
+    finish();
+    try {
+      if (!reduced.matches && rows.length && !win.sessionStorage.getItem(key)) {
+        win.sessionStorage.setItem(key, '1');
+        play();
+      }
+    } catch (_) { /* Unavailable storage: static, with explicit replay. */ }
+    return {play: play, finish: finish};
   }
   function bindSheet(dialog, button, doc) {
     var returnFocus = button;
@@ -60,6 +109,8 @@
   function init(doc, win) {
     var article = doc.querySelector('[data-reader]');
     if (!article) return;
+    var opener = article.querySelector('[data-article-opener]');
+    if (opener) bindOpener(opener, win, doc);
     var body = article.querySelector('.ar-prose');
     var bar = doc.querySelector('.ar-progress');
     var headings = Array.from(body.querySelectorAll('h2[id],h3[id]'));
@@ -120,5 +171,5 @@
       } finally { copy.disabled = false; }
     });
   }
-  return {progress: progress, activeHeading: activeHeading, showContents: showContents, bindSheet: bindSheet, init: init};
+  return {progress: progress, activeHeading: activeHeading, showContents: showContents, bindSheet: bindSheet, bindOpener: bindOpener, init: init};
 });

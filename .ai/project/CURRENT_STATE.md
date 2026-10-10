@@ -1,5 +1,39 @@
 # Rvion current state
 
+## Article opener and actual covers — 2026-10-10 — VERIFIED locally
+
+Scope is limited to the two owner-requested corrections on top of 4dff3fa.
+Read the article-opener reference/source and used Frontend/Premium guidance for
+shared tokens and static reserved geometry, not a new design system/library.
+H2-only route and first-sentence snippets come from existing sanitized content;
+initial HTML includes the title, route and anchors. One-shot session animation,
+skip/replay, two CTA pulses, reduced-motion/static fallback and pagehide/hidden
+cleanup are tested. Only transform/opacity animate; no focus is taken.
+attach_article_covers maps the existing eight slug-named v2 JPEGs (all1200x630),
+validates assets before writes, supports dry-run and skips existing images.
+Ran dry-run/apply only on disposable visual.sqlite3 and temporary media; first
+run attached1/skipped7, repeat attached0/skipped8. All-eight attachment and
+idempotency are separately proved in isolated test databases. No content or
+publication changes. Hero eager/high + meaningful alt; other covers lazy and
+decorative; OG/Twitter use actual cover. Gateway thumbs are76x48 cropped.
+Final75 blog tests PASS;236 core/projects/leads.tests PASS;7 Node reader tests
+PASS. Added6 Python and3 Node tests. check, migration dry-run (no changes),
+syntax and diff checks clean. No migration created/executed, no full-suite claim.
+Chrome16 final-state captures:two FA articles and two EN disposable fixtures,
+both themes at390x844/1280x800:CLS0, no horizontal overflow, hero naturalWidth1200.
+Four full9.8s animation observations (FA/EN × mobile/desktop):CLS0, no shifts,
+auto=true, final replay=true, focus unchanged. Revisit did not autoplay; reduced
+motion had zero opener animations. Native skip/start anchors and no-JS route
+were browser-verified. Images loaded in list/featured/gateway/hero/related.
+Evidence:/tmp/rvion-articles-jjXm3U/opener-shots/index.html, matrix.json,
+full-motion.json, sixteen captures and six paused-animation inspection frames.
+CSS gzip4286B;reader JS gzip2636B. Existing55 protected-gallery premium audit
+errors are unchanged/outside scope; not suppressed and not a global audit pass.
+Local commit contains this checkpoint. No push/deploy/SSH/production write.
+Protected files and article sources/slugs/tags/covers are untouched.
+Rollback: revert the scoped commit. Command never overwrites pre-existing media;
+only newly attached local/test file references/files would need local rollback.
+
 ## Article reference replacement — 2026-10-10 — VERIFIED locally
 
 Scope: public list/detail/cards/home + entry reading links. No article content,

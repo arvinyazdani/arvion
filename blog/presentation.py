@@ -89,3 +89,26 @@ def article_dek(post, language):
     if title and summary.startswith(title):
         summary = summary[len(title):].lstrip(" .،؛:؟?!–—-")
     return summary
+
+
+def article_topics(body, toc):
+    """Read-only H2 introduction, using only the section's own first prose."""
+    parser = _ReaderParser()
+    parser.feed(body)
+    sections = [dict(item, description="") for item in toc if item["level"] == "2"]
+    current = -1
+    for node in parser.root["children"]:
+        if isinstance(node, str):
+            continue
+        if node["tag"] == "h2":
+            current += 1
+        elif 0 <= current < len(sections) and not sections[current]["description"] and node["tag"] in ("p", "ul", "ol", "blockquote"):
+            prose = node
+            if node["tag"] in ("ul", "ol"):
+                prose = next((child for child in node["children"] if isinstance(child, dict) and child["tag"] == "li"), node)
+            text = re.sub(r"\s+", " ", _text(prose)).strip()
+            sentence = re.split(r"(?<=[.!?؟؛])\s+", text, maxsplit=1)[0]
+            if len(sentence) > 90:
+                sentence = sentence[:89].rsplit(" ", 1)[0].rstrip("،؛:.") + "…"
+            sections[current]["description"] = sentence
+    return sections
