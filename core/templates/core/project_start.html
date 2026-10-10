@@ -3,7 +3,7 @@
 
 {% block title %}{% if lang == 'fa' %}شروع پروژه | آرویون{% else %}Start a project | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}مسیر مناسب پروژه خود را انتخاب کنید و نیازسنجی اولیه آرویون را شروع کنید.{% else %}Choose the right project path and start your initial Rvion discovery.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'core/css/project-start.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'core/css/project-start.css' %}?v=3"><link rel="stylesheet" href="{% static 'core/css/order-scene.css' %}?v=1">{% endblock %}
 
 {% block content %}
 <section class="project-start" aria-labelledby="project-start-title">
@@ -13,7 +13,10 @@
       <p>{% if lang == 'fa' %}موضوع را انتخاب کنید، نمونه و امکاناتش را ببینید و در پایان درخواستتان را ثبت کنید. هنوز تصمیم نگرفته‌اید؟ از مشاوره شروع کنید.{% else %}Choose a topic, explore its sample and features, then send your enquiry. Still deciding? Start with a consultation.{% endif %}</p>
     </header>
     {% include 'core/includes/order_gateway.html' %}
+    {% if order_wizard_error %}<p role="alert" data-os-error>{% if lang == 'fa' %}انتخاب امکانات ثبت نشد. دوباره انتخاب کنید یا از فرم ساده استفاده کنید؛ هیچ درخواستی ثبت نشده است.{% else %}Features were not saved. Select them again or use the simple form; no enquiry was submitted.{% endif %}</p>{% endif %}
+    <form id="os-handoff" method="post" action="{% url 'project_start' %}" novalidate hidden>{% csrf_token %}<input type="hidden" name="wizard_submission" value="1"><input type="hidden" name="submission_token" value="{{ order_wizard_token }}"></form>
     {{ order_wizard_data|json_script:"order-wizard-data" }}
   </div>
 </section>
 {% endblock %}
+{% block extra_scripts %}{{ block.super }}<script src="{% static 'core/js/order-scene-state.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene.js' %}?v=1" defer></script>{% endblock %}

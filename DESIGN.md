@@ -251,6 +251,18 @@ new surfaces. Existing icon sprite remains canonical; ↗ signals navigation.
 
 ## Do's and Don'ts
 
+### Named exception: order design studio (Piece 2)
+
+The owner-approved reference uses a full-screen /start/ design studio, not a
+shared CRUD shell. Its fixed overlay leaves the original page as the no-JS
+fallback. Shell colours/typography/actions inherit tokens.css semantic roles.
+Order-scene palette variables live only in order-scene.css and are separate
+from the gallery theme/personality system; six illustrative layouts use them.
+Before an explicit palette/look choice, previews cycle every4.2/4.3 seconds;
+selection, pause, hidden document or reduced motion stops this cycle. This is
+an explicit exception to the gallery's no-autoplay rule, not a global redesign.
+No photographic/real-client claim is made by these schematic samples.
+
 - Do show a recognisable business scenario before editor jargon.
 - Do label all content as fictional and keep interactions visibly sample-only.
 - Do keep a single live state and send the same choices with the enquiry.

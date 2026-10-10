@@ -108,3 +108,17 @@ assessment, contract, authentication or admin workflows. Visual context:
   user content, not interface translation. Fictional sample art is decorative.
 - No changes to permissions, billing, legal text, account concurrency or
   retention policy. No customer data needed for visual QA.
+# Order studio variant — Piece 2
+
+/start/ progressively enhances after load. Escape or Simple form restores the
+existing form and focus. Background is inert while the studio is active.
+Single choices use aria-pressed; visited step links use aria-current. Forward
+navigation requires explicit colour/look/topic. Editing returns to review;
+changing topic clears incompatible modules and revisits its feature step.
+Brand≤40 characters remains memory-only and is rendered with textContent.
+Only closed choices and selected capability keys are submitted. The existing
+session-bound, idempotent demo hand-off carries non-CRM capabilities; no brand
+input reaches that adapter. CRM uses its existing modules/extensions vocabulary.
+Mobile choices precede the scene; features hide the scene; review uses ordinary
+scroll flow so no reversed-layout content is stranded. Submission failures show
+a bilingual recovery message and retain the canonical simple-form route.

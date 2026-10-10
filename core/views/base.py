@@ -89,6 +89,9 @@ class ProjectStartView(LanguageViewMixin, TemplateView):
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
+        if request.POST.get("wizard_submission") == "1":
+            from core.order_wizard import submit_wizard
+            return submit_wizard(request)
         from core.order_gateway import submit_existing_demo
         return submit_existing_demo(request)
 
@@ -98,6 +101,9 @@ class ProjectStartView(LanguageViewMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context.update(gateway_context(self.request, self.lang))
         context["order_wizard_data"] = wizard_catalogue(self.request.GET, self.lang)
+        import secrets
+        context["order_wizard_token"] = secrets.token_urlsafe(24)
+        context["order_wizard_error"] = self.request.GET.get("wizard_error") in {"retry", "unavailable"}
         return context
 
 

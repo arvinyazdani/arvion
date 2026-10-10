@@ -3338,3 +3338,21 @@ Rollback:revert only this phase1 commit; no schema or data rollback required.
 Next:reference browser journeys → wizard → introductions → DB-backed exam
 options → accessibility/performance validation. Check feature-selection handoff
 through the existing validated adapter; do not invent a free-text query channel.
+# Piece 2 — phase2 order studio checkpoint (2026-10-10)
+
+Status: implementation VERIFIED locally; final matrix/performance NOT_RUN.
+Files: core/order_wizard.py, views/base.py, project_start.html, new scoped
+order-scene.css, order-scene.js/state.js, test_order_scene.py and Node contract;
+DESIGN/UX/current-state updated. Protected gallery files untouched.
+Tests:37/37 targeted Python tests PASS (order scene/vocabulary/paths/gateway/
+handoff/UI), Node state/edit/topic-reset/payload contract PASS; JS syntax PASS,
+git diff --check clean. Initial new recovery test failed because seeded test
+restaurant templates existed; isolated fixture deactivation corrected the test,
+not product behaviour. First Node fixture had a missing bracket, corrected.
+Browser: Chrome390×844 actual FA flow from palette through jewellery features
+and review, then ecommerce review; topic labels, private brand text and real
+capability names inspected. Review column-reverse clipping was reproduced and
+replaced by normal-order flow; no horizontal overflow observed. Full matrix
+and permanent screenshot evidence deferred to phase5, not claimed here.
+No database migration/production access/push/deploy. Rollback only this phase's
+scoped commit; no database rollback. Phase1 baseline efea14d retained.

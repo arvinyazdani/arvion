@@ -17,17 +17,21 @@
   + core.test_order_handoff + core.test_order_ui:32/32 tests OK. check0,
   makemigrations --check --dry-run:No changes detected; diff check clean.
   Tests use disposable test DB only; permanent local DB unchanged.
-- Phase2 BLOCKED before visual implementation: CUA could not select the known
-  preview tab. First request required an explicit browser; the explicit iab
-  request was rejected by browser security policy. No alternate browser,
-  raw CDP, proxy, or indirect execution used to bypass it. No prototype browser
-  journey, screenshot, CLS or new CSS/JS gzip evidence claimed in this phase.
-- Phases3/4/5 NOT_STARTED. Do not present phase1's catalogue as a working wizard.
-- Next: restore authorized browser access and inspect the owner's prototype
-  project/exam journeys (fa and en/light), then phase2. Before final wizard
-  handoff, use the existing validated demo adapter for real feature selections
-  or surface a contract conflict; never silently discard selected capabilities
-  or add arbitrary URL text/brand. Existing gallery files stay protected.
+- Phase2 implementation VERIFIED locally; Chrome reference project journey
+  inspected in Persian, assessment journey in English/light. New /start/
+  full-screen progressive enhancement: eight palettes, six scene layouts,
+  nine topics, actual catalogue modules, final edit/return, memory-only brand.
+  Existing DemoConfigureView is a neutral functional carrier, not a mapping
+  between incompatible gallery and order-scene style vocabularies. No features
+  means no anonymous selection is created. Failures return to the simple form
+  with a visible error, not to the gallery. Original no-JS routes retained.
+- Phase2 tests:37 Python targeted tests PASS; Node state contract PASS; syntax
+  and diff checks clean. Real Chrome390px selection→review and edit navigation
+  checked. Mobile reverse-flow clipping reproduced and corrected. The full
+  40-view matrix, timings, gzip and full suite remain phase5, NOT_RUN yet.
+- Phases3/4/5 NOT_STARTED. Next: one-shot path introductions, official exam
+  options, then full responsive/performance/cleanup gate. Public entry remains
+  default-off, and Piece1's stricter activation gate remains BLOCKED.
 - Scope guard: protected files, preserved stash/bundle, customer records,
   settings/CSP/theme policies untouched in phase1. No full-suite/release claim.
 - Rollback: revert only the phase1 vocabulary commit if needed; no DB rollback.

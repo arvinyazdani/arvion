@@ -28,3 +28,47 @@ def wizard_catalogue(query, lang):
             "consultation": CONSULTATION[0 if lang == "fa" else 1],
             "continue_url": reverse("project_start"),
             "gallery_url": reverse("projects:demo_gallery")}
+
+
+def submit_wizard(request):
+    """Adapt closed scene choices to the existing session-safe demo hand-off.
+
+    Brand input is deliberately not read. The existing gallery vocabulary is
+    not reinterpreted as order-scene preferences: its neutral carrier is used
+    only for the selected functional modules; palette/look travel separately.
+    """
+    from urllib.parse import urlencode, urlsplit, parse_qs
+    from django.http import QueryDict
+    from django.shortcuts import redirect
+    from projects.models import DemoTemplate
+    from projects.views.projects import DemoConfigureView
+    from core.order_gateway import final_form_url
+    choices = parse_choices(request.POST)
+    topic = choices.get("type")
+    if not topic:
+        return redirect("project_start")
+    if topic in {"crm", "other"} or choices.get("consult") == "1":
+        return redirect(final_form_url(choices))
+    allowed = set(CATEGORY_FEATURE_KEYS.get(topic, ()))
+    features = sorted(set(request.POST.getlist("features")) & allowed)
+    if not features:
+        return redirect(final_form_url(choices))
+    demo = DemoTemplate.objects.filter(category=topic, is_active=True).order_by("display_order", "pk").first()
+    if not demo:
+        return redirect(reverse("project_start") + "?" + urlencode({**choices, "wizard_error": "unavailable"}))
+    original = request.POST
+    payload = QueryDict(mutable=True)
+    payload.update({"submission_token": original.get("submission_token", "")[:64],
+                    "theme": "warm", "personality": "minimal"})
+    payload.setlist("features", features)
+    request.POST = payload
+    try:
+        response = DemoConfigureView.as_view()(request, slug=demo.slug)
+    finally:
+        request.POST = original
+    location = response.get("Location", "")
+    if response.status_code == 302 and urlsplit(location).path == reverse("leads:contact"):
+        token = parse_qs(urlsplit(location).query).get("demo", [""])[0]
+        return redirect(final_form_url(choices, token))
+    # Do not send the visitor to an unrelated gallery error/retry screen.
+    return redirect(reverse("project_start") + "?" + urlencode({**choices, "wizard_error": "retry"}))
