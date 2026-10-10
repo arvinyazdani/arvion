@@ -123,6 +123,11 @@ Mobile choices precede a large, visible scene on every step; review uses ordinar
 scroll flow so no reversed-layout content is stranded. Submission failures show
 a bilingual recovery message and retain the canonical simple-form route.
 
+Review exception: the complete sample comes first at full viewport width, with
+one outer scroll owner and no nested short preview frame. Only Edit look and
+Edit colour appear on the sample; summary, other edits, gallery and continuation
+follow its natural end. Editing preserves selections and returns to sample top.
+
 Scene correction: palette/look code→build→page cycles use one cancellable clock;
 explicit choice plays once, pause/hidden/reduced-motion suppress autoplay. Topic
 intro is skippable (3.6s); feature additions show a 2s designed section, removals

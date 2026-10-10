@@ -3,7 +3,7 @@
 
 {% block title %}{% if lang == 'fa' %}شروع پروژه | آرویون{% else %}Start a project | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}مسیر مناسب پروژه خود را انتخاب کنید و نیازسنجی اولیه آرویون را شروع کنید.{% else %}Choose the right project path and start your initial Rvion discovery.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'core/css/project-start.css' %}?v=3"><link rel="stylesheet" href="{% static 'core/css/order-scene.css' %}?v=2">{% include 'core/includes/path_intro_assets.html' %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'core/css/project-start.css' %}?v=3"><link rel="stylesheet" href="{% static 'core/css/order-scene.css' %}?v=3">{% include 'core/includes/path_intro_assets.html' %}{% endblock %}
 
 {% block content %}
 <section class="project-start" aria-labelledby="project-start-title">
@@ -19,4 +19,4 @@
   </div>
 </section>
 {% endblock %}
-{% block extra_scripts %}{{ block.super }}<script src="{% static 'core/js/order-scene-state.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene-motion.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene-art.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_scripts %}{{ block.super }}<script src="{% static 'core/js/order-scene-state.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene-motion.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene-art.js' %}?v=1" defer></script><script src="{% static 'core/js/order-scene.js' %}?v=3" defer></script>{% endblock %}

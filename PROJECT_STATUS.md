@@ -961,6 +961,11 @@ Details: `docs/seo/SEO_PHASE_REPORT.md`.
 
 ## Order studio correction — 2026-10-10
 
+Follow-up: final review is full-width/natural-height sample first, two labelled
+look/colour controls only on the sample; all settings and continuation below.
+232 scoped Python tests and Node contracts pass; Chrome mobile/desktop and
+FA/EN dark/light evidence recorded in CURRENT_STATE.md. Local only; no deploy.
+
 Local os-* scene/motion correction: code/build/page cycles, six structural looks,
 topic intro and feature motion; mobile overlay clipping corrected by self-review.
 232 scoped Python tests and Node contracts passed; 120 comparison captures.

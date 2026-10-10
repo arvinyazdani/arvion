@@ -267,6 +267,8 @@ page scrolling. Dashboard, technical specification, cinema, travel, luxury and
 phone/chat layouts are structurally separate. Topic art is shared between the
 static site motif and lazy SVG introduction. Small-screen controls remain above
 the scene; transient intro/feature layers escape scene paint containment.
+Review is deliberately sample-first: full-width, natural-height site, followed
+by settings below; two labelled colour/look pills replace icon-only overlays.
 
 - Do show a recognisable business scenario before editor jargon.
 - Do label all content as fictional and keep interactions visibly sample-only.

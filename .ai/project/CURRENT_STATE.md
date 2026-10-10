@@ -1,5 +1,24 @@
 # Rvion current state
 
+## Review sample-first layout — 2026-10-10 — VERIFIED locally
+
+Owner requested complete final sample before settings. Review now uses full
+viewport width and natural site height, one outer scroller; DOM reading order
+is stage → summary/settings → footer. Only two labelled look/colour edit pills
+remain on the sample. Earlier steps/state/handoff/brand privacy unchanged.
+Chrome:390x844 and1280x800 FA dark,390x844 EN dark/light inspected;
+stage width equals viewport, no horizontal overflow; summary follows stage,
+page clientHeight=scrollHeight (no inner clipping). Both edit actions return to
+review top and retain topic/features. No enquiry submitted or data changed.
+Evidence:/tmp/rvion-review-mobile-top.png,/tmp/rvion-review-mobile-bottom.png,
+/tmp/rvion-review-desktop-top.png,/tmp/rvion-review-mobile-light-en.png.
+Tests:10 focused Python PASS;232 core/projects/leads.tests PASS; Node state,
+motion/art contracts and both JS syntax checks PASS; git diff --check clean.
+Studio assets gzip23890 bytes. Performance/CLS not remeasured for this bounded
+review-only change; earlier public-intro gate and protected-gallery audit remain
+unchanged. No migration/push/deploy. Actual iPhone/Safari not tested.
+Rollback:revert only the commit containing this checkpoint; no DB rollback.
+
 ## Piece 2 scene/motion correction — 2026-10-10
 
 Implementation VERIFIED locally; owner visual acceptance and the earlier public

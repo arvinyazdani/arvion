@@ -101,6 +101,9 @@
     function render(play = state.step < 2) {
       root.querySelectorAll('.os-topic-intro, .os-feature-pop').forEach(n => n.remove());
       root.dataset.step = String(state.step); nav.replaceChildren(); choices.replaceChildren();
+      // Review is a real document flow: the complete sample, then its controls.
+      if (state.step === 4) body.append(stage, panel, foot);
+      else {body.append(panel, stage); root.append(foot);}
       stepNames.forEach((name, i) => {const b = button(name, () => dispatch({type: 'go', step: i}), 'os-step'); b.disabled = i > state.visited; if (i === state.step) b.setAttribute('aria-current', 'step'); nav.append(b);});
       title.textContent = headings[state.step];
       hint.textContent = state.step < 2 ? say('یک انتخاب کنید؛ پیش‌نمایش همان لحظه تغییر می‌کند.', 'Choose an option to see it change live.') : state.step === 2 ? say('نام برند اختیاری است و فقط روی همین صفحه نمایش داده می‌شود.', 'Brand is optional and appears only on this page.') : state.step === 3 ? say('فقط موارد موردنیازتان را روشن کنید. چیزی از قبل انتخاب نشده است.', 'Select only what you need. Nothing is preselected.') : say('این نمونهٔ نمایشی است؛ دامنه و هزینه بعد از نیازسنجی تعیین می‌شود.', 'An illustrative sample; scope and cost are agreed after discovery.');
@@ -166,8 +169,11 @@
         clock.after(1250, () => {pre.textContent = code; playback.classList.remove('os-building'); playback.classList.add('os-page-arrived'); editor.remove();});
         clock.after(1650, () => {const distance = Math.min(420, page.scrollHeight - page.clientHeight); if (distance > 0) clock.animate(2400, p => {page.scrollTop = distance * (p * p * (3 - 2 * p));});});
       }
-      if (state.step === 4) {const pens = node('div', 'os-pens'); [0, 1, 2, 3].forEach(i => {const b = button('✎', () => edit(i), 'os-pen'); b.setAttribute('aria-label', say('ویرایش ', 'Edit ') + stepNames[i]); pens.append(b);}); stage.append(pens);}
-      if (state.step === 4) {const top = node('div', 'os-top-pens'); [0, 1].forEach(i => {const b = button('✎', () => edit(i), 'os-pen'); b.setAttribute('aria-label', say('ویرایش ', 'Edit ') + stepNames[i]); top.append(b);}); playback.append(top);}
+      if (state.step === 4) {
+        const top = node('div', 'os-top-pens');
+        [[1, say('ادیت سبک', 'Edit look')], [0, say('ادیت رنگ', 'Edit colour')]].forEach(([step, label]) => top.append(button(label, () => edit(step), 'os-review-edit')));
+        playback.append(top);
+      }
     }
     function browse(delta) {const current = state.look ? catalogue.looks.findIndex(r => r[0] === state.look) : preview; preview = (current + delta + catalogue.looks.length) % catalogue.looks.length; if (state.look) {pick('look', catalogue.looks[preview][0]);} else {drawScene(true); schedule();}}
     function submit() {
