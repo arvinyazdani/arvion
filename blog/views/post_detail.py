@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import translation
 from blog.presentation import reader_content, reading_minutes, article_dek
 from django.db.models import Q
-from html.parser import HTMLParser
+from blog.actions import article_actions
 
 class PostDetailView(LanguageViewMixin, DetailView):
     """
@@ -38,30 +38,20 @@ class PostDetailView(LanguageViewMixin, DetailView):
         context["related_posts"] = related
         context["article_tags"] = [tag.name for tag in self.object.tags.all()
                                    if self.lang == "fa" or not any('\u0600' <= c <= '\u06ff' for c in tag.name)]
-        if candidates.count() >= 2:
+        if candidates.exists():
             date, pk = self.object.published_at, self.object.pk
             context["previous_post"] = candidates.filter(Q(published_at__lt=date) | Q(published_at=date, pk__lt=pk)).first()
             context["next_post"] = candidates.filter(Q(published_at__gt=date) | Q(published_at=date, pk__gt=pk)).order_by("published_at", "pk").first()
-        class ServiceLink(HTMLParser):
-            hrefs = None
-            def __init__(self):
-                super().__init__()
-                self.hrefs = []
-            def handle_starttag(self, tag, attrs):
-                url = dict(attrs).get("href", "")
-                if tag == "a" and url.startswith(("/" + self_lang + "/services/", "/" + self_lang + "/projects/demos/")):
-                    self.hrefs.append(url)
-        self_lang = self.lang
-        link = ServiceLink()
-        link.feed(body)
+        actions = article_actions(body, self.lang)
+        context["article_actions"] = actions
         preferred = {
             "corporate-website-cost-1405": "corporate-website-design",
             "custom-website-vs-template": "corporate-website-design",
             "custom-or-ready-made-crm": "custom-web-application",
         }.get(self.object.slug_fa)
-        service_url = next((url for url in link.hrefs if preferred and url.rstrip("/").endswith("/" + preferred)), None)
-        with translation.override(self.lang):
-            context["article_service_url"] = service_url or (link.hrefs[0] if link.hrefs else reverse("projects:demo_gallery"))
+        context["article_service_url"] = next((item["url"] for item in actions
+            if preferred and item["url"].rstrip("/").endswith("/" + preferred)),
+            actions[0]["url"] if actions else None)
         urls = {}
         for language in available_post_languages(self.object):
             slug = getattr(self.object, f"slug_{language}")

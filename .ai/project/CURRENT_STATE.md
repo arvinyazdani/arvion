@@ -11,7 +11,15 @@ Phase1:24d0316;13 legacy/language tests PASS. Phase2 list VERIFIED at server lay
 summary + tags search, published tag counts, unfiltered-page1 latest, GET filters,
 pagination, 3/2/1 cards and shared home cards. Initial URL namespace error found
 by tests and fixed before commit. Browser matrix pending until integrated build.
-Phase3 reader NOT_STARTED; phase4 gateway NOT_STARTED.
+Phase2 commit:1b23d4e. Phase3 reader implemented;38 blog/list/detail/language
+tests PASS;4 Node progress/spy/sheet tests PASS. SEO regression exposed duplicate
+breadcrumb handling and an unnecessarily rewritten approved list lead; restored
+the lead, introduced an overridable presentation-only breadcrumb block, and
+updated the SEO contract to recognize the article-owned breadcrumb (JSON-LD
+unchanged). Hero always reserves1200/630; native dialog has focus return/trap/Esc;
+practical actions only from sanitized article links; no live content edits.
+Removed journal.css/reader.js, replaced (not layered) by articles.css/reading.js.
+Browser/CLS matrix pending; phase4 gateway NOT_STARTED.
 Rollback: revert scoped local commits in reverse order; no DB rollback.
 
 ## Review sample-first layout — 2026-10-10 — VERIFIED locally

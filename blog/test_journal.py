@@ -163,7 +163,7 @@ class JournalTests(TestCase):
         self.assertContains(response, 'loading="eager"')
         self.assertContains(response, 'fetchpriority="high"')
         self.assertContains(response, 'height="630"')
-        self.assertContains(response, '<details class="journal-toc">')
+        self.assertContains(response, '<details class="ar-toc" open>')
         self.assertContains(response, 'data-copy-article')
         self.assertContains(response, 'role="progressbar"')
         self.assertNotContains(response, 'article:modified_time')

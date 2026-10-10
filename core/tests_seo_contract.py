@@ -342,7 +342,10 @@ class WholeSitemapContractTests(TestCase):
                 if path not in {'/fa/', '/en/'}:
                     breadcrumb = next(node for node in graph if node['@type'] == 'BreadcrumbList')
                     html = response.content.decode()
-                    self.assertIn('class="shell seo-breadcrumbs"', html)
+                    # Public article pages own their reference breadcrumb; the
+                    # structured-data contract remains identical to other pages.
+                    self.assertIn('class="ar-breadcrumb"' if '/blog/' in path
+                                  else 'class="shell seo-breadcrumbs"', html)
                     self.assertIn('aria-current="page"', html)
                     for item in breadcrumb['itemListElement']:
                         self.assertIn(escape(item['name']), html)
