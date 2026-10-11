@@ -4,7 +4,7 @@
 {% block content %}
 <section class="certificate-wrap">
   <article class="certificate {% if integrity_needs_review %}certificate-review{% endif %}">
-    <div class="certificate-top"><div class="assessment-brand"><span class="assessment-brand-mark">R+</span><span>RVION<br><small>{% if lang == 'fa' %}آزمون{% else %}ASSESSMENT{% endif %}</small></span></div><span>{% if lang == 'fa' %}گواهی غیررسمی مهارت{% else %}NON-ACCREDITED CERTIFICATE{% endif %}</span></div>
+    <div class="certificate-top"><div class="assessment-brand">{% include "core/includes/brand.html" with mark_class="assessment-brand-mark" mark_only=True %}<span>RVION<br><small>{% if lang == 'fa' %}آزمون{% else %}ASSESSMENT{% endif %}</small></span></div><span>{% if lang == 'fa' %}گواهی غیررسمی مهارت{% else %}NON-ACCREDITED CERTIFICATE{% endif %}</span></div>
     <div class="certificate-body">
       <span class="eyebrow">{% if lang == 'fa' %}گواهی ارزیابی مهارت{% else %}CERTIFICATE OF ASSESSMENT{% endif %}</span><p>{% if lang == 'fa' %}گواهی می‌شود که{% else %}This certifies that{% endif %}</p>
       <h1>{{ certificate.holder_name }}</h1>

@@ -25,7 +25,7 @@
     </dl>
     <p class="legal-note">{% if lang == 'fa' %}شماره ثابت شرکت پس از تخصیص در همین صفحه درج خواهد شد. ارتباط فعلی از طریق شماره همراه رسمی و فرم سایت انجام می‌شود.{% else %}A landline will be published after assignment. Current official contact is available through the listed mobile number and website form.{% endif %}</p>
     <div class="permit-placeholder">
-      <span class="brand-mark">R</span>
+      {% include 'core/includes/brand.html' with mark_only=True %}
       <div>
         <strong>{% if lang == 'fa' %}مجوزها و نماد اعتماد{% else %}Licenses and trust seal{% endif %}</strong>
         <small>{% if lang == 'fa' %}فرآیند دریافت اینماد در حال تکمیل است. پس از صدور، کد زنده و قابل اعتبارسنجی فقط در این بخش نمایش داده می‌شود.{% else %}The trust-seal application is in progress. Once issued, only the live verifiable code will appear here.{% endif %}</small>

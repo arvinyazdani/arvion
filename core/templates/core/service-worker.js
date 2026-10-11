@@ -1,4 +1,4 @@
-const CACHE = "rvion-shell-v5";
+const CACHE = "rvion-shell-v6";
 const OFFLINE_URL_FA = "/offline/fa/";
 const OFFLINE_URL_EN = "/offline/en/";
 const SHELL = [
@@ -6,6 +6,8 @@ const SHELL = [
   OFFLINE_URL_EN,
   "/static/core/favicon.svg",
   "/static/core/icons/icon-192.png",
+  "/static/core/icons/icon-512.png",
+  "/static/core/icons/apple-touch-icon.png",
   "/static/core/icons/app-icon-maskable.svg",
   "/static/core/manifest.webmanifest",
 ];

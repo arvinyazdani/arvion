@@ -28,7 +28,7 @@ class CorePagesTests(TestCase):
         self.assertContains(response, "core/js/site-shell.js")
         self.assertContains(response, "core/manifest.webmanifest")
         self.assertContains(response, "core/favicon.svg")
-        self.assertContains(response, "core/icons/icon-192.png")
+        self.assertContains(response, "core/icons/apple-touch-icon.png")
         self.assertContains(response, 'data-install-guide', html=False)
         self.assertContains(response, 'data-install-panel="ios"', html=False)
         self.assertContains(response, 'data-install-panel="android"', html=False)
@@ -148,7 +148,7 @@ class CorePagesTests(TestCase):
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=5")
         legacy = html.index("core/css/site.css?v=41")
-        components = html.index("core/css/components.css?v=8")
+        components = html.index("core/css/components.css?v=9")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
 
@@ -194,7 +194,7 @@ class CorePagesTests(TestCase):
 
     def test_global_brand_and_legal_footer_use_rvion(self):
         response = self.client.get(reverse("home") + "?lang=fa")
-        self.assertContains(response, ">RVION<", html=False)
+        self.assertContains(response, ">Rvion<", html=False)
         self.assertContains(response, "طراحی و سفارش وب‌سایت اختصاصی | آرویون")
         self.assertContains(response, "شناسه ملی 14015444540")
         self.assertNotContains(response, ">ARVION<", html=False)
@@ -300,7 +300,7 @@ class CorePagesTests(TestCase):
         response = self.client.get(reverse("service_worker"))
         self.assertEqual(response.status_code, 200)
         self.assertIn("application/javascript", response["Content-Type"])
-        self.assertContains(response, 'const CACHE = "rvion-shell-v5"')
+        self.assertContains(response, 'const CACHE = "rvion-shell-v6"')
 
     def test_persian_and_arabic_digits_are_normalized(self):
         self.assertEqual(normalize_digits("۱۲٣٫۴۵"), "123.45")

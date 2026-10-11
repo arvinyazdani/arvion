@@ -11,10 +11,10 @@
     :root{color-scheme:light dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1220;color:#f8fafc}
     *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 75% 18%,#3d231d 0,transparent 35%),#0b1220}
     main{width:min(100%,560px);padding:clamp(28px,7vw,56px);border:1px solid #334155;border-radius:28px;background:#111827;box-shadow:0 28px 80px #0006}
-    .mark{display:grid;place-items:center;width:56px;height:56px;border-radius:18px;background:#ff6b35;color:#fff;font-size:28px;font-weight:900}
+    .mark{display:grid;place-items:center;width:56px;height:56px;border-radius:18px;background:#ff6b35;color:#0b1220;font-size:28px;font-weight:900}
     h1{margin:28px 0 12px;font-size:clamp(28px,7vw,46px);line-height:1.25}p{margin:0 0 28px;color:#cbd5e1;line-height:1.9}
     a{display:inline-flex;min-height:48px;align-items:center;justify-content:center;padding:0 22px;border-radius:14px;background:#ff6b35;color:#fff;text-decoration:none;font-weight:800}
   </style>
 </head>
-<body><main><span class="mark" aria-hidden="true">R</span><h1>{% if lang == 'fa' %}اتصال اینترنت برقرار نیست.{% else %}You’re currently offline.{% endif %}</h1><p>{% if lang == 'fa' %}این صفحه اطلاعات خصوصی شما را ذخیره نمی‌کند. اتصال را بررسی کنید و برای دریافت تازه‌ترین اطلاعات دوباره تلاش کنید.{% else %}This page stores no private information. Check your connection, then try loading the requested page again.{% endif %}</p><a href="">{% if lang == 'fa' %}تلاش دوباره{% else %}Try again{% endif %}</a></main></body>
+<body><main><span class="mark" aria-hidden="true">{% include "core/includes/code_mark.html" %}</span><h1>{% if lang == 'fa' %}اتصال اینترنت برقرار نیست.{% else %}You’re currently offline.{% endif %}</h1><p>{% if lang == 'fa' %}این صفحه اطلاعات خصوصی شما را ذخیره نمی‌کند. اتصال را بررسی کنید و برای دریافت تازه‌ترین اطلاعات دوباره تلاش کنید.{% else %}This page stores no private information. Check your connection, then try loading the requested page again.{% endif %}</p><a href="">{% if lang == 'fa' %}تلاش دوباره{% else %}Try again{% endif %}</a></main></body>
 </html>

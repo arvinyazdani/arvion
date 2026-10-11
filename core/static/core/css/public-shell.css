@@ -32,7 +32,7 @@ html[lang="fa"] [data-public-shell] {line-height:1.9}
 [data-public-shell] .nav-preferences-panel .theme-toggle span {display:inline}
 [data-public-shell] .nav-preferences-panel .sound-toggle {justify-content:flex-start}
 .menu-project {display:none}
-.brand-wordmark {font-weight:900;letter-spacing:.1em}
+.brand-wordmark {font-weight:900;letter-spacing:-.035em}
 .welcome-brand>.brand-wordmark {font-size:1.8rem}
 .nav-preferences-panel [data-sound-state] {margin-inline-start:auto;color:var(--text-secondary);font-size:.8125rem}
 .nav-preferences-panel :is(a,button):hover {background:var(--surface-subtle)}

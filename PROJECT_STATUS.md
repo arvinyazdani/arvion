@@ -1013,3 +1013,14 @@ Two non-integrated R/code-mark concepts saved in design/brand/rvion-code-v1:
 orange app icon and light Rvion wordmark. PARTIAL pending owner acceptance,
 vector master and small-size/PWA exports. Runtime/production branding unchanged;
 generation prompts and limits recorded alongside the assets. No deploy.
+
+### Coding identity integration — 2026-10-11
+
+VERIFIED local: owner-selected R/code mark integrated into shared header/footer,
+install/loader, management, assessment/receipt and standalone customer shells.
+Clean SVG plus opaque PNG192/512/iOS180; total PNG12880 bytes. App identity and
+all workflows/data unchanged. PWA shell cache v6 invalidates prior shell assets.
+289 related tests pass; final8 brand tests pass; real IAB mobile/desktop
+light/dark checks recorded in CURRENT_STATE.md. No push/deploy/migration.
+Actual installed-device refresh remains unverified; existing home activation
+and unrelated gallery audit/blog-test issues are not waived by this change.

@@ -10,7 +10,7 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=8">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=9">
   <link rel="stylesheet" href="{% static 'management_portal/v2/management.css' %}?v=20">
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
@@ -24,7 +24,7 @@
   <div class="m-app" data-route-shell>
     <aside class="m-sidebar" aria-label="{% if lang == 'fa' %}مسیرهای اصلی مدیریت{% else %}Primary management navigation{% endif %}">
       <a class="m-brand" href="{% url 'management_portal:dashboard' %}" aria-label="{% if lang == 'fa' %}خانه مدیریت آرویون{% else %}Rvion management home{% endif %}">
-        <b aria-hidden="true">R</b>
+        <b aria-hidden="true">{% include 'core/includes/code_mark.html' %}</b>
         <span>RVION<small>{% if lang == 'fa' %}مرکز مدیریت{% else %}Management Center{% endif %}</small></span>
       </a>
       <div class="m-nav-context">
@@ -42,7 +42,7 @@
     </aside>
 
     <header class="m-topbar">
-      <a class="m-mobile-brand" href="{% url 'management_portal:dashboard' %}" aria-label="{% if lang == 'fa' %}خانه مدیریت{% else %}Management home{% endif %}">R</a>
+      <a class="m-mobile-brand" href="{% url 'management_portal:dashboard' %}" aria-label="{% if lang == 'fa' %}خانه مدیریت{% else %}Management home{% endif %}">{% include 'core/includes/code_mark.html' %}</a>
       <div class="m-top-title"><strong>{% block page_title %}{% if lang == 'fa' %}خانه مدیریت{% else %}Overview{% endif %}{% endblock %}</strong><small>{% if lang == 'fa' %}آرویون / فضای مدیریت{% else %}Rvion / management workspace{% endif %}</small></div>
       <form class="m-shell-search" action="{% url 'management_portal:customer_workspace' %}" method="get" role="search">
         <label class="m-sr-only" for="management-customer-search">{% if lang == 'fa' %}جست‌وجوی مشتری با نام، شماره یا ایمیل{% else %}Find a customer by name, phone or email{% endif %}</label>

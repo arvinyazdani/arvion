@@ -173,6 +173,16 @@ and restrained buttons. These are sample variants, not global rebrands.
 
 ## Components
 
+Coding identity (2026-10-11, owner selected): the R silhouette incorporates
+code-chevron cutouts. `core/includes/code_mark.html` owns the inline vector;
+`brand.html` owns mark/wordmark and preserves mark-only/custom-wrapper variants.
+Orange glyph + theme-aware live `Rvion` wordmark replace the old literal R.
+Tile contexts use the inverse ink mark; no ivory bitmap background in dark mode.
+`app-icon-maskable.svg` and favicon share that path; deterministic PNG exports
+are 192/512px and iOS180px. Orange/ink stay existing tokens, not a new palette.
+Shared components.css owns sizing; public-shell.css owns shell wordmark spacing.
+PWA identity/start URL/scope and all workflow/customer data remain unchanged.
+
 Public journal (2026-10-08): `blog/includes/card.html` and `journal.css` own
 the shared cover/title/date/estimated-reading-time presentation across home,
 list and related articles. Desktop home gives one latest article a larger

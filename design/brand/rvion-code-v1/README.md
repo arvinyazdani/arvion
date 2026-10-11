@@ -1,8 +1,25 @@
 # Rvion code-mark — concept v1
 
-Status: PARTIAL — generated concepts visually inspected; owner acceptance pending.
+Status: owner selected the concepts for local integration (2026-10-11).
 Created with the built-in image generation tool, not the fallback CLI.
-No existing logo, manifest, favicon, startup image or production asset replaced.
+Concept history below remains unchanged; production-facing local integration
+now uses a clean vector reconstruction, not these large concept bitmaps.
+
+## Integrated asset ownership
+
+- `core/templates/core/includes/code_mark.html`: approved silhouette rebuilt
+  as a deterministic R/code vector; live `Rvion` text uses the local font stack.
+- `core/static/core/icons/app-icon-maskable.svg`: same path, square orange/ink
+  master with generous safe margins. `core/static/core/favicon.svg`: rounded tile.
+- `scripts/build_brand_icons.cjs`: compiles the master into PNG192/512/iOS180
+  using development sharp. No application/runtime dependency was added.
+  Example: `NODE_PATH=<development-node_modules> node scripts/build_brand_icons.cjs`.
+- Header/footer, loader/install guide, assessment/receipt, management and
+  standalone customer shells reuse the vector. Service-worker shell cache v6.
+- Original concepts retained as design evidence; they are never loaded by UI.
+- Installed-device icon refresh is OS-controlled and not physically verified;
+  existing iOS installations may require removing/re-adding after deployment.
+  No production replacement/deployment is performed in this phase.
 
 ## Deliverables
 
@@ -17,10 +34,11 @@ ink #0b1220 and ivory #f4f1ea; generated bitmap colours are not asserted to be
 pixel-exact tokens. The two selected outputs were visually inspected. A separate
 transparent generation was rejected for edge artefacts and is not included.
 
-Production preparation remains separate: owner selection, deterministic vector
-master, monochrome/dark variants, optical small-size validation, mask-safe
-192/512px exports and explicit site/PWA integration. No originality/trademark
-clearance claim is made. Runtime tests were not run: no runtime code changed.
+At the original concept handoff, production preparation was still separate:
+vector master, light/dark checks, small-size/PWA exports and integration. The
+integration section above supersedes that historical status. No originality/
+trademark clearance claim is made. Concept-only work needed no runtime tests;
+integration verification is recorded in CURRENT_STATE.md.
 
 ## Final generation prompts
 

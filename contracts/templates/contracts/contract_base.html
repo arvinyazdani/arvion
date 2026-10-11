@@ -12,7 +12,7 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=8">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=9">
   <link rel="stylesheet" href="{% static 'contracts/contracts.css' %}?v=13">
   <link rel="stylesheet" href="{% static 'contracts/legal.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'contracts/otp.css' %}?v=3">
@@ -28,7 +28,7 @@
   <header class="contract-shell-header" data-route-shell>
     <div class="contract-shell-bar">
       <a class="contract-brand" href="{% block brand_url %}#contract-main{% endblock %}">
-        <span class="contract-brand-mark">R</span>
+        {% include "core/includes/brand.html" with mark_class="contract-brand-mark" mark_only=True %}
         <span><strong>RVION</strong><small>{% block brand_subtitle %}پرونده اختصاصی قرارداد{% endblock %}</small></span>
       </a>
       {% block header_actions %}{% endblock %}

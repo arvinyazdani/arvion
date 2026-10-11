@@ -5680,3 +5680,62 @@ No push/deploy. Next: owner visual selection, then vector master and small-size/
 mask/light-dark checks before any explicit replacement. Home performance and
 the unrelated existing blog-test issue above remain unchanged. Source rollback:
 revert only this concept commit; no database rollback.
+
+## 2026-10-11 — Approved coding identity: site and app integration
+
+Status: VERIFIED (local implementation); deployed/physical installed-app check
+NOT_STARTED. Owner explicitly requested using the preceding logo/app concepts.
+Single-primary-agent. Clean starting point82ba75f; no prior dirty edits overwritten.
+
+Plan completed: vector/exports → shared and standalone brand consumers →
+PWA cache refresh → targeted checks/browser → self-review/local checkpoint.
+`core/includes/code_mark.html` reconstructs the accepted R/code silhouette;
+shared brand partial retains mark_only/mark_class and uses live themed Rvion
+wordmark instead of loading the1.1MB ivory concept in every header. Orange/ink
+tokens unchanged. Header/footer, loader/install guide, management base, legal
+company mark, assessment/review/certificate/receipt, offline and customer-shell
+marks reuse it. No domain model/workflow/authorization/3D geometry modified.
+Favicon and maskableSVG share its path (regression checked). PNG exports are
+opaque RGB192/512/iOS180 from the SVG via development sharp, no runtime package.
+Sizes2614/7804/2462 bytes (12880 total); mark bounding box fits80% safe circle.
+Manifest id/start_url/scope preserved; PNG512 now supports maskable. Apple touch
+link is180px; service-worker shell cache v6 rotates old shell cache and precaches
+all icons. Versioned sharedCSS updated across its existing shell consumers.
+
+Tests/evidence:
+- Initial52 focused checks:48 pass, four version/case expectation failures
+  after intentional v5→v6 cache, v8→v9 CSS and RVION→Rvion changes. Assertions
+  updated to the new explicit contracts, not removed. Subsequent58/58 pass.
+- Required configured unit command (core/projects/leads.tests):250 tests,
+  three subtest failures from one remaining CSS-version contract test. Updated
+  its version and all six shell imports coherently. Expanded final command:
+  `.venv/bin/python manage.py test core projects leads.tests assessments.tests.AssessmentUISystemTests assessments.tests.AssessmentCommerceTests --verbosity 1`
+  →289/289 pass; mocked SMTP-unavailable log is an intentional recovery test.
+- Final two added export/compile checks: `manage.py test core.test_brand_assets`
+  →8/8 pass. Includes path parity, dimensions/opaque/budget, mask safety, stable
+  identity, shell compilation, both languages, custom wrappers and cache version.
+- Configured `node --check projects/static/projects/js/demo-configurator.js`
+  and build-script syntax pass; Django check0; diff-check clean.
+- `node --test core/tests_js/entry_scene.test.cjs core/tests_js/navigation_loader.test.cjs`
+  →2/2 pass; entry projection and loader lifecycle contracts preserved.
+- DESIGN lint0 errors,2 existing orphan-token warnings. Strict premium audit
+  remains55 existing gallery/template findings, none in changed files; no claim
+  of whole-repository premium compliance. Evidence:
+  `/tmp/rvion-brand-integration/premium-audit.json`. Protected gallery untouched.
+- Real IAB: FA390x844 light/dark, EN1280x800 light/dark, header/footer compared;
+  measured horizontal overflow0, transparent header-mark background, orange
+  glyph, themed wordmark. Icon512 served/decoded at512x512. No OS install or
+  physical iPhone icon-refresh claim; no new Lighthouse measurement for branding.
+  Screenshots `/tmp/rvion-brand-integration/`:fa-mobile-light.png,
+  fa-mobile-dark.png,fa-mobile-footer-dark.png,en-desktop-light.png,
+  en-desktop-dark.png,en-desktop-footer-light.png. Viewport reset afterwards.
+
+No push/deploy/migration/customer-data writes/messages. Protected gallery,
+article content/covers and management article files unchanged. No new animation
+or request on critical path (inline vector); no changes to entry/3D activation.
+Existing home performance BLOCKED and prior blog-label test issue unchanged.
+Rollback: revert only this branding integration commit; no DB rollback. Browser/
+OS can retain installed icons; after a future release existing iOS installations
+may need removing/re-adding, which is separate from local asset verification.
+Next: owner review/deployment only on explicit instruction; resume prior home
+performance work separately rather than silently enabling cinematic flags.
