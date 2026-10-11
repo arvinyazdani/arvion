@@ -5664,3 +5664,19 @@ Next: owner visual review of http://127.0.0.1:8173/fa/ and startup-cost work;
 three successful final performance runs + physical-medium-phone checks still
 required before activation. Separate pre-existing blog label-test reconciliation.
 Rollback: revert this scoped local home commit; no DB rollback required, no reset.
+
+## 2026-10-11 — Rvion coding logo/app-icon concept
+
+Status: PARTIAL — two selected raster concepts generated and visually inspected;
+owner acceptance and production vector/export/integration NOT_STARTED.
+Built-in image-generation skill used; no CLI/API key or new dependency.
+Saved `design/brand/rvion-code-v1/{app-icon-concept,logo-light-concept}.png`
+(1254x1254 and1983x793). R + code-chevron cutouts; existing orange/ink identity.
+Rejected transparent output had edge artefacts; retained outside repo only.
+Prompts/limitations in the accompanying README. No existing branding, manifest,
+favicon, protected files, runtime or customer data changed. No runtime tests
+needed for this asset-only concept; PNG dimensions and source diff checked.
+No push/deploy. Next: owner visual selection, then vector master and small-size/
+mask/light-dark checks before any explicit replacement. Home performance and
+the unrelated existing blog-test issue above remain unchanged. Source rollback:
+revert only this concept commit; no database rollback.

@@ -1006,3 +1006,10 @@ footer. Functional local checks VERIFIED; owner visual acceptance PARTIAL.
 CLS0,LCP4634.85ms,TBT556.5ms — performance/public activation still BLOCKED,
 not a release. Default3D/entry flags OFF; disposable8173 preview only. No
 push/deploy/migration. Current evidence/remaining gates in CURRENT_STATE.md.
+
+### Coding identity concept — 2026-10-11
+
+Two non-integrated R/code-mark concepts saved in design/brand/rvion-code-v1:
+orange app icon and light Rvion wordmark. PARTIAL pending owner acceptance,
+vector master and small-size/PWA exports. Runtime/production branding unchanged;
+generation prompts and limits recorded alongside the assets. No deploy.
