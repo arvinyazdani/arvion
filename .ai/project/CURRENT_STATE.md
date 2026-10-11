@@ -5509,3 +5509,51 @@ with55 pre-existing findings in protected gallery source roots; not a PASS.
 Phase 2 studio illustration/home work remains uncommitted until its visual and
 performance review. No push/deploy/migration or permanent database write.
 Rollback phase1 by reverting only its scoped commit; no data rollback.
+
+### Studio phase2 — local evidence and hand-off, 2026-10-11
+
+Phase1 commit08161eb. Phase2 HTML/navigation/data preservation VERIFIED locally;
+overall design PARTIAL until owner acceptance/final posters. Six token-aware
+original SVG rooms, real destinations and optional CSS-only motion are in the
+commit carrying this checkpoint. Reused existing article include (latest3),
+sample/service queries and ordering paths; removed retired home showcase/closing
+styles and the hidden redundant service index. No new model, fetch, dependency,
+tracking, analytics/cookie/cache policy or production/customer-data change.
+DESIGN.md records asset names/dimensions/budgets and 3D/router deferral.
+
+Tests: `.venv/bin/python manage.py test core projects leads.tests --verbosity 1`
+242/242 passed; after final CSS/markup cleanup70 focused Core tests passed.
+`node --test core/tests_js/*.cjs`:12 passed (including4 static-mode cases).
+check0, migration dry-run no changes, configured demo JS syntax and diff clean.
+First integration run failed2 mobile-format assertions; public_phone now delegates
+to existing mobile normalization before safe landline fallback, rerun242 passed.
+No full repository suite, actual iPhone/Safari or production verification claimed.
+
+Local Lighthouse mobile, same disposable thin fixture/entryOFF (ms):
+| series | CLS | LCP | TBT |
+| before1/2/3 | 0/0/0 | 4458.01/4259.30/4251.72 | 55.5/0/0 |
+| initial after1/2/3 | 0/0/0 | 4270.57/4265.63/4251.80 | 153/314/173 |
+| final1/2/3 | 0/0/0 | 4253.14/4072.67/4335.05 | 0/0/335 |
+Medians before→final: LCP4259.30→4253.14ms, TBT0→0ms. Initial after
+overlapped test activity; rerun without tests. Variability (final335ms outlier)
+is retained, not hidden. LCP2.5s goal remains unmet, so no blanket speed PASS.
+These are local fixture results, not production CWV. Gzip: new JS461B, six
+rendered scenes1479B, home CSS3342B (+901B), public CSS1848B (+226B), footer
+1260B (+173B), shell JS4617B (+125B). Populated FA HTML41522B/10470B gzip.
+
+Chrome: FA/EN × light/dark ×390×844/1280×800, all8 viewed/captured; overflow0
+and buffered non-input layout shifts[] in all8. Populated public sample/service
+fixture used only after performance runs, in a cloned temporary SQLite database.
+FA3 real covers loaded; EN3 article cards with2 images loaded and1 intentional
+no-cover placeholder. Menu focus/Escape/inert/Tab wrap and reduced-motion static
+mode verified in Chrome. No-JS capability is server-HTML tested, not a separate
+JS-disabled browser run. Screenshots/data: `/tmp/rvion-home-studio-evidence/`
+`{fa,en}-{light,dark}-{390,1280}.png`, `*-hero.png`, `menu-fa-dark-390.png`,
+`browser-final.json`, `{before,after,final}-{1,2,3}.json`. These temporary files
+are not committed. Preview: http://127.0.0.1:8173/fa/ (isolated fixture).
+
+Next: owner visual review; final poster replacement and representative production
+performance review remain NOT_STARTED. Shared shell/frame is not claimed to be
+a pixel copy of a final3D scene. Existing protected-gallery audit55 findings remain
+untriaged and outside scope. No push/deploy/migration. Rollback: revert phase2
+then08161eb if needed, never a broad reset; no database rollback required.

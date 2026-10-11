@@ -252,7 +252,7 @@ class CorePagesTests(TestCase):
             self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
             self.assertContains(response, reverse("assessments:briefing", args=["python-django-professional"]))
             if language == "en":
-                for section in ('class="website-beyond shell"', 'class="website-assessments shell"'):
+                for section in ('data-studio-room="control"', 'data-studio-room="tests"'):
                     band = response.content.decode().split(section, 1)[1].split('</section>', 1)[0]
                     self.assertNotRegex(band, r"[\u0600-\u06ff]")
 

@@ -983,3 +983,14 @@ topic intro and feature motion; mobile overlay clipping corrected by self-review
 No customer data/production/protected gallery change. Overall programme remains
 PARTIAL at the previously recorded audit/activation gates; detailed evidence in
 `.ai/project/CURRENT_STATE.md`. This is not a release or public activation.
+
+## Studio homepage proposal — 2026-10-11
+
+Local six-room HTML/SVG home, shared public brand, touch menu and four-column
+footer built; functional checks VERIFIED, visual acceptance PARTIAL/pending owner.
+242 related tests +70 final focused tests and12 Node tests passed. Eight Chrome
+language/theme/viewport views: zero overflow and layout-shift entries. Local
+Lighthouse median LCP4259→4253ms/TBT0→0ms, CLS0 in all runs;335ms outlier kept
+in the record. LCP target unmet; no public3D/entry activation or release claimed.
+Final posters and optional3D deferred; asset contract in DESIGN.md, evidence and
+rollback in CURRENT_STATE.md. Protected gallery/articles/customer data untouched.

@@ -1,0 +1,40 @@
+{# Original lightweight illustration. Reserved viewBox, no canvas/WebGL or remote asset. #}
+<figure class="hs-art hs-art--{{ room }}" data-studio-art="{{ room }}">
+<svg viewBox="0 0 820 500" width="820" height="500" aria-hidden="true" focusable="false">
+ <path class="hs-floor" d="M45 335 390 140 775 335 430 485Z"/>
+ <path class="hs-wall" d="M45 335V140L390 20V140ZM390 20 775 190V335L390 140Z"/>
+ <path class="hs-trim" d="M45 335 430 485 775 335M390 20V140"/>
+ <g class="hs-portal"><path d="M590 300V125L700 174V346Z"/><path d="M607 307V152L682 185V337"/></g>
+ <g class="hs-plant"><path d="m110 300 32 14-7 47-20-8Z"/><path d="M126 318v-70m0 35q-42-2-36-32 33-1 36 32m0-15q37 0 33-31-32 3-33 31"/></g>
+ {% if room == 'workshop' %}
+ <path class="hs-machine" d="m145 322 330-160 196 90-331 167Z"/><path class="hs-depth" d="M145 322v38l195 92v-33m0 33 331-163v-37"/>
+ <path class="hs-trim" d="m158 345 182 87 318-158"/>
+ <g class="hs-screen hs-lift"><path d="m185 317 5-114 87 40-4 115Z"/><path class="hs-wire" d="m205 233 52 24-2 69-52-24Z M206 236l47 86m3-63-51 43"/><circle cx="229" cy="280" r="13"/></g>
+ <g class="hs-screen"><path d="m293 267 5-114 87 40-4 115Z"/><path class="hs-accent" d="m311 181 57 26-2 32-57-26Z"/><path class="hs-wire" d="m309 226 26 12m-26 3 54 25m-54-11 54 25"/></g>
+ <g class="hs-screen hs-lift"><path d="m401 215 5-114 87 40-4 115Z"/><path class="hs-code" d="m423 140 16 7m7 3 27 12m-50-5 36 17m-36-4 15 7m7 3 27 12m-49-5 40 18"/></g>
+ <g class="hs-screen"><path d="m510 164 5-114 87 40-4 115Z"/><path class="hs-wire" d="m527 128 19-30 14 27 12-14 13 44Z"/><path class="hs-accent" d="m529 153 37 17v9l-37-17Z"/></g>
+ <g class="hs-arm"><path d="m171 347-24-78 33-57 37 11"/><circle cx="147" cy="269" r="12"/><circle cx="180" cy="212" r="10"/><path d="m565 318-26-73 28-46 34 13"/><circle cx="539" cy="245" r="12"/><circle cx="567" cy="199" r="10"/></g>
+ {% elif room == 'library' %}
+ <g class="hs-shelves"><path d="M150 135 440 265v155L150 290Z M150 213 440 343M246 178v155m96-111v155"/>
+ <path class="hs-books" d="m166 159 13 6v55l-13-6Zm24 11 13 6v55l-13-6Zm25 11 13 6v55l-13-6Zm48 21 14 6v55l-14-6Zm25 11 14 6v55l-14-6Zm25 11 14 6v55l-14-6Zm47 22 14 6v55l-14-6Zm25 11 14 6v55l-14-6Z"/></g>
+ <g class="hs-screen"><path d="m470 355 3-102 92 40-3 103Z"/><path class="hs-wire" d="m489 280 58 25m-58-10 43 20m-43-5 58 25m-58-10 58 25"/></g>
+ {% elif room == 'gallery' %}
+ <g class="hs-screen"><path d="m143 285 4-145 122 56-3 146Z"/><path class="hs-accent" d="m165 169 82 38v47l-82-38Z"/><path class="hs-wire" d="m164 237 80 36m-80-21 50 23"/></g>
+ <g class="hs-screen hs-lift"><path d="m311 322 4-173 144 66-3 173Z"/><path class="hs-wire" d="m338 184 93 42v55l-93-42Z"/><path class="hs-accent" d="m338 263 30 14v46l-30-14Zm45 20 47 21v46l-47-21Z"/></g>
+ <g class="hs-screen"><path d="m500 335 4-144 119 54-3 145Z"/><path class="hs-wire" d="m526 226 74 34m-74-18 48 22"/><circle class="hs-accent" cx="559" cy="301" r="24"/></g>
+ {% elif room == 'control' %}
+ <g class="hs-screen"><path d="m181 303 4-175 250 114-4 175Z"/><path class="hs-wire" d="m207 164 35 16v115l-35-16Zm54 27 151 69m-151-49 73 34m-73-14 151 69"/><path class="hs-accent" d="m267 292v-34l20 9v34Zm34 16v-48l20 9v48Zm34 15v-63l20 9v63Zm34 15v-88l20 9v88Z"/></g>
+ <path class="hs-machine" d="m186 323 243 112 75-36-245-112Z"/>
+ <g class="hs-screen hs-lift"><path d="m504 254v-83l91 42v83Z"/><path class="hs-wire" d="m522 203 54 25m-54-9 35 16m-35-1 54 25"/></g>
+ {% elif room == 'tests' %}
+ <g class="hs-screen"><path d="m179 307 4-174 210 96-4 174Z"/><path class="hs-wire" d="m204 163 142 65m-142-48 80 36"/><path class="hs-accent" d="m206 224 11 5v14l-11-5Zm0 34 11 5v14l-11-5Zm0 34 11 5v14l-11-5Z"/><path class="hs-wire" d="m230 243 129 58m-129-25 109 49m-109-16 129 58"/></g>
+ <circle class="hs-clock" cx="522" cy="244" r="66"/><path class="hs-trim" d="M522 203v41l29 19"/>
+ <path class="hs-machine" d="m182 328 206 95 82-40-209-94Z"/>
+ {% else %}
+ <path class="hs-machine" d="m190 290 217-103 215 99-218 106Z"/><path class="hs-depth" d="M190 290v68l214 99v-65m0 65 218-106v-65"/><path class="hs-trim" d="m205 350 199 92 202-98"/>
+ <g class="hs-screen"><path d="m321 263 3-89 90 42-3 89Z"/><path class="hs-wire" d="m341 208 50 23m-50-7 31 15m-31 1 50 23"/></g>
+ <path class="hs-plant" d="M541 290v-70m0 20q-35 0-28-28 26 1 28 28m0 15q36-2 30-32-28 3-30 32"/>
+ {% endif %}
+</svg>
+<figcaption>{% if lang == 'fa' %}تصویر مفهومی استودیو{% else %}Studio concept illustration{% endif %}</figcaption>
+</figure>

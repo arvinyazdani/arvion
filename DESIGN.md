@@ -276,3 +276,42 @@ by settings below; two labelled colour/look pills replace icon-only overlays.
 - Don't mix English interface copy into Persian or vice versa.
 - Don't advertise estimates or contracts as final prices.
 - Don't claim that vector illustrations are real photographs/client work.
+
+## Studio home proposal — 2026-10-11
+
+Status: functional local prototype; owner visual acceptance PENDING. Reference:
+`tour-prototype/ref/owner-mockup-{desktop,mobile}.webp` (miniature studio,
+assembly line, robot arms, orange portal). Original SVG geometry, not copied
+prototype code. The screenshot reference is a mood direction, not final assets.
+
+Marketing/brand shell: six real HTML destinations — workshop, assessments,
+library, showroom, CRM/control and reception. Website ordering remains primary;
+existing service/sample/article content and official identity remain available.
+Kept current headings/SEO metadata/schema and article content unchanged. Shared
+public R/RVION partial; no replacement orange/font/token system. Public menu
+uses 2-column icon tiles and a separate project CTA, footer 4/2 columns.
+
+Chosen layer1: fully rendered links/text and six fixed-aspect original SVG
+concept illustrations, adaptive through semantic light/dark tokens. Layer2:
+optional CSS view-timeline transform of ±6px only; no scroll interception,
+animation loop, requests or stored state. Reduced motion, saveData or ≤2
+cores/GB select static mode. Layer3 WebGL/3D and the optional keyword router
+are DEFERRED: unnecessary initial load, more failure modes, no approved final
+3D assets. Existing entry activation gate is NOT waived or enabled.
+
+### Replacement asset contract (future assets, not implemented raster loading)
+
+- Six keys: workshop/tests/library/gallery/control/reception. Current insertion
+  point: `core/templates/core/includes/studio_art.html`, inside `.hs-art`.
+- For each key supply `{key}-{desktop|mobile}-{light|dark}.webp`; AVIF twins are
+  optional. Desktop1600×976, mobile820×500; reserved aspect820/500. Mobile assets
+  should simplify composition, not just shrink text; all actual copy stays HTML.
+- Future picture integration must select one theme/device image, set explicit
+  dimensions, keep the figure size before load and retain a CSS/vector fallback.
+  Only above-fold workshop may be eager/high priority; other posters lazy.
+- Proposed budgets: desktop≤120KB/mobile≤70KB per selected poster, new studio
+  JS≤1KB gzip, added visual CSS≤2KB gzip, total incremental visual payload≤10KB
+  gzip while using SVG. Targets: CLS0, median TBT≤200ms, LCP≤2.5s aspirational
+  (not met by the pre-existing local baseline). Measure again for final assets.
+- No poster is a customer project or photograph. The current illustrations are
+  explicitly labelled concepts. No public activation or design acceptance claim.
