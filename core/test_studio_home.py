@@ -39,6 +39,15 @@ class StudioHomeTests(TestCase):
             else:
                 self.assertTrue(href.startswith('/en/contact/'))
 
+    def test_workshop_has_only_the_customisation_action_in_both_modes_and_languages(self):
+        for enabled in (False, True):
+            with self.settings(RVION_STUDIO_3D_ENABLED=enabled):
+                for lang in ('fa', 'en'):
+                    html = self.client.get(f'/{lang}/').content.decode()
+                    workshop = html.split('<section id="services"', 1)[1].split('</section>', 1)[0]
+                    self.assertEqual(HomeStructureParser(workshop).links, [f'/{lang}/start/'])
+                    self.assertNotIn('hp-service-links', workshop)
+
     @override_settings(RVION_STUDIO_3D_ENABLED=False)
     def test_unapproved_engine_does_not_ship_or_preload(self):
         response = self.client.get('/fa/')

@@ -5739,3 +5739,33 @@ OS can retain installed icons; after a future release existing iOS installations
 may need removing/re-adding, which is separate from local asset verification.
 Next: owner review/deployment only on explicit instruction; resume prior home
 performance work separately rather than silently enabling cinematic flags.
+
+## 2026-10-11 — Single workshop customisation action
+
+Status: VERIFIED local; deployment BLOCKED by SSH connectivity. Owner explicitly
+requested removing the per-business links below the home design workshop and
+deploying afterwards. Starting HEAD5a987fe, clean tree. Removed the specialist
+links and secondary services action; retained only the existing /fa|en/start/
+CTA. Removed the now-unused hp-service-links CSS; bumped home-paths CSS v2.
+Updated the existing home/link expectations to this owner-requested contract;
+added a regression asserting exactly one workshop link in both languages with
+3D flag both on/off. No models, customer data, protected files or flags changed.
+
+Evidence: `.venv/bin/python manage.py test core.test_home core.test_studio_home
+core.tests_seo_contract.WholeSitemapContractTests.test_contextual_links_have_matching_bilingual_indexable_targets
+--verbosity 1` →20/20 pass; Django check0; diff-check clean. Real IAB FA390x844
+and EN1280x800: exactly one workshop link, FA horizontal overflow0. Screenshots
+`/tmp/rvion-workshop-cta/{fa-mobile,fa-mobile-action,en-desktop}.png`.
+Viewport restored. Self-review only, no independent reviewer claim.
+
+Deployment attempts: normal SSH, config-bypassed bounded SSH, verbose diagnostic,
+and bounded curve25519/aes128-gcm variant all failed to complete. Verbose output
+shows TCP connection and server banner/KEXINIT received, then waits for
+SSH2_MSG_KEX_ECDH_REPLY before authentication. No credential rejection observed.
+Own timed-out diagnostic processes terminated; no unrelated process touched.
+Public HTTPS /fa/ returned200, which does not prove this change deployed.
+No push/deploy/remote write or migration occurred. Production HEAD/flags remain
+unverified; do not enable entry/3D or waive existing performance gates.
+Next: retry SSH when connectivity recovers, inspect production HEAD/dirty state,
+review pending release range, snapshot and deploy, then verify public FA/EN.
+Rollback: revert only this workshop-CTA commit; no database rollback.

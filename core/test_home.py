@@ -72,7 +72,7 @@ class HomeClarityTests(TestCase):
         service.short_description_en = 'Edited catalogue summary'
         service.save()
         response = self.client.get('/en/')
-        self.assertContains(response, 'Edited catalogue title')
+        self.assertEqual(next(card for card in response.context['home_services'] if card['slug']==service.slug)['title'], 'Edited catalogue title')
         self.assertEqual(next(card for card in response.context['home_services'] if card['slug']==service.slug)['summary'], 'Edited catalogue summary')
         service.is_active = False
         service.save()
@@ -130,8 +130,6 @@ class HomeClarityTests(TestCase):
             paths = ['crm/', 'projects/demos/', 'start/', 'company/', 'blog/',
                      'assessments/english-placement-a1-c1/about/',
                      'assessments/python-django-professional/about/']
-            paths += [f'services/{slug}/' for slug in Service.objects.filter(
-                is_active=True).values_list('slug', flat=True)]
             for path in paths:
                 url = f'/{lang}/{path}'
                 self.assertIn(url, links)

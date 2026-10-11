@@ -1024,3 +1024,13 @@ all workflows/data unchanged. PWA shell cache v6 invalidates prior shell assets.
 light/dark checks recorded in CURRENT_STATE.md. No push/deploy/migration.
 Actual installed-device refresh remains unverified; existing home activation
 and unrelated gallery audit/blog-test issues are not waived by this change.
+
+### Single workshop action — 2026-10-11
+
+VERIFIED local: removed per-business and secondary services links from the home
+workshop; only customisation CTA remains. Unused CSS removed.20 focused tests
+pass, Django check0, real FA mobile/EN desktop checked (mobile overflow0).
+Owner-authorised deployment BLOCKED: SSH reaches server banner then stalls at
+key exchange; bounded alternate negotiation also times out. Public home200,
+but no remote write/deploy/push/migration occurred. Evidence and safe next steps
+in CURRENT_STATE.md; cinematic activation gates unchanged.
