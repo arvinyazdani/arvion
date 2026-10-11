@@ -315,3 +315,19 @@ are DEFERRED: unnecessary initial load, more failure modes, no approved final
   (not met by the pre-existing local baseline). Measure again for final assets.
 - No poster is a customer project or photograph. The current illustrations are
   explicitly labelled concepts. No public activation or design acceptance claim.
+
+### Superseding owner direction — four cinematic routes (2026-10-11)
+
+The flat SVG main proposal above was rejected; it is historical, not the current
+design direction. Real Three.js reference geometry/motion is now a local gated
+preview, with four rooms only: order/workshop, English test, library, conversation.
+Text remains semantic HTML but sits unboxed in the cinematic negative space;
+mobile uses a full-height scene, wider raised camera and readable lower gradient.
+The scene stays dark in either theme, while the shared shell and lower sections
+use site tokens. Native scroll and four anchors keep navigation understandable;
+no Lenis or scroll-event interception. Short screens get stacked accessible text.
+Below are four quick paths, a customisation explainer, a user-controlled silent
+code film, real article covers and a direct contact path. No home showroom.
+This replaces the six-room/SVG/asset assumptions above. Public activation is not
+approved: final local CLS0 but LCP/TBT are worse than control; flags stay OFF.
+Functional/visual/performance evidence and rollback are in CURRENT_STATE.md.

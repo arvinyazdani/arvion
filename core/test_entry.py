@@ -23,7 +23,7 @@ class EntryPayloadTests(SimpleTestCase):
         self.assertNotIn('<div', source)
         self.assertEqual(set(payload), {"scene_gzip", "css", "js"})
         self.assertEqual(payload["css"], "/static/core/css/entry.css?v=3")
-        self.assertEqual(payload["js"], "/static/core/js/entry.js?v=2")
+        self.assertEqual(payload["js"], "/static/core/js/entry.js?v=3")
         html = gzip.decompress(base64.b64decode(payload["scene_gzip"])).decode("utf-8")
         self.assertEqual(html.count('class="panel"'), 5)
         self.assertLess(len(source.encode("utf-8")), 5000)

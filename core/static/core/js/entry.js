@@ -53,20 +53,24 @@ function measureProjection(){
   projection=leaves.map(node=>{
     const local=localMatrix(node),anchor=ancestorMatrix(node.parentElement).translate(node.offsetLeft,node.offsetTop);
     node.style.transformOrigin='0 0';
-    return {node,anchor,inverse:anchor.inverse(),local:local.matrix,origin:local.origin};
+    return {node,anchor,inverse:anchor.inverse(),local:local.matrix,anchored:anchor.multiply(local.matrix),origin:local.origin};
   });
 }
-function project(c){
+function project(c,t){
   const perspective=new DOMMatrix([1,0,0,0,0,1,0,0,0,0,1,-1/P,0,0,0,1]);
   const view=new DOMMatrix().translate(vw/2,vh/2).multiply(perspective)
     .translate(-c.cx,-c.cy,c.fz).rotateAxisAngle(1,0,0,c.pitch)
     .rotateAxisAngle(0,1,0,c.yaw).translate(-vw/2,-vh/2);
   for(const plane of projection){
+    // Invisible planes retain their geometry but need no matrix/style work.
+    // Recompute on re-entry (including deterministic backwards seek).
+    if(panels.includes(plane.node) ? t<B_END-.4 : t>=B_END+.8)continue;
     let local=plane.local;
     if(plane.node===el.scr){const origin=plane.origin;
       local=new DOMMatrix().translate(...origin).rotateAxisAngle(1,0,0,c.tilt).translate(...origin.map(v=>-v));
     }
-    plane.node.style.transform=plane.inverse.multiply(view).multiply(plane.anchor).multiply(local).toString();
+    const anchored=plane.node===el.scr?plane.anchor.multiply(local):plane.anchored;
+    plane.node.style.transform=plane.inverse.multiply(view).multiply(anchored).toString();
   }
 }
 
@@ -140,7 +144,7 @@ function fx(t,c){
 
 function render(t){
   const c=camera(t);
-  if(canProject)project(c);
+  if(canProject)project(c,t);
   else{el.world.style.transform='translate3d('+(-c.cx)+'px,'+(-c.cy)+'px,'+c.fz+'px) rotateX('+c.pitch+'deg) rotateY('+c.yaw+'deg)';el.scr.style.setProperty('--tilt',c.tilt+'deg');}
   typed(t);
   // Reference screen dissolve; hide the room leaves without flattening preserve-3d.
@@ -167,9 +171,10 @@ function render(t){
 }
 
 
+const phases=[[".grain",0],[".forearm",0],[".hand2",0],[".head",0],[".mug i:first-child",0],[".mug i:nth-child(2)",.9]]
+ .map(([selector,offset])=>({leaf:root.querySelector(selector),offset,room:selector!=='.grain'}));
 function clockLeaves(t){
- const phases=[[".grain",0],[".forearm",0],[".hand2",0],[".head",0],[".mug i:first-child",0],[".mug i:nth-child(2)",.9]];
- for(const [selector,offset] of phases){const leaf=root.querySelector(selector);if(leaf)leaf.style.animationDelay=(offset-t)+"s";}
+ for(const {leaf,offset,room} of phases){if(leaf&&(!room||t<B_END+.8))leaf.style.animationDelay=(offset-t)+"s";}
  const cursor=root.querySelector(".cur");if(cursor)cursor.style.setProperty("--entry-cursor-time",(-t)+"s");
 }
 return {measure,render,T_END,T_FINAL,camera};

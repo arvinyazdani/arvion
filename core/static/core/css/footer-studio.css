@@ -3,7 +3,8 @@
 .footer-studio-top{display:flex;justify-content:space-between;gap:32px;align-items:start;padding-bottom:28px;border-bottom:1px solid var(--border-default)}
 .studio-footer .footer-logo{display:inline-flex;align-items:center;gap:10px;color:var(--text-primary);min-height:44px;font-size:.92rem;font-weight:900;letter-spacing:.1em}
 .studio-footer .footer-logo .brand-mark{box-shadow:none}
-.footer-studio-brand p{font-size:1rem;line-height:1.8;max-width:300px;color:var(--text-secondary);margin:14px 0 10px}
+.footer-studio-brand{text-align:center;display:flex;flex-direction:column;align-items:center}
+.footer-studio-brand p{font-size:1rem;line-height:1.8;max-width:300px;color:var(--text-secondary);margin:14px auto 10px}
 .studio-footer .footer-company-link{font-size:.8125rem;color:var(--text-secondary);display:inline-flex;min-height:44px;align-items:center;overflow-wrap:anywhere}
 .footer-directory{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;padding-top:24px}
 .footer-directory h2{font-size:1rem;margin:0 0 8px;line-height:1.7}
@@ -12,7 +13,7 @@
 .footer-preferences button{min-height:44px;padding:8px 12px;border:1px solid var(--border-default);border-radius:var(--radius-sm);font:inherit;background:var(--surface-card);color:var(--text-primary);cursor:pointer}
 .footer-preferences button:hover{border-color:var(--text-link)}
 .footer-preferences button:focus-visible{outline:3px solid var(--border-focus);outline-offset:3px}
-.footer-studio-contact{display:grid;justify-items:start;gap:8px;font-size:.875rem}
+.footer-studio-contact{display:grid;justify-items:center;text-align:center;gap:8px;font-size:.875rem}
 .footer-studio-contact>span{color:var(--text-secondary);line-height:1.8}
 .studio-footer .footer-phone{display:inline-flex;align-items:center;color:var(--text-primary);font:700 1.125rem var(--font-family-latin);font-variant-numeric:tabular-nums;min-height:44px}
 .studio-footer .footer-primary-action{display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;background:var(--action-brand-bg);color:var(--action-brand-text);border:0;min-height:48px;border-radius:var(--radius-md);box-shadow:none;gap:22px;font-weight:700}

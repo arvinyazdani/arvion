@@ -994,3 +994,15 @@ Lighthouse median LCP4259→4253ms/TBT0→0ms, CLS0 in all runs;335ms outlier ke
 in the record. LCP target unmet; no public3D/entry activation or release claimed.
 Final posters and optional3D deferred; asset contract in DESIGN.md, evidence and
 rollback in CURRENT_STATE.md. Protected gallery/articles/customer data untouched.
+
+### Superseding four-route home correction — 2026-10-11
+
+Real3D preview replaces the rejected flat main experience: four centred cinematic
+chapters, mobile framing, integrated copy, four quick routes, customisation
+explainer, user-started assessment code film, real article covers and centred
+footer. Functional local checks VERIFIED; owner visual acceptance PARTIAL.
+253 core/blog tests:252 pass +one existing blog-label assertion failure; focused
+46/46 and final Node19/19 pass. Latest final Lighthouse:
+CLS0,LCP4634.85ms,TBT556.5ms — performance/public activation still BLOCKED,
+not a release. Default3D/entry flags OFF; disposable8173 preview only. No
+push/deploy/migration. Current evidence/remaining gates in CURRENT_STATE.md.

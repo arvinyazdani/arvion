@@ -20,14 +20,14 @@ class OrderEntryUIContractTests(TestCase):
                 self.assertContains(page, f'href="/{lang}/start/?type={topic}"')
                 self.assertNotContains(page, f'href="/{lang}/contact/?service=')
 
-    def test_home_category_fragments_exist_in_gallery_response(self):
+    def test_home_removes_demo_fragment_context_but_gallery_stays_reachable(self):
         DemoTemplate.objects.create(slug="entry-fragment", category="corporate", title_fa="نمونه", title_en="Sample", style_key="minimal")
         for lang in ("fa", "en"):
             home = self.client.get(f"/{lang}/")
             gallery = self.client.get(f"/{lang}/projects/demos/")
-            for item in home.context["home_demo_categories"]:
-                self.assertEqual(item["url"].split("#")[-1], "demo-options")
-                self.assertContains(gallery, 'id="demo-options"')
+            self.assertNotIn("home_demo_categories", home.context)
+            self.assertContains(gallery, 'id="demo-options"')
+            self.assertContains(home, f'href="/{lang}/projects/demos/"')
 
     def test_navigation_labels_agree_and_new_order_does_not_resume_draft(self):
         for lang, services, samples in (("fa", "خدمات", "نمونه‌ها"), ("en", "Services", "Samples")):
@@ -57,7 +57,7 @@ class OrderEntryUIContractTests(TestCase):
         from django.utils import timezone
         Post.objects.create(slug_fa="order-home-article", slug_en="order-home-article-en", title_fa="مقاله", title_en="Article", summary_fa="شرح", summary_en="Summary", is_published=True, published_at=timezone.now(), hero_image="blog/test.jpg")
         html = self.client.get("/fa/").content.decode()
-        section = html.split('class="ar-home shell"', 1)[1].split("</section>", 1)[0]
+        section = html.split('id="studio-library"', 1)[1].split("</section>", 1)[0]
         self.assertIn('loading="lazy"', section)
         self.assertNotIn('loading="eager"', section)
 

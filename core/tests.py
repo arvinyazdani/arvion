@@ -38,7 +38,7 @@ class CorePagesTests(TestCase):
 
     def test_home_links_to_english_assessment_briefing_before_the_price(self):
         response = self.client.get("/fa/")
-        self.assertContains(response, "ارزیابی پیشرفته زبان انگلیسی مدرسان")
+        self.assertContains(response, "آزمون زبان انگلیسی")
         # The briefing explains scope, proctoring and the fee before the price.
         self.assertContains(response, 'href="/fa/assessments/english-placement-a1-c1/about/"', html=False)
 
@@ -202,15 +202,14 @@ class CorePagesTests(TestCase):
 
     def test_delivery_card_is_fully_localized_and_public_email_is_hidden(self):
         fa_response = self.client.get("/fa/")
-        self.assertContains(fa_response, "از نمونه تا سایت شما")
-        self.assertContains(fa_response, "توافق و ساخت")
+        self.assertContains(fa_response, "کارگاه طراحی شما")
+        self.assertContains(fa_response, "هزینه و زمان تحویل توافق می‌کنیم")
         self.assertNotContains(fa_response, "hello@rvin-tech.com")
 
         en_response = self.client.get("/en/")
-        self.assertContains(en_response, "FROM SAMPLE TO YOUR WEBSITE")
-        self.assertContains(en_response, "Agree & build")
-        self.assertContains(en_response, "Launch & support")
-        process_html = en_response.content.decode().split('class="website-process shell"', 1)[1].split("</section>", 1)[0]
+        self.assertContains(en_response, "YOUR DESIGN WORKSHOP")
+        self.assertContains(en_response, "cost and delivery plan before building")
+        process_html = en_response.content.decode().split('data-studio-room="workshop"', 1)[1].split("</section>", 1)[0]
         self.assertNotRegex(process_html, r"[\u0600-\u06ff]")
         self.assertNotIn("hello@rvin-tech.com", en_response.content.decode())
 
@@ -236,54 +235,47 @@ class CorePagesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["lang"], "fa")
         self.assertContains(response, "طراحی سایت، فروشگاه و CRM اختصاصی برای کسب‌وکار شما")
-        self.assertContains(response, "نمونه مناسب من را پیدا کن")
-        self.assertContains(response, "سفارش ساده. مسیر روشن.")
-        self.assertContains(response, "ارزیابی پیشرفته زبان انگلیسی مدرسان")
+        self.assertContains(response, "شروع طراحی سایت من")
+        self.assertContains(response, "رنگ و هویت برند")
+        self.assertContains(response, "آزمون زبان انگلیسی")
         self.assertNotContains(response, "۲۴ پروژه")
 
     def test_home_consolidated_bands_keep_discovery_and_assessment_paths_reachable(self):
         for language in ("fa", "en"):
             response = self.client.get(f"/{language}/")
             self.assertNotContains(response, 'data-home-journey')
-            self.assertContains(response, 'id="solutions-title"', count=1)
+            self.assertContains(response, 'id="services-title"', count=1)
             self.assertContains(response, 'id="assessment-title"', count=1)
-            self.assertContains(response, reverse("project_start") + "?type=crm")
-            self.assertContains(response, reverse("project_start") + "?type=clinic")
+            self.assertContains(response, reverse("project_start"))
+            self.assertContains(response, reverse("leads:contact") + "?service=digital-product-consulting")
             self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
             self.assertContains(response, reverse("assessments:briefing", args=["python-django-professional"]))
             if language == "en":
-                for section in ('data-studio-room="control"', 'data-studio-room="tests"'):
+                for section in ('data-studio-room="workshop"', 'data-studio-room="tests"'):
                     band = response.content.decode().split(section, 1)[1].split('</section>', 1)[0]
                     self.assertNotRegex(band, r"[\u0600-\u06ff]")
 
     def test_home_replaces_project_showcase_with_zero_data_demo_choices(self):
         Project.objects.create(title_fa="نمونه واقعی", title_en="Real case", slug="real-case", is_active=True)
         response = self.client.get(reverse("home"))
-        self.assertContains(response, "بدون ثبت‌نام امتحان کنید")
-        self.assertContains(response, "پروژه‌های واقعی مشتریان نیستند")
+        self.assertContains(response, "شروع طراحی سایت من")
         self.assertContains(response, 'href="/fa/projects/demos/"', html=False)
         self.assertNotContains(response, "نمونه واقعی")
         self.assertNotContains(response, "منتخب پروژه‌ها")
-        self.assertEqual(response.context["available_demo_count"], DemoTemplate.objects.filter(is_active=True).count())
+        self.assertNotIn("available_demo_count", response.context)
 
-    def test_home_shows_three_samples_and_links_every_available_business_type(self):
+    def test_home_four_routes_replace_sample_showcase(self):
         response = self.client.get("/en/")
-        demos = response.context["featured_demos"]
-        self.assertEqual(len(demos), 3)
-        self.assertEqual(len(response.context["home_demo_categories"]), len(DemoTemplate.CATEGORY_CHOICES))
-        for demo in demos:
-            self.assertContains(response, reverse("projects:demo_preview", args=[demo.slug]))
-            self.assertNotRegex(demo.category_label, r"[\u0600-\u06ff]")
-        demo = demos[0]
-        demo.is_active = False
-        demo.save(update_fields=["is_active"])
-        refreshed = self.client.get("/en/")
-        self.assertNotContains(refreshed, reverse("projects:demo_preview", args=[demo.slug]))
+        from core.test_home import HomeStructureParser
+        routes = response.content.decode().split('id="home-routes"', 1)[1].split('</nav>', 1)[0]
+        self.assertEqual(HomeStructureParser(routes).links, ['#services', '#assessment-title', '#studio-library', '/en/contact/?service=digital-product-consulting'])
+        self.assertNotContains(response, 'class="website-demo-card"')
+        self.assertNotIn("featured_demos", response.context)
 
     def test_home_still_offers_enquiry_when_no_samples_are_available(self):
         DemoTemplate.objects.update(is_active=False)
         response = self.client.get("/en/")
-        self.assertContains(response, "Samples are being prepared")
+        self.assertContains(response, "Start designing my website")
         self.assertContains(response, reverse("project_start"))
         self.assertContains(response, reverse("assessments:briefing", args=["english-placement-a1-c1"]))
 

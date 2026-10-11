@@ -5557,3 +5557,110 @@ performance review remain NOT_STARTED. Shared shell/frame is not claimed to be
 a pixel copy of a final3D scene. Existing protected-gallery audit55 findings remain
 untriaged and outside scope. No push/deploy/migration. Rollback: revert phase2
 then08161eb if needed, never a broad reset; no database rollback required.
+
+## 2026-10-11 — real studio engine + entry optimisation checkpoint
+
+Status: PARTIAL implementation; public activation BLOCKED by measured performance.
+HEAD remains c09dd21. Changes are uncommitted; no push/deploy/migration or production access.
+Owner superseded the flat SVG main experience with the supplied Three.js reference.
+Engine, seven native-scroll camera stops, room animations, real article covers,
+poster-first loading, DPR limits, mobile no-shadow/no-reflector, background-box
+instancing, incremental construction, visibility suspension and quality fallback
+are implemented locally. Existing public menu/footer and protected gallery files
+are untouched. Scene remains dark; text panels follow the site's light/dark tokens.
+Native scrolling replaces optional Lenis. Vendor r128 MIT licence is included.
+RVION_STUDIO_3D_ENABLED defaults OFF; only the disposable 8173 preview enables it.
+RVION_ENTRY_ENABLED remains OFF. Intro caches immutable matrices/animated leaves
+and skips hidden-plane work; timeline and camera are unchanged. Asset version v3.
+
+Evidence: 243 core/projects/leads tests passed; 14 Node tests passed; five entry
+tests and strengthened entry scene assertions passed after cache-version update.
+check and diff-check passed. No full-repository or physical-phone acceptance claimed.
+Initial complete Chrome matrix captured 336 timestamped frames: FA/EN x light/dark
+x390/1280 x7 stops x6 frames; inspected overview and representative full-size frames.
+No horizontal overflow. Final replay after small control-spacing fixes timed out;
+some frame files may have been refreshed, so do not claim a completed final replay.
+Evidence root: /tmp/rvion-home-studio-evidence/ (motion/*.png and *.json).
+Intro before/after 390px frame at t=.8 was viewed; appearance retained in that frame.
+GPU-enabled Chrome samples approximately53–59fps; CPU4x mobile viewport ~60fps,
+NOT evidence of a physical medium-range phone. Reduced-motion: no engine scripts,
+loaded poster and11 HTML links verified. Runtime frame-budget fallback also observed.
+
+Lighthouse mobile, milliseconds; fresh populated fixture, all raw runs retained:
+control LCP4208.95/4140.92/4238.97; TBT226/0/339; CLS0/0/0.
+latest three-gate LCP7921.35/4775.75/4822.37; TBT985.5/795.5/609.5; CLS0/0/0.
+Median LCP worsens4208.95→4822.37 and TBT226→795.5: gate FAIL, not VERIFIED.
+Intro-only optimised valid runs LCP4453.73/4547.42/4561.37,
+TBT3.5/11.5/512, CLS0/0/0; first NO_NAVSTART run retained and retried.
+Intro LCP gate also fails. Earlier engine cold compilation long task ~7830ms
+and subsequent lower costs are preserved in three-after/chunked/final/reserved reports.
+
+Next: review the uncommitted diff and remaining startup cost; owner decision is
+needed before relaxing automatic-start/LCP requirements (e.g. first-interaction
+engine start). Do not silently switch to that behaviour. Do not activate either
+flag on current evidence. Final lifecycle/intro-engine overlap review, final visual
+replay and local commits remain incomplete. Preview helper/session files are temporary;
+source rollback should target only this change set, never reset unrelated files.
+
+## 2026-10-11 — four-route cinematic home correction
+
+Status: VERIFIED local route/render/player checks; PARTIAL visual acceptance;
+public 3D/entry activation remains BLOCKED by the performance gate below.
+This checkpoint supersedes the seven-stop navigation and boxed copy above.
+Single primary agent; no push/deploy/migration or production/customer-data access.
+
+Implemented four pinned chapters: website order, English assessment, library,
+conversation. Native scroll/chapter anchors select a centred stationary panel
+and smoothly fly the real camera between four rooms. Copy is unboxed inside the
+full-height scene; mobile has its own wider, raised camera framing with text
+over the lower image. RTL/LTR copy swaps sides on desktop. Short landscape
+screens use natural stacked chapters; reduced-motion/low-device/saveData gates
+retain posters and HTML links. Inactive panels are inert. Shared menu is preserved.
+Below: four side-by-side destinations, customisation explainer, silent user-started
+36-second code film with play/pause/replay/manual chapters, factual assessment
+scope/monitoring caveat/unofficial-certificate copy, two real briefing links,
+compact real uploaded article covers, direct consultation form and centred footer
+brand/copy. Home showroom/demo queries removed; protected gallery still available.
+Unused poster assets moved recoverably to the temporary evidence directory.
+No article content, protected gallery or management_portal files changed.
+
+Evidence:
+- `.venv/bin/python manage.py test core --verbosity 1`:177/177 passed before
+  the additional published-cover test; final focused home/order/CorePages:46/46.
+- `.venv/bin/python manage.py test core blog --verbosity 1`:253 run,252 passed,
+  one existing failure in blog.tests.BlogTests.test_insight_labels_and_search_name_follow_page_language.
+  Its literal `>دیدگاه‌ها<` expectation conflicts with HEAD c09dd21's already
+  committed `مقاله‌ها` heading/breadcrumb. `git diff HEAD -- blog` is empty;
+  no assertion weakened or skipped, no unrelated article fix made.
+- `node --test core/tests_js/*.cjs`:final19/19 passed, including the added
+  tour DOM/inert/poster/short-screen lifecycle case; focused tour+film7/7 passed.
+- Django check0; JS syntax and diff-check clean. No full-repository suite or
+  physical iPhone/performance certification claimed.
+
+Real in-app browser:390x844 and1280x800, FA/EN, light/dark representative views;
+four chapter navigation, fixed frame, user-started film advancement/completion,
+three real covers naturalWidth1200, direct contact with consultation preselected,
+short800x500 natural-flow fallback and zero horizontal overflow observed.
+Chrome automation failed its request-policy handshake; current evidence uses IAB,
+not a claim of current Chrome/Safari or every language/theme/scene combination.
+Screenshots `/tmp/rvion-home-four-chapters/`:fa-mobile-order-final.png,
+fa-mobile-exam-final.png,fa-mobile-library-scene.png,fa-mobile-contact-dark.png,
+fa-mobile-library.png,fa-mobile-film.png,fa-desktop-order-light.png,
+en-desktop-order.png,en-desktop-order-dark.png,en-mobile-order-dark.png,
+en-desktop-footer-dark.png. Earlier files lacking `final` may precede the final
+full-height mobile camera refinement; only final order/exam prove that refinement.
+
+Latest final local Lighthouse mobile:CLS0,LCP4634.85ms,TBT556.5ms
+(`/tmp/rvion-home-four-chapters/lighthouse-final.json`). One final run, not three.
+Earlier four-chapter run CLS0/LCP4691.06/TBT979.11 and NO_NAVSTART failure retained
+under `/tmp/rvion-home-studio-evidence/`. Against prior control median
+LCP4208.95/TBT226 this still FAILS automatic public activation. Flags defaultOFF;
+only isolated8173 preview enables3D. Frame-rate samples in the previous checkpoint
+are historical, not new physical-mobile proof. Do not claim 100%/release-ready.
+Gzip bytes:engine18942,three149202,post7072,tourJS2115,tourCSS1687,
+home-pathsCSS3115,filmJS1078. Entry optimisation is retained but NOT enabled.
+
+Next: owner visual review of http://127.0.0.1:8173/fa/ and startup-cost work;
+three successful final performance runs + physical-medium-phone checks still
+required before activation. Separate pre-existing blog label-test reconciliation.
+Rollback: revert this scoped local home commit; no DB rollback required, no reset.

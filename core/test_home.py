@@ -73,7 +73,7 @@ class HomeClarityTests(TestCase):
         service.save()
         response = self.client.get('/en/')
         self.assertContains(response, 'Edited catalogue title')
-        self.assertContains(response, 'Edited catalogue summary')
+        self.assertEqual(next(card for card in response.context['home_services'] if card['slug']==service.slug)['summary'], 'Edited catalogue summary')
         service.is_active = False
         service.save()
         self.assertNotContains(self.client.get('/en/'), 'Edited catalogue title')
@@ -86,19 +86,18 @@ class HomeClarityTests(TestCase):
         self.assertEqual([card['slug'] for card in cards if card['slug'] != 'crm'],
                          list(Service.objects.filter(is_active=True).values_list('slug', flat=True)))
 
-    def test_three_samples_and_real_category_links(self):
+    def test_sample_showroom_is_removed_from_home_content(self):
         response = self.client.get('/fa/')
-        self.assertEqual(len(response.context['featured_demos']), 3)
-        self.assertContains(response, 'نمونه تعاملی، نه پروژه مشتری')
-        self.assertContains(response, 'پروژه‌های واقعی مشتریان نیستند')
-        self.assertEqual(len(response.context['home_demo_categories']), 7)
+        self.assertNotIn('featured_demos', response.context)
+        self.assertNotContains(response, 'id="choose-demo"')
+        self.assertNotContains(response, 'class="website-demo-card"')
 
     def test_empty_catalogue_still_has_safe_contact_and_crm_paths(self):
         Service.objects.update(is_active=False)
         DemoTemplate.objects.update(is_active=False)
         response = self.client.get('/en/')
         self.assertEqual(len(response.context['home_services']), 1)
-        self.assertContains(response, 'Samples are being prepared')
+        self.assertContains(response, 'href="/en/contact/?service=digital-product-consulting"')
         self.assertContains(response, 'href="/en/start/"')
         self.assertContains(response, 'href="/en/crm/"')
 
@@ -106,8 +105,11 @@ class HomeClarityTests(TestCase):
         company = CompanyProfile.objects.get()
         for lang in ('fa', 'en'):
             response = self.client.get(f'/{lang}/')
-            self.assertContains(response, getattr(company, f'legal_name_{lang}'))
-            self.assertContains(response, getattr(company, f'address_{lang}'))
+            self.assertContains(response, 'href="/'+lang+'/company/"')
+            # Full legal details stay on their owning page; home keeps the contact path.
+            details = self.client.get(f'/{lang}/company/')
+            self.assertContains(details, getattr(company, f'legal_name_{lang}'))
+            self.assertContains(details, getattr(company, f'address_{lang}'))
             self.assertContains(response, getattr(company, f'support_hours_{lang}'))
             from core.templatetags.order_ui import order_phone
             self.assertContains(response, f'href="tel:{order_phone(company.phone)}"')

@@ -3,10 +3,9 @@
 
 # ==== ایمپورت‌ها ====
 from django.views.generic import TemplateView
+from django.conf import settings
 from blog.models import Post
 from blog.languages import translated_posts
-from projects.models import DemoTemplate
-from projects.demo_labels import CATEGORY_LABELS_EN
 from services.models import Service
 from django.urls import reverse
 from .lang import LanguageViewMixin  # میکسین مدیریت زبان
@@ -25,30 +24,12 @@ class HomeView(LanguageViewMixin, TemplateView):
     def get_context_data(self, **kwargs):
         # گرفتن context پایه از TemplateView + LanguageViewMixin
         ctx = super().get_context_data(**kwargs)
+        ctx["studio_3d_enabled"] = getattr(settings, "RVION_STUDIO_3D_ENABLED", False)
 
         # آخرین ۳ پست منتشر شده
         posts = list(translated_posts(Post.objects.published(), self.lang).prefetch_related("tags")[:3])
-        # One active representative per business type; no dead demo links.
-        featured_slugs = ("nava-market", "sarvin-atelier", "saffron-table", "linea-studio",
-                          "parsa-advisory", "roshna-clinic", "ariana-academy")
-        demo_by_slug = {
-            demo.slug: demo
-            for demo in DemoTemplate.objects.filter(is_active=True, slug__in=featured_slugs)
-        }
-        demos = [demo_by_slug[slug] for slug in featured_slugs if slug in demo_by_slug]
-        for demo in demos:
-            demo.category_label = (demo.get_category_display() if self.lang == "fa"
-                                   else CATEGORY_LABELS_EN[demo.category])
-
         # افزودن به context
         ctx["latest_posts"] = posts
-        ctx["featured_demos"] = demos[:3]
-        ctx["home_demo_categories"] = [
-            {"label": demo.category_label,
-             "url": reverse("projects:demo_gallery") + "#demo-options"}
-            for demo in demos
-        ]
-        ctx["available_demo_count"] = DemoTemplate.objects.filter(is_active=True).count()
 
         # Copy remains owned by the live catalogue, not a second home catalogue.
         ranks = {slug: index for index, slug in enumerate((

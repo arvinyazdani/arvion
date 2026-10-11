@@ -1,0 +1,14 @@
+{% load order_ui %}
+<section class="website-hero shell" aria-labelledby="home-title">
+  <div class="website-hero-copy">
+    <span class="eyebrow">{% if lang == 'fa' %}سایت شما، با امضای خود شما{% else %}Your website. Unmistakably yours.{% endif %}</span>
+    <h1 id="home-title">{% if lang == 'fa' %}طراحی سایت، فروشگاه و CRM اختصاصی برای کسب‌وکار شما{% else %}Custom websites, online stores and CRM for your business{% endif %}</h1>
+    <p>{% if lang == 'fa' %}رنگ، سبک و امکانات را انتخاب کنید؛ انتخاب‌هایتان شروع یک سفارش روشن است.{% else %}Choose your colours, style and features. Your choices are the starting point for a clear project brief.{% endif %}</p>
+    <div class="website-hero-actions">
+      <a class="button home-primary" href="{% order_entry %}">{% if lang == 'fa' %}شروع طراحی سایت من{% else %}Start designing my website{% endif %}<span aria-hidden="true">↗</span></a>
+      <a class="button secondary" href="{% order_entry %}">{% if lang == 'fa' %}مشاوره رایگان{% else %}Request a free consultation{% endif %}</a>
+    </div>
+    <p class="website-hero-note">{% if lang == 'fa' %}انتخاب ظاهر، موضوع و امکانات · مشاوره اولیه رایگان است{% else %}Choose your look, purpose and features. Initial consultation is free.{% endif %}</p>
+  </div>
+  {% include 'core/includes/studio_art.html' with room='workshop' %}
+</section>

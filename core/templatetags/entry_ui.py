@@ -29,4 +29,4 @@ def entry_payload(context):
             "lang": lang, "latest_posts": context.get("latest_posts", ())})
     scene = base64.b64encode(gzip.compress(html.encode("utf-8"), mtime=0)).decode("ascii")
     return json_script({"scene_gzip": scene, "css": static("core/css/entry.css") + "?v=3",
-                        "js": static("core/js/entry.js") + "?v=2"}, "rvion-entry-payload")
+                        "js": static("core/js/entry.js") + "?v=3"}, "rvion-entry-payload")
