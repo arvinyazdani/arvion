@@ -5769,3 +5769,19 @@ unverified; do not enable entry/3D or waive existing performance gates.
 Next: retry SSH when connectivity recovers, inspect production HEAD/dirty state,
 review pending release range, snapshot and deploy, then verify public FA/EN.
 Rollback: revert only this workshop-CTA commit; no database rollback.
+
+### 2026-10-12 — Owner-requested connection/deployment retry
+
+Status: BLOCKED (deployment); product HEAD remains d49acdb, unchanged/clean at
+start. Read project/framework and deployment checklist. Three bounded SSH
+attempts: default negotiation stops at KEX_ECDH_REPLY; ecdh-sha2-nistp256 with
+aes128-ctr completes key exchange and matches the saved ED25519 host key, then
+stalls before user authentication. Repeated that compatible negotiation with a
+35-second outer deadline, same outcome. No authentication rejection observed;
+no claim about a specific network/server cause. Own diagnostic process stopped
+at deadline. Public HTTPS /fa/ returned200. Production HEAD/dirty state cannot
+be read until SSH authentication completes. No remote command executed, push,
+deploy, migration, data or flag change. No product tests repeated: no code
+changed since prior verified20-test checkpoint. Next: restore SSH access (owner
+console/network diagnostics), then inspect release range and snapshot-backed
+deploy. Existing entry/3D activation gates remain unchanged.
