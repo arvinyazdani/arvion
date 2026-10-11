@@ -1,5 +1,39 @@
 # Rvion current state
 
+## Approved article release — 2026-10-11 — VERIFIED / DEPLOYED
+
+Owner explicitly approved deploy and running attach_article_covers on production.
+Runtime/source:4dd8010 (previous66a7cbf). Delivered exact Git bundle and verified
+fast-forward ancestry, initial clean source, and final clean index/worktree. No
+GitHub push or new CI run; public entry activation remains default-off.
+Local ./release-check.sh PASS:1184 tests,27 existing backend-specific skips;
+check/no migration drift/pip check/question-bank audit/static dry-run and100-
+attempt rollback benchmark PASS.7 Node reader tests and entry syntax PASS.
+Private backup:/srv/arvion/backups/articles-20261011-040754/{database.dump,
+source.tar.gz,media.tar.gz,env.production}. pg_restore --list succeeded; no actual
+database restore rehearsal or restore was run. No migration/dependency delta.
+Initial merge failed because projects/templates/projects/includes and its
+related_service.html were root-owned. Corrected only those ownerships; initial
+clean-state/backup evidence allowed completing the exact target tree with Git
+restore, verifying staged/worktree parity, then guarded update-ref from66a7cbf
+to4dd8010. No reset/clean/private-file removal. No customer edits discarded.
+Production check --deploy and migrate --check PASS; no migration applied, no
+question-bank seeding, staff-role reset, Nginx-config replacement or data import.
+attach_article_covers dry-run/apply/repeat dry-run:0 attached,8 skipped because
+all already had covers. Four existing v1 and four v2 covers were preserved as
+required (no overwrite). All Post fields except hero_image hashed identically
+before/after. collectstatic completed; arvion restarted; Nginx test and internal/
+public health PASS. Runtime monitoring release identifier updated if configured.
+Chrome checked all8 published detail URLs at390px:hero naturalWidth1200,
+OG image matches hero, actual H2 anchors present, no horizontal overflow. Full
+online9.8s opener replay:CLS0/no shifts, valid anchors, final replay visible.
+Desktop1280px list/featured/detail visually inspected. Evidence:
+/tmp/rvion-articles-jjXm3U/live-20261011/article-checks.json and screenshots.
+Public health/fa/en/start/demos/assessments/login/blog fa+en:all HTTP200.
+No production customer workflow submitted; no new users/payments/contracts.
+Rollback boundary:previous66a7cbf source plus private source/media/env snapshots;
+DB restore would require fresh authorization. Next:owner online acceptance.
+
 ## Article opener and actual covers — 2026-10-10 — VERIFIED locally
 
 Scope is limited to the two owner-requested corrections on top of 4dff3fa.
