@@ -38,11 +38,11 @@
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=5">
   <link rel="stylesheet" href="{% static 'core/css/site.css' %}?v=41">
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=8">
-  <link rel="stylesheet" href="{% static 'core/css/public-shell.css' %}?v=2">
-  <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'core/css/public-shell.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'core/css/order-flow.css' %}?v=2">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=13" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=14" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
@@ -59,7 +59,7 @@
   <header class="site-header">
     <div class="shell nav-wrap">
       <a class="brand" href="{% url 'home' %}" aria-label="{% if lang == 'fa' %}صفحه اصلی آرویون{% else %}Rvion home{% endif %}">
-        <span class="brand-mark">R</span><span>RVION</span>
+        {% include 'core/includes/brand.html' %}
       </a>
       <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-open-label="{% if lang == 'fa' %}بازکردن منو{% else %}Open menu{% endif %}" data-close-label="{% if lang == 'fa' %}بستن منو{% else %}Close menu{% endif %}">
         <svg class="ui-icon menu-icon-open" aria-hidden="true" focusable="false"><use href="{% static 'core/icons/ui-sprite.svg' %}#menu"></use></svg>
@@ -85,6 +85,7 @@
             </div>
           </details>
         </div>
+        <a class="menu-project" href="{% url 'project_start' %}">{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}<span aria-hidden="true">↗</span></a>
       </nav>
       <a class="nav-cta" href="{% url 'project_start' %}"{% if request.resolver_match.url_name == 'project_start' %} aria-current="page"{% endif %}><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
       <button class="nav-scrim" type="button" tabindex="-1" aria-hidden="true"></button>
@@ -104,7 +105,7 @@
     <button class="install-backdrop" type="button" data-install-close tabindex="-1" aria-hidden="true"></button>
     <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title" aria-describedby="install-description">
       <button class="install-close" type="button" data-install-close aria-label="{% if lang == 'fa' %}بستن{% else %}Close{% endif %}">×</button>
-      <header class="install-head"><span class="install-logo">R</span><div><span class="install-kicker" data-device-label>{% if lang == 'fa' %}وب‌اپ آرویون{% else %}RVION WEB APP{% endif %}</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p id="install-description">{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
+      <header class="install-head">{% include 'core/includes/brand.html' with mark_class='install-logo' mark_only=True %}<div><span class="install-kicker" data-device-label>{% if lang == 'fa' %}وب‌اپ آرویون{% else %}RVION WEB APP{% endif %}</span><h2 id="install-title">{% if lang == 'fa' %}آرویون همیشه در دسترس{% else %}Keep Rvion within reach{% endif %}</h2><p id="install-description">{% if lang == 'fa' %}بدون دانلود از فروشگاه؛ سایت را مثل یک اپ مستقل، سریع و تمام‌صفحه باز کنید.{% else %}No app store required—open the site quickly as a standalone, full-screen app.{% endif %}</p></div></header>
       <div class="install-panel" data-install-panel="ios" hidden>
         <ol><li><b>{% if lang == 'fa' %}۱{% else %}1{% endif %}</b><span>{% if lang == 'fa' %}در نوار Safari روی دکمه <strong>اشتراک‌گذاری</strong> بزنید.<i class="share-symbol" aria-hidden="true">↑</i>{% else %}Tap Safari's <strong>Share</strong> button.<i class="share-symbol" aria-hidden="true">↑</i>{% endif %}</span></li><li><b>{% if lang == 'fa' %}۲{% else %}2{% endif %}</b><span>{% if lang == 'fa' %}گزینه <strong>افزودن به صفحه اصلی</strong> را انتخاب کنید.{% else %}Choose <strong>Add to Home Screen</strong>.{% endif %}</span></li><li><b>{% if lang == 'fa' %}۳{% else %}3{% endif %}</b><span>{% if lang == 'fa' %}بالای صفحه روی <strong>افزودن</strong> بزنید.{% else %}Confirm with <strong>Add</strong>.{% endif %}</span></li></ol>
         <p class="install-browser-note" data-ios-browser-note hidden>{% if lang == 'fa' %}برای افزودن روی آیفون، ابتدا این صفحه را در Safari باز کنید.{% else %}Open this page in Safari first to add it on iPhone.{% endif %}</p>

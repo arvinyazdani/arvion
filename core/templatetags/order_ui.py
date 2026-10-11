@@ -1,4 +1,6 @@
 from urllib.parse import urlencode
+import re
+import unicodedata
 
 from django import template
 from django.urls import reverse
@@ -6,6 +8,18 @@ from django.urls import reverse
 from core.order_paths import parse_choices, start_url, ADDONS
 
 register = template.Library()
+
+
+@register.filter
+def public_phone(value):
+    """A safe tel target for an existing public mobile or landline number."""
+    mobile = order_phone(value)
+    if mobile:
+        return mobile
+    text = str(value or "").strip()
+    text = "".join(str(unicodedata.digit(char)) if char.isdecimal() else char for char in text)
+    text = re.sub(r"[\s()\-]", "", text)
+    return text if re.fullmatch(r"\+?[0-9]{7,15}", text) else ""
 
 
 @register.filter

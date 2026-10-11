@@ -5490,3 +5490,22 @@ Next: investigate the remaining control-relative LCP/TBT cost without activation
 retain current evidence and repeat matched three-run gate only after a scoped fix.
 Rollback: keep RVION_ENTRY_ENABLED=0/off; discard only reviewed correction hunks
 if needed, never broad reset/stash removal. No database rollback required.
+
+## Studio home proposal — 2026-10-11 (active checkpoint)
+
+Single primary; local-only. Supersedes the visual direction of the old home,
+not the blocked 3D-entry activation gate. Production remains unchanged.
+Phase 1 shared shell: VERIFIED locally. Shared R/RVION partial in public header,
+footer, loader, install header and entry gateway; two-column touch menu with
+project CTA, background inert and hidden bottom navigation; four-column footer
+(two on phones), existing company contact only and language/theme controls.
+Menu focus is deferred until visible (RAF + transition fallback); Chrome proved
+first link receives focus and Escape restores the opener. A new public-phone
+filter supports existing landlines while retaining mobile normalization; unsafe
+or absent values create no tel link. No contact/configuration data was invented.
+Evidence: 242 Core/projects/leads.tests passed, all 12 Node tests passed,
+check0, migration dry-run no changes, diff clean. Premium audit still exits1
+with55 pre-existing findings in protected gallery source roots; not a PASS.
+Phase 2 studio illustration/home work remains uncommitted until its visual and
+performance review. No push/deploy/migration or permanent database write.
+Rollback phase1 by reverting only its scoped commit; no data rollback.

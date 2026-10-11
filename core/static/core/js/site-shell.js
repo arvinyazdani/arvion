@@ -34,7 +34,13 @@ if (typeof document !== 'undefined') (() => {
   if (menuButton && nav && scrim) {
     const menuBackground = [...document.querySelectorAll("main,.mobile-tabbar,.site-footer")];
     const setMenuBackgroundInert = inert => menuBackground.forEach(item => item.toggleAttribute("inert", inert));
+    let menuFocusFrame = 0;
+    const focusMenu = () => {
+      if (nav.classList.contains("is-open") && document.activeElement === menuButton) nav.querySelector("a")?.focus();
+    };
+    nav.addEventListener("transitionend", focusMenu);
     const closeMenu = (restoreFocus = false) => {
+      window.cancelAnimationFrame(menuFocusFrame);
       closePreferences();
       nav.classList.remove("is-open");
       menuButton.classList.remove("is-open");
@@ -53,7 +59,8 @@ if (typeof document !== 'undefined') (() => {
       menuButton.setAttribute("aria-label", menuButton.dataset.closeLabel);
       document.body.classList.add("menu-open");
       setMenuBackgroundInert(true);
-      nav.querySelector("a")?.focus();
+      // Wait for the visibility rule to apply before focusing the opened menu.
+      menuFocusFrame = window.requestAnimationFrame(focusMenu);
     };
 
     menuButton.addEventListener("click", () => menuButton.getAttribute("aria-expanded") === "true" ? closeMenu() : openMenu());

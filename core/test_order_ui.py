@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import translation
 from services.models import Service
 from projects.models import DemoTemplate
-from core.templatetags.order_ui import order_phone
+from core.templatetags.order_ui import order_phone, public_phone
 
 
 class OrderEntryUIContractTests(TestCase):
@@ -45,6 +45,12 @@ class OrderEntryUIContractTests(TestCase):
         for value in ("09333021100", "۰۹۳۳۳۰۲۱۱۰۰", "+98 933 302 1100"):
             self.assertEqual(order_phone(value), "+989333021100")
         self.assertEqual(order_phone("invalid"), "")
+
+    def test_public_phone_supports_landlines_without_accepting_uri_content(self):
+        self.assertEqual(public_phone("۰۲۱ ۱۲۳۴۵۶۷۸"), "02112345678")
+        self.assertEqual(public_phone("+98 (21) 1234-5678"), "+982112345678")
+        for value in (None, "invalid", "09120000000?x=1", "12", "javascript:alert(1)"):
+            self.assertEqual(public_phone(value), "")
 
     def test_home_article_first_card_is_lazy(self):
         from blog.models import Post
