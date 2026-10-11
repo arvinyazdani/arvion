@@ -5785,3 +5785,21 @@ deploy, migration, data or flag change. No product tests repeated: no code
 changed since prior verified20-test checkpoint. Next: restore SSH access (owner
 console/network diagnostics), then inspect release range and snapshot-backed
 deploy. Existing entry/3D activation gates remain unchanged.
+
+Post-reboot retry (owner requested): starting HEADa34f590, clean. Targeted
+`manage.py test core.test_home core.test_studio_home core.test_brand_assets
+core.tests_seo_contract.WholeSitemapContractTests.test_contextual_links_have_matching_bilingual_indexable_targets
+--verbosity 1` →28/28 pass; check0; diff-check clean. OpenSSH with ECDH/AES
+again completed verified-host key exchange but did not authenticate in30s.
+To distinguish client-specific behaviour, installed Paramiko in isolated
+`/tmp/rvion-ssh-diagnostic.yvPFix/venv` (no project dependency/settings change).
+First automatic key-type fallback obscured the authentication error; repeated
+with an explicitly loaded RSA private key, which parsed successfully locally.
+Paramiko also failed with Authentication timeout (15s), while checking the
+existing known_hosts and rejecting unknown keys. This reproduces the boundary
+with two different SSH clients; it does not establish the server/network cause
+or prove that the key was rejected. HTTPS /health/ returned200; separate forced
+IPv4 /fa/ probe timed out. No server command/remote write, deploy, push,
+migration, customer-data or flag change. Deployment remains BLOCKED; next safe
+diagnostic is ssh service/log inspection in the owner's Arvan console, not
+another reboot or weakening host-key/authentication controls.

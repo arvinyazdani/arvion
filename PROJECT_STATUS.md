@@ -1034,3 +1034,10 @@ Owner-authorised deployment BLOCKED: SSH reaches server banner then stalls at
 key exchange; bounded alternate negotiation also times out. Public home200,
 but no remote write/deploy/push/migration occurred. Evidence and safe next steps
 in CURRENT_STATE.md; cinematic activation gates unchanged.
+
+Post-reboot deployment retry (2026-10-12): still BLOCKED.28 related tests pass,
+check0; both OpenSSH and isolated Paramiko fail before authenticated commands.
+RSA key parses locally, saved host identity matches; no explicit key rejection
+observed. Public health200, a separate forced-IPv4 home probe timed out. No
+production writes/deploy/migration/push. Console ssh logs needed to isolate cause;
+full evidence in CURRENT_STATE.md. No product code changed in this retry.
