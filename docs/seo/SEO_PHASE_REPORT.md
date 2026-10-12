@@ -3756,7 +3756,7 @@ database rollback/migration is required by the code. No deletion performed.
 
 ## Owner-approved publication release — 2026-10-12
 
-Status: PARTIAL — release gate running, production publication NOT_STARTED.
+Status: VERIFIED — release gate, deployment and scoped publication completed.
 Owner approved draft figures/covers/publication and explicitly requested stale
 test correction, Raya recheck, deployment and publication. Single primary;
 primary-workflow RELEASE_GATE + deploy-checklist; no delegation.
@@ -3774,7 +3774,7 @@ motion bypass expectation). Corrected tests only: cache-bust presence remains
 required; reduced-motion still gives feedback with CSS animation disabled.
 Targeted core.test_ui_system + core.test_home_arrival + stylesheet test:17/17.
 Node navigation_loader.test.cjs passed again (timers/recovery/reduced-motion).
-Full parallel4 rerun:1231 tests,27 skipped,all passing (exit0);
+Full parallel4 rerun:1231 tests in125.515s,27 skipped,all passing (exit0);
 logs /tmp/rvion-seo-release{,-retest}-20261012.log. Skips are existing platform/
 database-conditional cases,not newly added. Local Python3.9/SQLite gate,not a
 claim of GitHub Python3.11/3.12 CI verification (gh authentication unavailable).
@@ -3791,3 +3791,37 @@ of exactly3 approved articles/5editions; preserve8legacy Post rows/tags; verify
 live metadata/images/lists/sitemap and representative browser views. Rollback:
 old runtime966466c + pre-release DB snapshot; for editorial-only rollback unpublish
 only these3 and leave existing8 untouched. P1-3/P4-1 unchanged DEFERRED.
+
+Release result: local test-fix commit cfeea45, pushed successfully after one
+transient GitHub commit_refs rejection (second attempt succeeded,no force).
+Production fast-forward966466c→cfeea45; sudo bash ops/release.sh exit0,
+check--deploy0,pipcheck0,No migrations to apply,question banks unchanged,
+nginx-t valid,health=ok,service active. Env/secrets/media/backups preserved.
+DB backup:/srv/arvion/backups/pre-release-20261012-125857.dump;
+pg_restore --list passed (catalog check,not a full restore drill this release).
+Production dry-run:3 would-create,0 writes. Scoped transactional publication:
+3created,3FAcovers attached,3published/5editions;8existing rows+tags unchanged.
+Pre-publication JSON backup:/srv/arvion/backups/seo-publish-20261012-1300/posts-before.json
+(0600,verified readback). Operator helper:/tmp/rvion-publish-new-articles-20261012.py;
+manage.py shell with RVION_NEW_ARTICLES_APPLY=1 and that backup directory;
+credentials only from existing protected environment,no credential logging.
+Live check: python3 /tmp/rvion-verify-articles-20261012.py on production host;
+log /tmp/rvion-seo-live-check-20261012.log. All5 URLs200,selfcanonical,1H1,
+descriptions129/132/127/140/138chars;localizedog:image200,hero1200x630;
+pairhreflangFA/EN/x-default,RayaFA/x-defaultonly,ENRaya404;bothlists and
+sitemap include requested editions;39internal linked routes all200.
+Published URLs:
+- https://rvionai.com/fa/blog/custom-software-cost-us-2026-crm-accounting-b2b/
+- https://rvionai.com/en/blog/custom-software-cost-us-2026-crm-accounting-b2b/
+- https://rvionai.com/fa/blog/hire-django-freelancer-us-rates-2026/
+- https://rvionai.com/en/blog/hire-django-freelancer-us-rates-2026/
+- https://rvionai.com/fa/blog/personal-accounting-economic-progress-raya/
+Chrome live:FAsoftware390x844,ENhiring1280x800,hero naturalWidth1200,
+overflow0,arrival loader exits;start-reading anchor works. Screens inspected:
+/tmp/rvion-seo-live-20261012/{fa-software-mobile,en-hiring-desktop,en-hiring-desktop-body}.png;
+fa-software-mobile-cover.png actually records the body/table after scrolling,
+not a cover closeup. Viewport reset. No fresh liveCLS/Lighthouse measurement,
+no physical-device/audio verification or GitHubCI claim; prior local20-view
+browser evidence remains in the preceding phase. No Search Console submission
+or indexing claim. Remaining:owner/GSC monitoring and eventual external price
+updates;P1-3/P4-1 remainDEFERRED. No article deletion or customer-data change.

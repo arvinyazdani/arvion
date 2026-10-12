@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Approved SEO publication release — 2026-10-12 — PARTIAL
+## Approved SEO publication release — 2026-10-12 — VERIFIED
 
 Owner approved deploy/publication of3records/5editions and stale-test correction.
 Baseline ab60986 clean; production966466c clean/active, SSH verified.
@@ -10,9 +10,14 @@ Raya5public URLs200 from server, real titles/1H1; workstation still timeout.
 Full serial suite1231:5 stale UI-test failures,27 skips; corrected only tests.
 Targeted UI/arrival/order17 passed,Node loader rechecked; parallel4 gate passed:
 1231 tests,27 existing conditional skips,exit0 (localPython3.9/SQLite).
-Production source archive verified; no runtime/data/publication change yet.
-Next: complete gate → commit/push → backed-up release → scoped import/covers/
-publication → live verification. Details in docs/seo/SEO_PHASE_REPORT.md.
+Runtime cfeea45 committed/pushed/deployed;service/health/nginx/checks healthy.
+Source archive and PostgreSQL backup catalog verified;no migrations applied.
+Scoped import/covers/publication completed:3records/5editions,old8rows/tags
+unchanged. Editorial snapshot:/srv/arvion/backups/seo-publish-20261012-1300/.
+Live5URLs/images/canonical/hreflang/lists/sitemap passed;39internalroutes200;
+ENRaya404. ChromeFA390/EN1280 hero loaded/overflow0,viewport reset.
+Next: owner/GSC monitoring;no indexing guarantee. LiveCLS/physicaldevices and
+GitHubCI not measured this release. Details:docs/seo/SEO_PHASE_REPORT.md.
 
 ## SEO international drafts — 2026-10-12 — PARTIAL (local release gate)
 
