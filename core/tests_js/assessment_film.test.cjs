@@ -1,10 +1,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const {filmPosition,filmVoice}=require('../static/core/js/assessment-film.js');
-function harness(availableVoices=[],language='en',reduced=false){
+function harness(availableVoices=[],language='en',reduced=false,audioSource=''){
  const make=()=>({events:{},attrs:{},classes:new Set(),style:{setProperty(){}},classList:{toggle(k,v){v?this.owner.classes.add(k):this.owner.classes.delete(k)}},addEventListener(k,f){this.events[k]=f},setAttribute(k,v){this.attrs[k]=v}});
  const scenes=Array.from({length:4},make),replay=make(),progress=make(),bar=make(),root=make(),sound=make(),status=make();
  for(const el of [...scenes,root])el.classList.owner=el;
- root.dataset={filmLang:language,narration:'Test skills. Review behaviour. Read your report. Learn from answers.',voiceAvailable:'Available',voiceUnavailable:'Unavailable',voiceOn:'On'};
+ root.dataset={filmLang:language,narrationAudio:audioSource,narration:'Test skills. Review behaviour. Read your report. Learn from answers.',voiceAvailable:'Available',voiceUnavailable:'Unavailable',voiceOn:'On'};
  root.querySelectorAll=()=>scenes;
  root.querySelector=s=>({'[data-film-replay]':replay,'.af-progress':progress,'[data-film-progress]':bar,'[data-film-sound]':sound,'[data-film-voice-status]':status}[s]);
  let frame=null,intersect;const events={},lifecycle={},voiceEvents={};
@@ -12,8 +12,10 @@ function harness(availableVoices=[],language='en',reduced=false){
  const motion={matches:reduced,addEventListener(k,f){this.changed=f}};
  const speech={spoken:[],cancelled:0,resumed:0,getVoices:()=>availableVoices,speak(u){this.spoken.push(u)},cancel(){this.cancelled++},resume(){this.resumed++},addEventListener(k,f){voiceEvents[k]=f},removeEventListener(k){delete voiceEvents[k]}};
  class Observer{constructor(fn){intersect=fn}observe(){}disconnect(){this.disconnected=true}}
- vm.runInNewContext(fs.readFileSync('core/static/core/js/assessment-film.js','utf8'),{document,window:{speechSynthesis:speech,SpeechSynthesisUtterance:function(text){this.text=text},IntersectionObserver:Observer},IntersectionObserver:Observer,matchMedia:()=>motion,requestAnimationFrame:f=>{frame=f;return 1},cancelAnimationFrame:()=>{frame=null},addEventListener(k,f){lifecycle[k]=f}});
- return{root,scenes,replay,progress,document,events,motion,sound,status,speech,lifecycle,voiceEvents,view:ratio=>intersect([{isIntersecting:ratio>0,intersectionRatio:ratio}]),frame:now=>frame?.(now)};
+ const audios=[];
+ class Audio{constructor(src){this.src=src;this.plays=0;this.pauses=0;this.currentTime=0;audios.push(this)}play(){this.plays++;return{catch:fn=>{this.reject=fn}}}pause(){this.pauses++}}
+ vm.runInNewContext(fs.readFileSync('core/static/core/js/assessment-film.js','utf8'),{document,window:{Audio,speechSynthesis:speech,SpeechSynthesisUtterance:function(text){this.text=text},IntersectionObserver:Observer},IntersectionObserver:Observer,matchMedia:()=>motion,requestAnimationFrame:f=>{frame=f;return 1},cancelAnimationFrame:()=>{frame=null},addEventListener(k,f){lifecycle[k]=f}});
+ return{root,scenes,replay,progress,document,events,motion,sound,status,speech,audios,lifecycle,voiceEvents,view:ratio=>intersect([{isIntersecting:ratio>0,intersectionRatio:ratio}]),frame:now=>frame?.(now)};
 }
 test('four scenes stop at exactly 9.6 seconds, including slow frames',()=>{
  assert.equal(filmPosition(2400).index,1);assert.deepEqual(filmPosition(9999),{index:3,progress:1,ended:true});
@@ -60,4 +62,27 @@ test('reduced motion does not autoplay; explicit replay is available without CSS
 });
 test('pagehide disconnects voice listeners and cannot restart a disposed player',()=>{
  const h=harness();h.view(1);h.lifecycle.pagehide();h.view(1);h.replay.events.click();assert.equal(h.root.classes.has('is-playing'),false);assert.equal(h.voiceEvents.voiceschanged,undefined);
+});
+test('Persian audio needs no system voice and is created only in the sound gesture',()=>{
+ const h=harness([], 'fa',false,'/static/intro-fa.mp3');h.view(1);
+ assert.equal(h.audios.length,0);assert.equal(h.status.textContent,'Available');
+ h.sound.events.click();assert.equal(h.audios.length,1);assert.equal(h.audios[0].plays,1);
+ assert.equal(h.audios[0].src,'/static/intro-fa.mp3');assert.equal(h.speech.spoken.length,0);
+ h.voiceEvents.voiceschanged();assert.equal(h.sound.attrs['aria-pressed'],'true');
+ h.sound.events.click();assert.equal(h.audios[0].pauses,1);assert.equal(h.sound.attrs['aria-pressed'],'false');
+});
+test('Persian audio stops on end/hidden/offscreen/pagehide and replay reuses it',()=>{
+ for(const cause of ['end','hidden','offscreen','pagehide']){
+  const h=harness([], 'fa',false,'/static/intro-fa.mp3');h.view(1);h.sound.events.click();
+  if(cause==='end'){h.frame(0);h.frame(9600)}if(cause==='hidden'){h.document.hidden=true;h.events.visibilitychange()}if(cause==='offscreen')h.view(0);if(cause==='pagehide')h.lifecycle.pagehide();
+  assert.ok(h.audios[0].pauses>=1,cause);assert.equal(h.audios[0].currentTime,0);
+ }
+ const h=harness([], 'fa',false,'/static/intro-fa.mp3');h.view(1);h.sound.events.click();h.replay.events.click();
+ assert.equal(h.audios.length,1);assert.equal(h.audios[0].plays,2);
+});
+test('audio failure is recoverable and an old play rejection cannot mute replay',()=>{
+ const h=harness([], 'fa',false,'/static/intro-fa.mp3');h.view(1);h.sound.events.click();
+ const stale=h.audios[0].reject;h.replay.events.click();stale();assert.equal(h.sound.attrs['aria-pressed'],'true');
+ h.audios[0].reject();assert.equal(h.sound.attrs['aria-pressed'],'false');assert.equal(h.status.textContent,'Unavailable');
+ h.sound.events.click();assert.equal(h.audios[0].plays,3);assert.equal(h.status.textContent,'On');
 });

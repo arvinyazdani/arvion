@@ -13,17 +13,33 @@ if(typeof document!=='undefined')(()=>{
  const sound=root.querySelector('[data-film-sound]'),status=root.querySelector('[data-film-voice-status]');
  const motion=matchMedia('(prefers-reduced-motion: reduce)'),synth=window.speechSynthesis;
  let elapsed=0,playing=false,last=null,raf=0,entered=false,visible=false,disposed=false;
- let voice=null,soundOn=false,utterance=null;
- function stopVoice(){if(utterance){utterance=null;synth?.cancel();}}
+ const audioSource=root.dataset.narrationAudio;
+ let voice=null,soundOn=false,utterance=null,audio=null,audioGeneration=0;
+ function stopVoice(){
+  audioGeneration++;
+  if(audio){audio.pause();audio.currentTime=0;}
+  if(utterance){utterance=null;synth?.cancel();}
+ }
+ function soundAvailable(){return Boolean(audioSource||voice);}
+ function soundFailed(){stopVoice();soundOn=false;sound.setAttribute('aria-pressed','false');status.textContent=root.dataset.voiceUnavailable;}
  function voices(){
   voice=synth&&window.SpeechSynthesisUtterance?filmVoice(synth.getVoices(),root.dataset.filmLang):null;
-  if(!voice){stopVoice();soundOn=false;sound.setAttribute('aria-pressed','false');}
-  status.textContent=voice?(soundOn?root.dataset.voiceOn:root.dataset.voiceAvailable):root.dataset.voiceUnavailable;
+  if(!soundAvailable()){stopVoice();soundOn=false;sound.setAttribute('aria-pressed','false');}
+  status.textContent=soundAvailable()?(soundOn?root.dataset.voiceOn:root.dataset.voiceAvailable):root.dataset.voiceUnavailable;
  }
  function speak(){
-  if(!soundOn||!voice||!visible||document.hidden||disposed)return;
+  if(!soundOn||!soundAvailable()||!visible||document.hidden||disposed)return;
   stopVoice();
   try{
+   if(audioSource){
+    if(!audio){audio=new window.Audio(audioSource);audio.preload='none';}
+    const generation=audioGeneration;
+    audio.onerror=()=>{if(generation===audioGeneration&&soundOn)soundFailed();};
+    // Static same-origin narration works without an installed Persian voice.
+    // Start in this click, not after a fetch/voiceschanged callback (iOS).
+    audio.play()?.catch(()=>{if(generation===audioGeneration&&soundOn)soundFailed();});
+    return;
+   }
    const current=new window.SpeechSynthesisUtterance(root.dataset.narration);utterance=current;
    current.voice=voice;current.lang=voice.lang;current.rate=1.15;
    current.onend=()=>{if(utterance===current)utterance=null};
@@ -41,7 +57,7 @@ if(typeof document!=='undefined')(()=>{
  }
  function pause(disableSound=false){
   playing=false;cancelAnimationFrame(raf);last=null;stopVoice();
-  if(disableSound){soundOn=false;sound.setAttribute('aria-pressed','false');status.textContent=voice?root.dataset.voiceAvailable:root.dataset.voiceUnavailable;}
+  if(disableSound){soundOn=false;sound.setAttribute('aria-pressed','false');status.textContent=soundAvailable()?root.dataset.voiceAvailable:root.dataset.voiceUnavailable;}
   paint();
  }
  function tick(now){
@@ -52,7 +68,7 @@ if(typeof document!=='undefined')(()=>{
  }
  function start(){if(disposed||document.hidden||!visible||playing)return;playing=true;last=null;paint();raf=requestAnimationFrame(tick);}
  sound.addEventListener('click',()=>{
-  voices();if(!voice)return;
+  voices();if(!soundAvailable())return;
   soundOn=!soundOn;sound.setAttribute('aria-pressed',String(soundOn));
   status.textContent=soundOn?root.dataset.voiceOn:root.dataset.voiceAvailable;
   if(!soundOn){stopVoice();return;}

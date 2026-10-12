@@ -42,6 +42,11 @@ class StudioHomeTests(TestCase):
             self.assertNotIn('data-film-chapter', film)
             self.assertEqual(film.count('data-film-scene'), 4)
             self.assertIn('class="af-transcript"', film)
+            if lang == 'fa':
+                self.assertIn('data-narration-audio="/static/core/audio/assessment-intro-fa-v1.mp3"', film)
+                self.assertNotIn('روی این دستگاه موجود نیست', film)
+            else:
+                self.assertNotIn('data-narration-audio=', film)
             for text in (('گواهی غیررسمی', 'اثبات قطعی تقلب', 'دلیل آن') if lang == 'fa'
                          else ('unofficial', 'do not prove cheating', 'explanations')):
                 self.assertIn(text, film)

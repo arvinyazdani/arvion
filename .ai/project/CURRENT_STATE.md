@@ -1,5 +1,23 @@
 # Rvion current state
 
+## Persian assessment-film narration — 2026-10-12 — VERIFIED (local)
+
+Root cause:filmVoice required an installed local fa voice;Chrome test host has
+0 such voices. Replaced only FA narration path with same-origin staticMP3,
+53856bytes,8.976s (afinfo),within9.6s film. Public existing narration generated
+once using edge-tts7.2.8/fa-IR-DilaraNeural,+18% in isolated/tmp venv;no new
+project/server dependency or runtime third-party request. English local-speech
+path unchanged. Audio created/fetched only on sound gesture;mute/end/hidden/
+offscreen/pagehide stop it;replay reuses it;stale rejection cannot mute replay;
+failure has localized retry guidance. JS cache revision4.
+15 targeted Django tests +47coreNode tests passed (film12,3new),check0,diffclean.
+ChromeFA390 with0installedFAvoices:0audio requests beforeclick,54156transfer
+bytes afterclick,statusOn,no play error;replay/mute verified. EN1280 statusOn
+and pressedtrue;no horizontal overflow. Screens:/tmp/rvion-fa-film-audio-20261012/.
+Viewport restored,owned devserver stopped. MP3 decoding/duration verified;
+subjective listening quality/physical iPhone not verified. No push/deploy or
+production data change this turn. Footer62a6868 also remains local/unreleased.
+
 ## Footer contact action — 2026-10-12 — VERIFIED (local)
 
 Phone now a labeled SVG call button beside Start a project in one shared action
