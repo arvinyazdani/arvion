@@ -9,6 +9,20 @@ from django.utils.safestring import mark_safe
 
 register = template.Library()
 
+
+@register.simple_tag(takes_context=True)
+def public_search_copy(context):
+    from core.seo_copy import TITLES, DESCRIPTIONS, SERVICE_TITLES, SERVICE_DESCRIPTIONS
+    match = getattr(context.get('request'), 'resolver_match', None)
+    route = getattr(match, 'view_name', '')
+    index = 0 if context.get('lang', 'fa') == 'fa' else 1
+    if route == 'services:detail':
+        slug = getattr(context.get('service'), 'slug', '')
+        return {'title': SERVICE_TITLES.get(slug, (None, None))[index],
+                'description': SERVICE_DESCRIPTIONS.get(slug, (None, None))[index]}
+    return {'title': TITLES.get(route, (None, None))[index],
+            'description': DESCRIPTIONS.get(route, (None, None))[index]}
+
 # The public route allow-list keeps customer/private contexts out of the graph.
 LABELS = {
     'home': ('خانه', 'Home'),
@@ -17,7 +31,7 @@ LABELS = {
     'crm_product': ('CRM سازمانی', 'Enterprise CRM'),
     'services:list': ('راهکارها', 'Solutions'),
     'projects:demo_gallery': ('نمونه‌ها', 'Samples'),
-    'blog:list': ('دیدگاه‌ها', 'Insights'),
+    'blog:list': ('مقاله‌ها', 'Articles'),
     'assessments:list': ('آزمون‌ها', 'Assessments'),
     'leads:contact': ('مشاوره و سفارش پروژه', 'Project enquiry'),
     'privacy': ('حریم خصوصی', 'Privacy policy'),
@@ -65,7 +79,7 @@ def seo_documents(context):
     org_id, site_id = origin + '/#organization', origin + '/#website'
     organization = {
         '@type': 'Organization', '@id': org_id, 'name': brand,
-        'alternateName': 'Rvion', 'url': origin + '/',
+        'alternateName': ['آرویون', 'Rvion'], 'url': origin + '/',
         'logo': origin + static('core/icons/icon-512.png'),
         'areaServed': 'IR',
     }

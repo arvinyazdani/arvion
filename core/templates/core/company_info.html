@@ -33,4 +33,7 @@
     </div>
   </div>
 </section>
+<section class="section"><div class="shell prose"><h2>{% if lang == 'fa' %}کاربرد این اطلاعات پیش از همکاری{% else %}Using these details before an engagement{% endif %}</h2>
+<p>{% if lang == 'fa' %}این صفحه برای شناسایی طرف همکاری و یافتن راه ارتباط رسمی است، نه جایگزین شرایط یک پروژه مشخص. نام حقوقی و شناسه‌های درج‌شده را با اطلاعات طرف قرارداد مقایسه کنید و اگر درباره هویت یا راه تماس پرسشی دارید، از فرم سایت پیگیری کنید. دامنه، زمان، مبلغ و خروجی هر پروژه باید در توافق همان پروژه روشن شود؛ از اطلاعات ثبت شرکت نمی‌توان تعهد فنی یا سطح پشتیبانی خاصی برداشت کرد.{% else %}This page identifies the business and its official contact routes; it does not replace the terms of an individual project. Compare the legal name and identifiers with the proposed contracting party and use the site enquiry form if you have questions about identity or contact information. Scope, timing, cost and deliverables need to be defined in the relevant project agreement. Company registration details alone do not establish a technical commitment or a particular support level.{% endif %}</p>
+<a class="button secondary" href="{% url 'leads:contact' %}">{% if lang == 'fa' %}پرسش درباره همکاری{% else %}Ask about an engagement{% endif %}</a></div></section>
 {% endblock %}

@@ -3,6 +3,7 @@
 from django.views.generic import DetailView
 from services.models import Service
 from core.views.lang import LanguageViewMixin
+from services.search_content import service_search_content
 
 class ServiceDetailView(LanguageViewMixin, DetailView):
     model = Service
@@ -19,6 +20,7 @@ class ServiceDetailView(LanguageViewMixin, DetailView):
         context["duration"] = service.duration_fa if self.lang == "fa" else service.duration_en
         context["deliverables"] = service.deliverables(self.lang)
         context["process_steps"] = service.process_steps(self.lang)
+        context.update(service_search_content(service.slug, self.lang))
         return context
 
     def get_queryset(self):

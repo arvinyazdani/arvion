@@ -19,7 +19,12 @@ def _title(candidates, brand):
 
 def _description(candidates):
     # Choose complete existing parts, never truncate a word/sentence to fit.
-    return next((value for value in candidates if 90 <= len(value) <= 155), candidates[-1])
+    return next((value for value in candidates if 110 <= len(value) <= 155), candidates[-1])
+
+
+def _with_action(candidates, lang):
+    extra = 'چیدمان را بررسی کنید.' if lang == 'fa' else 'Explore the layout.'
+    return candidates + [f'{value} {extra}' for value in candidates if len(value) < 110]
 
 
 @register.simple_tag
@@ -46,7 +51,7 @@ def demo_metadata(demo, lang, brand):
         action = 'Customise this sample and send a design enquiry.'
         descriptions = [f'{name}: {tagline}. {action}',
                         f'{name}: {_part(demo.fit_label)}. {action}']
-    return {'title': _title(titles, brand), 'description': _description(descriptions)}
+    return {'title': _title(titles, brand), 'description': _description(_with_action(descriptions, lang))}
 
 
 @register.simple_tag
@@ -65,4 +70,6 @@ def briefing_metadata(exam, lang, brand):
         guide = 'Learn about integrity monitoring and answer review before starting.'
         descriptions = [f'Guide to {name}: {description}. {guide}',
                         f'Guide to {name}. {guide}']
+    action = 'راهنما را کامل بخوانید.' if fa else 'Read the full guide.'
+    descriptions += [f'{value} {action}' for value in descriptions if len(value) < 110]
     return {'title': _title(titles, brand), 'description': _description(descriptions)}

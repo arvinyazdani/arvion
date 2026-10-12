@@ -43,7 +43,7 @@ class HomeClarityTests(TestCase):
     def test_approved_hero_and_unique_headings_in_both_languages(self):
         for lang, title in (
             ('fa', 'طراحی سایت، فروشگاه و CRM اختصاصی برای کسب‌وکار شما'),
-            ('en', 'Custom websites, online stores and CRM for your business'),
+            ('en', 'Custom Django web apps and CRM for your business'),
         ):
             response = self.client.get(f'/{lang}/')
             parsed = HomeStructureParser(response.content.decode())
@@ -140,7 +140,7 @@ class HomeClarityTests(TestCase):
     def test_existing_home_metadata_and_schema_contract_are_preserved(self):
         expected = {
             'fa': ('طراحی و سفارش وب‌سایت اختصاصی | آرویون', 'نمونه سایت متناسب با کسب‌وکارتان را ببینید، زنده شخصی‌سازی کنید و با انتخاب‌های خودتان درخواست ساخت سایت بدهید.'),
-            'en': ('Website design & development | Rvion', 'Explore website samples for your business, customise them live and start a project with your own choices.'),
+            'en': ('Custom Django web apps & CRM development | Rvion', 'Custom Django web apps, CRM and B2B platforms for your business. Explore the project process, shape your requirements and request a consultation.'),
         }
         for lang, (title, description) in expected.items():
             head = HeadParser(self.client.get(f'/{lang}/').content.decode())

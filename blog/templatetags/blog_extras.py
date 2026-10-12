@@ -20,7 +20,19 @@ def context_reading(context):
         "core:home": (costs, hiring, raya), "home": (costs, hiring, raya),
         "services:detail": (costs, hiring), "crm_product": (costs, hiring),
         "projects:demo_gallery": (costs, hiring), "projects:demos": (costs, hiring),
+        "assessments:list": ("english-teacher-assessment", "django-interview-questions-with-short-answers"),
     }.get(route, ())
+    if route == "services:detail":
+        slug = getattr(context.get("service"), "slug", "")
+        slugs = {
+            "digital-product-consulting": ("custom-website-vs-template", "custom-or-ready-made-crm", costs, hiring),
+            "corporate-website-design": ("corporate-website-cost-1405", "custom-website-vs-template", "clinic-website-design-online-booking", "academy-website-structure-webinar", hiring),
+            "custom-web-application": (costs, hiring, "enterprise-crm-development-cost-stages", "custom-or-ready-made-crm", "django-interview-questions-with-short-answers"),
+            "ecommerce-platform": ("custom-website-vs-template", "corporate-website-cost-1405", costs),
+            "maintenance-and-growth": ("django-interview-questions-with-short-answers", "custom-website-vs-template", hiring),
+        }.get(slug, slugs)
+    elif route == "crm_product":
+        slugs = ("custom-or-ready-made-crm", "enterprise-crm-development-cost-stages", costs, hiring)
     if route == "blog:detail":
         post = context.get("post")
         current = getattr(post, "slug_fa", "")

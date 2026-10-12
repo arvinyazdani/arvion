@@ -18,6 +18,11 @@
     <aside class="process-card"><span class="card-number">{% if lang == 'fa' %}فرایند{% else %}PROCESS{% endif %}</span><ol>{% for step in process_steps %}<li><b>{% if lang == 'fa' %}{{ forloop.counter|stringformat:"02d"|fa_digits }}{% else %}{{ forloop.counter|stringformat:"02d" }}{% endif %}</b><span>{{ step }}</span></li>{% endfor %}</ol></aside>
   </div>
 </section>
+{% if service_sections %}<section class="section"><article class="shell prose" data-service-guide>
+{% for heading, body in service_sections %}<h2>{{ heading }}</h2><p>{{ body }}</p>{% endfor %}
+<h2>{% if lang == 'fa' %}پرسش‌های متداول{% else %}Frequently asked questions{% endif %}</h2>
+{% for question, answer in service_faqs %}<h3>{{ question }}</h3><p>{{ answer }}</p>{% endfor %}
+</article></section>{% endif %}
 <section class="service-cta"><div class="shell"><div><span class="eyebrow">{% if lang == 'fa' %}گام بعدی{% else %}NEXT STEP{% endif %}</span><h2>{% if lang == 'fa' %}ابتدا مسئله را بررسی کنیم.{% else %}Let’s start by understanding the problem.{% endif %}</h2><p>{% if lang == 'fa' %}مشاوره اولیه رایگان است و پیش از هر پرداخت، دامنه، زمان و خروجی پروژه شفاف می‌شود.{% else %}Initial consultation is free; scope, schedule and deliverables are clarified before any payment.{% endif %}</p></div><a class="button" href="{% order_entry service=service.slug %}">{% if lang == 'fa' %}ثبت درخواست این خدمت{% else %}Enquire about this service{% endif %}</a></div></section>
 <section class="section"><div class="shell">{% include 'services/includes/related_demos.html' %}</div></section>
 {% endblock %}

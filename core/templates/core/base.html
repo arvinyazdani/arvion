@@ -1,4 +1,4 @@
-{% load static seo order_ui %}{% seo_documents as seo %}
+{% load static seo order_ui %}{% seo_documents as seo %}{% public_search_copy as search_copy %}
 <!doctype html>
 <html lang="{{ lang|default:'fa' }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   {% include 'core/includes/arrival_loader.html' %}
   {% block font_preload %}{% endblock %}
-  <title>{% block title %}{% if lang == 'fa' %}آرویون | طراحی و توسعه محصول دیجیتال{% else %}Rvion | Digital product development{% endif %}{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}{% if lang == 'fa' %}مشاوره، طراحی، توسعه و پشتیبانی وب‌سایت و پلتفرم آنلاین توسط شرکت آروین توسعه تجارت هوشمند.{% else %}Consulting, design, development and support for websites and online platforms by Rvion.{% endif %}{% endblock %}">
+  <title>{% if search_copy.title %}{{ search_copy.title }}{% else %}{% block title %}{% if lang == 'fa' %}آرویون | طراحی و توسعه محصول دیجیتال{% else %}Rvion | Digital product development{% endif %}{% endblock %}{% endif %}</title>
+  <meta name="description" content="{% if search_copy.description %}{{ search_copy.description }}{% else %}{% block meta_description %}{% if lang == 'fa' %}مشاوره، طراحی، توسعه و پشتیبانی وب‌سایت و پلتفرم آنلاین توسط شرکت آروین توسعه تجارت هوشمند.{% else %}Consulting, design, development and support for websites and online platforms by Rvion.{% endif %}{% endblock %}{% endif %}">
   <meta name="robots" content="{% block meta_robots %}{% if seo_noindex %}noindex,nofollow{% else %}index,follow,max-image-preview:large{% endif %}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
   {% if alternate_urls.fa %}<link rel="alternate" hreflang="fa" href="{{ alternate_urls.fa }}">{% endif %}
@@ -16,8 +16,8 @@
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:site_name" content="{{ brand_name }}">
   <meta property="og:locale" content="{% if lang == 'fa' %}fa_IR{% else %}en_US{% endif %}">
-  <meta property="og:title" content="{% block og_title %}{% if lang == 'fa' %}آرویون — طراحی و توسعه پلتفرم آنلاین{% else %}Rvion — Online platform design and development{% endif %}{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}{% if lang == 'fa' %}طراحی CRM سازمانی، وب‌سایت و سامانه‌های هوشمند؛ از نیازسنجی تا توسعه و پشتیبانی.{% else %}Enterprise CRM, websites and intelligent platforms—from discovery to development and support.{% endif %}{% endblock %}">
+  <meta property="og:title" content="{% if search_copy.title %}{{ search_copy.title }}{% else %}{% block og_title %}{% if lang == 'fa' %}آرویون — طراحی و توسعه پلتفرم آنلاین{% else %}Rvion — Online platform design and development{% endif %}{% endblock %}{% endif %}">
+  <meta property="og:description" content="{% if search_copy.description %}{{ search_copy.description }}{% else %}{% block og_description %}{% if lang == 'fa' %}طراحی CRM سازمانی، وب‌سایت و سامانه‌های هوشمند؛ از نیازسنجی تا توسعه و پشتیبانی.{% else %}Enterprise CRM, websites and intelligent platforms—from discovery to development and support.{% endif %}{% endblock %}{% endif %}">
   <meta property="og:url" content="{{ canonical_url }}">
   <meta property="og:image" content="{{ site_url }}{% block og_image %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
   <meta property="og:image:url" content="{{ site_url }}{% block og_image_url %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
@@ -26,8 +26,8 @@
   <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="{% block og_image_alt %}{% if lang == 'fa' %}آرویون — طراحی CRM، وب‌سایت و سامانه اختصاصی{% else %}Rvion — Custom CRM, websites and business platforms{% endif %}{% endblock %}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{% block twitter_title %}{% if lang == 'fa' %}آرویون — CRM، وب و هوش مصنوعی{% else %}Rvion — CRM, Web & AI{% endif %}{% endblock %}">
-  <meta name="twitter:description" content="{% block twitter_description %}{% if lang == 'fa' %}طراحی و توسعه راهکارهای دیجیتال برای کسب‌وکارها{% else %}Digital solutions designed and built for businesses{% endif %}{% endblock %}">
+  <meta name="twitter:title" content="{% if search_copy.title %}{{ search_copy.title }}{% else %}{% block twitter_title %}{% if lang == 'fa' %}آرویون — CRM، وب و هوش مصنوعی{% else %}Rvion — CRM, Web & AI{% endif %}{% endblock %}{% endif %}">
+  <meta name="twitter:description" content="{% if search_copy.description %}{{ search_copy.description }}{% else %}{% block twitter_description %}{% if lang == 'fa' %}طراحی و توسعه راهکارهای دیجیتال برای کسب‌وکارها{% else %}Digital solutions designed and built for businesses{% endif %}{% endblock %}{% endif %}">
   <meta name="twitter:image" content="{{ site_url }}{% block twitter_image %}{% static 'core/images/rvion-whatsapp-share-v2.png' %}{% endblock %}">
   <meta name="theme-color" content="#0b1220">
   <meta name="mobile-web-app-capable" content="yes">
