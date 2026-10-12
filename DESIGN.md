@@ -209,6 +209,15 @@ The footer retains all legal/contact links, readable metadata and a full-width
 phone CTA. The body owns the bottom-bar safe inset; the footer does not add a
 second duplicate inset. No sample theme/personality or order data contract changes.
 
+Header fit correction (2026-10-12): staff retain a direct Management action;
+their personal account lives in the existing Settings disclosure rather than
+competing with work navigation. Public/customer account access stays direct.
+Navigation groups do not shrink into one another. The public shell collapses
+at 1100px (independently of the 820px bottom-bar breakpoint); its existing
+accessible menu owns tablet and phone navigation, with Management full-width.
+CSS owns this boundary; resize releases menu isolation only when its toggle
+is actually hidden. Brand, tokens, routes and authorization remain unchanged.
+
 | Role | Runtime owner | Consumers |
 |---|---|---|
 | Brand/action | tokens.css: --action-brand-* | home primary CTA |

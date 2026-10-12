@@ -82,7 +82,8 @@ if (typeof document !== 'undefined') (() => {
         }
       }
     });
-    window.addEventListener("resize", () => { if (window.innerWidth > 820) closeMenu(); });
+    // CSS owns the breakpoint; do not close a tablet menu using a stale width.
+    window.addEventListener("resize", () => { if (getComputedStyle(menuButton).display === "none") closeMenu(); });
   }
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {

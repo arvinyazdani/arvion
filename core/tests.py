@@ -83,6 +83,38 @@ class CorePagesTests(TestCase):
         self.assertIn("data-admin-shortcut", staff_mobile_nav)
         self.assertNotIn('href="/fa/account/dashboard/"', staff_mobile_nav)
 
+    def test_staff_header_keeps_management_direct_and_account_in_preferences(self):
+        staff = get_user_model().objects.create_user(
+            username="header-staff", is_staff=True,
+        )
+        self.client.force_login(staff)
+        for language, account_label in (("fa", "حساب من"), ("en", "My account")):
+            with self.subTest(language=language):
+                html = self.client.get(f"/{language}/").content.decode()
+                header = html.split('id="site-nav"', 1)[1].split("</nav>", 1)[0]
+                direct, preferences = header.split('<details class="nav-preferences">', 1)
+                self.assertIn(f'href="/{language}/management/"', direct)
+                self.assertNotIn("nav-account", direct)
+                preferences = preferences.split("</details>", 1)[0]
+                self.assertIn(f'href="/{language}/account/dashboard/"', preferences)
+                self.assertIn(account_label, preferences)
+                self.assertEqual(header.count('class="nav-utility nav-account"'), 1)
+
+    def test_customer_header_keeps_account_direct_and_hides_management(self):
+        customer = get_user_model().objects.create_user(username="header-customer")
+        for user in (None, customer):
+            if user:
+                self.client.force_login(user)
+            for language in ("fa", "en"):
+                with self.subTest(authenticated=bool(user), language=language):
+                    html = self.client.get(f"/{language}/").content.decode()
+                    header = html.split('id="site-nav"', 1)[1].split("</nav>", 1)[0]
+                    direct, preferences = header.split('<details class="nav-preferences">', 1)
+                    destination = "dashboard" if user else "login"
+                    self.assertIn(f'href="/{language}/account/{destination}/"', direct)
+                    self.assertNotIn("nav-management", header)
+                    self.assertNotIn("nav-account", preferences)
+
     def test_language_prefixed_urls_and_root_redirect(self):
         with translation.override("fa"):
             self.assertEqual(reverse("home"), "/fa/")

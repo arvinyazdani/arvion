@@ -1,5 +1,35 @@
 # Rvion current state
 
+## Public staff header fit — 2026-10-12 — VERIFIED local / deployment pending
+
+Owner requested correcting the live EN staff overlap, desktop/mobile browser
+checks, commit and deployment. Reproduced at1280: Consultation extended beyond
+its shrinking group into Management; Settings extended into the project CTA.
+Canonical owner: base.html/public-shell.css/site-shell.js, existing native
+preferences and accessible menu. No token, authorization, route or data change.
+Staff account moved into Settings; Management stays direct/full-width in menu.
+Groups no longer shrink; public menu collapses at1100, bottom bar still820.
+Resize uses computed toggle visibility, not a stale hard-coded820 threshold.
+Cache versions CSS5/JS15. DESIGN records this deliberate shell refinement.
+
+Tests: focused CorePagesTests/home/order52/52; configured core+projects+
+leads.tests259/259; core Node20/20 including new resize/inert/Escape regression;
+check0, migration drift0, configurator syntax0, diff check clean. Full suite not
+repeated: bounded presentation change, last runtime991819d full1205 green.
+Premium strict audit executed:55 existing actionless-button detections, all in
+unchanged projects preview/demo sources; generic data-hook detector does not
+establish real missing actions. No claim of whole-project premium compliance;
+protected files untouched. JSON:/tmp/rvion-header-premium-audit.json.
+
+Real local browser staff fixture: EN widths320/390/821/1024/1100/1101/1280/1440,
+zero horizontal overflow/control intersection; min header target44px. Viewed
+EN1280 dark/settings,390 light/open settings,1024 tablet; FA1280 light and320
+light/menu. Account preserved; preferences Escape returns summary; second Escape
+closes menu/returns toggle; tablet resize keeps open, desktop transition releases
+main inert. Evidence:/tmp/rvion-header-20261012/. No physical-device claim.
+Disposable local QA user/session only; production customer data untouched.
+Next: guarded source-only deploy with backup; flags stayOFF; rollback991819d.
+
 ## Approved article release — 2026-10-11 — VERIFIED / DEPLOYED
 
 Owner explicitly approved deploy and running attach_article_covers on production.
