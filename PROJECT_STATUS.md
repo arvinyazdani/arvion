@@ -1057,3 +1057,15 @@ workshop→order click, FA mobile/EN desktop and overflow0 verified. Services
 active, recent5-minute application error sample0. Detailed evidence/rollback in
 CURRENT_STATE.md. P2 staff EN desktop-header crowding recorded for separate
 scope; whole-home cinematic performance acceptance is still not granted.
+
+## 2026-10-12 — Staff header collision resolved / DEPLOYED dab858f
+
+Management stays direct; staff personal account moved to Settings. Shared menu
+collapses at1100 without changing the820 bottom bar; CSS-owned resize avoids
+tablet lock/closing errors. Local259 domain +20 Node tests green, checks clean.
+Live EN desktop/mobile and FA responsive browser checks show no overlap/overflow;
+settings account link and Escape focus verified. Backup:
+/srv/arvion/backups/header-20261012T061443Z-991819d. Source clean, services/health
+green, env/data/migrations unchanged; no push. Rollback991819d + collected assets.
+Detailed screenshot/audit/QA-cleanup limitations in CURRENT_STATE.md; prior whole-
+home performance gate remains separate, not implicitly waived by this release.

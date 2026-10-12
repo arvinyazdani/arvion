@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Public staff header fit — 2026-10-12 — VERIFIED local / deployment pending
+## Public staff header fit — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner requested correcting the live EN staff overlap, desktop/mobile browser
 checks, commit and deployment. Reproduced at1280: Consultation extended beyond
@@ -28,7 +28,32 @@ light/menu. Account preserved; preferences Escape returns summary; second Escape
 closes menu/returns toggle; tablet resize keeps open, desktop transition releases
 main inert. Evidence:/tmp/rvion-header-20261012/. No physical-device claim.
 Disposable local QA user/session only; production customer data untouched.
-Next: guarded source-only deploy with backup; flags stayOFF; rollback991819d.
+Release completed: runtime dab858f, previous991819d, clean source before/after;
+verified bundle9abad6bbf2164f46143f14fbd620cb51fdeacd29a8d8173cc2ad2abcd9204ef2.
+Private snapshot:/srv/arvion/backups/header-20261012T061443Z-991819d contains
+custom DB dump (pg_restore catalog validated), Git refs, media, env/secrets and
+previous-head. Guarded fast-forward/check--deploy/migrate--check/collectstatic/
+nginx test/restart/internal health passed. No migration run, push, seed, role,
+customer-content or environment change; entry/3D remainFalse/False.
+Public ten-route HTTP smoke and exact app-icon byte checks PASS. Actual online
+staff EN1280 dark/light/settings and390 dark/menu, FA390 dark/menu and1280 dark
+checked. Overlap0 and overflow0; menu background inert, Escape returns focus,
+account href remains localized. Hashed CSS166398f742fe v5/JS820a6d02edb1 v15.
+Screenshots:/tmp/rvion-header-20261012/live-{en-desktop-dark,
+en-desktop-light-settings,en-mobile-dark,fa-mobile-dark}.png. Initial mobile
+capture targeted a different selected tab: corrected tab viewport, explicitly
+confirmed innerWidth390 and replaced those images; no false mobile PASS.
+Local test account/session removed, browser QA cookie removed/tab closed; theme
+restored dark, metrics/viewport reset. QA cleanup initially hit the legacy
+local DB's absent WelcomeAssessmentCredit table through Django's collector.
+No migration applied to work around it: checked every real FK table for zero
+QA-user references, then removed only that exact disposable user row with FK
+integrity still enabled. Session/key file also removed. Production unaffected.
+Postflight services active/source clean/env identical,0 recent5-minute error
+pattern lines. No new CI/full-suite/physical-phone/Lighthouse/APM15-minute claim.
+Rollback:991819d source + collectstatic/restart; DB restoration not needed for
+this header-only release. Prior P2 EN staff collision RESOLVED. Whole-home
+cinematic activation/performance gate remains BLOCKED and out of this scope.
 
 ## Approved article release — 2026-10-11 — VERIFIED / DEPLOYED
 
