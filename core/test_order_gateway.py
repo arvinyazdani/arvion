@@ -32,8 +32,9 @@ class OrderGatewayTests(TestCase):
         self.assertNotIn("PRIVATE", response.url)
         self.assertIn("addons=support", response.url)
         self.assertEqual(DemoSelection.objects.count(), 0)
-        # LanguageViewMixin already stores lang; gateway adds no selection state.
-        self.assertEqual(dict(self.client.session), {"lang": "fa"})
+        # Language is encoded in the URL; neither language nor preview creates state.
+        self.assertNotIn("sessionid", response.cookies)
+        self.assertEqual(dict(self.client.session), {})
 
     def test_foreign_category_unknown_and_external_sample_are_ignored(self):
         for sample in (self.demo.slug, "https://example.com/"):

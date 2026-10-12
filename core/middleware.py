@@ -29,6 +29,10 @@ class PublicPageCachePolicyMiddleware:
             return response  # Preserve an existing stricter security contract.
         match = getattr(request, "resolver_match", None)
         route = getattr(match, "view_name", "")
+        if route in {"offline", "offline_fa", "offline_en"}:
+            # These standalone views render no request/user data. Preserve their
+            # explicit public cache contract used by the PWA offline fallback.
+            return response
         if (request.method != "GET" or response.status_code != 200
                 or route not in self.PUBLIC_ROUTES or request.GET
                 or request.COOKIES or response.cookies
