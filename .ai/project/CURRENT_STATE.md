@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Shared home arrival / single-step studio — 2026-10-12 — VERIFIED (local), release pending
+## Shared home arrival / single-step studio — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner replaces the standalone entry and its ending gateway with the shared
 navigation loader, and authorizes deployment. Starting HEAD437d4af; production
@@ -26,9 +26,28 @@ not a claim of physical-phone benchmarks or new Lighthouse results.
 Evidence:/tmp/rvion-home-steps-20261012/{desktop-fa-workshop,desktop-fa-library,
 mobile-en-exam,mobile-fa-arrival,mobile-fa-light-exam,desktop-en-light-workshop}.png.
 Self-review only. No protected gallery/management article/content/model/schema
-changes; no external notifications or customer-data mutations. Next: guarded
-bundle release from0af65fc, new backup, retire obsolete entry env flag, preserve
-3D flag and data; public browser/HTTP checks, record exact release and snapshot.
+changes; no external notifications or customer-data mutations.
+Release2c025f26277a1bd2729410d5bd87b3403cfbbcbe deployed from0af65fc via
+Git bundle, no push or migrations. Validated private backup:
+/srv/arvion/backups/home-steps-20261012T105629Z-0af65fc.
+Retired only RVION_ENTRY_ENABLED; RVION_STUDIO_3D_ENABLED=1 and other settings
+preserved. Production check--deploy, migration check, collectstatic, nginx test,
+service health passed; eight published English articles retained.
+Live HTTP FA/EN: one loader element, approved logo, no retired entry, exact
+site-shell2d28b4d89863/tour20642a003ba6 assets; renderer/worker/vendor/poster200.
+Health, FA/EN login/blog, FA start and English-exam briefing200.
+Initial HTTP smoke falsely counted loader-selector strings in inline CSS as
+elements; corrected to count div tags, then all checks passed (no product fix).
+Live Chrome390x844 FA:1px wheel workshop→exam;8×1800px burst exam→library,
+only one chapter per gesture.1280x800 EN:9000px workshop→exam, engine ready,
+no horizontal overflow at either size. Shared arrival visible on navigation.
+Screenshots: same evidence directory/live-mobile-fa-exam.png and
+live-desktop-en-exam.png, both visually reviewed. Temporary viewport reset.
+No new Lighthouse or physical-phone measurements this phase.
+Rollback: previous runtime0af65fc with its archived config/static recipe;
+do not restore customer database/media merely to roll back presentation.
+Next: owner review of the released interaction; no remaining implementation
+or deployment step for this bounded request.
 
 ## Entry / cinematic home final cutover — 2026-10-12 — VERIFIED / DEPLOYED
 
