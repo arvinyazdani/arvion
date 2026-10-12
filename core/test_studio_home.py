@@ -34,9 +34,13 @@ class StudioHomeTests(TestCase):
             html = self.client.get(f'/{lang}/').content.decode()
             film = html.split('data-assessment-film', 1)[1].split('</details>', 1)[0]
             self.assertIn(f'data-film-lang="{lang}"', film)
-            self.assertIn('9.6s', film)
+            self.assertIn('۹٫۶' if lang == 'fa' else '9.6', film)
             self.assertNotIn('00:36', film)
-            self.assertIn('data-film-sound aria-pressed="false" hidden', film)
+            self.assertIn('data-film-sound aria-pressed="false"', film)
+            self.assertIn('data-film-replay hidden', film)
+            self.assertNotIn('data-film-play', film)
+            self.assertNotIn('data-film-chapter', film)
+            self.assertEqual(film.count('data-film-scene'), 4)
             self.assertIn('class="af-transcript"', film)
             for text in (('گواهی غیررسمی', 'اثبات قطعی تقلب', 'دلیل آن') if lang == 'fa'
                          else ('unofficial', 'do not prove cheating', 'explanations')):

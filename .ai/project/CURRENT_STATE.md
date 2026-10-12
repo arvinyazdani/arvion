@@ -1,5 +1,42 @@
 # Rvion current state
 
+## Assessment explainer redesign — 2026-10-12 — VERIFIED (local)
+
+Baseline55c02b6, clean. Owner replaces old film controls with viewport autoplay,
+one sound toggle and end-only replay, richer illustrations, both languages/themes.
+Root cause of silent English toggle: it changed an opt-in flag only; actual
+speech required a separate subsequent play action. New sound click rechecks
+asynchronously available matching local voices, resumes synthesis and speaks
+synchronously in that gesture, restarting visuals for a complete introduction.
+No remote voices/data transmission/dependencies. No FA voice installed on this
+Mac; clear localized guide fallback remains. Actual audible quality not verified.
+Four2.4s illustrated scenes: skills/programming, recorded activity signals,
+report/unofficial certificate, explained answers. Semantic theme tokens replace
+fixed-dark styling; mirrored two-column desktop/stacked compact mobile. All old
+chapter/play/time controls and associated CSS/JS removed, full untimed guide kept.
+Viewport35% starts silently once, offscreen/hidden pauses without accumulating
+invisible time; unfinished visuals resume, completed sequence never auto-replays.
+Sound stops at end/offscreen/hidden/pagehide; offscreen/hidden also reset its
+toggle so silent resume is not mislabeled sound-on. Replay explicit after end;
+reduced motion suppresses autoplay/CSS animation, explicit replay still available.
+No IntersectionObserver exposes explicit replay instead. Pagehide disposes player.
+20 targeted Django tests (studio_home/home_arrival) passed;44 core Node passed,
+then final status/suspension adjustment reran all9 film tests successfully.
+check0; diff--check clean. Full suite not repeated for bounded presentation work.
+Real Chrome390x844 EN dark/FA light,1280x800 FA light/EN dark, overflow0;
+observed viewport autoplay, completion100/replay and immediate English sound:
+speechSynthesis.speaking=true, pending=false,41 matching local English voices.
+Sequence-only desktop PerformanceObserver CLS0 (not cold-load Lighthouse).
+Screenshot evidence /tmp/rvion-film-redesign-20261012/: en-mobile-dark-end.png,
+en-mobile-dark-playing.png,fa-mobile-light.png,fa-desktop-light-end.png,
+en-desktop-dark.png,en-desktop-scene1/2/3.png. Browser wrapper's default3s
+wait for end from scene3 timed out because4.8s remained; subsequent DOM verified
+normal completion100, stopped voice/player and visible replay; not a product fault.
+Temporary observer disconnected; viewport/theme restored. Physical phones and
+audio quality remain unverified. No production/SSH/push/deploy/migration/content
+or protected-file changes. Rollback scoped revert, no customer DB/media restore.
+Next: owner visual acceptance; deploy only upon explicit instruction.
+
 ## Unified app loading / earlier studio admission — 2026-10-12 — VERIFIED (local)
 
 Starting e3be1df, clean. Diagnosis: arrival bootstrap existed only on home,
