@@ -134,8 +134,9 @@ if(typeof document!=='undefined')(()=>{
   if(disposed||booting||root.dataset.reason||short.matches||!studioEligibility({reduced:motion.matches,saveData:navigator.connection?.saveData,cores:navigator.hardwareConcurrency,memory:navigator.deviceMemory}))return;
   booting=true;
   try{
-   // Let the already-loaded poster and fonts paint before GPU work can compete.
-   await document.fonts?.ready;await poster.decode?.().catch(()=>{});
+   // Paint the poster first; worker fonts load independently. Unrelated page
+   // fonts/images must not delay scene startup, especially on mobile Safari.
+   await poster.decode?.().catch(()=>{});
    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
    if(disposed||motion.matches||short.matches)return;
    if(typeof Worker==='undefined'||!canvas.transferControlToOffscreen){fallback('worker-unsupported');return;}
@@ -155,8 +156,8 @@ if(typeof document!=='undefined')(()=>{
  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();fallback('context-lost')});
  addEventListener('pagehide',()=>{disposed=true;cancelTransition();clearInterval(governor);cancelAnimationFrame(scrollFrame);removeEventListener('wheel',wheel);removeEventListener('touchstart',touchStart);removeEventListener('touchmove',touchMove);removeEventListener('keydown',key);removeEventListener('hashchange',cancelTransition);removeEventListener('popstate',cancelTransition);connection?.dispose();},{once:true});
  addEventListener('pageshow',event=>{if(event.persisted)fallback('restored-page')});
- const idle=()=>{if('requestIdleCallback'in window)requestIdleCallback(boot,{timeout:2500});else setTimeout(boot,1000)};
- if(document.readyState==='complete')idle();else addEventListener('load',idle,{once:true});
+ const idle=()=>{if('requestIdleCallback'in window)requestIdleCallback(boot,{timeout:200});else boot()};
+ if(document.readyState==='loading')addEventListener('DOMContentLoaded',idle,{once:true});else idle();
  // Initial HTML already presents workshop. Establish keyboard scope without
  // forcing a full layout while deferred scripts/fonts are still arriving.
  root.dataset.stop='workshop';

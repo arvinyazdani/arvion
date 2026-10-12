@@ -25,7 +25,7 @@ e.fire(160);
 assert.equal(e.attrs.get('aria-hidden'),'false');assert.ok(e.locked);assert.ok(e.classes.has('navigation-pending'));
 e.listeners.pageshow({persisted:false});assert.equal(e.attrs.get('aria-hidden'),'true');assert.equal(e.locked,false);assert.equal(e.timers.size,0);
 e.click(link);e.fire(8000);assert.equal(e.attrs.get('aria-busy'),'false');assert.equal(e.locked,false);
-e=environment(true);e.click(link);assert.equal(e.timers.size,1);assert.equal(e.attrs.get('aria-hidden'),'true');
+e=environment(true);e.click(link);assert.equal(e.timers.size,2);e.fire(160);assert.equal(e.attrs.get('aria-hidden'),'false');e.fire(8000);assert.equal(e.locked,false);
 for(const change of [{href:'https://outside.example/'},{dataset:{noLoader:''}},{target:'_blank'},{href:'https://rvionai.com/fa/#main'}]){const n=environment();n.click({...link,...change});assert.equal(n.timers.size,0);}
 console.log('Navigation loader: delayed reveal, background lock, pageshow/failsafe recovery, reduced-motion and link exclusions passed.');
 e=environment(false,true);assert.equal(e.attrs.get('aria-hidden'),'false');e.listeners.pageshow({persisted:false});assert.ok(e.classes.has('navigation-pending'));
@@ -37,7 +37,7 @@ const arrivalSource=fs.readFileSync('core/templates/core/includes/arrival_loader
 for(const reduced of [false,true]){
  const flags=new Set(),classes=new Set();let recover;
  vm.runInNewContext(arrivalSource,{matchMedia:()=>({matches:reduced}),setTimeout:(fn,ms)=>{assert.equal(ms,1500);recover=fn},document:{documentElement:{setAttribute:k=>flags.add(k),hasAttribute:k=>flags.has(k),removeAttribute:k=>flags.delete(k),classList:{add:k=>classes.add(k),remove:k=>classes.delete(k)}}}});
- assert.equal(flags.has('data-arrival-loading'),!reduced);assert.equal(classes.has('navigation-pending'),!reduced);
- if(!reduced){recover();assert.equal(flags.size,0);assert.equal(classes.size,0)}else assert.equal(recover,undefined);
+ assert.equal(flags.has('data-arrival-loading'),true);assert.equal(classes.has('navigation-pending'),true);
+ recover();assert.equal(flags.size,0);assert.equal(classes.size,0);
 }
-console.log('Arrival bootstrap: reduced-motion bypass and independent failed-script recovery passed.');
+console.log('Arrival bootstrap: same static reduced-motion feedback and independent failed-script recovery passed.');

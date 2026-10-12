@@ -112,7 +112,7 @@ if (typeof document !== 'undefined') (() => {
   };
   const revealNavigationLoader = () => {
     navigationRevealTimer = null;
-    if (!welcome || !navigationScheduled || prefersReducedMotion()) return;
+    if (!welcome || !navigationScheduled) return;
     welcome.classList.remove("is-leaving");
     setWelcomeVisible(true);
     document.documentElement.classList.add("navigation-pending");
@@ -125,15 +125,14 @@ if (typeof document !== 'undefined') (() => {
     document.documentElement.removeAttribute('data-arrival-loading');
     navigationScheduled = true;
     setMainBusy(true);
-    if (!prefersReducedMotion()) {
-      navigationRevealTimer = window.setTimeout(revealNavigationLoader, NAVIGATION_REVEAL_DELAY_MS);
-    }
+    // Reduced motion keeps the same feedback, with animations disabled in CSS.
+    navigationRevealTimer = window.setTimeout(revealNavigationLoader, NAVIGATION_REVEAL_DELAY_MS);
     navigationFailsafe = window.setTimeout(hideNavigationLoader, NAVIGATION_FAILSAFE_MS);
   };
   setWelcomeVisible(false);
   setMainBusy(false);
   if (document.documentElement.hasAttribute('data-arrival-loading')) {
-    // Finish as soon as the server-rendered home can paint, not after GPU boot
+    // Finish as soon as the server-rendered route can paint, not after GPU boot
     // or below-fold images. The overlay is fixed and never changes layout.
     setWelcomeVisible(true);
     arrivalFrame = window.requestAnimationFrame(() => {

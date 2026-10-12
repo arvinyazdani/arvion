@@ -2,6 +2,7 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
+  {% include 'core/includes/arrival_loader.html' %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>{% block title %}فرآیند اختصاصی | آرویون{% endblock %}</title>
@@ -31,7 +32,7 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}" type="image/svg+xml">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=9">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=10">
   <link rel="stylesheet" href="{% static 'core/css/flow.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'core/css/order-flow.css' %}?v=2">
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
@@ -60,7 +61,7 @@
   {% if messages %}<div class="flow-container flow-messages" aria-live="polite">{% for message in messages %}<div class="ui-message ui-message--{{ message.tags|default:'info' }}" {% if 'error' in message.tags %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</div>{% endfor %}</div>{% endif %}
   <main id="flow-main" tabindex="-1" data-route-shell>{% include 'core/includes/seo_breadcrumbs.html' %}{% block content %}{% endblock %}</main>
   <footer class="flow-footer" data-route-shell><div class="flow-container"><span>© {% now "Y" %} Rvion</span><span>اطلاعات شما فقط برای بررسی همین درخواست استفاده می‌شود.</span><a href="{% url 'privacy' %}" target="_blank" rel="noopener">حریم خصوصی</a></div></footer>
-  <script src="{% static 'core/js/site-shell.js' %}?v=13" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=18" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>

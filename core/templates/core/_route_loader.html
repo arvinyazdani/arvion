@@ -1,10 +1,7 @@
 <div class="route-loader" data-navigation-loader aria-hidden="true" role="status" aria-label="{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Loading page{% else %}در حال بارگذاری صفحه{% endif %}">
-  <div class="welcome-orbit orbit-one" aria-hidden="true"></div>
-  <div class="welcome-orbit orbit-two" aria-hidden="true"></div>
-  <div class="welcome-brand">
-    {% include 'core/includes/brand.html' with mark_class='welcome-mark' mark_only=True %}
-    <strong dir="ltr">RVION</strong>
-    <small>{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Preparing your page{% else %}در حال آماده‌سازی صفحهٔ شما{% endif %}</small>
+  <div class="route-loader__content">
+    {% include 'core/includes/brand.html' with mark_class='route-loader__mark' mark_only=True %}
+    <span class="route-loader__label">{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Loading…{% else %}در حال بارگذاری…{% endif %}</span>
+    <div class="route-loader__progress" aria-hidden="true"><span></span></div>
   </div>
-  <div class="welcome-progress" aria-hidden="true"><span></span></div>
 </div>

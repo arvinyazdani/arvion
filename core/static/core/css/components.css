@@ -96,19 +96,12 @@
 .navigation-pending{overflow:hidden}
 .navigation-pending .route-loader[data-navigation-loader]{position:fixed;z-index:var(--z-loader);inset:0;display:grid;place-items:center;background:var(--color-panel-dark);color:#fff;overflow:hidden}
 .route-loader[data-navigation-loader].is-leaving{animation:ui-loader-exit var(--motion-duration-slow) var(--motion-ease-exit) forwards}
-.route-loader[data-navigation-loader] .welcome-brand{position:relative;z-index:2;display:grid;justify-items:center;gap:9px}
-.navigation-pending .route-loader[data-navigation-loader] .welcome-brand{animation:ui-loader-rise var(--motion-duration-slow) var(--motion-ease-enter) both}
-.route-loader[data-navigation-loader] .welcome-mark{display:grid;place-items:center;width:92px;height:92px;margin-block-end:12px;border-radius:27px;background:var(--color-brand-orange);color:var(--color-on-brand);box-shadow:0 24px 80px color-mix(in srgb,var(--color-brand-orange) 32%,transparent);font:900 2.35rem/1 Arial,sans-serif;transform:rotate(-4deg)}
-.route-loader[data-navigation-loader] .welcome-brand strong{font:900 1.45rem/1 Arial,sans-serif;letter-spacing:.24em;text-indent:.24em}
-.route-loader[data-navigation-loader] .welcome-brand small{color:#c4cbd6;font-size:.78rem}
-.route-loader[data-navigation-loader] .welcome-orbit{position:absolute;border:1px solid rgba(255,255,255,.11);border-radius:50%;animation:ui-loader-roll 9s linear infinite}
-.route-loader[data-navigation-loader] .orbit-one{width:min(70vw,620px);aspect-ratio:1}
-.route-loader[data-navigation-loader] .orbit-two{width:min(92vw,820px);aspect-ratio:1;animation-direction:reverse;animation-duration:14s}
-.route-loader[data-navigation-loader] .orbit-one::before,.route-loader[data-navigation-loader] .orbit-two::before{position:absolute;inset-block-start:50%;inset-inline-start:-6px;width:12px;height:12px;border-radius:50%;background:var(--color-brand-orange);box-shadow:0 0 25px var(--color-brand-orange);content:""}
-.route-loader[data-navigation-loader] .welcome-progress{position:absolute;z-index:2;inset-block-end:max(38px,env(safe-area-inset-bottom));width:min(180px,48vw);height:3px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden}
-.route-loader[data-navigation-loader] .welcome-progress span{display:block;width:45%;height:100%;border-radius:inherit;background:var(--color-brand-orange);animation:ui-loader-progress 1s var(--motion-ease-standard) infinite}
-@keyframes ui-loader-rise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
-@keyframes ui-loader-roll{to{transform:rotate(360deg)}}
+.route-loader__content{display:grid;justify-items:center;gap:20px;padding:24px;max-width:100%;text-align:center}
+.route-loader[data-navigation-loader] .route-loader__mark{display:grid;place-items:center;width:64px;height:64px;border-radius:18px;background:var(--color-brand-orange);color:var(--color-on-brand)}
+.route-loader__mark .rvion-code-glyph{width:30px;height:35px}
+.route-loader__label{color:#c4cbd6;font-size:1rem;line-height:1.6}
+.route-loader__progress{width:112px;height:3px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden;direction:ltr}
+.route-loader__progress span{display:block;width:45%;height:100%;border-radius:inherit;background:var(--color-brand-orange);animation:ui-loader-progress 1s var(--motion-ease-standard) infinite}
 @keyframes ui-loader-progress{from{transform:translateX(-120%)}to{transform:translateX(340%)}}
 @keyframes ui-loader-exit{to{opacity:0;visibility:hidden;transform:scale(1.025)}}
 

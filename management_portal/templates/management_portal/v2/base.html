@@ -2,6 +2,7 @@
 <!doctype html>
 <html lang="{{ lang }}" dir="{% if lang == 'fa' %}rtl{% else %}ltr{% endif %}">
 <head>
+  {% include 'core/includes/arrival_loader.html' %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
@@ -10,7 +11,7 @@
   <link rel="icon" href="{% static 'core/favicon.svg' %}">
   <script>try{var rvionTheme=localStorage.getItem('rvion-theme');if(rvionTheme==='light'||rvionTheme==='dark')document.documentElement.setAttribute('data-theme',rvionTheme)}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}?v=4">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=9">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=10">
   <link rel="stylesheet" href="{% static 'management_portal/v2/management.css' %}?v=20">
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
@@ -104,7 +105,7 @@
   <script src="{% static 'core/js/welcome-sound.js' %}?v=4" defer></script>
   <script src="{% static 'management_portal/v2/notification-live.js' %}?v=4" defer></script>
   <script src="{% static 'management_portal/v2/management.js' %}?v=11" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=13" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=18" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>

@@ -1,6 +1,5 @@
 {% extends "core/base.html" %}
 {% load order_ui static studio_ui %}
-{% block arrival_loader %}{% include 'core/includes/arrival_loader.html' %}{% endblock %}
 {% block shell_styles %}{% if studio_3d_enabled %}{% studio_styles 'shell' %}{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block font_preload %}
 {% if studio_3d_enabled %}<link rel="preload" as="image" type="image/avif" fetchpriority="high" href="{% static 'core/studio/posters/workshop-mobile.avif' %}" media="(max-width:760px)"><link rel="preload" as="image" type="image/avif" fetchpriority="high" href="{% static 'core/studio/posters/workshop-desktop.avif' %}" media="(min-width:761px)">{% endif %}
@@ -36,4 +35,4 @@
 {% if company %}<p class="hp-hours shell">{% if lang == 'fa' %}زمان پاسخ‌گویی: {{ company.support_hours_fa }}{% else %}Support hours: {{ company.support_hours_en }}{% endif %}</p>{% endif %}
 <div class="home-device shell"><button class="button secondary" type="button" data-install-guide>{% if lang == 'fa' %}راهنمای افزودن آرویون به دستگاه{% else %}Add Rvion to your device{% endif %}</button></div>
 </div>{% endblock %}
-{% block extra_scripts %}{% if studio_3d_enabled %}<script src="{% static 'core/studio/tour.js' %}?v=5" defer></script>{% endif %}<script src="{% static 'core/js/assessment-film.js' %}?v=2" defer></script>{% endblock %}
+{% block extra_scripts %}{% if studio_3d_enabled %}<script src="{% static 'core/studio/tour.js' %}?v=6" defer></script>{% endif %}<script src="{% static 'core/js/assessment-film.js' %}?v=2" defer></script>{% endblock %}

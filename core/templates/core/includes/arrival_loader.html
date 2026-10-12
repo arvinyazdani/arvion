@@ -1,6 +1,6 @@
 {# The shared loader, not a second intro. No storage, gateway or engine barrier. #}
 <script>
-(()=>{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+(()=>{
 const html=document.documentElement;html.setAttribute('data-arrival-loading','');html.classList.add('navigation-pending');
 // Independent recovery if the deferred shell fails to download. No content is hidden without JS.
 setTimeout(()=>{if(html.hasAttribute('data-arrival-loading')){html.removeAttribute('data-arrival-loading');html.classList.remove('navigation-pending');}},1500);

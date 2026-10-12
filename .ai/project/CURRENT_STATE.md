@@ -1,5 +1,39 @@
 # Rvion current state
 
+## Unified app loading / earlier studio admission — 2026-10-12 — VERIFIED (local)
+
+Starting e3be1df, clean. Diagnosis: arrival bootstrap existed only on home,
+not direct management/form/contract launches; shared loader still contained old
+orbit/welcome styling. Reduced-motion suppressed arrival altogether. Studio
+waited for window.load, idle(timeout2500)/Safari1000ms, and all page fonts.
+All four shells now use one bootstrap/component, compact canonical code-R and
+indeterminate bar; no old orbits. Reduced motion shows static feedback instead
+of bypassing it. Existing two-paint240ms exit, delayed navigation160ms,
+1500ms independent bootstrap recovery and8000ms navigation recovery retained.
+CSS v10/shell v18 aligned across shells; tour v6. PWA manifest launch background
+and theme now match loader #0b1220; identity/start_url/icons unchanged.
+Studio admits at DOM readiness/idle<=200ms (no Safari artificial1s), still
+paints decoded poster twice first; worker font loading, eligibility, geometry,
+governor, teardown, camera and four-step gestures unchanged.
+Tests:22 Django (core.test_home_arrival/core.test_brand_assets/core.test_seo_pwa)
+passed including authenticated FA/EN manager launches;42 core Node tests passed,
+including two new startup regressions, unresolved page fonts and pagehide.
+After manifest-only change core.test_brand_assets rerun separately; check0,
+diff--check clean. No full-suite rerun for bounded UI slice; no schema change.
+Real Chrome390x844 FA dark,1280x800 EN dark/light: one loader, transient arrival
+observed on home/reload/about, cleared normally; engine ready, overflow0, no
+sample console errors. Screenshots /tmp/rvion-unified-loader-20261012/:
+fa-mobile-home.png,fa-mobile-loader-preview.png,en-desktop-home.png,
+en-desktop-light.png. Loader screenshot holds its existing class temporarily
+for inspection, then reload restores normal behavior; not duration evidence.
+Viewport/theme restored. No physical iPhone/Android, fresh CLS/Lighthouse/FPS
+or millisecond startup improvement claimed. Native OS launch splash/resume
+snapshot cannot be replaced by HTML; installed manifest refresh timing is OS
+controlled. Safe-mode/unsupported worker poster fallback intentionally stays.
+No production access, deployment, push, migrations or customer data mutation.
+Rollback: scoped revert of this UI commit, no DB/media restore. Next: owner
+preview/physical-device acceptance, then explicit deployment instruction.
+
 ## Assessment introduction — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner requests a sub-ten-second bilingual animated explainer and optional voice.

@@ -25,11 +25,37 @@ class HomeArrivalTests(TestCase):
                 for retired in ('rvion-entry', 'entry.css', 'js/entry.js', 'ar-gate'):
                     self.assertNotIn(retired, html)
 
-    def test_other_pages_keep_navigation_feedback_without_a_second_initial_intro(self):
+    def test_other_pages_use_the_same_arrival_feedback_without_a_second_intro(self):
         html = self.client.get('/en/about/').content.decode()
         self.assertIn('data-navigation-loader', html)
         self.assertIn('rvion-code-glyph', html)
-        self.assertNotIn('data-arrival-loading', html)
+        self.assertIn('data-arrival-loading', html)
+        self.assertIn('route-loader__progress', html)
+        self.assertNotIn('welcome-orbit', html)
+
+    def test_all_independent_shells_include_one_shared_arrival_bootstrap(self):
+        root = Path(settings.BASE_DIR)
+        for path in ('core/templates/core/base.html', 'core/templates/core/flow_base.html',
+                     'contracts/templates/contracts/contract_base.html',
+                     'management_portal/templates/management_portal/v2/base.html'):
+            source = (root / path).read_text()
+            self.assertEqual(source.count("include 'core/includes/arrival_loader.html'"), 1, path)
+            self.assertEqual(source.count('core/_route_loader.html'), 1, path)
+            self.assertIn('site-shell.js\' %}?v=18', source)
+
+    def test_direct_manager_launch_uses_the_same_loader(self):
+        user = get_user_model().objects.create_user(
+            username='loader-manager@example.test', email='loader-manager@example.test',
+            password='unused', is_staff=True, is_superuser=True)
+        self.client.force_login(user)
+        for lang in ('fa', 'en'):
+            response = self.client.get(f'/{lang}/management/')
+            self.assertEqual(response.status_code, 200)
+            html = response.content.decode()
+            self.assertEqual(html.count('data-navigation-loader'), 1)
+            self.assertIn('data-arrival-loading', html)
+            self.assertIn('route-loader__progress', html)
+            self.assertNotIn('welcome-orbit', html)
 
     def test_article_and_order_links_still_exist_in_the_home_itself(self):
         Post.objects.create(title_fa='راهنمای سفارش', slug_fa='arrival-guide', body_fa='متن',

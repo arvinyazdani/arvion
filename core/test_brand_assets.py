@@ -50,6 +50,8 @@ class BrandAssetTests(SimpleTestCase):
     def test_manifest_preserves_app_identity_and_references_existing_assets(self):
         manifest = json.loads((self.root / "core/static/core/manifest.webmanifest").read_text())
         self.assertEqual((manifest["id"], manifest["start_url"], manifest["scope"]), ("/fa/", "/fa/", "/"))
+        self.assertEqual(manifest["background_color"], "#0b1220")
+        self.assertEqual(manifest["theme_color"], "#0b1220")
         self.assertTrue(any(icon["type"] == "image/png" and "maskable" in icon["purpose"] for icon in manifest["icons"]))
         for icon in manifest["icons"]:
             self.assertTrue((self.root / "core/static" / icon["src"].removeprefix("/static/")).is_file())

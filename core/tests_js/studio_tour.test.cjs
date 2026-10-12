@@ -2,6 +2,31 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const {studioEligibility,studioProgress,studioStep}=require('../static/core/studio/tour.js');
+test('startup runs at DOM readiness, without Safari one-second or full-load delay',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../static/core/studio/tour.js'),'utf8');
+ const schedule=source.slice(source.indexOf(' const idle=()=>'),source.indexOf(' // Initial HTML'));
+ for(const readyState of ['loading','interactive','complete'])for(const idleAPI of [false,true]){
+  let started=0;const events={};const context={document:{readyState},window:{},boot(){started++},addEventListener(k,f){events[k]=f}};
+  if(idleAPI){context.window.requestIdleCallback=true;context.requestIdleCallback=(fn,options)=>{assert.equal(options.timeout,200);fn()};}
+  vm.runInNewContext(schedule,context);
+  if(readyState==='loading'){assert.equal(started,0);events.DOMContentLoaded();}
+  assert.equal(started,1);assert.equal(events.load,undefined);
+ }
+});
+test('unresolved page fonts do not block poster-first boot; pagehide still cancels',async()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../static/core/studio/tour.js'),'utf8');
+ const boot=source.slice(source.indexOf(' async function boot(){'),source.indexOf(" canvas.addEventListener('webglcontextlost'"));
+ for(const disposed of [false,true]){
+  const failures=[],frames=[];let decoded=0;
+  const context={disposed,booting:false,root:{dataset:{}},short:{matches:false},motion:{matches:false},
+   navigator:{},studioEligibility:()=>true,document:{fonts:{ready:new Promise(()=>{})}},
+   poster:{decode:()=>{decoded++;return Promise.resolve()}},requestAnimationFrame:fn=>{frames.push(fn)},
+   canvas:{},fallback:reason=>failures.push(reason)};
+  vm.runInNewContext(boot,context);const pending=context.boot();await Promise.resolve();await Promise.resolve();await Promise.resolve();
+  while(frames.length)frames.shift()();await pending;
+  assert.equal(decoded,disposed?0:1);assert.deepEqual(failures,disposed?[]:['worker-unsupported']);
+ }
+});
 test('motion, data saving and low device gates prevent engine admission',()=>{
  const good={cores:8,memory:8,reduced:false,saveData:false};
  assert.equal(studioEligibility(good),true);
