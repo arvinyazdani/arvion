@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Assessment introduction — 2026-10-12 — VERIFIED (local)
+## Assessment introduction — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner requests a sub-ten-second bilingual animated explainer and optional voice.
 Reworked existing film only: four2.4-second scenes, total9.6s (was36s), short
@@ -21,8 +21,20 @@ chapter controls, no horizontal overflow; images visually reviewed in
 /tmp/rvion-assessment-film-20261012/{fa-mobile-dark,en-mobile-light,
 en-desktop-dark,en-desktop-dark-playing}.png. No fresh CLS/Lighthouse claim.
 Preview http://127.0.0.1:8195/fa/#assessment-title uses prior disposable fixture;
-no customer DB writes. No push/deploy/migration; production remains2c025f2.
-Rollback: revert this bounded film commit. Next: owner review/release instruction.
+no customer DB writes during development.
+Owner authorized deployment: runtime966466c8353e2a772d1f1d4eb920639fa7d27c12
+released from2c025f2 via verified Git bundle, no push/migrations/env edits.
+Fresh validated backup /srv/arvion/backups/assessment-film-20261012T113334Z-2c025f2.
+Release gate1219 Django tests in110.002s OK(27 existing conditional skips),
+40 Node tests OK; check0, migration drift none, clean working tree.
+Production check--deploy/migrate--check/collectstatic/nginx/service health OK;
+eight English articles retained. Live FA/EN HTML and exact hashed film bytes
+verified200,9.6s/guide/narration present; health200. Real Chrome390x844 FA light:
+played to9.6s, progress100, Replay and no horizontal overflow; unavailable FA
+voice honestly shown. Evidence same directory/live-fa-mobile.png, reviewed.
+Temporary viewport reset. No new audio-quality/physical-phone/CLS claim.
+Rollback: scoped source/static rollback to2c025f2; customer database/media must
+not be restored merely for presentation rollback. Next: owner acceptance.
 
 ## Shared home arrival / single-step studio — 2026-10-12 — VERIFIED / DEPLOYED
 
