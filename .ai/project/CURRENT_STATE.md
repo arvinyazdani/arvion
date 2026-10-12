@@ -5816,7 +5816,7 @@ remote writes or tests repeated beyond the prior28-test checkpoint.
 
 ## 2026-10-12 — SSH packet-size workaround and guarded release
 
-Status: PARTIAL (connected, backup complete; release gate in progress).
+Status: VERIFIED (SSH workaround, scoped release and targeted live checks).
 Starting HEADdf5f526 clean. User authorised diagnosis/fix/deploy/testing.
 Local supplied public key exactly matches ~/.ssh/rvion.pem. Route to production
 uses utun6, MTU1301. A socket advertising TCP_MAXSEG512 before connect permitted
@@ -5849,3 +5849,48 @@ Next: finish gate, bundle/fast-forward source, collectstatic/check/restart,
 public health/home/order/blog/login smoke and browser, then release checkpoint.
 No production activation yet. Code rollback target4dd8010; do not restore the
 whole database for this presentation-only release or reverse migrations.
+
+Completion: blog assertion correction commitc58eec4; durable SSH relay/docs/tests
+commit991819d. Corrected full `.venv/bin/python manage.py test --parallel 4
+--verbosity 1` →1205 tests in113.125s, OK with27 pre-existing conditional skips.
+The first full invocation above was genuinely red; no failing test was hidden.
+Node19/19, focused8/8, py_compile and real OpenSSH via committed relay pass.
+Remaining release-check components run explicitly after its initial stop:
+question-bank audit400 questions/0 warnings; collectstatic dry-run pass;
+benchmark100 attempts,21.60/s, avg46.3ms,p9568.6ms, rollback=yes. Final check0,
+migration drift0 and pip check0. No PostgreSQL locking suite or CI run claimed;
+this release changes no schema or transactional services.
+
+Deployed991819d from4dd8010 using verified Git bundle and fast-forward, source
+clean before/after. SHA2566a33cd3539106a19bd4d99872ae8a24b71c3f1eaff1c170a7baaacc150e9722f
+checked locally/on server. Production check--deploy0, migrate--check, pip check,
+collectstatic, nginx test, application restart and local health passed. Scoped
+release deliberately did not run migrations/role setup/bank seeding/dependency
+installation because none changed; automatic code/static rollback was armed but
+not needed. No GitHub push. Environment is byte-identical to backup; runtime
+entry/3D flags remainFalse/False; no customer/article content mutation.
+
+Public HTTP smoke: /health/, /fa/, /en/, both languages' /start/, /blog/ and
+/account/login/, FA English assessment about →200. FA/EN workshop has exactly
+one /start/ link, no hp-service-links, new hashed home-paths CSS v2 and coding
+glyph, no 3D engine admission. PNG192/512/apple180 bytes exactly match local.
+The initial smoke assertion used an un-hashed CSS filename/nonexistent custom
+brand attribute; corrected that diagnostic to actual manifest/glyph contracts
+and reran successfully (no product change). Real IAB: FA390 dark/light,
+EN1280 light, overflow0; workshop action clicked →live /fa/start/ order studio,
+no submission or customer-data write. Existing admin notification invitation
+was dismissed with Not now, no test push/SMS sent. Viewport and initial dark
+preference restored; online home left as deliverable. Screenshots in
+/tmp/rvion-release-991819d/, key proof fa-mobile-action-dark.png and
+en-desktop-action-light.png. No new Lighthouse/physical-device claim.
+Postflight runtime991819d, clean tree, SSH/arvion/nginx active, environment
+unchanged,0 application error-pattern lines in last5-minute sample. Not a
+15-minute APM/latency watch. Local report commit after runtime is docs-only.
+
+Remaining P2: EN authenticated staff header at1280px has tight/overlapping
+Consultation/Management and Settings/Start labels; observed in screenshot,
+not diagnosed or modified in this SSH/deployment scope. Unauthenticated and
+mobile navigation differ. Existing home performance/public3D activation gate
+remains BLOCKED, not waived by this release. Next: scoped staff-header follow-up
+and performance gate separately. Production rollback remains4dd8010 plus the
+validated snapshot above; do not full-restore DB just to roll back UI code.

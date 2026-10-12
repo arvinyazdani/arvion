@@ -1041,3 +1041,19 @@ RSA key parses locally, saved host identity matches; no explicit key rejection
 observed. Public health200, a separate forced-IPv4 home probe timed out. No
 production writes/deploy/migration/push. Console ssh logs needed to isolate cause;
 full evidence in CURRENT_STATE.md. No product code changed in this retry.
+
+### SSH restored and presentation release — 2026-10-12
+
+VERIFIED: per-connection TCP MSS512 workaround authenticated both Paramiko and
+OpenSSH; server journal confirms the existing RSA key is accepted. Durable
+ops/ssh_tcp_proxy.py and connection instructions added; no server/VPN/security
+configuration changed. Network/provider root cause is not definitively proven.
+Backup21M with validated DB catalog/source/env/media retained. Runtime991819d
+deployed by verified bundle/fast-forward from4dd8010, no push/migration/seeding.
+Environment unchanged; entry/3D remainOFF. Full1205 tests OK (27 existing skips),
+Node19 and targeted8 pass; initial one stale article-heading expectation fixed
+without runtime changes. Public10-route smoke, exact app-icon bytes, live
+workshop→order click, FA mobile/EN desktop and overflow0 verified. Services
+active, recent5-minute application error sample0. Detailed evidence/rollback in
+CURRENT_STATE.md. P2 staff EN desktop-header crowding recorded for separate
+scope; whole-home cinematic performance acceptance is still not granted.
