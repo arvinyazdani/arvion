@@ -2,12 +2,12 @@
 {% block title %}{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %} | {{ brand_name }}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}{% endblock %}
 {% block og_type %}article{% endblock %}
-{% block og_image %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
-{% block og_image_url %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
-{% block og_image_secure %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
-{% block twitter_image %}{% if post.hero_image %}{{ post.hero_image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
-{% block og_image_alt %}{% if post.hero_image %}{{ post|cover_alt:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
-{% block og_image_type %}{% if post.hero_image %}{{ article_cover_type }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image %}{% if post|cover_url:lang %}{{ post|cover_url:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_url %}{% if post|cover_url:lang %}{{ post|cover_url:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_secure %}{% if post|cover_url:lang %}{{ post|cover_url:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if post|cover_url:lang %}{{ post|cover_url:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_alt %}{% if post|cover_url:lang %}{{ post|cover_alt:lang }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block og_image_type %}{% if post|cover_url:lang %}{{ article_cover_type }}{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block page_breadcrumbs %}{% endblock %}
 {% block og_title %}{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %} | {{ brand_name }}{% endblock %}
 {% block og_description %}{% if lang == 'fa' %}{{ post.summary_fa }}{% else %}{{ post.summary_en }}{% endif %}{% endblock %}

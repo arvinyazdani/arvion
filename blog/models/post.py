@@ -69,10 +69,10 @@ class Post(models.Model):
         """
         # Fallback to Persian body
         source = self.body_fa or ""
-        rendered = markdown.markdown(source, extensions=["fenced_code"])
+        rendered = markdown.markdown(source, extensions=["fenced_code", "tables"])
         return bleach.clean(
             rendered,
-            tags={"p", "br", "strong", "em", "a", "ul", "ol", "li", "blockquote", "pre", "code", "h2", "h3", "h4"},
+            tags={"p", "br", "strong", "em", "a", "ul", "ol", "li", "blockquote", "pre", "code", "h2", "h3", "h4", "table", "thead", "tbody", "tr", "th", "td"},
             attributes={"a": ["href", "title", "rel"]},
             protocols={"http", "https", "mailto"},
             strip=True,
@@ -80,10 +80,10 @@ class Post(models.Model):
 
     def body_as_html_en(self):
         source = self.body_en or ""
-        rendered = markdown.markdown(source, extensions=["fenced_code"])
+        rendered = markdown.markdown(source, extensions=["fenced_code", "tables"])
         return bleach.clean(
             rendered,
-            tags={"p", "br", "strong", "em", "a", "ul", "ol", "li", "blockquote", "pre", "code", "h2", "h3", "h4"},
+            tags={"p", "br", "strong", "em", "a", "ul", "ol", "li", "blockquote", "pre", "code", "h2", "h3", "h4", "table", "thead", "tbody", "tr", "th", "td"},
             attributes={"a": ["href", "title", "rel"]},
             protocols={"http", "https", "mailto"},
             strip=True,

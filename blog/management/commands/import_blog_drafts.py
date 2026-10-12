@@ -3,6 +3,7 @@ from django.db import transaction
 
 from blog.drafts import load_drafts
 from blog.models import Post
+from blog.paired_drafts import load_paired_drafts
 
 
 class Command(BaseCommand):
@@ -11,10 +12,12 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Report only; no database writes.")
         parser.add_argument("--update", action="store_true", help="Update existing UNPUBLISHED drafts only.")
+        parser.add_argument("--bundle", choices=("original", "international"), default="original",
+                            help="Original eight Persian drafts or the new paired language bundle.")
 
     def handle(self, *args, **options):
         try:
-            drafts = load_drafts()  # Validate every file before any write.
+            drafts = load_paired_drafts() if options["bundle"] == "international" else load_drafts()
         except (ValueError, OSError) as exc:
             raise CommandError(str(exc)) from exc
         counts = {"created": 0, "updated": 0, "skipped": 0}
@@ -27,11 +30,19 @@ class Command(BaseCommand):
                 if not options["dry_run"]:
                     queryset = queryset.select_for_update()
                 post = queryset.filter(slug_fa=draft.slug_fa).first()
-                values = {key: getattr(draft, key) for key in ("title_fa", "summary_fa", "body_fa")}
+                paired = options["bundle"] == "international"
+                values = dict(draft.values) if paired else {
+                    key: getattr(draft, key) for key in ("title_fa", "summary_fa", "body_fa")}
+                if paired and values.get("slug_en"):
+                    collision = Post.objects.filter(slug_en=values["slug_en"])
+                    if post is not None:
+                        collision = collision.exclude(pk=post.pk)
+                    if collision.exists():
+                        raise CommandError("English slug already belongs to another article")
                 if post is None:
                     action = "created"
                     if not options["dry_run"]:
-                        post = Post.objects.create(slug_fa=draft.slug_fa, **values,
+                        post = Post.objects.create(**({} if paired else {"slug_fa": draft.slug_fa}), **values,
                                                    is_published=False, published_at=None)
                         post.tags.set(draft.tags)
                 elif post.is_published or not options["update"]:

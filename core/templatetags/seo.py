@@ -127,6 +127,14 @@ def seo_documents(context):
                    'mainEntityOfPage': {'@id': page['@id']}}
         if post.published_at:
             article['datePublished'] = post.published_at.isoformat()
+        from blog.covers import INTERNATIONAL_COVERS, cover_url
+        image = cover_url(post, language)
+        if image:
+            from urllib.parse import urljoin
+            article['image'] = {'@type': 'ImageObject', 'url': urljoin(canonical, image),
+                                'width': 1200, 'height': 630}
+        if post.slug_fa in INTERNATIONAL_COVERS:
+            article['author'] = {'@id': org_id}
         graph.append(article)
         page['mainEntity'] = {'@id': article['@id']}
     for item in breadcrumbs:

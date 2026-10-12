@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from PIL import Image
 
-from blog.covers import COVER_ALTS
+from blog.covers import COVER_ALTS, INTERNATIONAL_COVERS
 from blog.models import Post
 
 
@@ -16,10 +16,21 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Report without database/media writes.")
+        parser.add_argument("--bundle", choices=("original", "international"), default="original")
 
     def handle(self, *args, **options):
         directory = Path(settings.BASE_DIR) / "blog/content_drafts/covers"
         assets = {slug: directory / (slug + "-v2.jpg") for slug in COVER_ALTS}
+        if options["bundle"] == "international":
+            directory = Path(settings.BASE_DIR) / "blog/static/blog/covers"
+            assets = {slug: directory / (item[0] + "-fa-v1.jpg")
+                      for slug, item in INTERNATIONAL_COVERS.items()}
+            for item in INTERNATIONAL_COVERS.values():
+                if item[0] != "raya":
+                    with Image.open(directory / (item[0] + "-en-v1.jpg")) as image:
+                        if image.size != (1200, 630):
+                            raise CommandError("Invalid English cover dimensions")
+                        image.verify()
         # Validate the complete mapping before the first write.
         for slug, path in assets.items():
             try:

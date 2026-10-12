@@ -1,0 +1,6 @@
+{% if reading_posts %}
+<aside class="shell section" aria-labelledby="context-reading-title">
+  <h2 id="context-reading-title">{% if lang == 'fa' %}برای برنامه‌ریزی قدم بعدی{% else %}Plan your next step{% endif %}</h2>
+  <ul>{% for article in reading_posts %}<li><a class="website-text-link" href="{% if lang == 'fa' %}{% url 'blog:detail' article.slug_fa %}{% else %}{% url 'blog:detail' article.slug_en %}{% endif %}">{% if lang == 'fa' %}{{ article.title_fa }}{% else %}{{ article.title_en }}{% endif %} ↗</a></li>{% endfor %}</ul>
+</aside>
+{% endif %}

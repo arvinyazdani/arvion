@@ -1,5 +1,28 @@
 """Alt text for the reviewed v2 editorial assets; no model/schema change."""
 from pathlib import PurePosixPath
+from django.templatetags.static import static
+
+INTERNATIONAL_COVERS = {
+    "custom-software-cost-us-2026-crm-accounting-b2b": ("software", (
+        "گره‌های CRM، سند فاکتور و فروشگاه‌های B2B متصل؛ برنامه‌ریزی بودجه نرم‌افزار سفارشی.",
+        "Connected CRM records, invoice and B2B storefronts illustrating custom software budgeting.")),
+    "hire-django-freelancer-us-rates-2026": ("freelancer", (
+        "ویرایشگر کد و ساعت برای نمایش ارتباط تخصص جنگو، زمان توسعه و هزینه پروژه.",
+        "A code editor and clock illustrating Django expertise, development time and project cost.")),
+    "personal-accounting-economic-progress-raya": ("raya", (
+        "دفتر هزینه، کیف پول و نمودار ماهانه برای ثبت هزینه و مدیریت مالی شخصی با رایا.", "")),
+}
+
+
+def cover_url(post, language):
+    item = INTERNATIONAL_COVERS.get(post.slug_fa)
+    name = PurePosixPath(str(post.hero_image or "")).name
+    # A manually chosen owner image always wins; no model/schema addition.
+    if item and (not name or name.startswith(item[0] + "-fa-v1")):
+        if language == "en" and item[0] == "raya":
+            return ""
+        return static(f"blog/covers/{item[0]}-{language}-v1.jpg")
+    return post.hero_image.url if post.hero_image else ""
 
 COVER_ALTS = {
     "corporate-website-cost-1405": (
@@ -38,6 +61,9 @@ COVER_ALTS = {
 
 
 def cover_alt(post, language):
+    item = INTERNATIONAL_COVERS.get(post.slug_fa)
+    if item and cover_url(post, language) == static(f"blog/covers/{item[0]}-{language}-v1.jpg"):
+        return item[1][0 if language == "fa" else 1]
     filename = PurePosixPath(str(post.hero_image or "")).name
     slug = filename.removesuffix("-v2.jpg")
     if filename.endswith("-v2.jpg") and slug in COVER_ALTS:

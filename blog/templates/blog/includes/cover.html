@@ -1,4 +1,4 @@
 {% load blog_extras %}
 <div class="ar-cover">
-{% if post.hero_image %}<img src="{{ post.hero_image.url }}" alt="{% if not decorative %}{{ post|cover_alt:lang }}{% endif %}" width="1200" height="630" loading="{% if hero %}eager{% else %}lazy{% endif %}"{% if hero %} fetchpriority="high"{% endif %} decoding="async">{% else %}<span class="ar-cover-placeholder"{% if decorative %} aria-hidden="true"{% endif %}><span class="ar-cover-mark" aria-hidden="true">R<span>／</span></span><span>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</span></span>{% endif %}
+{% with image=post|cover_url:lang %}{% if image %}<img src="{{ image }}" alt="{% if not decorative %}{{ post|cover_alt:lang }}{% endif %}" width="1200" height="630" loading="{% if hero %}eager{% else %}lazy{% endif %}"{% if hero %} fetchpriority="high"{% endif %} decoding="async">{% else %}<span class="ar-cover-placeholder"{% if decorative %} aria-hidden="true"{% endif %}><span class="ar-cover-mark" aria-hidden="true">R<span>／</span></span><span>{% if lang == 'fa' %}{{ post.title_fa }}{% else %}{{ post.title_en }}{% endif %}</span></span>{% endif %}{% endwith %}
 </div>

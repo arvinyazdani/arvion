@@ -39,8 +39,10 @@ class PostDetailView(LanguageViewMixin, DetailView):
         candidates = translated_posts(Post.objects.published(), self.lang).exclude(pk=self.object.pk)
         related = list(candidates.filter(tags__in=self.object.tags.all()).distinct().prefetch_related("tags")[:3])
         context["related_posts"] = related
-        context["article_tags"] = [tag.name for tag in self.object.tags.all()
-                                   if self.lang == "fa" or not any('\u0600' <= c <= '\u06ff' for c in tag.name)]
+        names = [tag.name for tag in self.object.tags.all()]
+        localized = [name for name in names
+                     if any('\u0600' <= c <= '\u06ff' for c in name) == (self.lang == "fa")]
+        context["article_tags"] = localized or (names if self.lang == "fa" else [])
         if candidates.exists():
             date, pk = self.object.published_at, self.object.pk
             context["previous_post"] = candidates.filter(Q(published_at__lt=date) | Q(published_at=date, pk__lt=pk)).first()

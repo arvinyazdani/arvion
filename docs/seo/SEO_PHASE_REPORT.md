@@ -3541,3 +3541,210 @@ No Search Console submission or physical-device claim. Public URLs:
 - https://rvionai.com/en/blog/academy-website-structure-webinar/
 - https://rvionai.com/en/blog/enterprise-crm-development-cost-stages/
 - https://rvionai.com/en/blog/django-interview-questions-with-short-answers/
+
+## Three new draft records / five editions — 2026-10-12
+
+Status: PARTIAL release gate; implementation and targeted checks VERIFIED locally.
+Owner explicitly confirmed three Post records, not five: two bilingual pairs and
+one FA-only Raya article. Baseline0fe69c3. Local commit containing this section;
+no push, deploy, SSH, migration execution or public publication is authorized.
+P1-3/P4-1 remain DEFERRED: no analytics/cookie/session/cache-policy changes.
+
+### Scope, identities and safety
+
+Readonly sources: `/Users/rwin/Documents/claud/rvionai.com-audit/content-drafts-2/`
+files11-custom-software-cost-us-{fa,en}.md,
+12-hire-django-freelancer-us-{fa,en}.md,13-personal-accounting-raya-fa.md.
+Both KEYWORDS-BILINGUAL-2026-10-12.md and KEYWORDS-TOP20-2026-10-11.md read.
+Repository copies are in blog/international_drafts; source files untouched.
+US articles do not add Iran comparisons or sanctions warnings.
+Paired importer uses existing localized Post fields, no new model/migration.
+Metadata validated before atomic writes; published rows cannot be overwritten;
+English identity collisions roll back; --update only changes unpublished drafts.
+Raya has no EN fields, EN public page or EN hreflang/sitemap entry.
+
+Local database backup, ignored by Git:
+`backups/seo-drafts-20261012/before.sqlite3` (SQLite online backup).
+Local import created3 unpublished/date-null records; explicit unpublished update
+synchronized the final reviewed wording. Cover attachment added3 FA media files;
+EN covers selected through the localized static mapping. Existing owner images
+always win. All3 pre-existing local Post rows compared byte-for-byte to backup:
+unchanged. Local database/media/backup are ignored; no customer records changed.
+Browser testing used a separate disposable database
+`/tmp/rvion-seo-preview-20261012.sqlite3`, with these3 visible ONLY in that copy.
+The permanent local3 remain is_published=False/published_at=None.
+
+### Search intent and keyword ownership
+
+Actual Google pages inspected with hl=en/gl=us/pws=0 or hl=fa/gl=ir/pws=0.
+This is a locale hint, NOT proof of US physical geolocation, search volume or
+stable ranking. Some returned headings were AI summaries, not organic results.
+One Persian query yielded no readable result headings; inference is labeled.
+
+| Keyword | Observed intent / ownership decision |
+|---|---|
+| custom crm development cost | Vendor price/complexity guides; article11 EN owns US custom-build budgeting. |
+| b2b marketplace development cost | MVP/multi-vendor cost guides; article11 EN, distinguish ordering portal from marketplace. |
+| accounting software development cost | Mixed build-cost and accounting/capitalization results (including PwC); article11 EN explicitly says custom building, not accounting treatment. |
+| how much does it cost to build a web app | Budget guides and community estimates; article11 EN compares scope, no purported universal average. |
+| hire django developer | Hiring marketplaces and agency/service intent; article12 EN explains freelancer selection, links Start/contact. |
+| python developer hourly rate | Upwork and US salary sites; article12 EN secondary keyword, clearly separate salary from contracting. |
+| django developer hourly rate | US salary/job listings plus rate guides; article12 EN distinguishes modeled/vendor/global historical figures. |
+| هزینه ساخت CRM | Packaged-CRM pricing/buying pages; existing enterprise CRM article owns general FA price/stages, article11 FA limited to US budgeting. |
+| هزینه طراحی وب اپلیکیشن | Tariff/service pages; custom-web-application service is transactional owner; article11 FA supports US-cost intent. |
+| ساخت وب اپلیکیشن | Services and educational how-to; service page owns purchasing, no competing generic new landing page. |
+| برنامه نویس جنگو | No readable headings captured; employment/education interpretation remains inference, article12 FA narrows to freelance US-project work. |
+| استخدام برنامه نویس جنگو | Jobvision/Quera vacancies; not interchangeable with US contractor hiring. Article12 FA explicitly signals freelancer/US scope. |
+| حسابداری شخصی | App downloads, product comparisons and definitions; Raya article13 FA owns introductory practical use. |
+| مدیریت مالی شخصی | Definition/principles/steps; article13 FA supporting educational intent, no investment guarantee. |
+| اپلیکیشن مدیریت مالی شخصی | Best-app comparisons/downloads; article13 FA single-product guide, not invented comparative rankings. |
+| ثبت هزینه‌های روزانه | Methods, apps and Excel tutorials; article13 FA practical recurring habit. |
+
+Cannibalization: existing corporate-website-cost keeps corporate-site pricing;
+custom-or-ready-made-crm keeps buy-vs-build; enterprise-crm-development-cost-stages
+keeps FA enterprise scope/stages; Django interview article keeps interview learning.
+No redirects, canonical merges or old8 wording edits. New article11 FA is expressly
+US-focused; article12 is rates/contracting, not Django interview preparation.
+Metadata shortened to <=60 including brand; all5 summaries90–155; source slugs
+retained. Titles/H1 share the actual localized editorial title.
+
+### Claims review and changes (FA and EN unless stated)
+
+| Source/claim | Finding and applied correction |
+|---|---|
+| https://gmware.com/blog/crm-development-cost/ | Vendor guide, not survey. Basic corrected24–50k→24–45k; standard54–112k and enterprise150–360k retained with attribution; enterprise timeline corrected6–12mo→20–40weeks. Annual maintenance10–20% explicitly this vendor's suggestion. |
+| https://www.hiddenbrains.com/blog/custom-crm-development-cost.html | Different vendor bands30–50k/75–150k/150–300k illustrate estimate disagreement, not corroboration of one universal market price. |
+| Accounting25–60k/50–120k/120–300k and B2B15–30k/50–150k/50–250k rows | US-specific source not established. Retained only as explicitly unverified planning assumptions in table, lead and FAQs; not Rvion quotes. Owner may remove them before publication. |
+| https://www.yo-kart.com/blog/b2b-marketpace-development/ | Vendor marketplace MVP30–50k, advanced120–200k with different scope. Added distinction; not used to validate an ordering portal. |
+| Integration2–10k/ERP10–30k/onboarding15–40k/mobile30–80k/compliance20–40% | Removed unsupported universal add-on figures; replaced with separately scoped estimation guidance. |
+| Hosting200–1500/maintenance12–18%, hourly100–200/location multiplier2.5–4 | Unsupported precision removed; hosting depends on actual traffic/provider; no exchange-rate conversion. |
+| Shopify/BigCommerce500–3000 monthly universal band | Removed. Link official https://www.shopify.com/plus/pricing and https://www.bigcommerce.com/pricing/; no universal fee/break-even assertion. |
+| Freelancer half-price / always cheaper | Removed unsupported comparison; compare equal scope and delivery capacity. |
+| https://www.secondtalent.com/cost-to-hire/django-developer/ | Direct Chrome reading succeeded (generic fetch challenged). Junior67–104/mid85–135/senior110–171 match vendor modeled US bands. Label benchmark/vendor, not representative independent survey. |
+| https://www.upwork.com/hire/django-developers/cost/ | Corrected unsupported seniority bands to historical worldwide Django20–40/hour. NOT US seniority data; salary cannot substitute for contractor rate. |
+| Glassdoor99,988/year /48hour and Golance claims | Exact comparable evidence not verified; removed precise salary and unsupported source attribution. |
+| Article12 project-price table | Hours×assumed60–120 retained as author's illustrative arithmetic, explicitly not observed US fixed-price market averages. |
+| Django capabilities | https://docs.djangoproject.com/en/4.2/intro/overview/ supports ORM/auth/admin fundamentals; added primary source, no delivery/price guarantee. |
+| Raya speed/trial | Absolute10-second promise softened. One-month-free promise made conditional on current eligibility/enabled plan; CTA tells reader to check current app terms. No financial-return guarantee. |
+
+Raya HTTPS homepage was unreachable from this environment (web error, terminal
+timeout and browser navigation timeout); do NOT call its4 external links live
+verified. Readonly local `/Users/rwin/Desktop/hesab_app/FEATURE_SPEC.md` confirms
+trial conditionality; apps/core/articles.py confirms the three learn slugs.
+Clean external URLs retained (no tracking/UTM invented); existing sanitizer uses
+safe external-link rel. Relationship is editorial first-party product referral,
+not purchased placement. No claim of Search Console submission or future ranking.
+
+### Before/after internal link map
+
+Before: none of the new slugs existed; source bodies linked out to site routes
+and the paired other article, with no incoming published-site routes.
+After: same source destination routes verified in isolated published fixtures;
+new shared-shell context_reading generates incoming links ONLY for published,
+translated records. Thus unpublished articles create no public broken links.
+
+| From | New destination after publication |
+|---|---|
+| /fa/ home | article11 FA,12 FA,13 FA |
+| /en/ home | article11 EN,12 EN only |
+| /fa\|en/services/custom-web-application/ | article11/12 in current language |
+| /fa\|en/crm/ | article11/12 in current language |
+| /fa\|en/projects/demos/ | article11/12 in current language (shared shell, protected gallery files untouched) |
+| Existing corporate-price, enterprise-CRM, ready-vs-custom articles | article11/12 in current language, publication gated; original bodies unchanged |
+| article11 ↔ article12 | Reciprocal body links; public only when owner publishes both together |
+| article13 FA | https://raya.rvionai.com plus /learn/daily-expense-tracking/, /learn/read-monthly-report/, /learn/gold-dollar-profit-basics/ (external live verification pending) |
+
+Future URLs, presently404 by design while unpublished:
+- /fa/blog/custom-software-cost-us-2026-crm-accounting-b2b/
+- /en/blog/custom-software-cost-us-2026-crm-accounting-b2b/
+- /fa/blog/hire-django-freelancer-us-rates-2026/
+- /en/blog/hire-django-freelancer-us-rates-2026/
+- /fa/blog/personal-accounting-economic-progress-raya/
+
+Existing8 edition files validated as8 real pairs. Public readonly HTTP checked
+all8 EN URLs:200, self-canonical and correct FA alternate. Local permanent DB
+contains only3 older sample posts, so missing production rows locally are not
+reported as broken pairs. No private server connection was used.
+
+### Images and rendering
+
+Five generated illustrations (built-in imagegen; no credentials/paid API used),
+each resized/cropped to1200x630, JPEGquality82. Shared prompt: deep navy#0b1220,
+offwhite fine-line illustrations, orange#ff6b35, small R/code-bracket mark,
+connected workflow, no real people/customer claims/prices. Per-image subjects
+and exact headings: software CRM/invoice/B2B, «نرم‌افزار سفارشی؛ از ایده تا بودجه» /
+"Custom software. Clearer budgets."; freelancer code/clock, «جنگو؛ تخصص، زمان و هزینه» /
+"Django. Skills, time and cost."; Raya ledger/chart, «رایا؛ پول‌هایت کجا می‌روند؟».
+Generated originals retained outside Git in ~/.codex/generated_images; final
+assets under blog/static/blog/covers. Visually inspected; generated lettering
+is decorative, actual accessible localized title/alt remain HTML.
+
+| File | Bytes | Meaningful hero alt |
+|---|---:|---|
+| software-fa-v1.jpg |104015|گره‌های CRM، سند فاکتور و فروشگاه‌های B2B متصل؛ برنامه‌ریزی بودجه نرم‌افزار سفارشی.|
+| software-en-v1.jpg |112436|Connected CRM records, invoice and B2B storefronts illustrating custom software budgeting.|
+| freelancer-fa-v1.jpg |94786|ویرایشگر کد و ساعت برای نمایش ارتباط تخصص جنگو، زمان توسعه و هزینه پروژه.|
+| freelancer-en-v1.jpg |100838|A code editor and clock illustrating Django expertise, development time and project cost.|
+| raya-fa-v1.jpg |88589|دفتر هزینه، کیف پول و نمودار ماهانه برای ثبت هزینه و مدیریت مالی شخصی با رایا.|
+
+Hero eager/high-priority, other images lazy, explicit1200x630 reserved dimensions;
+localized og:image/twitter/BlogPosting ImageObject share cover resolver. Owner
+custom image retains priority. New3 BlogPosting author uses existing truthful
+Organization identity, publication dates from actual published_at, inLanguage
+localized. Old8 author policy unchanged. Markdown tables enabled and safe table
+tags added to existing bleach sanitizer; no template evaluation or unsafe attrs.
+No new JS/library/style framework; previous article UI reused.
+
+### Evidence and remaining gate
+
+Targeted command: `.venv/bin/python manage.py test blog core.tests_seo_contract core.test_studio_home --verbosity 0`
+=>136/136 OK (10 new tests); original importer27/27 also passed separately.
+Initial new-test red: schema NameError for missing settings; fixed absolute-image
+composition using canonical urljoin. A test initially mistook footer language
+navigation for head hreflang; corrected assertion to actual SEO head contract.
+Final `check`0; `makemigrations --check --dry-run` no changes (NO migration run).
+Full parallel suite discovered1231 tests but stopped on an unpicklable traceback
+(tblib unavailable). Diagnostic serial fallback
+`.venv/bin/python manage.py test --parallel 1 --failfast --verbosity 2`
+ran500, then ERROR in core.tests.CorePagesTests.test_component_foundation_loads_after_legacy_site_styles:
+expects components.css?v=9 while base already uses v10. Confirmed baseline0fe69c3
+also uses v10 and core/tests.py is unchanged: pre-existing stale assertion, not
+this patch's stylesheet change. No skip, weakening or out-of-scope fix applied.
+Log /tmp/rvion-seo-full-suite-20261012.log. Full release gate NOT VERIFIED;
+tests after the failfast stop are not claimed executed. Full suite not rerun again.
+Browser: actual Chrome at390x844 and1280x800,5 variants,light/dark20 screenshots.
+Buffered PerformanceObserver reported CLS0 for all10 page/viewport journeys,
+overflow0, all5 hero naturalWidth>0. This is local warm-browser evidence, NOT
+cold-network Lighthouse/physical-device/public-production performance approval.
+Early screenshots caught route-loader before completion; replaced after waiting
+for loader hidden, fonts ready and two animation frames. Cover screenshots use
+instant scroll to avoid smooth-scroll intermediate captures.
+Evidence `/tmp/rvion-seo-20261012/`: `{cost-fa,cost-en,hire-fa,hire-en,raya-fa}-{390,1280}-{light,dark-cover}.png`,
+browser-results.json. Representative cover previews: cost-fa-390-dark-cover.png,
+hire-en-1280-dark-cover.png,raya-fa-390-dark-cover.png.
+
+Files: blog/paired_drafts.py,international_drafts(5),static/blog/covers(5),
+test_paired_drafts.py,covers.py; import_blog_drafts/attach_article_covers commands;
+Post renderer method only; blog_extras,post_detail,detail/includes/cover and new
+includes/context_reading templates; core/base and seo tag; this report/CURRENT_STATE.
+Home studio_tour cover URLs also use the localized resolver (FA/EN regression
+assertion added); no studio engine or animation changes. Final scoped rerun:
+`.venv/bin/python manage.py test blog.test_paired_drafts core.test_studio_home --verbosity 0`
+=>24/24 OK after that last correction. Temporary viewport/theme/probe removed.
+Protected gallery and management article files and old8 source content untouched.
+Owner decisions before publication: approve provisional accounting/B2B/project
+figures or remove; review Raya current live trial/4 destinations; publication
+dates/order (publish11/12 together to satisfy reciprocal links); approve covers.
+No new author model proposed/required: truthful organization author used.
+Indexing2weeks/impressions4–8weeks is an aspiration, not guaranteed outcome;
+owner GSC monitoring needed after future release/publication.
+
+Future authorized release only: deploy static+code; dry-run
+`import_blog_drafts --bundle international --dry-run`; run without --dry-run;
+`attach_article_covers --bundle international --dry-run`, then apply; review
+3 unpublished records/5 editions; owner publishes and chooses published_at;
+verify URLs/canonical/hreflang/images/internal links then request GSC indexing.
+Rollback: revert this scoped commit; keep unpublished DB records unless owner
+requests removal. Local original rows recoverable from ignored backup, restore
+only intended article rows, never overwrite a changed customer database. No
+database rollback/migration is required by the code. No deletion performed.

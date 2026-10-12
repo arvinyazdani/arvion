@@ -1,5 +1,37 @@
 # Rvion current state
 
+## SEO international drafts — 2026-10-12 — PARTIAL (local release gate)
+
+Baseline0fe69c3; single primary, no delegation. Owner confirmed3 Post records
+with5 editions: US-software cost FA/EN, Django hiring FA/EN, Raya FA only.
+Implemented validated paired importer using existing fields, unpublished-only
+updates, identity collision rollback,5 localized1200x630 covers, shared cover
+resolver/social/schema image, sanitized Markdown tables and publication-aware
+incoming links from home/service/CRM/gallery/related articles. Old8 bodies and
+protected gallery/management files unchanged. No schema/migration changes.
+Local ignored SQLite backup backups/seo-drafts-20261012/before.sqlite3;3drafts
+imported/updated and covers attached locally only, published_at=None. Old3 local
+Post rows compared to backup unchanged. Disposable preview DB used for visible
+browser fixtures; permanent drafts are NOT published. Sources remain readonly.
+136 targeted tests passed;10new tests; check0/makemigrations dryrun no changes.
+Final home localized-cover regression rerun24/24 OK; no engine/animation edits.
+Full parallel suite1231 discovered failed to pickle an error; diagnostic serial
+failfast ran500 then existing core.tests.CorePagesTests stylesheet assertion:
+expectscomponents?v=9, baseline alreadyv10. Unchanged test; no workaround/skip.
+Full release gate remains PARTIAL. Details/log/evidence in SEO_PHASE_REPORT.md.
+Chrome5variants390/1280light/dark,20screens,overflow0,hero naturalWidth>0,
+buffered local CLS0; NOT cold Lighthouse or physical-device/production approval.
+Public readonly8legacy ENpages200, correctcanonical/FAalternate. Raya live4links
+unverified due timeouts; existing local Raya source confirms learn slugs and
+conditional trial only. Cost assumptions explicitly labeled, no false market
+average or guaranteed discount. Keyword ownership/claims changes/link map/alt/
+URLs/rollback in docs/seo/SEO_PHASE_REPORT.md. Skills primary-workflow/imagegen.
+Local commit is the commit containing this checkpoint. No push/deploy/SSH,
+public publication/migration/cache/session/cookie/analytics changes.
+Next: owner reviews provisional figures/Raya terms/covers/publication order;
+separately address stale baseline test before claiming a green full release gate.
+Rollback scoped commit; preserve unpublished local records/ignored backup.
+
 ## Assessment explainer redesign — 2026-10-12 — VERIFIED (local)
 
 Baseline55c02b6, clean. Owner replaces old film controls with viewport autoplay,
