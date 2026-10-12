@@ -180,7 +180,8 @@ class CorePagesTests(TestCase):
         html = response.content.decode()
         tokens = html.index("core/css/tokens.css?v=5")
         legacy = html.index("core/css/site.css?v=41")
-        components = html.index("core/css/components.css?v=9")
+        # Cache-busting revisions change independently of stylesheet order.
+        components = html.index("core/css/components.css?")
         self.assertLess(tokens, legacy)
         self.assertLess(legacy, components)
 

@@ -3753,3 +3753,41 @@ Rollback: revert this scoped commit; keep unpublished DB records unless owner
 requests removal. Local original rows recoverable from ignored backup, restore
 only intended article rows, never overwrite a changed customer database. No
 database rollback/migration is required by the code. No deletion performed.
+
+## Owner-approved publication release — 2026-10-12
+
+Status: PARTIAL — release gate running, production publication NOT_STARTED.
+Owner approved draft figures/covers/publication and explicitly requested stale
+test correction, Raya recheck, deployment and publication. Single primary;
+primary-workflow RELEASE_GATE + deploy-checklist; no delegation.
+Baseline ab60986, clean; production966466c, clean main, service active,Python3.12.3.
+Release delta includes previously verified55c02b6/0fe69c3 loading/film changes
+plus new draft feature; no new migration or protected gallery/source edits.
+Stale test now checks components.css? ordering rather than hardcodedv9. Still
+asserts tokens before legacy before components; no production CSS change or skip.
+Its targeted test passed. Core Node44/44, check0, migration drift0, pipcheck0,
+strict question-bank audit400questions/0warnings; collectstatic dryrun passed;
+assessment benchmark100 attempts, rollback=yes, p95=52ms (local synthetic only).
+Full serial suite:1231 tests,5 failures,27 skipped,359.771s; all failures were
+stale core/test_ui_system.py assertions (four shellv9 subtests,one old reduced-
+motion bypass expectation). Corrected tests only: cache-bust presence remains
+required; reduced-motion still gives feedback with CSS animation disabled.
+Targeted core.test_ui_system + core.test_home_arrival + stylesheet test:17/17.
+Node navigation_loader.test.cjs passed again (timers/recovery/reduced-motion).
+Full parallel4 rerun:1231 tests,27 skipped,all passing (exit0);
+logs /tmp/rvion-seo-release{,-retest}-20261012.log. Skips are existing platform/
+database-conditional cases,not newly added. Local Python3.9/SQLite gate,not a
+claim of GitHub Python3.11/3.12 CI verification (gh authentication unavailable).
+All FIVE Raya URLs verified from production host with readonly public HTTPS:
+homepage, /learn/, /learn/daily-expense-tracking/, /learn/read-monthly-report/,
+/learn/gold-dollar-profit-basics/ =>200, relevant distinct title,1H1 per page.
+Local workstation timeout and web fetch errors persist; these are not404 or
+evidence of missing content. Chrome also loaded the real Raya homepage and its
+learning links. No Raya server/configuration/data changed.
+Source archive verified:/srv/arvion/backups/pre-seo-publication-20261012-966466c.tar.gz.
+Deployment plan: fast-forward only after source/DB backups; established
+ops/release.sh; import/cover dry-run then scoped creation and atomic publication
+of exactly3 approved articles/5editions; preserve8legacy Post rows/tags; verify
+live metadata/images/lists/sitemap and representative browser views. Rollback:
+old runtime966466c + pre-release DB snapshot; for editorial-only rollback unpublish
+only these3 and leave existing8 untouched. P1-3/P4-1 unchanged DEFERRED.

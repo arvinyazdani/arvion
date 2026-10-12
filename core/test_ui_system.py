@@ -82,13 +82,16 @@ class UISystemFoundationTests(SimpleTestCase):
     def test_project_cards_keep_edge_to_edge_visuals_after_components_load(self):
         self.assertIn(".card.project-card{padding:0;overflow:hidden}", self.site)
 
-    def test_navigation_loader_is_delayed_and_reduced_motion_has_no_wait(self):
+    def test_navigation_loader_is_delayed_and_reduced_motion_keeps_static_feedback(self):
         reveal_delay = int(re.search(r"NAVIGATION_REVEAL_DELAY_MS = (\d+)", self.shell).group(1))
         failsafe = int(re.search(r"NAVIGATION_FAILSAFE_MS = (\d+)", self.shell).group(1))
         self.assertLessEqual(reveal_delay, 200)
         self.assertLessEqual(failsafe, 8000)
         self.assertIn('matchMedia?.("(prefers-reduced-motion: reduce)")', self.shell)
-        self.assertIn("if (!prefersReducedMotion()) {", self.shell)
+        self.assertIn("window.setTimeout(revealNavigationLoader, NAVIGATION_REVEAL_DELAY_MS)", self.shell)
+        reduced_styles = self.components.split("@media(prefers-reduced-motion:reduce)", 1)[1]
+        self.assertIn(".navigation-pending .route-loader[data-navigation-loader] *", reduced_styles)
+        self.assertIn("animation:none!important", reduced_styles)
         self.assertIn("setMainBusy(true);", self.shell)
         self.assertIn("setWelcomeVisible(true);", self.shell)
         self.assertIn("setNavigationLocked(true);", self.shell)
@@ -134,8 +137,7 @@ class UISystemFoundationTests(SimpleTestCase):
                 source = shell.read_text(encoding="utf-8")
                 self.assertIn('{% include "core/_pull_to_refresh.html" %}', source)
                 self.assertIn("core/js/pull-to-refresh.js' %}?v=1", source)
-                version = 9
-                self.assertIn(f"core/css/components.css' %}}?v={version}", source)
+                self.assertRegex(source, r"core/css/components\.css' %\}\?v=\d+")
 
     def test_first_visit_welcome_is_removed_without_removing_navigation_loader(self):
         base = (PROJECT_ROOT / "core/templates/core/base.html").read_text()
