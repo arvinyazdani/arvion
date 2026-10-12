@@ -1,5 +1,32 @@
 # Rvion current state
 
+## Eight international English article editions — 2026-10-12 — PARTIAL (publication pending)
+
+Owner explicitly requests all existing articles in English with global-market
+USD ranges and online publication. Production read-only preflight confirms eight
+published FA posts, no existing EN slugs, clean runtime dab858f; SSH MSS relay
+works this turn. Do not release the unrelated, still-gated home performance code.
+Content-only release attaches four EN fields to the same existing rows; preserves
+FA fields, tags, covers, dates, publication state and runtime flags/source.
+Eight editorial international adaptations in blog/english_content: scope-based
+USD calculations labelled as assumptions, not tariffs or Rvion quotes; no change
+to actual checkout prices. Sources reviewed2026-10-12: Clutch web-developers/pricing,
+Salesforce sales/pricing, Syndicode blog/how-to-build-a-crm, official Django5.2,
+Google, W3C and HHS. Clinic legal guidance is jurisdiction-qualified, no Iranian
+law presented as universal; no invented universal test price or anti-cheat proof.
+New loader/command default dry-run, validate all eight before writes, row locking,
+atomic update, collision/existing-URL guards and idempotency. Isolated release
+runner verifies private0600 before.json readback and equality of ALL non-EN
+fields/tags within the locked transaction. Rollback restores only ENGLISH_FIELDS
+by original Post pk from before.json, never whole DB or FA content.
+Tests: blog+core.tests_seo_contract109/109; subsequent enhanced edition/release
+tests11/11 (included initial8; three operational backup tests added). Checks0,
+migration drift0, py_compile/diff checks clean. No schema changes/migrations.
+Existing templates reused; all8 test routes/canonicals/hreflang/body/link routes,
+one h1, unique title<=60 and description90–155, literal code/30 questions verified.
+Next: commit this bounded content slice, upload only its approved content/loader/
+runner, dry-run then backed-up apply; public HTTP+browser English checks.
+
 ## Entry / cinematic home performance — 2026-10-12 — PARTIAL; activation BLOCKED
 
 Implementation locally committed as9c88c76 (35 scoped files). No push/deploy.

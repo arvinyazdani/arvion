@@ -3493,3 +3493,30 @@ protected files intentionally untouched, so this gate is not PASS.
 Local commit: the commit containing this checkpoint (see Git log).
 Not run: SSH/push/deploy/migrations, customer handoff submission, full suite.
 Rollback: revert only this correction commit; no data rollback is needed.
+# International English editions — 2026-10-12
+
+Status: local VERIFIED; production publication pending. Owner explicitly approved
+publication of English adaptations for all8 existing FA articles. USD figures
+are global benchmarks or clearly labelled workload calculations, NOT converted
+Iranian prices, binding Rvion offers or changes to checkout. FA texts unchanged.
+References checked2026-10-12: https://clutch.co/web-developers/pricing (rate context),
+https://www.salesforce.com/sales/pricing/ (paid editions$25–$550/user/month),
+https://syndicode.com/blog/how-to-build-a-crm/ (vendor$50k–$300k custom-build band).
+Clutch-based workload ranges are our illustrations, not surveyed sector averages.
+Medical/privacy references: HHS HIPAA overview; W3C WCAG2.2; applicable local legal
+review required. Technical learning answers use official Django5.2, not bank items.
+Files: eight blog/english_content/*.md; blog/english_editions.py; command
+publish_english_articles; blog/test_english_editions.py; ops/publish_english_content.py;
+this report and CURRENT_STATE. No gallery, template, image, model or migration edits.
+Validation: manage.py test blog core.tests_seo_contract109/109; subsequently
+manage.py test blog.test_english_editions11/11; check0; makemigrations --check
+--dry-run no changes; py_compile and diff checks pass. No full-suite rerun for
+content-only release; prior unrelated full-suite evidence is not reused as new.
+Release: content-only import under existing production runtime, NOT deployment
+of the unapproved home performance commits. Default no-write dry-run; existing
+published rows required; all validations before atomic writes; existing EN URLs
+cannot change; private backup readback and unchanged non-EN field/tag comparison.
+Rollback: restore only slug_en/title_en/summary_en/body_en from before.json by pk
+in an atomic transaction; keep FA/shared fields and runtime unchanged.
+No push, migration, customer-data mutation, paid-price change or flags activation.
+
