@@ -3493,9 +3493,10 @@ protected files intentionally untouched, so this gate is not PASS.
 Local commit: the commit containing this checkpoint (see Git log).
 Not run: SSH/push/deploy/migrations, customer handoff submission, full suite.
 Rollback: revert only this correction commit; no data rollback is needed.
+
 # International English editions — 2026-10-12
 
-Status: local VERIFIED; production publication pending. Owner explicitly approved
+Status: VERIFIED, published online. Owner explicitly approved
 publication of English adaptations for all8 existing FA articles. USD figures
 are global benchmarks or clearly labelled workload calculations, NOT converted
 Iranian prices, binding Rvion offers or changes to checkout. FA texts unchanged.
@@ -3519,4 +3520,24 @@ cannot change; private backup readback and unchanged non-EN field/tag comparison
 Rollback: restore only slug_en/title_en/summary_en/body_en from before.json by pk
 in an atomic transaction; keep FA/shared fields and runtime unchanged.
 No push, migration, customer-data mutation, paid-price change or flags activation.
-
+Content commit116daf0. Remote archive SHA256 verified; dry-run8 updates, apply8,
+repeat0 updates/8 unchanged. Every non-EN field and tag ID preserved within the
+locked transaction. Backup0600:
+/srv/arvion/backups/english-116daf0-20261012T083621Z/before.json.
+Runtime source remainsdab858f clean, env checksum unchanged, services active.
+All eight live pages200, descriptions match, titles<=60, description90–155,
+one h1, self canonical and FA hreflang; all cover URLs200 image/*. All8 EN URLs
+in sitemap and listing. /tmp/rvion-english-live-results.json records the evidence.
+Browser1280×800 EN listing8 cards;390×844 cost detailLTR, no Persian body or
+horizontal overflow. Screenshots /tmp/rvion-english-{desktop,mobile}.png.
+Final documentation commit also corrects an extra EOF blank line introduced in
+116daf0; the initial staged diff check reported it (not a product/test failure).
+No Search Console submission or physical-device claim. Public URLs:
+- https://rvionai.com/en/blog/corporate-website-cost-2026/
+- https://rvionai.com/en/blog/custom-website-vs-template/
+- https://rvionai.com/en/blog/custom-or-ready-made-crm/
+- https://rvionai.com/en/blog/english-teacher-assessment/
+- https://rvionai.com/en/blog/clinic-website-design-online-booking/
+- https://rvionai.com/en/blog/academy-website-structure-webinar/
+- https://rvionai.com/en/blog/enterprise-crm-development-cost-stages/
+- https://rvionai.com/en/blog/django-interview-questions-with-short-answers/

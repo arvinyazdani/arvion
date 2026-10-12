@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Eight international English article editions — 2026-10-12 — PARTIAL (publication pending)
+## Eight international English article editions — 2026-10-12 — VERIFIED (published)
 
 Owner explicitly requests all existing articles in English with global-market
 USD ranges and online publication. Production read-only preflight confirms eight
@@ -24,8 +24,20 @@ tests11/11 (included initial8; three operational backup tests added). Checks0,
 migration drift0, py_compile/diff checks clean. No schema changes/migrations.
 Existing templates reused; all8 test routes/canonicals/hreflang/body/link routes,
 one h1, unique title<=60 and description90–155, literal code/30 questions verified.
-Next: commit this bounded content slice, upload only its approved content/loader/
-runner, dry-run then backed-up apply; public HTTP+browser English checks.
+Content commit116daf0, no push. Production content-only publication completed
+2026-10-12T08:36:21Z. Archive SHA256
+1804a40c7eb61336356474734fdc4b327c8a6cd9ff17517bf646d28309ba2b56 verified remotely.
+Dry-run8 updates; apply8; recheck0 updates/8 unchanged. All non-EN fields and tag
+IDs equal to locked before snapshot. Backup:
+/srv/arvion/backups/english-116daf0-20261012T083621Z/before.json (0600).
+Runtime remainsdab858f, clean; env checksum unchanged; arvion/nginx active.
+Anonymous live HTTP all8=200, unique matching metadata/canonicals/fa alternates,
+covers200 image/*, all8 English URLs in sitemap and listing. Evidence:
+/tmp/rvion-english-live-results.json. Browser actual production: EN listing8 cards
+at1280×800 and cost detail390×844, LTR/no Persian body/overflow0.
+Screenshots /tmp/rvion-english-{desktop,mobile}.png. Viewport reset; user tabs
+preserved. Content-only task complete; no ranking/indexing guarantee or Search
+Console submission. Unrelated intro/home activation gate remains BLOCKED below.
 
 ## Entry / cinematic home performance — 2026-10-12 — PARTIAL; activation BLOCKED
 
