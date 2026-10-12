@@ -21,7 +21,7 @@ class BlogTests(TestCase):
 
     def test_insight_labels_and_search_name_follow_page_language(self):
         fa_list = self.client.get(reverse("blog:list") + "?lang=fa")
-        self.assertContains(fa_list, ">دیدگاه‌ها<", html=False)
+        self.assertContains(fa_list, "<h1>مقاله‌ها</h1>", html=True)
         self.assertContains(fa_list, ">جستجو در مقاله‌ها<", html=False)
         self.assertNotContains(fa_list, ">Insights<", html=False)
         self.assertNotContains(fa_list, ">Search<", html=False)
