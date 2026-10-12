@@ -27,8 +27,8 @@ test('scroll updates active links, inert panels and poster; short screens expose
  const stops=['workshop','exam','library','reception'].map(stop=>{const n=make();n.dataset.stop=stop;return n}),links=stops.map(make),root=make(),button=make(),canvas=make(),html=make(),source={};
  for(const n of [...stops,...links,root,html])n.classList.owner=n;
  const avif=[{dataset:{studioFormat:'mobile'}},{dataset:{studioFormat:'desktop'}}];
- const poster={parentElement:{querySelector:()=>source,querySelectorAll:()=>avif}},events={},medias={};let top=68,frame;
- root.dataset.assets='/static/core/studio/';root.getBoundingClientRect=()=>({top,bottom:top+706*4});
+ const poster={parentElement:{querySelector:()=>source,querySelectorAll:()=>avif}},events={},medias={};let top=68,frame,reads=0;
+ root.dataset.assets='/static/core/studio/';root.getBoundingClientRect=()=>{reads++;return{top,bottom:top+706*4}};
  root.querySelector=s=>s==='canvas'?canvas:s==='[data-studio-poster]'?poster:s==='[data-studio-mode]'?button:{offsetHeight:706};
  root.querySelectorAll=s=>s==='[data-stop]'?stops:links;
  const media=q=>medias[q]||(medias[q]={matches:false,addEventListener(k,f){this.change=f}});
@@ -38,6 +38,7 @@ test('scroll updates active links, inert panels and poster; short screens expose
   addEventListener(k,f){events[k]=f},requestAnimationFrame(f){frame=f;return 1},cancelAnimationFrame(){},clearInterval(){},
  });
  assert.deepEqual(stops.map(s=>s.inert),[false,true,true,true]);assert.equal(links[0].attrs['aria-current'],'step');
+ assert.equal(reads,0,'initial keyboard scope must not synchronously force layout');
  top=68-706;events.scroll();frame();
  assert.deepEqual(stops.map(s=>s.inert),[true,false,true,true]);assert.equal(links[1].attrs['aria-current'],'step');assert.equal(links[0].attrs['aria-current'],undefined);
  assert.equal(poster.src,'/static/core/studio/posters/exam-desktop.webp');assert.equal(source.srcset,'/static/core/studio/posters/exam-mobile.webp');

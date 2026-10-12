@@ -1,4 +1,7 @@
 /* A single cinematic canvas. Copy is set into its negative space, without cards. */
+/* Defer painting independent below-fold rooms, not the sticky cinematic stage.
+   Auto retains measured sizes after first display; native anchors remain usable. */
+.hp-home>.hp-workshop,.hp-home>.hp-assessment,.hp-home>.hp-library,.hp-home>.hp-contact{content-visibility:auto;contain-intrinsic-size:auto 800px}
 .st-tour{--st-header:76px;--st-height:calc(100svh - var(--st-header));--st-ink:#f4f1ea;--st-muted:#d0d2d7;position:relative;isolation:isolate;background:#07080a;height:calc(var(--st-height)*4);color:var(--st-ink)}
 .st-viewport{position:sticky;top:var(--st-header);height:var(--st-height);overflow:clip}
 .st-stage{position:absolute;inset:0;overflow:hidden;contain:strict}

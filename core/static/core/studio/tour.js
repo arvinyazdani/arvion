@@ -54,7 +54,7 @@ if(typeof document!=='undefined')(()=>{
    poster.src=asset+'posters/'+stops[index].dataset.stop+'-desktop.webp';picture.querySelector('[data-studio-mobile]').srcset=asset+'posters/'+stops[index].dataset.stop+'-mobile.webp';
    picture.querySelectorAll('[data-studio-format]').forEach(source=>{source.srcset=asset+'posters/'+stops[index].dataset.stop+'-'+source.dataset.studioFormat+'.avif'});}
  }
- const scroll=()=>{if(!scrollFrame)scrollFrame=requestAnimationFrame(update)};
+ const scroll=()=>{if(!disposed&&!scrollFrame)scrollFrame=requestAnimationFrame(update)};
  addEventListener('scroll',scroll,{passive:true});addEventListener('resize',scroll);
  function fallback(reason){root.dataset.engine='static';root.dataset.reason=reason;clearInterval(governor);connection?.dispose();button.hidden=true;}
  button.addEventListener('click',()=>fallback('user'));
@@ -89,5 +89,10 @@ if(typeof document!=='undefined')(()=>{
  addEventListener('pageshow',event=>{if(event.persisted)fallback('restored-page')});
  const idle=()=>{if('requestIdleCallback'in window)requestIdleCallback(boot,{timeout:2500});else setTimeout(boot,1000)};
  if(document.readyState==='complete')idle();else addEventListener('load',idle,{once:true});
- root.dataset.stop='workshop';update();
+ // Initial HTML already presents workshop. Establish keyboard scope without
+ // forcing a full layout while deferred scripts/fonts are still arriving.
+ root.dataset.stop='workshop';
+ stops.forEach((stop,i)=>{stop.inert=!short.matches&&i!==0});
+ chapters[0]?.setAttribute('aria-current','step');
+ if(document.readyState==='complete')scroll();else addEventListener('load',scroll,{once:true});
 })();

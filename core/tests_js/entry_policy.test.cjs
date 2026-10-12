@@ -25,15 +25,16 @@ assert.ok(admit({...base,state:{starts:['bad',Infinity],blockedUntil:'forever'}}
 const source=fs.readFileSync('core/static/core/js/site-shell.js','utf8');
 const boot=source.slice(source.indexOf("  const entryPayload ="),source.indexOf('  const setMainBusy ='));
 function run(saved, unavailable=false, protocol={}){
- const writes=[],assets=[],opened=[],timeouts=[],events=[],attrs=new Set();
+ const writes=[],assets=[],opened=[],timeouts=[],events=[],frames=[],attrs=new Set();
  const context={URL,URLSearchParams,Event,Date:{now:()=>base.now+30000},rvionEntryAdmission:admit,rvionEntryAsset,
   localStorage:{getItem(){if(unavailable)throw Error('disabled');return JSON.stringify(saved);},setItem(k,v){writes.push(JSON.parse(v));}},
   location:{pathname:'/fa/',origin:base.origin,hostname:'rvionai.com',search:''},
   performance:{getEntriesByType:()=>[{type:'reload'}]},prefersReducedMotion:()=>false,navigationScheduled:false,
   window:{setTimeout:fn=>{timeouts.push(fn);return 1;},clearTimeout(){},RvionEntry:{start:scene=>{opened.push(scene);return true;},decode:protocol.decode}},
-  document:{documentElement:{setAttribute:k=>attrs.add(k),removeAttribute:k=>attrs.delete(k)},dispatchEvent:e=>events.push(e.type),readyState:'interactive',referrer:'',getElementById:()=>({textContent:JSON.stringify({html:'x',...protocol.payload,css:'/static/core/css/entry.css?v=1',js:'/static/core/js/entry.js?v=1'})}),createElement:()=>({remove(){this.removed=true;}}),head:{append(asset){assets.push(asset);asset.onload();}}}
+  requestAnimationFrame:fn=>frames.push(fn),
+  document:{querySelector:()=>protocol.poster,documentElement:{setAttribute:k=>attrs.add(k),removeAttribute:k=>attrs.delete(k)},dispatchEvent:e=>events.push(e.type),readyState:'interactive',referrer:'',getElementById:()=>({textContent:JSON.stringify({html:'x',...protocol.payload,css:'/static/core/css/entry.css?v=1',js:'/static/core/js/entry.js?v=1'})}),createElement:()=>({remove(){this.removed=true;}}),head:{append(asset){assets.push(asset);asset.onload();}}}
  };
- vm.runInNewContext(boot,context);return {writes,assets,opened,timeouts,context,attrs,events};
+ vm.runInNewContext(boot,context);return {writes,assets,opened,timeouts,context,attrs,events,frames};
 }
 assert.equal(run(state).assets.length,0);
 assert.equal(run(state).writes[0].blockedUntil,fourth.state.blockedUntil);
@@ -41,6 +42,25 @@ assert.equal(run(null).assets.length,2);
 assert.equal(run(null).assets[0].media,'all');
 assert.equal(run(null,true).assets.length,2);
 async function decodeChecks(){
+ for(const mode of ['success','decode-error','timeout','navigation']){
+  let resolve,reject;
+  const result=run(null,false,{poster:{decode:()=>new Promise((yes,no)=>{resolve=yes;reject=no;})}});
+  assert.equal(result.assets.length,0);
+  assert.ok(result.attrs.has('data-entry-pending'));
+  await new Promise(setImmediate);
+  if(mode==='timeout')result.timeouts[0]();
+  if(mode==='navigation')result.context.navigationScheduled=true;
+  if(mode==='decode-error')reject(Error('poster unavailable'));else resolve();
+  await new Promise(setImmediate);
+  assert.equal(result.assets.length,0);
+  if(mode!=='timeout'){
+   result.frames.shift()();assert.equal(result.assets.length,0);
+   result.frames.shift()();
+  }
+  await new Promise(setImmediate);
+  assert.equal(result.opened.length,['success','decode-error'].includes(mode)?1:0);
+  assert.equal(result.attrs.has('data-entry-pending'),false);
+ }
  for(const mode of ['success','navigation','timeout','failure']){
   let resolve,reject;
   const result=run(null,false,{payload:{scene_gzip:'x'},decode:()=>new Promise((yes,no)=>{resolve=yes;reject=no;})});

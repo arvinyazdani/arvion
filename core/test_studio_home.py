@@ -103,7 +103,9 @@ class StudioHomeTests(TestCase):
                     # adding an AVIF decoder to application dependencies.
                     data = avif.read_bytes()
                     extents = data.index(b'ispe') + 8
-                    self.assertEqual(struct.unpack('>II', data[extents:extents + 8]), image.size)
+                    size = struct.unpack('>II', data[extents:extents + 8])
+                    self.assertEqual(size, (675, 1200) if device == 'mobile' else image.size)
+                    self.assertEqual(size[0] * image.height, size[1] * image.width)
         response = self.client.get('/fa/')
         self.assertContains(response, 'type="image/avif"', count=4)
         self.assertContains(response, 'data-studio-mobile')

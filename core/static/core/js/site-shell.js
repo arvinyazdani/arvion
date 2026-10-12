@@ -155,7 +155,20 @@ if (typeof document !== 'undefined') (() => {
           window.RvionEntry.decode(payload).then(open).catch(fail);
         } else open(payload);
       };
-      document.head.append(sheet);
+      const fetchEntryAssets = () => {
+        if (canceled || navigationScheduled || prefersReducedMotion()) {fail();return;}
+        document.head.append(sheet);
+      };
+      const poster = document.querySelector?.('[data-studio-poster]');
+      if (poster?.decode) {
+        // Give the high-priority home poster its first paint before competing
+        // for bandwidth with the intro. Keep the pending marker throughout so
+        // the GPU scene cannot race this lightweight presentation barrier.
+        Promise.resolve().then(() => poster.decode()).catch(() => {}).then(() => {
+          if (canceled) return;
+          requestAnimationFrame(() => requestAnimationFrame(fetchEntryAssets));
+        });
+      } else fetchEntryAssets();
     };
     // This script is deferred: the DOM is ready. Do not wait for unrelated
     // below-fold images before loading the entry's own stylesheet and scene.

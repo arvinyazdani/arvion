@@ -1,5 +1,61 @@
 # Rvion current state
 
+## Entry / cinematic home final cutover — 2026-10-12 — VERIFIED local; release pending
+
+Owner renews fix/test/activation/deploy instruction. Single primary agent; clean
+starting2ab0d16. Continue9c88c76, do not repeat the renderer rewrite. Eight English
+articles were separately published; preserve their rows and all customer data.
+Final presentation changes: two-RAF/poster decode barrier before intro assets,
+pending GPU guard retained and cancelled on timeout/navigation/decode failure;
+initial keyboard scope without synchronous full-page geometry; native load/scroll
+updates geometry; independently contained below-fold sections; mobile AVIF
+675×1200 quality45, same crop/aspect/scene, original WebP unchanged. Desktop
+posters/full renderer geometry/materials/effects/camera/font files unchanged.
+Original activation gate: three mobile Lighthouse runs, CLS0, median LCP/TBT
+not worse than OFF/OFF; desktop>=45fps/mobile>=30fps. Source frozen for final
+visibility-* series (only tests/docs changed afterwards). Chrome154/LH13.5.0,
+manifest+gzip, same read-only fixture; no browser/test workloads during final
+measurement. Raw evidence /tmp/rvion-studio-performance-20261012/.
+
+| mobile | LCP ms, three valid runs | TBT ms | CLS |
+| --- | --- | --- | --- |
+| control compact-control1/3 + retry1 |2575.616/2721.167/2720.648|11/63/149|0/0/0|
+| final visibility-combined1–3 |2141.850/2418.927/2594.281|211.5/60/0.5|0/0/0|
+
+Medians LCP2720.648→2418.927ms, TBT63→60ms. One final run211.5ms is retained,
+not hidden; medians are the existing acceptance rule. compact-control2 trace
+NO_NAVSTART retained/retried, not a passing run. Desktop three-run median
+LCP576.237→623.808ms (+47.571ms), TBT0/CLS0 all runs. Desktop is NOT faster;
+this is informational overhead, not a claim of desktop control non-regression.
+Original strict three-run control gate was mobile; desktop admission remains
+FPS>=45. Do not misreport the desktop difference or promise physical-iPhone fps.
+Rejected experiments retained: paint-barrier alone LCP2905ms; compact-only
+median2267ms butTBT81.5>63; initial layout deferral LCP2869ms; inline both posters
+LCP2917ms/TBT190; smaller desktop/inline-desktop LCP662ms. All inline/font-range/
+desktop-size experiments reverted; no dead helper/template/model changes remain.
+Tests final: core.test_studio_home+core.test_entry18/18, core Node29/29;
+full manage.py test --parallel4 --verbosity1:1223 tests/110.521s/OK,27 existing
+conditional skips. Expected injected500 logs in negative tests, no actual
+failures. check0/migration drift0/pip check0/generated shell --check/diff clean.
+SSH preflight works: runtime dab858f clean, flagsFalse/False, PostgreSQL,
+no migration pending, arvion/nginx active.
+Final browser:390×844 FA dark, gateway/project above exam/own-scroll enter-site
+button; reload+skip recovers scene. Worker quality0,59.976fps/1201frames/180calls,
+no observer shifts/longtasks, overflow0.1280×800 EN light:59.999fps/1681frames/
+468calls, quality0, observer shifts0; two startup tasks51/101ms recorded (not
+claimed absent). Workshop, exam, library and reception rendered; native chapter
+links reach correct stops, lower-section anchors reveal deferred content. One
+Playwright scroll-into-view/CDP timeout was resolved by native AX click; actual
+Read link reached library and Talk reached reception, no app code workaround.
+FA390 light reduced-motion: no intro/worker, poster675px, overflow0; inspected
+visuals preserve original geometry/fonts/composition. All screenshots under
+/tmp/rvion-home-final-{mobile-gateway,mobile-dark,mobile-reduced-light,
+desktop-light,desktop-reception}.png; metrics *-perf.json. Browser viewport and
+emulated media restored; no physical phone/iOS claim. Final asset MD5s match
+all3 visibility-combined reports (site-shell67024d65e834,tour26b218b1fc3b,
+mobile poster6009d34bb02a). Next: local commit, fresh validated backup + guarded
+fast-forward/collectstatic/scoped two-flag activation, online smoke/browser.
+
 ## Eight international English article editions — 2026-10-12 — VERIFIED (published)
 
 Owner explicitly requests all existing articles in English with global-market
