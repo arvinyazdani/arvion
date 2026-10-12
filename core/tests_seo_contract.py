@@ -409,15 +409,28 @@ class WholeSitemapContractTests(TestCase):
                 company.refresh_from_db()
                 self.assertEqual(company.phone, stored)
 
-    def test_home_font_preload_is_limited_to_persian_above_fold_fonts(self):
-        response = self.client.get('/fa/')
-        html = response.content.decode()
-        for weight in ('Regular', 'Bold', 'Black'):
-            self.assertIn(f'core/fonts/Vazirmatn-{weight}.woff2', html)
-        self.assertEqual(html.count('as="font"'), 3)
-        self.assertLess(html.index('as="font"'), html.index('core/css/tokens.css'))
-        for path in ('/en/', '/fa/blog/', '/fa/services/seo-service/'):
-            self.assertNotContains(self.client.get(path), 'as="font"')
+    def test_persian_fonts_preload_without_changing_home_or_english(self):
+        paths = (
+            '/fa/', '/fa/assessments/', '/fa/services/seo-service/',
+            '/fa/blog/seo-post-fa/',
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                html = self.client.get(path).content.decode()
+                for weight in ('Regular', 'Bold', 'Black'):
+                    self.assertIn(f'core/fonts/Vazirmatn-{weight}.woff2', html)
+                self.assertEqual(html.count('as="font"'), 3)
+                self.assertLess(html.index('as="font"'), html.index('core/css/tokens.css'))
+        for path in ('/en/', '/en/blog/seo-post-en/', '/en/services/seo-service/'):
+            with self.subTest(path=path):
+                self.assertNotContains(self.client.get(path), 'as="font"')
+
+    def test_assessment_hub_uses_theme_aware_title_contrast_tokens(self):
+        from pathlib import Path
+        css = (Path(__file__).resolve().parents[1] / 'assessments' / 'static'
+               / 'assessments' / 'css' / 'assessment-v3.css').read_text()
+        self.assertRegex(css, r'\.assessment-hub-hero\{[^}]*color:var\(--text-primary\)')
+        self.assertRegex(css, r'\.assessment-hub-grid h1 em\{color:var\(--color-brand-orange-text\)')
 
     def test_contextual_links_have_matching_bilingual_indexable_targets(self):
         service_targets = {
