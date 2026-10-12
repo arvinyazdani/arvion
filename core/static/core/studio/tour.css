@@ -22,8 +22,8 @@
 .st-chapters{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:5px;padding:4px;border:1px solid #535a65;border-radius:999px;background:#0c0e14e8;z-index:3;width:max-content;max-width:calc(100% - 32px)}
 .st-chapters a{min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 18px;border-radius:999px;color:var(--st-muted);font-size:.8125rem;cursor:pointer}
 .st-chapters a[aria-current]{background:#f4f1ea;color:#0b1220}.st-chapters a:hover{box-shadow:inset 0 0 0 1px #ff995e}
-.st-tracks{position:absolute;inset:0;pointer-events:none}.st-tracks>div{height:var(--st-height);scroll-margin-top:var(--st-header);scroll-snap-align:start}
-html.st-snap{scroll-snap-type:y proximity}
+.st-tracks{position:absolute;inset:0;pointer-events:none}.st-tracks>div{height:var(--st-height);scroll-margin-top:var(--st-header)}
+html.st-stepping{scroll-behavior:auto!important}
 .st-articles{display:grid;gap:8px;margin:0 0 20px}.st-articles a{display:flex;align-items:center;gap:12px;min-height:52px;padding-block:8px;border-bottom:1px solid #535a65;color:var(--st-ink);font-size:.8125rem;line-height:1.7}.st-articles a:hover{color:#ff995e}.st-articles span{flex:1}.st-articles img{width:76px;height:48px;object-fit:cover;border-radius:6px;flex:none}
 .st-tour a:focus-visible,.st-tour button:focus-visible{outline:3px solid #ff995e;outline-offset:4px}.st-tour a:active,.st-tour button:active{opacity:.8}
 @media(max-width:760px){
@@ -35,4 +35,4 @@ html.st-snap{scroll-snap-type:y proximity}
  .st-chapters{bottom:14px}.st-chapters a{padding:8px 15px;font-size:.75rem}.st-articles{margin-bottom:12px;gap:2px}.st-articles a{font-size:.75rem;min-height:46px;padding:4px 0}.st-articles img{width:60px;height:38px}
 }
 @media(max-height:620px){.st-tour{height:auto}.st-viewport{position:relative;height:auto;overflow:visible}.st-stops{position:relative}.st-stop{position:relative;visibility:visible;opacity:1;min-height:620px}.st-copy{transform:none}.st-stage{height:100%}.st-tracks,.st-chapters,.st-controls{display:none}}
-@media(prefers-reduced-motion:reduce){.st-stage canvas,.st-stop,.st-copy{transition:none;transform:none}html.st-snap{scroll-snap-type:none}}
+@media(prefers-reduced-motion:reduce){.st-stage canvas,.st-stop,.st-copy{transition:none;transform:none}}

@@ -2,8 +2,9 @@
   <div class="welcome-orbit orbit-one" aria-hidden="true"></div>
   <div class="welcome-orbit orbit-two" aria-hidden="true"></div>
   <div class="welcome-brand">
-    {% include 'core/includes/brand.html' with mark_class='welcome-mark' %}
-    <small>{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Preparing the next step{% else %}در حال آماده‌سازی مرحله بعد{% endif %}</small>
+    {% include 'core/includes/brand.html' with mark_class='welcome-mark' mark_only=True %}
+    <strong dir="ltr">RVION</strong>
+    <small>{% if lang == 'en' or request.LANGUAGE_CODE == 'en' %}Preparing your page{% else %}در حال آماده‌سازی صفحهٔ شما{% endif %}</small>
   </div>
   <div class="welcome-progress" aria-hidden="true"><span></span></div>
 </div>

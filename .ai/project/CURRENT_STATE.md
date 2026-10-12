@@ -1,5 +1,35 @@
 # Rvion current state
 
+## Shared home arrival / single-step studio — 2026-10-12 — VERIFIED (local), release pending
+
+Owner replaces the standalone entry and its ending gateway with the shared
+navigation loader, and authorizes deployment. Starting HEAD437d4af; production
+0af65fc, clean. Removed entry.js/css/template/tag/setting and their exclusive
+tests, including dead gateway article CSS; order/path intros remain unrelated.
+Home/reload briefly uses the same fixed loader and canonical approved code-R
+vector as all four primary shells. Two-paint/240ms exit; independent1500ms
+failed-script escape; reduced motion bypass; no storage or new requests.
+Tour wheel/touch/keyboard advances one chapter,750ms eased scroll/1000ms lock,
+plus220ms wheel silence to reject inertia; one swipe per contact. Native outside
+and at boundaries, pinch/horizontal/forms/menu excluded; skip/Home/End/Tab,
+resize/orientation/history/pagehide cancel safely. Stable svh toolbar resizes
+do not interrupt. Header nominal/actual-height discrepancy reproduced visually
+and regression-tested. Suspended RAF cannot unlock an unfinished transition.
+Tests:35 targeted Django OK; full1218 in129.069s OK(27 existing conditional skips),
+then final bounded JS/CSS cleanup:36 Node OK. check0; no migrations detected;
+pip check, strict question audit, dry collectstatic, diff--check all clean.
+Chrome real browser390x844/1280x800:FA/EN, dark/light, weak1px and huge9000px
+wheel bursts, short/long touch, all four chapters, final native exit, reload,
+reduced-motion. Read-only isolated fixture, not customer data. Probe measured
+no layout shifts and approximately60fps on this Mac in desktop/mobile emulation;
+not a claim of physical-phone benchmarks or new Lighthouse results.
+Evidence:/tmp/rvion-home-steps-20261012/{desktop-fa-workshop,desktop-fa-library,
+mobile-en-exam,mobile-fa-arrival,mobile-fa-light-exam,desktop-en-light-workshop}.png.
+Self-review only. No protected gallery/management article/content/model/schema
+changes; no external notifications or customer-data mutations. Next: guarded
+bundle release from0af65fc, new backup, retire obsolete entry env flag, preserve
+3D flag and data; public browser/HTTP checks, record exact release and snapshot.
+
 ## Entry / cinematic home final cutover — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner renews fix/test/activation/deploy instruction. Single primary agent; clean

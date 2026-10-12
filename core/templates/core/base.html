@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  {% block arrival_loader %}{% endblock %}
   {% block font_preload %}{% endblock %}
   <title>{% block title %}{% if lang == 'fa' %}آرویون | طراحی و توسعه محصول دیجیتال{% else %}Rvion | Digital product development{% endif %}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{% if lang == 'fa' %}مشاوره، طراحی، توسعه و پشتیبانی وب‌سایت و پلتفرم آنلاین توسط شرکت آروین توسعه تجارت هوشمند.{% else %}Consulting, design, development and support for websites and online platforms by Rvion.{% endif %}{% endblock %}">
@@ -42,7 +43,7 @@
   <link rel="stylesheet" href="{% static 'core/css/footer-studio.css' %}?v=4">
   <link rel="stylesheet" href="{% static 'core/css/order-flow.css' %}?v=2">{% endblock %}
   <script src="{% static 'core/js/persian-ui.js' %}?v=4" defer></script>
-  <script src="{% static 'core/js/site-shell.js' %}?v=16" defer></script>
+  <script src="{% static 'core/js/site-shell.js' %}?v=17" defer></script>
   <script src="{% static 'core/js/pull-to-refresh.js' %}?v=1" defer></script>
   <script src="{% static 'core/js/error-report.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>

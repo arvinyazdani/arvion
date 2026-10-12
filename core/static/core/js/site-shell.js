@@ -1,20 +1,3 @@
-// Timed UX guard only. No identity, analytics, or security authority.
-function rvionEntryAdmission({path, type, referrer, origin, reduced, now, state}) {
-  if (!['/fa/', '/en/'].includes(path) || type === 'back_forward' || reduced) return {show: false};
-  if (type !== 'reload' && referrer) {
-    try { if (new URL(referrer).origin === origin) return {show: false}; } catch (error) { return {show: false}; }
-  }
-  const blockedUntil = Number.isFinite(state?.blockedUntil) ? state.blockedUntil : 0;
-  if (blockedUntil > now && blockedUntil <= now + 300000) return {show: false};
-  const starts = Array.isArray(state?.starts) ? state.starts.filter(t => Number.isFinite(t) && t <= now && t >= now - 90000).slice(-3) : [];
-  if (starts.length >= 3) return {show: false, state: {starts: [], blockedUntil: now + 300000}};
-  return {show: true, state: {starts: [...starts, now], blockedUntil: 0}};
-}
-function rvionEntryAsset(value,kind,origin) {
-  if(typeof value!=='string'||!['css','js'].includes(kind))return false;
-  try{const url=new URL(value,origin);return url.origin===origin&&!url.hash&&new RegExp('^/static/core/'+kind+'/entry(?:\\.[a-f0-9]{12})?\\.'+kind+'$').test(url.pathname)&&/^\?v=\d{1,3}$/.test(url.search);}catch(error){return false;}
-}
-if (typeof module !== 'undefined') module.exports = {rvionEntryAdmission,rvionEntryAsset};
 if (typeof document !== 'undefined') (() => {
   const menuButton = document.querySelector(".menu-button");
   const nav = document.querySelector(".site-nav");
@@ -107,77 +90,15 @@ if (typeof document !== 'undefined') (() => {
   let navigationRevealTimer = null;
   let navigationFailsafe = null;
   let navigationScheduled = false;
-  const entryPayload = document.getElementById('rvion-entry-payload');
-  if (entryPayload) {
-    const bootEntry = () => {
-      if (navigationScheduled) return;
-      const guardKey = 'rvion-entry-starts-v1';
-      let state = null;
-      try { state = JSON.parse(localStorage.getItem(guardKey)); } catch (error) {}
-      const result = rvionEntryAdmission({path: location.pathname,
-        type: performance.getEntriesByType('navigation')[0]?.type || 'navigate',
-        referrer: document.referrer, origin: location.origin,
-        reduced: prefersReducedMotion(), now: Date.now(), state});
-      const localSeek = ['localhost','127.0.0.1','[::1]'].includes(location.hostname)
-        && new URLSearchParams(location.search).has('entry_seek') && !prefersReducedMotion();
-      if (!result.show && !localSeek) {
-        if (result.state) {try {localStorage.setItem(guardKey, JSON.stringify(result.state));} catch (error) {}}
-        return;
-      }
-      let payload;
-      try { payload = JSON.parse(entryPayload.textContent); } catch (error) { return; }
-      if (!rvionEntryAsset(payload.css,'css',location.origin) || !rvionEntryAsset(payload.js,'js',location.origin)) return;
-      const sheet = document.createElement('link');
-      sheet.rel = 'stylesheet';sheet.media = 'print';sheet.href = payload.css;
-      const script = document.createElement('script');script.src = payload.js;
-      let canceled = false;
-      document.documentElement.setAttribute('data-entry-pending','');
-      const releaseEntry = () => {document.documentElement.removeAttribute('data-entry-pending');document.dispatchEvent(new Event('rvion:entry-closed'));};
-      const timer = window.setTimeout(() => {canceled = true;sheet.remove();script.remove();releaseEntry();}, 8000);
-      const fail = () => {canceled = true;window.clearTimeout(timer);sheet.remove();script.remove();releaseEntry();};
-      sheet.onerror = fail;script.onerror = fail;
-      // Fetch without render-blocking the poster; apply before creating any
-      // intro DOM. The subsequent script/decode/font barrier keeps it styled.
-      sheet.onload = () => {if (!canceled) {sheet.media = 'all';document.head.append(script);}};
-      script.onload = () => {
-        const open = scene => Promise.resolve(document.fonts?.ready).then(() => {
-          window.clearTimeout(timer);
-          if (canceled || navigationScheduled || prefersReducedMotion()) {releaseEntry();return;}
-          const opened = window.RvionEntry?.start(scene);
-          document.documentElement.removeAttribute('data-entry-pending');
-          if (!opened) releaseEntry();
-          if (opened && result.state && !localSeek) {
-            try { localStorage.setItem(guardKey, JSON.stringify(result.state)); } catch (error) {}
-          }
-        });
-        if (payload.scene_gzip) {
-          if (!window.RvionEntry?.decode) {fail();return;}
-          window.RvionEntry.decode(payload).then(open).catch(fail);
-        } else open(payload);
-      };
-      const fetchEntryAssets = () => {
-        if (canceled || navigationScheduled || prefersReducedMotion()) {fail();return;}
-        document.head.append(sheet);
-      };
-      const poster = document.querySelector?.('[data-studio-poster]');
-      if (poster?.decode) {
-        // Give the high-priority home poster its first paint before competing
-        // for bandwidth with the intro. Keep the pending marker throughout so
-        // the GPU scene cannot race this lightweight presentation barrier.
-        Promise.resolve().then(() => poster.decode()).catch(() => {}).then(() => {
-          if (canceled) return;
-          requestAnimationFrame(() => requestAnimationFrame(fetchEntryAssets));
-        });
-      } else fetchEntryAssets();
-    };
-    // This script is deferred: the DOM is ready. Do not wait for unrelated
-    // below-fold images before loading the entry's own stylesheet and scene.
-    bootEntry();
-  }
+  let arrivalFrame = 0;
+  let arrivalExitTimer = null;
   const setMainBusy = busy => main?.setAttribute("aria-busy", busy ? "true" : "false");
   const setNavigationLocked = locked => navigationBackground.forEach(item => item.toggleAttribute("inert", locked));
   const setWelcomeVisible = visible => welcome?.setAttribute("aria-hidden", visible ? "false" : "true");
   const hideNavigationLoader = () => {
+    window.cancelAnimationFrame(arrivalFrame);
+    window.clearTimeout(arrivalExitTimer);
+    document.documentElement.removeAttribute('data-arrival-loading');
     if (navigationRevealTimer) window.clearTimeout(navigationRevealTimer);
     if (navigationFailsafe) window.clearTimeout(navigationFailsafe);
     navigationRevealTimer = null;
@@ -199,6 +120,9 @@ if (typeof document !== 'undefined') (() => {
   };
   const scheduleNavigationLoader = () => {
     if (!welcome || navigationScheduled) return;
+    window.cancelAnimationFrame(arrivalFrame);
+    window.clearTimeout(arrivalExitTimer);
+    document.documentElement.removeAttribute('data-arrival-loading');
     navigationScheduled = true;
     setMainBusy(true);
     if (!prefersReducedMotion()) {
@@ -208,6 +132,17 @@ if (typeof document !== 'undefined') (() => {
   };
   setWelcomeVisible(false);
   setMainBusy(false);
+  if (document.documentElement.hasAttribute('data-arrival-loading')) {
+    // Finish as soon as the server-rendered home can paint, not after GPU boot
+    // or below-fold images. The overlay is fixed and never changes layout.
+    setWelcomeVisible(true);
+    arrivalFrame = window.requestAnimationFrame(() => {
+      arrivalFrame = window.requestAnimationFrame(() => {
+        welcome?.classList.add('is-leaving');
+        arrivalExitTimer = window.setTimeout(hideNavigationLoader, 240);
+      });
+    });
+  }
 
   document.addEventListener("click", event => {
     const link = event.target.closest("a[href]");
@@ -226,8 +161,8 @@ if (typeof document !== 'undefined') (() => {
     if (typeof form.checkValidity === "function" && !form.checkValidity()) return;
     scheduleNavigationLoader();
   });
-  window.addEventListener("pageshow", () => {
-    hideNavigationLoader();
+  window.addEventListener("pageshow", event => {
+    if (event.persisted || !document.documentElement.hasAttribute('data-arrival-loading')) hideNavigationLoader();
   });
   if (reducedMotion?.addEventListener) {
     reducedMotion.addEventListener("change", event => {

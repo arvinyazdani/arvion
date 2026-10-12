@@ -29,7 +29,7 @@ test('scroll updates active links, inert panels and poster; short screens expose
  const avif=[{dataset:{studioFormat:'mobile'}},{dataset:{studioFormat:'desktop'}}];
  const poster={parentElement:{querySelector:()=>source,querySelectorAll:()=>avif}},events={},medias={};let top=68,frame,reads=0;
  root.dataset.assets='/static/core/studio/';root.getBoundingClientRect=()=>{reads++;return{top,bottom:top+706*4}};
- root.querySelector=s=>s==='canvas'?canvas:s==='[data-studio-poster]'?poster:s==='[data-studio-mode]'?button:{offsetHeight:706};
+ root.querySelector=s=>s==='canvas'?canvas:s==='[data-studio-poster]'?poster:s==='[data-studio-mode]'?button:s==='.st-controls a'?null:{offsetHeight:706};
  root.querySelectorAll=s=>s==='[data-stop]'?stops:links;
  const media=q=>medias[q]||(medias[q]={matches:false,addEventListener(k,f){this.change=f}});
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../static/core/studio/tour.js'),'utf8'),{
