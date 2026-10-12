@@ -6423,15 +6423,32 @@ UI release VERIFIED:production319b7d7, clean/active/health OK; approved footer
 and Persian narration deployed. Source rollbackcfeea45. No migrations applied.
 Live browser evidence:/tmp/rvion-live-audio-footer-20261012/; FA390/EN1280,
 overflow0; FA MP3 fetched after click on browser with0 Persian voices.
-SEO programme PARTIAL, LOCAL ONLY; no further push/deploy/migration authorized.
+SEO implementation VERIFIED locally; public rollout and strict cold CLS PARTIAL.
+LOCAL ONLY; no SEO push/deploy/migration authorized.
 Baseline83-URL crawl:/tmp/rvion-seo-before.json. Owner approved anonymous
 aggregate-only analytics and CSRF-form cookie exceptions in this conversation.
-Current small phase:remove unintended session writers and apply conservative
-public/private cache headers; preserve CSRF/order/login/assessment behavior.
+Completed:c51abef unintended-session removal/cache policy; eef92de preserves
+data-free offline cache and corrects obsolete gateway language-session test;
+90a4a8b bilingual service guides, keyword metadata/schema/contextual links,
+privacy explanation and enhanced read-only audit tool. No home/studio design,
+article body/model/cover, protected gallery/management article edits.
 Red evidence:/tmp/rvion-seo-cookie-red.log. Green83 tests OK(2 existing skips):
 /tmp/rvion-seo-cache-green.log; previous journey/demo-handoff72 tests OK,
 3 backend-specific skips. Full suite reserved for final/security gate.
-Next:finish targeted cookie/cache regression checks, inspect/commit; then
-five bilingual service expansions, scoped metadata/links/schema and complete
-same-vantage crawl+browser comparisons. Home/studio design, article bodies
-and protected gallery/management article paths must remain untouched.
+Final gate:1243 tests OK(27 existing conditional skips),71.881s; Node65/65;
+targeted77+18+35 OK. Initial parallel full failure/serial diagnostic2 failures
+and corrections are explicitly recorded in docs/seo/SEO_PHASE_REPORT.md.
+check0, migration drift0, pip check0. Same-public-fixture83-URL control/after:
+meta<11042→0; sessionid83→0;26 necessary CSRF form exceptions only;all200,
+service main10/10 within800–1200,0 orphan articles/metadata duplicates.
+No customer accounts/data in disposable browser test databases.
+Browser service FA/EN390/1280 light/dark:overflow0,warm CLS0; initial cold
+font shift0.0070209546 reproduced identically in unmodified control. Strict
+all-load zero NOT verified. Existing assessment hub light H1 contrast P2.
+Evidence:/tmp/rvion-seo-visual-20261012/. Report has link/keyword map, exact
+commands, production/UI backup boundary and rollback. Public SEO not released.
+Next:owner supplies sameAs/EN identity decisions or authorizes SEO rollout;
+address cold-font CLS/light-hub contrast in a separate scoped performance/UI
+change without reopening protected gallery/customer workflows. No automatic
+deployment or migration permitted. Temporary browser tabs closed/viewport reset;
+only this task's testserver processes on8201/8202 stopped after verification.

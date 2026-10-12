@@ -1188,3 +1188,15 @@ analytics/CSRF form exception. Local cookie/cache targeted83 tests OK(2 existing
 backend skips), prior journey/handoff72 OK(3 backend skips). No SEO release.
 Evidence and remaining work:docs/seo/SEO_PHASE_REPORT.md and CURRENT_STATE.md.
 
+### Final local SEO checkpoint — 2026-10-12
+
+c51abef/eef92de/90a4a8b local only, NOT pushed/deployed. Five bilingual service
+guides800–1200 main words with5 FAQs each;83-URL control/after meta<11042→0,
+sessionid83→0,26 owner-approved CSRF form exceptions;canonical/H1/hreflang
+contracts intact,all200,0 duplicate metadata/orphan articles. Full recovery
+1243 tests OK(27 existing skips),Node65/65,targeted77+18+35 green. No schema,
+customer/article-body/cover/protected-gallery or home/studio design changes.
+Warm-browser CLS0/overflow0; initial cold font shift0.00702 also in control,
+so strict all-load CLS0 not granted. Hub light-title contrast P2 recorded.
+SameAs/EN identity and actual SEO/CDN rollout remain owner decisions.
+Full evidence, before/after/link/keyword maps and rollback in the same SEO report.

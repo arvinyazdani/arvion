@@ -1,8 +1,221 @@
 # SEO phase report — Rvion
 
+## 2026-10-12 — completed local public SEO refresh / release boundary
+
+**Status:** implementation and local functional gate VERIFIED. Strict cold-load
+CLS=0 acceptance PARTIAL (existing font-swap shift reproduced in control).
+SEO is NOT deployed. Production remains319b7d7 (approved audio/footer only).
+Single primary agent; self-review, no delegation or independent-review claim.
+Local commits:c51abef (cookies/cache), eef92de (offline-cache regression),
+90a4a8b (service copy, metadata, links, crawler/tests). This report's checkpoint
+commit is documentation only. No SEO push/deploy/migration/customer-data change.
+
+### Scope, editorial decisions and files
+
+- `services/search_content.py`, detail view/template: five distinct bilingual
+  guides, each with audience/problem, scope, discovery, process, acceptance,
+  preparation and five visible FAQs. Proposed scope is explicitly not a
+  contractual inclusion. Existing catalogue facts retained; no invented price,
+  customer, metric, certification or guaranteed result. Existing demo links/CTA
+  remain. No FAQPage added or rich-result entitlement claimed.
+- `core/seo_copy.py`, `seo.py`, base template, `seo_metadata.py`: keyword-specific
+  titles and110–160-character complete descriptions; matching OG/Twitter copy;
+  existing canonicals/hreflang/robots/schema retained. Generated demo/briefing
+  descriptions use complete sentences, not truncation. Clinic flow's separate
+  meta updated in its own template. Article titles/summaries/bodies unchanged.
+- EN home title:`Custom Django web apps & CRM development | Rvion`;
+  H1:`Custom Django web apps and CRM for your business` in both existing hero
+  variants. Only these text nodes changed: no home/studio CSS, JS, scenes,
+  animation, layout or flags changed. Assessment hub H1 and bilingual blog/hub
+  titles now name their subjects instead of a generic centre/insights label.
+- About/company templates add practical project-entry/identity-check guidance,
+  not invented company facts. Legal pages are not padded. Privacy's analytics
+  paragraph alone is corrected to explain the owner's new aggregate/session
+  distinction and necessary CSRF forms; terms/refund bodies untouched.
+- `blog/templatetags/blog_extras.py`: publication/language-aware contextual
+  links, without changing article bodies, slugs, translations, covers or models.
+- Organization `alternateName` is now `["آرویون", "Rvion"]`. `sameAs` remains
+  omitted until verified owner links are supplied; absence is intentional,
+  not a fabricated social profile. Telephone/address/areaServed unchanged.
+- `ops/seo_crawl_audit.py`: repo-owned copy of the supplied read-only crawler,
+  with isolated temporary headers, timeouts, TTFB, cookie NAMES only, cache/Vary,
+  incoming links and stable URL inventory/local-origin comparison. Original
+  external tool untouched. Tests in `core/test_seo_crawler.py`,
+  `core/test_seo_refresh.py`, existing SEO/home/gateway tests; no failing test
+  skipped. Protected gallery and management article paths have zero diff.
+
+### Before/after — same content, same machine,83 URLs
+
+Production before:/tmp/rvion-seo-before.json. Since SEO cannot be deployed in
+this scope, **after is local, not live**. Control source319b7d7 at8201; after at
+8202; both use the same exported public catalogue/articles in disposable test
+databases. No accounts, questions, customer files or private records exported.
+
+| Metric | Control FA / EN | Local after FA / EN |
+| --- | --- | --- |
+| URLs / HTTP200 |43 /40 |43 /40 |
+| Meta<110 |26 /16 |0 /0 |
+| Meta>160 |0 /0 |0 /0 |
+| Whole-page words<450 |10 /12 |3 /6 |
+| Service main content<800 |5 /5 |0 /0 |
+| Title equals H1 (all page types) |17 /16 |12 /11 |
+| Title equals H1 (five services only) |5 /5 |0 /0 |
+| Bad H1 / canonical / missing hreflang / wrong noindex |0 |0 |
+| Duplicate title / description |0 /0 |0 /0 |
+| Set-Cookie responses |83 total |26 total, CSRF form exceptions only |
+| sessionid responses |83 |0 |
+| Responses>3s (local) |0 |0 |
+| Articles without any incoming crawled link |0 |0 |
+
+Live-before thin count was FA9/EN12, not the control's FA10/EN12; keep those
+vantages separate. All44 changed metadata instances are visible in the diff;
+all21 published article-language instances retain identical title/description.
+The remaining short pages are company/legal and EN service/assessment hubs,
+not the five service detail pages. They are navigation/identity/policy pages;
+no filler or unapproved legal commitments added merely to exceed450 words.
+
+Main-content counts (excludes shared navigation/footer; whole-page crawler
+counts are larger,1241–1355, and must not be substituted for the800–1200 target):
+
+| Service slug | FA main words | EN main words |
+| --- | --- | --- |
+|digital-product-consulting|1035|1000|
+|corporate-website-design|1045|1001|
+|custom-web-application|1053|999|
+|ecommerce-platform|1027|971|
+|maintenance-and-growth|1012|978|
+
+### Cookie/cache and timing findings
+
+Owner explicitly approved aggregate-only anonymous page views; unique/online
+counts now describe **existing sessions only**, not all visitors. No analytics
+session or IP fingerprint is created. Necessary CSRF remains on22 demo forms,
+2 contact forms and the2 FA specialist forms; the other57 crawled responses
+set no cookie. Tests prove missing CSRF is still403, valid form tokens proceed,
+and login/order/assessment/private responses remain isolated.
+Only cookie-free, query-free, anonymous allowlisted HTML GET200 responses get
+`public, max-age=0, s-maxage=60` and `Vary: Cookie`. Cookie-bearing/authenticated/
+form/query responses are private/no-store; stricter existing no-store headers
+are preserved. Data-free offline views retain their explicit public300s policy.
+No CDN rule was changed or real shared-cache hit demonstrated. When CDN caching
+is enabled, origin analytics cannot count cache hits as fresh origin page views.
+
+Local TTFB median/p95:control10.5/51.0ms; final after7.7/50.7ms, one83-URL
+sample, not a load benchmark. Read-only origin3-run checks gave home121–362ms,
+about33–151ms, assessment55–60ms, Saffron38–77ms. Four multi-second live/VPN
+samples did not reproduce at origin; insufficient evidence to blame the DB/CDN.
+CaptureQueriesContext on disposable public-only databases, request writes rolled
+back:home27→9, about23→5, custom-web-app25→7, assessment25→8 SQL queries.
+Initial diagnostic used an unallowed `testserver` Host and returned400; corrected
+to localhost before measuring. No production debug middleware or SQL logging.
+
+### Internal-link map and keyword ownership
+
+Before: all articles had blog-list links; the3 newer records already had shared
+home/service/CRM/demo links. No orphan bug is falsely claimed. After: category
+context replaces indiscriminate links; table lists non-blog contextual sources.
+Both languages receive valid translations only; Raya remains Persian-only.
+
+| Article slug | Before contextual source | After contextual sources |
+| --- | --- | --- |
+|corporate-website-cost-1405|none|corporate service, ecommerce service|
+|custom-website-vs-template|none|consulting, corporate, ecommerce, maintenance|
+|custom-or-ready-made-crm|none|CRM, consulting, custom-web-app|
+|english-teacher-assessment|none|assessment hub|
+|clinic-website-design-online-booking|none|corporate service|
+|academy-website-structure-webinar|none|corporate service|
+|enterprise-crm-development-cost-stages|none|CRM, custom-web-app|
+|django-interview-questions-with-short-answers|none|assessment hub, custom-web-app, maintenance|
+|custom-software-cost-us-2026-crm-accounting-b2b|home,CRM,demos,all5 services|home,CRM,demos,consulting,custom-web-app,ecommerce|
+|hire-django-freelancer-us-rates-2026|home,CRM,demos,all5 services|home,CRM,demos,consulting,corporate,custom-web-app,maintenance|
+|personal-accounting-economic-progress-raya|FA home|FA home (unchanged)|
+
+Existing article-to-article links to the newer cost/hiring guides remain.
+Keyword allocation: US custom CRM/accounting/B2B cost → new US cost guide;
+«هزینه ساخت CRM»/enterprise project stages → enterprise-crm-development-cost-stages;
+buy-versus-build/«CRM اختصاصی یا آماده» → custom-or-ready-made-crm;
+hire Django developer/hourly rates → hiring guide; actual development service
+intent → custom-web-application; personal accounting → Persian Raya article.
+This separates cost, comparison and service intent without rewriting approved
+article titles. Raya article HTML links to https://raya.rvionai.com and its4
+existing learn URLs; no EN Raya page added. No external claims/prices edited.
+
+### Tests, browser evidence and exact reproduction
+
+- Cookies/cache red1 failure retained; targeted83 OK(2 existing skips), prior
+  handoff/journey72 OK(3 existing skips). Metadata/content targeted77 OK.
+- Full gate initially failed with unpickleable traceback in parallel mode.
+  Diagnostic serial run:1243 tests,2 failures,27 existing backend skips.
+  Exact failures:obsolete expected language session; middleware regression
+  overriding data-free offline public cache. Corrected in eef92de, focused18 OK.
+  Recovery final `.venv/bin/python manage.py test --parallel 4 --verbosity 1`:
+  **1243 tests, OK(skipped=27),71.881s**. Extra full invocations were failure
+  diagnosis/recovery, not a claim that the initial gate passed.
+- Final privacy wording correction followed by35 targeted SEO/cache tests OK.
+  Node `node --test core/tests_js/*.test.cjs blog/tests_js/*.test.cjs
+  assessments/js_tests/*.test.cjs`:65/65 OK. `manage.py check`:0;
+  `makemigrations --check --dry-run`:No changes; `pip check`:clean;
+  py_compile and `git diff --check`:clean. No new migration.
+- Chrome real browser:service detail FA/EN x390×844/1280×800 xlight/dark,
+  eight variants; overflow0, buffered layout-shift CLS0 on the repeated
+  warm-font loads. EN home390/1280 and both assessment hub languages/widths
+  inspected, overflow0. Additional mobile guide typography inspected.
+- **Important limitation:** first FA service font load CLS0.0070209546, exactly
+  the same on unmodified control. Sources:headline/lead/fact text/breadcrumb
+  metrics shifting during existing font swap. No CSS/font design changed to
+  conceal it; strict all-load CLS=0 not granted. Warm matrix0 is not proof of
+  cold zero or Lighthouse/physical-device performance.
+- P2 visual follow-up outside SEO:existing assessment hub's white H1 has weak
+  light-theme contrast (EN1280 screenshot). No design edit made under this task.
+  Browser evidence:/tmp/rvion-seo-visual-20261012/{fa,en}-service-{390,1280}-
+  {light,dark}.png, matrix.json, fa-service-guide-390-light.png,
+  en-home-{390,1280}-light.png, {fa,en}-assessment-hub-{390,1280}.png.
+  Images inspected selectively, not a claim of all83 page layouts or iPhone QA.
+
+```sh
+python3 /Users/rwin/Documents/claud/rvionai.com-audit/seo_crawl_audit.py --out /tmp/rvion-seo-before.json
+python3 ops/seo_crawl_audit.py --urls-from /tmp/rvion-seo-before.json --base-url http://127.0.0.1:8201 --out /tmp/rvion-seo-control.json
+python3 ops/seo_crawl_audit.py --urls-from /tmp/rvion-seo-before.json --base-url http://127.0.0.1:8202 --out /tmp/rvion-seo-after.json
+python3 ops/seo_crawl_audit.py --diff /tmp/rvion-seo-control.json /tmp/rvion-seo-after.json
+.venv/bin/python manage.py test core.test_seo_crawler core.tests_seo_contract core.test_seo_refresh services.tests blog.tests core.test_home core.test_studio_home clinic_orders.tests --verbosity 1
+.venv/bin/python manage.py test core.test_order_gateway core.test_seo_pwa core.test_public_cache --verbosity 1
+.venv/bin/python manage.py test --parallel 4 --verbosity 1
+node --test core/tests_js/*.test.cjs blog/tests_js/*.test.cjs assessments/js_tests/*.test.cjs
+```
+
+Logs:/tmp/rvion-seo-{content-targeted-final,full-final-20261012,
+full-recovery-20261012,full-corrected-20261012,js-final-20261012,
+recovery-focused,last-copy-check}.log; final crawl after.json/after.log and
+local-diff.log. These temporary evidence files may be removed by OS cleanup;
+the metrics, limits and commands above are the durable checkpoint.
+
+### Owner decisions / not done / rollback
+
+Supply verified company social URLs for sameAs. For EN identity, options are
+retain truthful existing registered identity, or choose verified international
+contact details/target-market copy separately; never fabricate a US office.
+Either affects trust/consistency, not guaranteed local ranking. No EN phone or
+address decision assumed; areaServed remains IR pending an explicit update.
+No Search Console API action/request indexing:owner handles the latter.
+Existing sitemap dates retained; no artificial today/unsupported ping. Post
+lastmod remains its available publication date (no model/migration to pretend
+an edit date exists). SEO index/rank gains require post-release GSC measurement,
+not a guarantee from local tests.
+
+SEO release and real CDN cache validation await explicit authorization; strict
+cold-font CLS and hub light-theme contrast remain separate recorded P2 work.
+No physical iPhone/Android, PostgreSQL full suite, CI, Lighthouse-after-SEO,
+CDN hit-ratio or real Google indexing verification claimed.
+Rollback local SEO:revert90a4a8b, eef92de, c51abef in reverse order. No DB restore
+or migration reversal. Approved production audio/footer rollback is separately
+cfeea45 plus collected assets/restart; backup catalog verified readable with
+pg_restore --list (not a restore rehearsal). Origin health200 after final check.
+Temporary browser tabs closed/viewport reset; own8201/8202 testservers stopped.
+
 ## 2026-10-12 — UI release and public crawl/cookie work
 
-Status: UI release VERIFIED; new SEO programme PARTIAL, local only.
+Historical initial checkpoint (superseded by completed local section above):
+UI release VERIFIED; new SEO programme then PARTIAL, local only.
 Authorized existing commits62a6868 and319b7d7 pushed/deployed together; runtime
 319b7d7, clean tree, service active, health OK. Release script reported no
 pending migrations; existing bank versions unchanged. Source archive:
