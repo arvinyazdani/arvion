@@ -29,6 +29,19 @@ class StudioHomeTests(TestCase):
             self.assertContains(response, 'data-film-scene', count=4)
             self.assertContains(response, f'/{lang}/contact/?service=digital-product-consulting')
 
+    def test_short_film_has_localized_narration_and_complete_readable_guide(self):
+        for lang in ('fa', 'en'):
+            html = self.client.get(f'/{lang}/').content.decode()
+            film = html.split('data-assessment-film', 1)[1].split('</details>', 1)[0]
+            self.assertIn(f'data-film-lang="{lang}"', film)
+            self.assertIn('9.6s', film)
+            self.assertNotIn('00:36', film)
+            self.assertIn('data-film-sound aria-pressed="false" hidden', film)
+            self.assertIn('class="af-transcript"', film)
+            for text in (('گواهی غیررسمی', 'اثبات قطعی تقلب', 'دلیل آن') if lang == 'fa'
+                         else ('unofficial', 'do not prove cheating', 'explanations')):
+                self.assertIn(text, film)
+
     def test_cinematic_home_reuses_inline_styles_without_loading_legacy_hero_css(self):
         from pathlib import Path
         from django.conf import settings

@@ -1,5 +1,29 @@
 # Rvion current state
 
+## Assessment introduction — 2026-10-12 — VERIFIED (local)
+
+Owner requests a sub-ten-second bilingual animated explainer and optional voice.
+Reworked existing film only: four2.4-second scenes, total9.6s (was36s), short
+FA/EN captions, localized skill labels, transform/opacity entrances, full
+untimed HTML guide, accessible play/pause/replay/chapter controls. No autoplay.
+Real RAF elapsed time replaces100ms clamping so slow frames do not stretch it.
+Optional narration uses matching device-local SpeechSynthesis voices only;
+no remote TTS, recordings, API keys, dependencies or user data transmission.
+Requires explicit sound opt-in then play from start. Stops on pause/end/hidden/
+offscreen/pagehide; stale cancellation errors cannot disable a later replay.
+English voice available in real Chrome; FA local voice absent on this Mac,
+shown honestly as unavailable. Actual audio quality/hearing not verified.
+18 targeted Django passed;39 Node passed before final voice-cancellation fix,
+then all7 film tests passed including the new stale-error regression; check0,
+diff--check clean. Full suite not repeated for this bounded local UI slice.
+Chrome390x844 FA dark and EN light,1280x800 EN dark: played to9.6s/replay,
+chapter controls, no horizontal overflow; images visually reviewed in
+/tmp/rvion-assessment-film-20261012/{fa-mobile-dark,en-mobile-light,
+en-desktop-dark,en-desktop-dark-playing}.png. No fresh CLS/Lighthouse claim.
+Preview http://127.0.0.1:8195/fa/#assessment-title uses prior disposable fixture;
+no customer DB writes. No push/deploy/migration; production remains2c025f2.
+Rollback: revert this bounded film commit. Next: owner review/release instruction.
+
 ## Shared home arrival / single-step studio — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner replaces the standalone entry and its ending gateway with the shared
