@@ -2,6 +2,10 @@
 
 ## Entry / cinematic home performance — 2026-10-12 — PARTIAL; activation BLOCKED
 
+Implementation locally committed as9c88c76 (35 scoped files). No push/deploy.
+Only owned preview8181 retained for owner review; other owned lab servers stopped.
+Browser viewport/media/network overrides restored; user tabs preserved.
+
 Owner authorises optimisation without visual damage, responsive tests, activation
 and deployment ONLY if correct. Started HEADb1fad0e clean; last verified runtime
 dab858f. Single primary agent; applicable framework/skills read. UIUX Three.js
