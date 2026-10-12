@@ -5813,3 +5813,39 @@ guessed, security/recovery changes or console commands attempted. One bounded
 SSH retry still stalls after verified host key exchange. Deployment BLOCKED
 pending console authentication; cause remains unconfirmed. No product changes,
 remote writes or tests repeated beyond the prior28-test checkpoint.
+
+## 2026-10-12 — SSH packet-size workaround and guarded release
+
+Status: PARTIAL (connected, backup complete; release gate in progress).
+Starting HEADdf5f526 clean. User authorised diagnosis/fix/deploy/testing.
+Local supplied public key exactly matches ~/.ssh/rvion.pem. Route to production
+uses utun6, MTU1301. A socket advertising TCP_MAXSEG512 before connect permitted
+successful Paramiko authentication, preflight and backup; macOS then reported
+MSS1249, so reapplying512 after connect is explicit in the durable relay.
+Native OpenSSH also authenticated successfully via that relay twice. Saved host
+key verification and authentication/encryption remain enabled. Server journal
+confirms Accepted publickey for ubuntu with the matching RSA fingerprint.
+sshd settings: PubkeyAuthentication yes, PasswordAuthentication no, UseDNS no;
+no server/VPN/firewall/key changes. This is a measured packet-size workaround,
+not definitive attribution of an underlying provider/VPN fault.
+
+Production preflight: HEAD4dd8010, main clean, SSH/arvion/nginx active,
+PostgreSQL, no pending migrations, entry/3D flagsFalse/False. Pending release
+has no schema, dependencies or runtime-ops configuration changes. Protected
+gallery paths unchanged. Backup:
+/srv/arvion/backups/release-20261012T054920Z-df5f526 (21M, directory0700;
+database custom dump with pg_restore catalog validation, all Git refs bundle,
+environment/secrets, media and previous-head). No restore or data mutation.
+
+Tests: Node core/tests_js/*.test.cjs19/19 pass. Initial ./release-check.sh:
+check0, migration drift0, pip check0; full1201 tests in341.905s with27 existing
+SQLite-inapplicable skips and only one failure: old blog UI assertion requiring
+">دیدگاه‌ها<". Independently reproduced that one red test; aligned it to the
+already owner-approved existing <h1>مقاله‌ها</h1>, no runtime/content change.
+blog.tests then4/4 pass; new core.test_ssh_transport plus blog.tests8/8 pass.
+Relay tests cover before/after MSS, partial writes, stdin/EOF and invalid port.
+Full corrected suite is running (parallel4). No failure skipped/hidden.
+Next: finish gate, bundle/fast-forward source, collectstatic/check/restart,
+public health/home/order/blog/login smoke and browser, then release checkpoint.
+No production activation yet. Code rollback target4dd8010; do not restore the
+whole database for this presentation-only release or reverse migrations.
