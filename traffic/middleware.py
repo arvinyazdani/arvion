@@ -69,14 +69,18 @@ class TrafficAnalyticsMiddleware:
 
     def _record(self, request):
         try:
-            if not request.session.session_key:
-                request.session.create()
-            digest = hashlib.sha256(f"{settings.SECRET_KEY}:{request.session.session_key}".encode()).hexdigest()
+            # Never create a visitor identifier solely for analytics. Anonymous
+            # page views are aggregate counts; unique/online counts describe
+            # only visitors who already have a workflow/authentication session.
+            session_key = request.session.session_key
             now = timezone.now()
             today = timezone.localdate(now)
             with transaction.atomic():
                 TrafficDay.objects.get_or_create(date=today)
                 TrafficDay.objects.filter(date=today).update(page_views=F("page_views") + 1)
+                if not session_key:
+                    return
+                digest = hashlib.sha256(f"{settings.SECRET_KEY}:{session_key}".encode()).hexdigest()
                 _, created = DailyVisitor.objects.get_or_create(date=today, visitor_hash=digest)
                 if created:
                     TrafficDay.objects.filter(date=today).update(unique_visitors=F("unique_visitors") + 1)

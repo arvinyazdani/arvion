@@ -553,12 +553,12 @@ class ExamSearchContractTests(TestCase):
 
 
 class AnonymousTrafficCharacterizationTests(TestCase):
-    """Diagnostic invariant, NOT acceptance for the blocked cookieless change."""
+    """Owner-approved aggregate analytics must not create visitor sessions."""
 
     def setUp(self):
         self.addCleanup(translation.deactivate_all)
 
-    def test_analytics_itself_creates_session_even_without_language_write(self):
+    def test_analytics_counts_without_creating_a_session(self):
         # Isolate the second writer without changing production LanguageViewMixin.
         from unittest.mock import patch
         with patch('core.views.base.HomeView.dispatch', autospec=True) as dispatch:
@@ -566,7 +566,8 @@ class AnonymousTrafficCharacterizationTests(TestCase):
             dispatch.return_value = HttpResponse('anonymous public page')
             response = self.client.get('/fa/')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(settings.SESSION_COOKIE_NAME, response.cookies)
-        self.assertEqual(Session.objects.count(), 1)
-        self.assertEqual(DailyVisitor.objects.count(), 1)
-        self.assertEqual(TrafficDay.objects.get().unique_visitors, 1)
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, response.cookies)
+        self.assertEqual(Session.objects.count(), 0)
+        self.assertEqual(DailyVisitor.objects.count(), 0)
+        self.assertEqual(TrafficDay.objects.get().unique_visitors, 0)
+        self.assertEqual(TrafficDay.objects.get().page_views, 1)

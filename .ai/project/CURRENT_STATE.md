@@ -6417,3 +6417,21 @@ mobile navigation differ. Existing home performance/public3D activation gate
 remains BLOCKED, not waived by this release. Next: scoped staff-header follow-up
 and performance gate separately. Production rollback remains4dd8010 plus the
 validated snapshot above; do not full-restore DB just to roll back UI code.
+# Active checkpoint — 2026-10-12 public SEO/cookies
+
+UI release VERIFIED:production319b7d7, clean/active/health OK; approved footer
+and Persian narration deployed. Source rollbackcfeea45. No migrations applied.
+Live browser evidence:/tmp/rvion-live-audio-footer-20261012/; FA390/EN1280,
+overflow0; FA MP3 fetched after click on browser with0 Persian voices.
+SEO programme PARTIAL, LOCAL ONLY; no further push/deploy/migration authorized.
+Baseline83-URL crawl:/tmp/rvion-seo-before.json. Owner approved anonymous
+aggregate-only analytics and CSRF-form cookie exceptions in this conversation.
+Current small phase:remove unintended session writers and apply conservative
+public/private cache headers; preserve CSRF/order/login/assessment behavior.
+Red evidence:/tmp/rvion-seo-cookie-red.log. Green83 tests OK(2 existing skips):
+/tmp/rvion-seo-cache-green.log; previous journey/demo-handoff72 tests OK,
+3 backend-specific skips. Full suite reserved for final/security gate.
+Next:finish targeted cookie/cache regression checks, inspect/commit; then
+five bilingual service expansions, scoped metadata/links/schema and complete
+same-vantage crawl+browser comparisons. Home/studio design, article bodies
+and protected gallery/management article paths must remain untouched.

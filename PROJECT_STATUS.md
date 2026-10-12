@@ -1179,3 +1179,12 @@ settings account link and Escape focus verified. Backup:
 green, env/data/migrations unchanged; no push. Rollback991819d + collected assets.
 Detailed screenshot/audit/QA-cleanup limitations in CURRENT_STATE.md; prior whole-
 home performance gate remains separate, not implicitly waived by this release.
+# 2026-10-12 — approved UI release; SEO work local only
+
+VERIFIED production319b7d7:footer call action and independent Persian audio.
+Live FA390/EN1280 overflow0; Persian MP3 loaded after click with0 device voices.
+SEO PARTIAL:83-URL baseline recorded; owner approved aggregate-only anonymous
+analytics/CSRF form exception. Local cookie/cache targeted83 tests OK(2 existing
+backend skips), prior journey/handoff72 OK(3 backend skips). No SEO release.
+Evidence and remaining work:docs/seo/SEO_PHASE_REPORT.md and CURRENT_STATE.md.
+

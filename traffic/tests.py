@@ -3,12 +3,29 @@ from datetime import timedelta
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.sessions.models import Session
+from django.conf import settings
 
 from .models import ActiveVisitor, DailyVisitor, TrafficDay
 
 
 class TrafficMiddlewareTests(TestCase):
-    def test_page_views_unique_visitors_and_online_are_recorded_without_ip(self):
+    def test_anonymous_page_views_do_not_create_tracking_sessions(self):
+        first = self.client.get(reverse("home"))
+        second = self.client.get(reverse("about"))
+        day = TrafficDay.objects.get(date=timezone.localdate())
+        self.assertEqual(day.page_views, 2)
+        self.assertEqual(day.unique_visitors, 0)
+        self.assertFalse(DailyVisitor.objects.exists())
+        self.assertFalse(ActiveVisitor.objects.exists())
+        self.assertFalse(Session.objects.exists())
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, first.cookies)
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, second.cookies)
+
+    def test_existing_sessions_keep_unique_visitors_without_ip(self):
+        session = self.client.session
+        session["existing_workflow"] = True
+        session.save()
         self.client.get(reverse("home"))
         self.client.get(reverse("about"))
         day = TrafficDay.objects.get(date=timezone.localdate())

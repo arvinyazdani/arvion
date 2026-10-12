@@ -1,5 +1,43 @@
 from django.utils import translation
 from django.conf import settings
+from django.utils.cache import patch_cache_control, patch_vary_headers
+
+
+class PublicPageCachePolicyMiddleware:
+    """Short shared-cache lifetime only for anonymous, cookieless HTML GETs.
+
+    Runs outside Session/CSRF middleware so cookie decisions are final. Never
+    cache form tokens, authenticated output, query-dependent variants or APIs.
+    Vary: Cookie separates existing workflow sessions at a compliant CDN.
+    """
+
+    PUBLIC_ROUTES = {
+        "home", "about", "company_info", "crm_product", "privacy",
+        "service_terms", "refund_policy", "services:list", "services:detail",
+        "projects:demo_gallery", "projects:demo_preview", "blog:list",
+        "blog:detail", "assessments:list", "assessments:briefing",
+    }
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if "text/html" not in response.get("Content-Type", ""):
+            return response
+        if "no-store" in response.get("Cache-Control", "").lower():
+            return response  # Preserve an existing stricter security contract.
+        match = getattr(request, "resolver_match", None)
+        route = getattr(match, "view_name", "")
+        if (request.method != "GET" or response.status_code != 200
+                or route not in self.PUBLIC_ROUTES or request.GET
+                or request.COOKIES or response.cookies
+                or getattr(request, "user", None) and request.user.is_authenticated):
+            patch_cache_control(response, private=True, no_store=True, max_age=0)
+        elif not response.has_header("Cache-Control"):
+            patch_vary_headers(response, ("Cookie",))
+            patch_cache_control(response, public=True, max_age=0, s_maxage=60)
+        return response
 
 
 class FriendlyMethodNotAllowedMiddleware:

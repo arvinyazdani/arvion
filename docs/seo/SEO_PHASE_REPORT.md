@@ -1,5 +1,51 @@
 # SEO phase report — Rvion
 
+## 2026-10-12 — UI release and public crawl/cookie work
+
+Status: UI release VERIFIED; new SEO programme PARTIAL, local only.
+Authorized existing commits62a6868 and319b7d7 pushed/deployed together; runtime
+319b7d7, clean tree, service active, health OK. Release script reported no
+pending migrations; existing bank versions unchanged. Source archive:
+/srv/arvion/backups/pre-ui-audio-20261012-cfeea45.tar.gz; DB snapshot recorded
+in /tmp/rvion-ui-audio-deploy-complete-20261012.log. Root-owned object folders
+and audio directory blocked deployment; corrected ownership of root-owned
+objects within .git/objects and that audio directory only. The interrupted
+checkout exactly matched319b7d7 except missing MP3; restored only its known
+11 partial-update files to HEAD, then fast-forwarded cleanly. No customer
+records deleted. Code rollback:cfeea45 plus collectstatic/restart, not DB restore.
+
+Live Chrome:390px FA and1280px EN, no horizontal overflow; footer buttons
+same row and59.09px high (FA widths178px). FA browser had0 Persian voices;
+0 MP3 transfers before click, then54156 bytes/795.5ms after click and sound-on
+status. EN sound-on preserved. Playback quality/physical iPhone not claimed.
+Screens:/tmp/rvion-live-audio-footer-20261012/. No CLS measurement for UI release.
+
+Live baseline crawler (before SEO):83 URLs, all200; FA26/EN16 descriptions<110;
+FA6/EN5<90; FA9/EN12 body-word-count<450; FA17/EN16 title==H1;
+83 Set-Cookie;0 duplicate titles/non-self canonicals/bad H1/noindex errors.
+Files:/tmp/rvion-seo-before.json and.log. Four requests>3s (EN assessment hub,
+FA corporate/custom-web-app services, Saffron demo). Origin direct HTTP,
+Host/proto headers,3 runs each: home TTFB121–362ms; about33–151ms;
+assessment55–60ms; Saffron38–77ms. Not proof of CDN hits or end-user LCP;
+the multi-second VPN measurements do not reproduce at the origin.
+
+Owner explicitly approved aggregate-only anonymous analytics and necessary
+CSRF-cookie form exceptions. Local changes remove language-view session writes
+and analytics session creation; existing sessions keep unique/online counts,
+anonymous requests increment page views only (no IP fingerprint substitute).
+Conservative shared-cache policy:anonymous cookie-free, query-free allowlisted
+HTML GET200 only, Vary:Cookie, max-age0/s-maxage60. Forms, cookies,
+authenticated/private/query responses:no-store; existing no-store preserved.
+These are headers only, not a verified Arvan CDN configuration or hit ratio.
+Red:/tmp/rvion-seo-cookie-red.log (1 failure, unique count1 instead of0).
+Initial green checks exposed a test username omission, nonexistent test-module
+label, and over-eager addition of private to the pre-existing CSRF-error header;
+fixed the test setup/command and preserved the stricter existing header.
+Targeted evidence and checkpoint recorded in CURRENT_STATE.md. No SEO push,
+deploy, production migration or article-body edit. Remaining service expansion,
+metadata coverage, full internal-link map and final before/after/browser gate
+are NOT_STARTED; do not present this checkpoint as the completed SEO request.
+
 ## Piece 2 — phase5 final verification (2026-10-10)
 
 Status: scoped implementation/local evidence VERIFIED; programme PARTIAL for
