@@ -1,5 +1,104 @@
 # Rvion current state
 
+## Entry / cinematic home performance — 2026-10-12 — PARTIAL; activation BLOCKED
+
+Owner authorises optimisation without visual damage, responsive tests, activation
+and deployment ONLY if correct. Started HEADb1fad0e clean; last verified runtime
+dab858f. Single primary agent; applicable framework/skills read. UIUX Three.js
+search returned no entries, so no generated plugin design is claimed.
+
+Implemented: opaque static instancing with original world transforms, excluding
+animated/transparent subtrees; construct only four actual rooms. Same engine,
+fonts/covers/camera/effects now render in a same-origin OffscreenCanvas Web Worker
+(not an AI agent). Visibility/intersection/resize/pointer forwarded; bounded
+timeout and idempotent cancellation/failure/context-loss poster fallback. Intro
+and renderer startup no longer overlap. Official API references:
+threejs.org/manual/pages/offscreencanvas.html;
+developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope/fonts and
+/Web/API/DedicatedWorkerGlobalScope/requestAnimationFrame. Capability checks
+decide admission, unsupported devices retain readable posters/HTML links.
+
+Two genuine production-only defects fixed: intro allowlist rejected Django hashed
+filenames, and tour template requested a directory from manifest storage. Exact
+same-origin hashed/unhashed entry file validation; directory prefix not resolved
+as a manifest asset, font URLs resolve actual files. Pending intro marker releases
+on error/deadline/navigation. Deferred loader starts at DOM ready; stylesheet
+fetch is nonblocking, applied before script/DOM, fonts awaited before overlay.
+Welcome/notification sound semantics unchanged and covered by Node tests.
+
+Home-only generated shell adapter115464→20656 bytes preserves canonical cascade,
+source/builder hash gates. Existing styles inlined/cached per process, relative
+URLs resolved by static storage. Six shared legacy-home rules moved intact to
+home-paths. Font bytes152272→103460 with full original Unicode fallback. Build
+reopens WOFF2 and compares every retained outline/advance/cmap (including shaping
+glyphs). Eight AVIF variants434564→268472 bytes, same dimensions/crop, original
+WebP fallbacks untouched. Build-only tools isolated in temporary tooling venv:
+tinycss2==1.4.0,fonttools[woff]==4.60.1,Pillow==11.3.0. No runtime requirements,
+model/migration/gallery/management/article-content/SEO/customer data changes.
+
+Lighthouse13.5.0/Chrome154/mobile simulated throttling, fresh browser per run,
+same read-only fixture, manifest+gzip matching existing production Nginx. Evidence:
+/tmp/rvion-studio-performance-20261012/. Final priority-* source frozen; unchanged
+control uses candidate-control1/3 + priority-control-retry1. candidate-control2
+NO_NAVSTART recording failure retained and retried, not counted as a pass.
+
+| final mobile | LCP ms, 3 valid runs | TBT ms | CLS |
+| --- | --- | --- | --- |
+| both off/control |2572.722/2720.940/2712.544|166/71/115|0/0/0|
+| both on/priority-combined |2287.427/2861.934/2864.633|73/34/39|0/0/0|
+
+Median TBT115→39ms; LCP2712.544→2861.934ms (+149.390ms,5.5%). Gate FAILS.
+Flags/defaults stayOFF/OFF. No public activation. Initial uncompressed main-thread
+renderer TBT1971ms; batching alone still produced3190ms shader tasks. Uncompressed
+Worker experiment TBT0 shows scheduling benefit, NOT a fair gzip speed comparison.
+All raw attempts/NO_NAVSTART/stale-process500 captures retained. Early probe wrong
+Content-Length corrected; compressed probe initially wrapped gzip and inserted
+nothing (null readings NOT evidence), then moved inside compression. Final mobile
+observer: no long tasks/shifts, ~59.93fps,quality0,1622frames,114calls in exam room.
+Earlier viewed workshop ~60fps/174calls vs326 before, desktop full-effects ~60fps/
+468calls. Chrome/mobile emulation, NOT physical-phone certification.
+
+Tests: full manage.py test --parallel4 --verbosity1:1210 tests/110.921s/OK,
+27 existing conditional skips BEFORE last font/poster/lifecycle refinements.
+Subsequent core.test_studio_home+core.test_entry18/18 and core Node29/29 pass;
+check0, migration drift0, pip check0, generated shell --check pass, diff clean.
+First subset experiment loaded full fallback fonts too; explicit disjoint ranges
+fixed unsupported-arrow lookup, final traces show only3 subset font requests.
+Initial font build proof hit synthetic WOFF2 glyph names; comparison corrected
+using preserved glyph order/component mapping, then all outlines/advances pass.
+No repeated full-suite claim for later scoped refinements; no migrations run.
+
+SSH read-only preflight: saved-host-verified Paramiko/MSS512 authenticated but
+command channel timed out180s. Native OpenSSH via committed MSS relay timed out
+too. No remote result/backup/write/env edit/migration/deploy/GitHub push this turn.
+Wrong key or server config fault NOT established. Remote current state unverified;
+last verified runtime remainsdab858f. Local visual/final evidence recorded below.
+
+Final real-browser review:390×844 FA dark/light and1280×800 EN dark/light, plus
+EN390 dark/light and FA1280 dark earlier. Actual intro automatic timeline reaches
+its gateway; project above assessment, own scroll reaches enter-site action;
+skip closes overlay and then starts renderer. FA mobile exam/library and EN
+desktop reception anchors/camera work; actual article covers naturalWidth1200.
+Poster AVIF natural dimensions900×1600 mobile. All inspected views overflow0.
+Final desktop observer:59.996fps,quality0,497calls,147930triangles,122frames,
+no long tasks/shifts; earlier stats differ by animation/camera frame. Mobile
+exam59.928fps/1622frames. Reduced-motion reload: no overlay/engine/worker requests,
+poster loads and links remain. Current8183 has no captured console errors;
+old8179 null-install-control errors belong to the truncated early probe, retained.
+Screenshots: final-mobile-{intro,entry-gateway,fa-workshop-dark,fa-workshop-light,
+fa-exam,fa-library,reduced-light}.png; final-desktop-en-{intro,workshop-dark,
+workshop-light,reception}.png under the evidence root. Viewed light/dark final
+frames, not merely saved. Desktop Lighthouse single comparative run (NOT three-
+run gate): controlCLS0/LCP581.760/TBT0; combinedCLS0/LCP653.139/TBT0. Desktop
+initial-paint cost also remains (+71.379ms). No physical-device/browser-universal
+claim. Emulation settings/viewport restored; only local preview8181 retained.
+
+Rollback: revert local presentation commit and recollect assets, no DB restore.
+Future release must preserve both flagsOFF until strict LCP gate passes, validate
+fresh backup/preflight and code+static+scoped-flag rollback. Next: close remaining
+control-relative LCP cost, restore SSH execution, guarded release/live browser.
+No permission inferred to relax the gate or alter site data/cache policies.
+
 ## Public staff header fit — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner requested correcting the live EN staff overlap, desktop/mobile browser

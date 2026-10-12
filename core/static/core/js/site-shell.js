@@ -10,7 +10,11 @@ function rvionEntryAdmission({path, type, referrer, origin, reduced, now, state}
   if (starts.length >= 3) return {show: false, state: {starts: [], blockedUntil: now + 300000}};
   return {show: true, state: {starts: [...starts, now], blockedUntil: 0}};
 }
-if (typeof module !== 'undefined') module.exports = {rvionEntryAdmission};
+function rvionEntryAsset(value,kind,origin) {
+  if(typeof value!=='string'||!['css','js'].includes(kind))return false;
+  try{const url=new URL(value,origin);return url.origin===origin&&!url.hash&&new RegExp('^/static/core/'+kind+'/entry(?:\\.[a-f0-9]{12})?\\.'+kind+'$').test(url.pathname)&&/^\?v=\d{1,3}$/.test(url.search);}catch(error){return false;}
+}
+if (typeof module !== 'undefined') module.exports = {rvionEntryAdmission,rvionEntryAsset};
 if (typeof document !== 'undefined') (() => {
   const menuButton = document.querySelector(".menu-button");
   const nav = document.querySelector(".site-nav");
@@ -122,23 +126,30 @@ if (typeof document !== 'undefined') (() => {
       }
       let payload;
       try { payload = JSON.parse(entryPayload.textContent); } catch (error) { return; }
-      if (!payload.css?.startsWith('/static/core/css/entry.css?') || !payload.js?.startsWith('/static/core/js/entry.js?')) return;
+      if (!rvionEntryAsset(payload.css,'css',location.origin) || !rvionEntryAsset(payload.js,'js',location.origin)) return;
       const sheet = document.createElement('link');
-      sheet.rel = 'stylesheet';sheet.href = payload.css;
+      sheet.rel = 'stylesheet';sheet.media = 'print';sheet.href = payload.css;
       const script = document.createElement('script');script.src = payload.js;
       let canceled = false;
-      const timer = window.setTimeout(() => {canceled = true;sheet.remove();script.remove();}, 8000);
-      const fail = () => {canceled = true;window.clearTimeout(timer);sheet.remove();script.remove();};
+      document.documentElement.setAttribute('data-entry-pending','');
+      const releaseEntry = () => {document.documentElement.removeAttribute('data-entry-pending');document.dispatchEvent(new Event('rvion:entry-closed'));};
+      const timer = window.setTimeout(() => {canceled = true;sheet.remove();script.remove();releaseEntry();}, 8000);
+      const fail = () => {canceled = true;window.clearTimeout(timer);sheet.remove();script.remove();releaseEntry();};
       sheet.onerror = fail;script.onerror = fail;
-      sheet.onload = () => {if (!canceled) document.head.append(script);};
+      // Fetch without render-blocking the poster; apply before creating any
+      // intro DOM. The subsequent script/decode/font barrier keeps it styled.
+      sheet.onload = () => {if (!canceled) {sheet.media = 'all';document.head.append(script);}};
       script.onload = () => {
-        const open = scene => {
+        const open = scene => Promise.resolve(document.fonts?.ready).then(() => {
           window.clearTimeout(timer);
-          if (canceled || navigationScheduled || prefersReducedMotion()) return;
-          if (window.RvionEntry?.start(scene) && result.state && !localSeek) {
+          if (canceled || navigationScheduled || prefersReducedMotion()) {releaseEntry();return;}
+          const opened = window.RvionEntry?.start(scene);
+          document.documentElement.removeAttribute('data-entry-pending');
+          if (!opened) releaseEntry();
+          if (opened && result.state && !localSeek) {
             try { localStorage.setItem(guardKey, JSON.stringify(result.state)); } catch (error) {}
           }
-        };
+        });
         if (payload.scene_gzip) {
           if (!window.RvionEntry?.decode) {fail();return;}
           window.RvionEntry.decode(payload).then(open).catch(fail);
@@ -146,8 +157,9 @@ if (typeof document !== 'undefined') (() => {
       };
       document.head.append(sheet);
     };
-    if (document.readyState === 'complete') bootEntry();
-    else window.addEventListener('load', bootEntry, {once: true});
+    // This script is deferred: the DOM is ready. Do not wait for unrelated
+    // below-fold images before loading the entry's own stylesheet and scene.
+    bootEntry();
   }
   const setMainBusy = busy => main?.setAttribute("aria-busy", busy ? "true" : "false");
   const setNavigationLocked = locked => navigationBackground.forEach(item => item.toggleAttribute("inert", locked));

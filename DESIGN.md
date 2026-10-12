@@ -350,3 +350,21 @@ code film, real article covers and a direct contact path. No home showroom.
 This replaces the six-room/SVG/asset assumptions above. Public activation is not
 approved: final local CLS0 but LCP/TBT are worse than control; flags stay OFF.
 Functional/visual/performance evidence and rollback are in CURRENT_STATE.md.
+
+### Runtime optimisation — 2026-10-12
+
+The same four-room geometry, materials, camera paths and animations now render
+in a same-origin OffscreenCanvas Web Worker (browser rendering, not AI delegation).
+Opaque immutable props are instanced; moving/transparent subtrees retain their
+transforms/sorting. Unused rooms are not constructed. Desktop effects and the
+existing mobile DPR/effects policy/quality governor remain. Poster-first HTML,
+native anchors, reduced-motion/data-saving/simple-mode fallbacks remain usable.
+Intro CSS applies before its DOM; the renderer waits until the intro closes.
+Home-only shell adapter comes from canonical site.css via
+ops/build_home_shell_css.py; source/builder hashes prevent drift. studio_ui.py
+inlines existing styles with manifest font URLs, cached per process. Other routes
+keep original sheets. Font subsets preserve outlines/advances/shaping; disjoint
+Unicode ranges keep original faces for other scripts. AVIF posters preserve
+dimensions/composition with untouched WebP fallbacks. Build tools are not runtime
+dependencies. Activation remains BLOCKED: final mobile median LCP2861.934ms vs
+control2712.544ms, despite CLS0/lower TBT. Do not silently waive this gate.

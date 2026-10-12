@@ -1,0 +1,20 @@
+{
+  "Vazirmatn-Regular.woff2": {
+    "source": "e382101336c6eb32cfb31381c027d02d2e0354bad08f6a395d4088beb3db3d91",
+    "subset": "def114e8a60007ea3362700533571c838076218c3e192903692050c73acebb12",
+    "builder": "cc6261fe9fe8b2795a94e3bd572cfeac649e926b4ab6ee521ebe80c65949a539",
+    "codepoints": 597
+  },
+  "Vazirmatn-Bold.woff2": {
+    "source": "836fae7d42d83faa249bc00e0099592be98a1fa260d22d82f269b6091e585627",
+    "subset": "2abf81fb9273d5d6ee8591fa51467cc1e68623d2cf87ed00f137c13ff817ca86",
+    "builder": "cc6261fe9fe8b2795a94e3bd572cfeac649e926b4ab6ee521ebe80c65949a539",
+    "codepoints": 597
+  },
+  "Vazirmatn-Black.woff2": {
+    "source": "e65a05523e6c0a434265913805746ebe6ed48af843e6126a936d06f69d7d47ad",
+    "subset": "7bfd63e9629bc5b0b712335ea7cb9281d2fc705529987774c2742d956815d267",
+    "builder": "cc6261fe9fe8b2795a94e3bd572cfeac649e926b4ab6ee521ebe80c65949a539",
+    "codepoints": 597
+  }
+}

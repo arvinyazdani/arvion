@@ -29,6 +29,97 @@ class StudioHomeTests(TestCase):
             self.assertContains(response, 'data-film-scene', count=4)
             self.assertContains(response, f'/{lang}/contact/?service=digital-product-consulting')
 
+    def test_cinematic_home_reuses_inline_styles_without_loading_legacy_hero_css(self):
+        from pathlib import Path
+        from django.conf import settings
+        from core.templatetags.studio_ui import STYLES
+        html = self.client.get('/fa/').content.decode()
+        self.assertIn('<style data-studio-styles>', html)
+        self.assertNotIn('href="/static/core/css/home-studio.css', html)
+        self.assertNotIn('href="/static/core/studio/tour.css', html)
+        for name in STYLES:
+            app, relative = name.split('/', 1)
+            self.assertIn((Path(settings.BASE_DIR) / app / 'static' / name).read_text(), html)
+        self.assertIn('<style data-studio-shell-styles>', html)
+        self.assertNotIn('href="/static/core/css/site.css', html)
+        self.assertIn('url("/static/core/fonts/Vazirmatn-Regular.woff2")', html)
+        self.assertNotIn('url("../fonts/', html)
+
+    def test_generated_home_shell_is_tied_to_canonical_css_and_retains_menu_states(self):
+        import hashlib
+        from pathlib import Path
+        from django.conf import settings
+        root = Path(settings.BASE_DIR) / 'core/static/core/css'
+        source = (root / 'site.css').read_bytes()
+        generated = (root / 'home-shell.generated.css').read_text()
+        self.assertIn(hashlib.sha256(source).hexdigest(), generated)
+        self.assertIn(hashlib.sha256((Path(settings.BASE_DIR) / 'ops/build_home_shell_css.py').read_bytes()).hexdigest(), generated)
+        self.assertLess(len(generated), len(source) // 3)
+        for selector in ('.site-header', '.nav-wrap', '.site-nav.is-open',
+                         '.menu-button', '.mobile-tabbar', '.install-sheet',
+                         '.skip-link', '.button', '.ui-icon', '.eyebrow', '@media'):
+            self.assertIn(selector, generated)
+        self.assertNotIn('.question-stage', generated)
+
+    def test_studio_font_subsets_are_current_and_keep_full_fonts_as_fallback(self):
+        import hashlib
+        import json
+        from pathlib import Path
+        from django.conf import settings
+        root = Path(settings.BASE_DIR) / 'core/static/core/fonts'
+        manifest = json.loads((root / 'studio/manifest.json').read_text())
+        self.assertEqual(len(manifest), 3)
+        for filename, hashes in manifest.items():
+            self.assertEqual(hashlib.sha256((Path(settings.BASE_DIR) / 'ops/build_studio_fonts.py').read_bytes()).hexdigest(), hashes['builder'])
+            self.assertEqual(hashlib.sha256((root / filename).read_bytes()).hexdigest(), hashes['source'])
+            self.assertEqual(hashlib.sha256((root / 'studio' / filename).read_bytes()).hexdigest(), hashes['subset'])
+            self.assertLess((root / 'studio' / filename).stat().st_size, (root / filename).stat().st_size)
+        html = self.client.get('/fa/').content.decode()
+        self.assertIn('unicode-range:U+0000-00FF,U+0600-06FF,U+2000-206F,U+FB50-FEFF', html)
+        import re
+        faces = re.findall(r'@font-face\{font-family:Vazirmatn;[^}]+\}', html)
+        self.assertEqual(len(faces), 6)
+        self.assertTrue(all('unicode-range:' in face for face in faces))
+        self.assertIn('U+0100', html)  # Extended Latin still uses the original face.
+        self.assertIn('url("/static/core/fonts/Vazirmatn-Regular.woff2")', html)
+        self.assertIn('href="/static/core/fonts/studio/Vazirmatn-Regular.woff2"', html)
+        self.assertEqual(html.count('fetchpriority="low"'), 3)
+        with self.settings(RVION_STUDIO_3D_ENABLED=False):
+            self.assertNotContains(self.client.get('/fa/'), 'fonts/studio/')
+
+    def test_avif_posters_preserve_webp_fallback_and_asset_dimensions(self):
+        from pathlib import Path
+        import struct
+        from PIL import Image
+        from django.conf import settings
+        root = Path(settings.BASE_DIR) / 'core/static/core/studio/posters'
+        for room in ('workshop', 'exam', 'library', 'reception'):
+            for device in ('mobile', 'desktop'):
+                avif = root / f'{room}-{device}.avif'
+                webp = root / f'{room}-{device}.webp'
+                self.assertLess(avif.stat().st_size, webp.stat().st_size)
+                with Image.open(webp) as image:
+                    # Read the ISO-BMFF image spatial-extents property without
+                    # adding an AVIF decoder to application dependencies.
+                    data = avif.read_bytes()
+                    extents = data.index(b'ispe') + 8
+                    self.assertEqual(struct.unpack('>II', data[extents:extents + 8]), image.size)
+        response = self.client.get('/fa/')
+        self.assertContains(response, 'type="image/avif"', count=4)
+        self.assertContains(response, 'data-studio-mobile')
+        self.assertContains(response, 'workshop-mobile.webp')
+        self.assertContains(response, 'workshop-mobile.avif')
+
+    def test_production_static_resolution_never_requests_a_manifest_directory(self):
+        from unittest.mock import patch
+        def strict_url(name):
+            self.assertFalse(name.endswith('/'), 'A directory is not a manifest asset')
+            return '/static/' + name
+        with patch('django.contrib.staticfiles.storage.staticfiles_storage.url', side_effect=strict_url):
+            response = self.client.get('/fa/')
+        self.assertContains(response, 'data-assets="/static/core/studio/"')
+        self.assertContains(response, 'data-font-bold="/static/core/fonts/studio/Vazirmatn-Bold.woff2"')
+
     def test_all_room_anchors_have_real_targets(self):
         import re
         html = self.client.get('/en/').content.decode()

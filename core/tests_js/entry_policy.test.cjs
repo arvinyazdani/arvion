@@ -1,7 +1,11 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const {rvionEntryAdmission: admit} = require('../static/core/js/site-shell.js');
+const {rvionEntryAdmission: admit,rvionEntryAsset} = require('../static/core/js/site-shell.js');
+for(const kind of ['css','js']){
+ for(const hash of ['', '.0123456789ab'])assert.ok(rvionEntryAsset(`/static/core/${kind}/entry${hash}.${kind}?v=3`,kind,'https://rvionai.com'));
+ for(const value of [`https://outside.example/static/core/${kind}/entry.${kind}?v=3`,`/static/core/${kind}/other.${kind}?v=3`,`/static/core/${kind}/entry.${kind}?v=3&extra=1`,`/static/core/${kind}/entry.${kind}?v=3#bad`])assert.equal(rvionEntryAsset(value,kind,'https://rvionai.com'),false);
+}
 const base = {path: '/fa/', type: 'navigate', referrer: '', origin: 'https://rvionai.com', reduced: false, now: 1000000, state: null};
 assert.ok(admit(base).show);
 assert.ok(admit({...base, path: '/en/'}).show);
@@ -21,19 +25,20 @@ assert.ok(admit({...base,state:{starts:['bad',Infinity],blockedUntil:'forever'}}
 const source=fs.readFileSync('core/static/core/js/site-shell.js','utf8');
 const boot=source.slice(source.indexOf("  const entryPayload ="),source.indexOf('  const setMainBusy ='));
 function run(saved, unavailable=false, protocol={}){
- const writes=[],assets=[],opened=[],timeouts=[];
- const context={URL,URLSearchParams,Date:{now:()=>base.now+30000},rvionEntryAdmission:admit,
+ const writes=[],assets=[],opened=[],timeouts=[],events=[],attrs=new Set();
+ const context={URL,URLSearchParams,Event,Date:{now:()=>base.now+30000},rvionEntryAdmission:admit,rvionEntryAsset,
   localStorage:{getItem(){if(unavailable)throw Error('disabled');return JSON.stringify(saved);},setItem(k,v){writes.push(JSON.parse(v));}},
   location:{pathname:'/fa/',origin:base.origin,hostname:'rvionai.com',search:''},
   performance:{getEntriesByType:()=>[{type:'reload'}]},prefersReducedMotion:()=>false,navigationScheduled:false,
   window:{setTimeout:fn=>{timeouts.push(fn);return 1;},clearTimeout(){},RvionEntry:{start:scene=>{opened.push(scene);return true;},decode:protocol.decode}},
-  document:{readyState:'complete',referrer:'',getElementById:()=>({textContent:JSON.stringify({html:'x',...protocol.payload,css:'/static/core/css/entry.css?v=1',js:'/static/core/js/entry.js?v=1'})}),createElement:()=>({remove(){this.removed=true;}}),head:{append(asset){assets.push(asset);asset.onload();}}}
+  document:{documentElement:{setAttribute:k=>attrs.add(k),removeAttribute:k=>attrs.delete(k)},dispatchEvent:e=>events.push(e.type),readyState:'interactive',referrer:'',getElementById:()=>({textContent:JSON.stringify({html:'x',...protocol.payload,css:'/static/core/css/entry.css?v=1',js:'/static/core/js/entry.js?v=1'})}),createElement:()=>({remove(){this.removed=true;}}),head:{append(asset){assets.push(asset);asset.onload();}}}
  };
- vm.runInNewContext(boot,context);return {writes,assets,opened,timeouts,context};
+ vm.runInNewContext(boot,context);return {writes,assets,opened,timeouts,context,attrs,events};
 }
 assert.equal(run(state).assets.length,0);
 assert.equal(run(state).writes[0].blockedUntil,fourth.state.blockedUntil);
 assert.equal(run(null).assets.length,2);
+assert.equal(run(null).assets[0].media,'all');
 assert.equal(run(null,true).assets.length,2);
 async function decodeChecks(){
  for(const mode of ['success','navigation','timeout','failure']){
@@ -41,12 +46,15 @@ async function decodeChecks(){
   const result=run(null,false,{payload:{scene_gzip:'x'},decode:()=>new Promise((yes,no)=>{resolve=yes;reject=no;})});
   assert.equal(result.opened.length,0);
   assert.equal(result.writes.length,0);
+  assert.ok(result.attrs.has('data-entry-pending'));
   if(mode==='navigation')result.context.navigationScheduled=true;
   if(mode==='timeout')result.timeouts[0]();
   if(mode==='failure')reject(new Error('bad gzip'));else resolve({html:'decoded'});
   await new Promise(setImmediate);
   assert.equal(result.opened.length,mode==='success'?1:0);
   assert.equal(result.writes.length,mode==='success'?1:0);
+  assert.equal(result.attrs.has('data-entry-pending'),false);
+  if(mode!=='success')assert.ok(result.events.includes('rvion:entry-closed'));
   if(mode==='timeout'||mode==='failure')assert.ok(result.assets.every(asset=>asset.removed));
  }
  const unsupported=run(null,false,{payload:{scene_gzip:'x'}});

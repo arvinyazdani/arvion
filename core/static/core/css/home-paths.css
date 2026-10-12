@@ -1,4 +1,11 @@
 /* Website-first home: four destinations, then three useful explanations. */
+/* Shared by the cinematic home and the unchanged legacy fallback. */
+.hs-room-name{display:block;font-size:.875rem;color:var(--text-link);font-weight:700}
+[data-public-shell] .home-primary{background:var(--action-brand-bg);color:var(--action-brand-text);border:1px solid var(--action-brand-bg)}
+[data-public-shell] .home-primary:hover{background:var(--action-brand-bg-hover);border-color:var(--action-brand-bg-hover);box-shadow:none}
+.website-text-link{display:inline-flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);color:var(--text-primary);font-weight:700;font-size:.875rem;background:var(--surface-card)}
+.website-text-link:hover{border-color:var(--text-link);color:var(--text-link);background:var(--surface-subtle)}
+.home-device{padding-top:24px}
 .hp-home{overflow:clip}.hp-routes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;scroll-margin-top:100px;margin-block:32px 0;border-block:1px solid var(--border-default)}
 .hp-routes>a{display:grid;grid-template-columns:1fr auto;gap:8px;padding:26px 20px;border-inline-end:1px solid var(--border-default);color:var(--text-primary)}.hp-routes>a:last-child{border:0}.hp-routes>a>span{font:700 1.5rem var(--font-family-latin);color:var(--text-link);grid-column:1/-1}.hp-routes strong{font-size:1rem}.hp-routes small{grid-column:1;font-size:.8125rem;color:var(--text-secondary);line-height:1.8}.hp-routes b{grid-column:2;grid-row:2/4;align-self:center}.hp-routes a:hover{background:var(--surface-card)}
 .hp-routes .ui-icon{width:26px;height:26px;grid-column:1/-1;color:var(--text-link);margin-bottom:5px}
