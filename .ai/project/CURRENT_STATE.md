@@ -1,6 +1,6 @@
 # Rvion current state
 
-## Entry / cinematic home final cutover — 2026-10-12 — VERIFIED local; release pending
+## Entry / cinematic home final cutover — 2026-10-12 — VERIFIED / DEPLOYED
 
 Owner renews fix/test/activation/deploy instruction. Single primary agent; clean
 starting2ab0d16. Continue9c88c76, do not repeat the renderer rewrite. Eight English
@@ -53,8 +53,34 @@ visuals preserve original geometry/fonts/composition. All screenshots under
 desktop-light,desktop-reception}.png; metrics *-perf.json. Browser viewport and
 emulated media restored; no physical phone/iOS claim. Final asset MD5s match
 all3 visibility-combined reports (site-shell67024d65e834,tour26b218b1fc3b,
-mobile poster6009d34bb02a). Next: local commit, fresh validated backup + guarded
-fast-forward/collectstatic/scoped two-flag activation, online smoke/browser.
+mobile poster6009d34bb02a).
+Runtime0af65fcf2d25060cb428197d37aea36ea6f24de6, clean FF fromdab858f. No push.
+Source bundle SHA25644aed6f3ee9cf2cee9eaf645d784d0db6b250702858fe076ff98771b11973edb
+verified remotely. Fresh backup
+/srv/arvion/backups/home-cinema-20261012T101350Z-dab858f: pg_dump custom validated
+with pg_restore--list, source.bundle, env.production, .secrets copy, media.tar.gz,
+previous-head and exact changed-path list for scoped rollback. No restore run.
+Production check--deploy/migrate--check/collectstatic/nginx-t/restart/health PASS.
+Only RVION_ENTRY_ENABLED=1/RVION_STUDIO_3D_ENABLED=1 changed; read-back confirms
+all other env content unchanged. PostgreSQL/roles/customer/payment/contract/
+article rows not edited, no migrations/imports/seeds. Eight EN articles retained;
+all FA body/title/summary/slug/cover/publication flags match prior article backup.
+Anonymous HTTP both languages contain intro payload + four stops; each13 required
+assets200/nonHTML (hashes, worker, renderer/vendors/fonts/posters).9 public route
+smokes200; all8 EN articles/covers/canonicals/hreflang/sitemap rechecked PASS.
+Evidence /tmp/rvion-home-live-smoke.json and rvion-english-live-results.json.
+Actual online browser FA390 and EN1280:engine ready/overflow0, captured errors0.
+Screenshots /tmp/rvion-home-live-{mobile,desktop}.png viewed. Browser retains a
+staff session, so intro correctly excluded there by existing policy; anonymous
+intro verified via public HTML/assets + real local manifest browser timeline,
+NOT claimed as anonymous online-browser playback. Raw CDP cookie-header override
+unsupported; no cookie/auth change made. Existing staff notification nudge was
+dismissed with Not now, no notification permission/test enabled. Viewport/media
+overrides restored, public tab8 kept as deliverable; tab4 returned to EN articles.
+Owned lab servers stopped; only refreshed read-only preview8181/session19130
+retained. No physical-phone/iOS certification, live FPS/APM or15-minute continuous
+monitoring claim. No further blocker for this scoped release. Rollback code+env+
+static only to backup/previous-head; never restore customer DB for a UI rollback.
 
 ## Eight international English article editions — 2026-10-12 — VERIFIED (published)
 
@@ -93,9 +119,12 @@ covers200 image/*, all8 English URLs in sitemap and listing. Evidence:
 at1280×800 and cost detail390×844, LTR/no Persian body/overflow0.
 Screenshots /tmp/rvion-english-{desktop,mobile}.png. Viewport reset; user tabs
 preserved. Content-only task complete; no ranking/indexing guarantee or Search
-Console submission. Unrelated intro/home activation gate remains BLOCKED below.
+Console submission. Intro/home was still blocked at that publication boundary;
+the subsequent verified cutover above supersedes that historical state.
 
 ## Entry / cinematic home performance — 2026-10-12 — PARTIAL; activation BLOCKED
+
+Historical pre-cutover checkpoint; superseded by the deployed final cutover above.
 
 Implementation locally committed as9c88c76 (35 scoped files). No push/deploy.
 Only owned preview8181 retained for owner review; other owned lab servers stopped.
