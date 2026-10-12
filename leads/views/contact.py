@@ -153,6 +153,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
             initial["request_type"] = {
                 "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
                 "corporate": "website", "clinic": "webapp", "education": "webapp", "jewelry": "ecommerce",
+                "accounting": "webapp",
             }.get(selection.template.category, "consultation")
             initial["message"] = (
                 f"نمونه انتخاب‌شده: {selection.template.title_fa}\n"

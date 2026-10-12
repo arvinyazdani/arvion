@@ -43,11 +43,12 @@ class DemoOrderPathTests(TestCase):
         self.assertEqual(response.status_code, 302)
         return demo, DemoSelection.objects.get(submission_token=values["submission_token"]), response.url, values
 
-    def test_all_seven_categories_keep_preferences_through_validation_lead_case_and_export(self):
+    def test_all_eight_categories_keep_preferences_through_validation_lead_case_and_export(self):
         staff = get_user_model().objects.create_user(username="path-staff", is_staff=True)
         staff.user_permissions.add(Permission.objects.get(codename="view_lead"))
         expected = {"ecommerce": "ecommerce", "jewelry": "ecommerce", "clinic": "webapp",
-                    "education": "webapp", "restaurant": "website", "corporate": "website", "portfolio": "website"}
+                    "education": "webapp", "accounting": "webapp", "restaurant": "website",
+                    "corporate": "website", "portfolio": "website"}
         for category, request_type in expected.items():
             cache.clear()
             demo, selection, url, _ = self.selection(category)

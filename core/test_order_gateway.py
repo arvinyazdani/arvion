@@ -41,7 +41,7 @@ class OrderGatewayTests(TestCase):
             response = self.client.get("/fa/start/", {"type": "clinic", "sample": sample, "go": "preview"})
             self.assertEqual(response.status_code, 200)
         response = self.client.get("/fa/start/", {"type": "unknown"})
-        self.assertContains(response, 'class="project-start-card', count=9)
+        self.assertContains(response, 'class="project-start-card', count=10)
 
     def test_consultation_uses_short_general_form(self):
         response = self.client.get("/fa/start/", {"type": "crm", "consult": "1"})

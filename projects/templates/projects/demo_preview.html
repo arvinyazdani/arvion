@@ -3,7 +3,7 @@
 {% block title %}{% demo_metadata demo lang brand_name as metadata %}{{ metadata.title }}{% endblock %}
 {% block meta_description %}{% demo_metadata demo lang brand_name as metadata %}{{ metadata.description }}{% endblock %}
 {% block body_class %}demo-designer-page{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><script src="{% static 'projects/js/demo-configurator.js' %}?v=9" defer></script>
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4">{% if demo.category == 'accounting' %}<link rel="stylesheet" href="{% static 'projects/css/raya-demo.css' %}?v=5"><script src="{% static 'projects/js/raya-demo.js' %}?v=9" defer></script>{% endif %}<script src="{% static 'projects/js/demo-configurator.js' %}?v=10" defer></script>
 {% if demo.category == 'ecommerce' %}{% include 'projects/demo_scenes/store_assets.html' %}{% else %}{% include 'projects/demo_scenes/sector_assets.html' %}{% endif %}
 {% endblock %}
 {% block content %}
@@ -25,7 +25,7 @@
       </div>
       <div class="demo-stage" data-demo-stage data-view="desktop">
         <article class="demo-site style-{{ demo.style_key }}{% if demo.category == 'restaurant' %} demo-site-restaurant{% endif %}{% if demo.category == 'jewelry' %} demo-site-jewelry{% endif %}" data-demo-site data-category="{{ demo.category }}">
-          <header><div class="demo-logo"><i data-demo-initial>{{ demo.fictional_brand_en|slice:':1' }}</i><b data-demo-brand>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</b></div><nav aria-label="{% if lang == 'fa' %}پیمایش نمونه{% else %}Sample navigation{% endif %}"><a href="#sample-content">{{ demo.page_labels.1 }}</a><a href="#sample-story">{% if lang == 'fa' %}درباره{% else %}Our story{% endif %}</a><a href="#sample-faq">{% if lang == 'fa' %}پرسش‌ها{% else %}Questions{% endif %}</a></nav></header>
+          <header><div class="demo-logo"><i data-demo-initial>{{ demo.fictional_brand_en|slice:':1' }}</i><b data-demo-brand>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</b></div><nav aria-label="{% if lang == 'fa' %}پیمایش نمونه{% else %}Sample navigation{% endif %}"><a href="#sample-content">{{ demo.page_labels.1 }}</a><a href="#sample-story">{% if demo.category == 'accounting' %}{% if lang == 'fa' %}روش کار{% else %}How it works{% endif %}{% else %}{% if lang == 'fa' %}درباره{% else %}Our story{% endif %}{% endif %}</a><a href="#sample-faq">{% if lang == 'fa' %}پرسش‌ها{% else %}Questions{% endif %}</a></nav></header>
           <div class="sample-main">{% include 'projects/demo_scenes/hero.html' %}<div id="sample-content" class="sample-content">
             {% include 'projects/demo_scenes/scene.html' %}
           </div>{% include 'projects/demo_scenes/story.html' %}</div>

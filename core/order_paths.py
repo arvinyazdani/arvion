@@ -30,6 +30,7 @@ TOPICS = (
     OrderTopic("portfolio", "پورتفولیو", CATEGORY_LABELS_EN["portfolio"], "work"),
     OrderTopic("education", "آموزش و وبینار", CATEGORY_LABELS_EN["education"], "assessment"),
     OrderTopic("jewelry", "طلا و جواهر", CATEGORY_LABELS_EN["jewelry"], "work", service_slug="ecommerce-platform"),
+    OrderTopic("accounting", "اپ حسابداری شخصی", CATEGORY_LABELS_EN["accounting"], "account", service_slug="custom-web-application"),
     OrderTopic("crm", "CRM سازمانی", "Enterprise CRM", "customers", "crm_orders:create", "custom-web-application"),
     OrderTopic("other", "ایده‌ای دیگر", "Another idea", "message", service_slug="custom-web-application"),
 )
@@ -102,6 +103,8 @@ def request_type(choices):
     topic = choices.get("type")
     if topic in {"ecommerce", "jewelry"}:
         return "ecommerce"
+    if topic == "accounting":
+        return "webapp"
     if topic:
         return "webapp" if topic in {"crm", "other"} else "website"
     return "support" if "support" in addons else "consultation"

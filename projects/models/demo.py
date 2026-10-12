@@ -9,6 +9,7 @@ class DemoTemplate(models.Model):
         ("portfolio", "پورتفولیو"), ("corporate", "وب‌سایت شرکتی"),
         ("clinic", "کلینیک"), ("education", "آموزش"),
         ("jewelry", "طلافروشی و جواهرات"),
+        ("accounting", "اپ حسابداری شخصی"),
     )
 
     slug = models.SlugField(unique=True)

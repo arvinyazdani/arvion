@@ -74,7 +74,7 @@ class OrderWizardVocabularyTests(TestCase):
 
     def test_no_javascript_fallback_keeps_palette_and_look_across_navigation(self):
         page = self.client.get("/fa/start/?palette=gold&look=classic")
-        self.assertContains(page, "order-topic-card", count=9)
+        self.assertContains(page, "order-topic-card", count=10)
         consult_query = parse_qs(urlsplit(page.context["order_consultation_url"]).query)
         self.assertEqual(consult_query, {"palette": ["gold"], "look": ["classic"], "consult": ["1"]})
         for card in page.context["order_topics"]:

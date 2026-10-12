@@ -7,7 +7,7 @@ class ProjectStartTests(TestCase):
         self.assertContains(response, "/fa/start/?type=crm")
         self.assertContains(response, "/fa/start/?type=clinic")
         self.assertContains(response, "/fa/start/?type=other")
-        self.assertEqual(response.content.decode().count('class="project-start-card'), 9)
+        self.assertEqual(response.content.decode().count('class="project-start-card'), 10)
 
     def test_english_start_page_is_not_mixed_with_persian_copy(self):
         response = self.client.get("/en/start/")

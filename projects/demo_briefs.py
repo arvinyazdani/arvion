@@ -8,6 +8,7 @@ GOALS = {
     "clinic": (("appointments", "نوبت‌دهی", "Appointments"), ("care", "معرفی خدمات و پزشکان", "Services and practitioners"), ("education", "آموزش و پیگیری", "Guidance and follow-up")),
     "education": (("courses", "فروش دوره", "Course sales"), ("webinars", "برگزاری وبینار", "Webinars"), ("learning", "پنل یادگیری", "Learning portal")),
     "jewelry": (("collection", "معرفی کالکشن و استعلام", "Collections and enquiries"), ("custom", "سفارش ساخت اختصاصی", "Bespoke commissions"), ("shop", "فروش آنلاین", "Online sales")),
+    "accounting": (("daily", "ثبت دخل‌وخرج روزانه", "Daily money tracking"), ("accounts", "مدیریت چند حساب", "Manage multiple accounts"), ("reports", "گزارش و خروجی مالی", "Financial reports and exports")),
 }
 COMMON = {
     "scope": (("focused", "سایت جمع‌وجور؛ تا ۵ صفحه", "Focused site; up to 5 pages"), ("complete", "سایت کامل؛ ۶ تا ۱۲ صفحه", "Complete site; 6–12 pages"), ("platform", "سامانه با پنل اختصاصی", "Platform with a dedicated portal")),
@@ -20,6 +21,12 @@ FIELD_LABELS = {
     "content": ("وضعیت محتوا", "Content readiness"),
     "timing": ("زمان مدنظر", "Preferred timeline"),
 }
+
+ACCOUNTING_SCOPE = (
+    ("focused", "ثبت سادهٔ روزانه", "Simple daily tracking"),
+    ("complete", "چند حساب و انتقال بین آن‌ها", "Multiple accounts and transfers"),
+    ("platform", "گزارش و خروجی قابل چاپ", "Reports and printable exports"),
+)
 
 # Each topic adds real visitor-facing content, not software marketing claims.
 # All brands/scenarios are fictional. No live medical, trading or booking action.
@@ -35,6 +42,10 @@ STORIES = {
     "jewelry": (
         ("پشت هر قطعه", "Behind each piece", "از طرح اولیه تا جزئیات ساخت", "From first sketch to final craft", "عیار، وزن، نوع سنگ و روش ساخت هر قطعه جدا معرفی می‌شوند. مبلغ نهایی با اجرت و شرایط روز، پس از بررسی مشخصات اعلام می‌شود.", "Purity, weight, stones and craft are described individually. A final quote including workmanship and current conditions follows specification review.", (("عیار و وزن", "Purity and weight"), ("اجرت شفاف", "Clear workmanship"), ("مشخصات سنگ", "Stone details"))),
         ("ساخته‌شده برای شما", "Made for you", "قطعه‌ای با داستان شخصی شما", "A piece with your own story", "اندازه، طرح و تزئینات را برای مشاوره انتخاب کنید. قبل از شروع ساخت، مشخصات، زمان تحویل و قیمت باید به تأیید شما برسند.", "Choose size, design and details for a consultation. Specifications, delivery time and price need your approval before production begins.", (("مشاوره طرح", "Design consultation"), ("تأیید پیش از ساخت", "Approval before crafting"), ("شناسنامه محصول", "Product record"))),
+    ),
+    "accounting": (
+        ("پول روزمره، تصویر روشن", "Everyday money, clearly in view", "ثبت سریع، بدون پیچیدگی", "Quick entries, without the clutter", "هزینه و درآمد را با مبلغ، حساب و توضیح ثبت کنید. مانده از موجودی آغازین و تراکنش‌های معتبر محاسبه می‌شود؛ انتقال میان حساب‌های خودتان درآمد یا هزینه نیست.", "Record an expense or income with its amount, account and a short note. Balances reflect opening amounts and valid entries; moving money between your own accounts is not income or spending.", (("ثبت درآمد و هزینه", "Income and expenses"), ("چند حساب شخصی", "Multiple personal accounts"), ("انتقال روشن", "Clear transfers"))),
+        ("پایان ماه، قابل فهم", "A month you can understand", "گزارش و خروجی در کنار هم", "Reports and exports in one place", "فهرست تراکنش‌ها را جست‌وجو کنید، روند درآمد و هزینه را در گزارش ببینید و نسخهٔ قابل چاپ تهیه کنید. این پیش‌نمایش فقط از داده‌های ساختگی استفاده می‌کند.", "Search your entries, review income and expense trends, and prepare a printable record. This preview uses fictional data only.", (("جست‌وجوی تراکنش", "Search entries"), ("گزارش دوره‌ای", "Period reports"), ("خروجی قابل چاپ", "Printable export"))),
     ),
     "portfolio": (
         ("پشت صحنه‌ی کار", "Behind the work", "هر پروژه، یک تصمیم طراحی", "Every project, a design decision", "مسئله، محدودیت‌ها و مسیر رسیدن به نتیجه را کنار خروجی نهایی ببینید. مطالعه‌ی موردی کمک می‌کند روش فکر کردن استودیو را بشناسید.", "Explore the problem, constraints and decisions beside the outcome. Case studies reveal how the studio thinks, not only how its work looks.", (("مسئله و ایده", "Problem and idea"), ("فرایند طراحی", "Design process"), ("خروجی نهایی", "Final outcome"))),
@@ -58,7 +69,12 @@ STORIES = {
 def brief_fields(category, lang):
     index = 1 if lang == "fa" else 2
     choices = {"goal": GOALS.get(category, ()), **COMMON}
-    return [{"key": key, "label": FIELD_LABELS[key][index - 1],
+    if category == "accounting":
+        choices["scope"] = ACCOUNTING_SCOPE
+    labels = dict(FIELD_LABELS)
+    if category == "accounting":
+        labels["scope"] = ("مسیر مالی موردنیاز", "The finance workflow you need")
+    return [{"key": key, "label": labels[key][index - 1],
              "options": [(value, fa if lang == "fa" else en) for value, fa, en in items]}
             for key, items in choices.items()]
 

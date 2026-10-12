@@ -19,12 +19,13 @@ from core.views.lang import LanguageViewMixin
 
 THEMES = ("warm", "midnight", "sage", "plum", "gold", "custom")
 PERSONALITIES = ("minimal", "modern", "editorial", "luxury", "bold", "industrial")
-FEATURES = ("payment", "booking", "catalog", "blog", "membership", "multilingual")
+FEATURES = ("payment", "booking", "catalog", "blog", "membership", "multilingual", "accounts", "transactions", "reports", "exports")
 STYLE_THEMES = {"minimal": "warm", "editorial": "midnight", "luxury": "sage", "bold": "plum"}
 STYLE_PERSONALITIES = {"minimal": "minimal", "modern": "modern", "editorial": "editorial", "luxury": "luxury", "bold": "bold", "industrial": "industrial", "sage": "luxury", "plum": "bold"}
 REQUEST_TYPES = {
     "ecommerce": "ecommerce", "restaurant": "website", "portfolio": "website",
     "corporate": "website", "clinic": "webapp", "education": "webapp", "jewelry": "ecommerce",
+    "accounting": "webapp",
 }
 
 CATEGORY_DETAILS = {
@@ -112,6 +113,18 @@ CATEGORY_DETAILS = {
             "detail": "Presents pieces with material and craft details, then makes consultation, ordering and trust signals easy to find.",
         },
     },
+    "accounting": {
+        "fa": {
+            "fit": "برای ثبت روزانهٔ دخل‌وخرج و دیدن روشن گردش حساب‌های شخصی",
+            "pages": ("نمای کلی ماه", "ثبت درآمد و هزینه", "حساب‌ها و انتقال", "گزارش و خروجی"),
+            "detail": "رایا ثبت سریع تراکنش‌ها، ماندهٔ حساب‌ها و گزارش قابل‌فهم را در یک فضای مالی شخصی کنار هم می‌آورد.",
+        },
+        "en": {
+            "fit": "For simple daily money tracking across personal accounts",
+            "pages": ("Monthly overview", "Income and expenses", "Accounts and transfers", "Reports and exports"),
+            "detail": "Raya brings quick transaction entry, account balances and readable reports into one personal finance workspace.",
+        },
+    },
 }
 
 
@@ -123,9 +136,9 @@ def _decorate_demo(demo, lang):
     demo.detail_text = content["detail"]
     demo.feature_labels = [feature_names[key] for key in demo.default_features if key in feature_names]
     demo.category_label = demo.get_category_display() if lang == "fa" else CATEGORY_LABELS_EN[demo.category]
-    demo.default_theme = "gold" if demo.category == "jewelry" else STYLE_THEMES.get(demo.style_key, "warm")
+    demo.default_theme = "gold" if demo.category == "jewelry" else ("sage" if demo.category == "accounting" else STYLE_THEMES.get(demo.style_key, "warm"))
     demo.default_personality = STYLE_PERSONALITIES.get(demo.style_key, "minimal")
-    demo.default_custom_color = "#b88b3c" if demo.category == "jewelry" else "#2563eb"
+    demo.default_custom_color = "#b88b3c" if demo.category == "jewelry" else ("#047cb5" if demo.category == "accounting" else "#2563eb")
     demo.brief_fields = brief_fields(demo.category, lang)
     demo.story_sections = story_sections(demo.category, lang)
     return demo

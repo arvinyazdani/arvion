@@ -9,7 +9,7 @@ CATEGORY_LABELS_EN = {
     "ecommerce": "E-commerce", "restaurant": "Restaurant & cafe",
     "portfolio": "Portfolio", "corporate": "Corporate website",
     "clinic": "Clinic", "education": "Education & webinar",
-    "jewelry": "Jewellery boutique",
+    "jewelry": "Jewellery boutique", "accounting": "Personal finance app",
 }
 
 
@@ -21,6 +21,7 @@ CATEGORY_FEATURE_KEYS = {
     "clinic": ("booking", "payment", "blog", "membership"),
     "education": ("membership", "payment", "blog", "multilingual"),
     "jewelry": ("payment", "catalog", "booking", "membership"),
+    "accounting": ("accounts", "transactions", "reports", "exports"),
 }
 
 CATEGORY_FEATURE_LABELS = {
@@ -32,6 +33,7 @@ CATEGORY_FEATURE_LABELS = {
         "clinic": {"booking": "نوبت‌دهی", "membership": "پنل مراجعه‌کننده"},
         "education": {"membership": "پنل هنرجو و دوره", "blog": "مقاله و محتوای آموزشی"},
         "jewelry": {"catalog": "کالکشن و جزئیات عیار", "booking": "مشاوره و سفارش سفارشی", "membership": "پیگیری سفارش"},
+        "accounting": {"accounts": "چند حساب و مانده", "transactions": "ثبت دخل‌وخرج و انتقال", "reports": "گزارش‌های مالی", "exports": "خروجی قابل چاپ و PDF"},
     },
     "en": {
         "ecommerce": {"catalog": "Products, categories and filters", "membership": "Customer club"},
@@ -41,6 +43,7 @@ CATEGORY_FEATURE_LABELS = {
         "clinic": {"booking": "Appointment booking", "membership": "Patient portal"},
         "education": {"membership": "Learner and course area", "blog": "Learning articles"},
         "jewelry": {"catalog": "Collections and material details", "booking": "Consultation and custom orders", "membership": "Order progress"},
+        "accounting": {"accounts": "Accounts and balances", "transactions": "Income, expenses and transfers", "reports": "Financial reports", "exports": "Printable and PDF exports"},
     },
 }
 
@@ -83,6 +86,10 @@ def _category_features(lang, category):
         "blog": "مقاله و محتوا" if fa else "Content",
         "membership": "عضویت و پنل مشتری" if fa else "Member area",
         "multilingual": "چندزبانه" if fa else "Multilingual",
+        "accounts": "حساب‌ها" if fa else "Accounts",
+        "transactions": "تراکنش‌ها" if fa else "Transactions",
+        "reports": "گزارش‌ها" if fa else "Reports",
+        "exports": "خروجی‌ها" if fa else "Exports",
     }
     lang_key = "fa" if fa else "en"
     labels = CATEGORY_FEATURE_LABELS.get(lang_key, {}).get(category, {})

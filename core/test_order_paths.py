@@ -11,8 +11,8 @@ class OrderPathTests(SimpleTestCase):
         translation.activate("fa")
         self.addCleanup(translation.deactivate_all)
 
-    def test_nine_topics_use_existing_features(self):
-        self.assertEqual(len(TOPICS), 9)
+    def test_ten_topics_use_existing_features(self):
+        self.assertEqual(len(TOPICS), 10)
         for lang in ("fa", "en"):
             for card in topic_cards(lang):
                 if card["key"] not in {"crm", "other"}:

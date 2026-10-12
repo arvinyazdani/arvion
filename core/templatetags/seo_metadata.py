@@ -33,7 +33,14 @@ def demo_metadata(demo, lang, brand):
     name = _part(demo.title_fa if fa else demo.title_en)
     tagline = _part(demo.tagline_fa if fa else demo.tagline_en)
     category = _part(demo.category_label)
-    if fa:
+    if demo.category == 'accounting':
+        sample_brand = _part(demo.fictional_brand_fa if fa else demo.fictional_brand_en)
+        brand_prefix = '' if name.casefold().startswith(sample_brand.casefold()) else f'{sample_brand}؛ ' if fa else f'{sample_brand} '
+        titles = ([f'{brand_prefix}طراحی {name}', f'{brand_prefix}{name}'] if fa
+                  else [f'{brand_prefix}{name} design', f'{brand_prefix}{name}'])
+        action = 'پیش‌نمایش رایا را ببینید و اپ متناسب با نیازتان را درخواست کنید.' if fa else 'Explore the Raya preview and plan a finance app for your needs.'
+        descriptions = [f'{name}؛ {tagline}. {action}', f'{name}؛ {_part(demo.fit_label)}. {action}']
+    elif fa:
         category = re.sub(r'^وب[\s\u200c-]?سایت\s+', '', category)
         short = {'restaurant': 'رستوران', 'jewelry': 'طلافروشی',
                  'ecommerce': 'فروشگاه', 'education': 'آموزش'}.get(demo.category, category)

@@ -61,5 +61,5 @@ class OrderSceneHandoffTests(TestCase):
         response = self.client.get("/en/start/")
         self.assertContains(response, 'order-scene.js')
         self.assertContains(response, 'order-wizard-data')
-        self.assertContains(response, 'class="project-start-card', count=9)
+        self.assertContains(response, 'class="project-start-card', count=10)
         self.assertNotContains(self.client.get("/en/"), 'order-scene.js')
