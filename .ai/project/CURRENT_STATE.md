@@ -5803,3 +5803,13 @@ IPv4 /fa/ probe timed out. No server command/remote write, deploy, push,
 migration, customer-data or flag change. Deployment remains BLOCKED; next safe
 diagnostic is ssh service/log inspection in the owner's Arvan console, not
 another reboot or weakening host-key/authentication controls.
+
+Console inspection: owner authorised console diagnosis/deploy. Native Chrome
+access used because browser connector policy handshake failed. Verified Arvan
+details show rvin-tech/188.121.101.173; opened that instance's console, connected
+and showing Ubuntu24.04.1 rvin-tech tty1 login (not an authenticated shell).
+Requested owner console login without sharing its password. No credentials
+guessed, security/recovery changes or console commands attempted. One bounded
+SSH retry still stalls after verified host key exchange. Deployment BLOCKED
+pending console authentication; cause remains unconfirmed. No product changes,
+remote writes or tests repeated beyond the prior28-test checkpoint.
