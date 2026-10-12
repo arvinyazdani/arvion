@@ -26,7 +26,9 @@ unverified due timeouts; existing local Raya source confirms learn slugs and
 conditional trial only. Cost assumptions explicitly labeled, no false market
 average or guaranteed discount. Keyword ownership/claims changes/link map/alt/
 URLs/rollback in docs/seo/SEO_PHASE_REPORT.md. Skills primary-workflow/imagegen.
-Local commit is the commit containing this checkpoint. No push/deploy/SSH,
+Implementation commit ab6b2b1; documentation follow-up records existing9pending
+local migrations from preview warning (untouched; none added/applied this task).
+No push/deploy/SSH,
 public publication/migration/cache/session/cookie/analytics changes.
 Next: owner reviews provisional figures/Raya terms/covers/publication order;
 separately address stale baseline test before claiming a green full release gate.

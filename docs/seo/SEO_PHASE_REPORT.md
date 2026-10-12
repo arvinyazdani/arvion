@@ -3548,6 +3548,11 @@ Status: PARTIAL release gate; implementation and targeted checks VERIFIED locall
 Owner explicitly confirmed three Post records, not five: two bilingual pairs and
 one FA-only Raya article. Baseline0fe69c3. Local commit containing this section;
 no push, deploy, SSH, migration execution or public publication is authorized.
+Implementation commit: ab6b2b1. The disposable preview startup also warned of9
+pre-existing unapplied migrations (accounts/assessments/leads/management_portal/
+projects); none were applied. This patch adds none; affected tests use fresh
+temporary test databases. Do not infer that the older permanent dev database or
+a future release of accumulated unrelated commits is migration-ready.
 P1-3/P4-1 remain DEFERRED: no analytics/cookie/session/cache-policy changes.
 
 ### Scope, identities and safety
