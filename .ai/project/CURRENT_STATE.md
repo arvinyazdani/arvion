@@ -1,5 +1,19 @@
 # Rvion current state
 
+## Footer contact action — 2026-10-12 — VERIFIED (local)
+
+Phone now a labeled SVG call button beside Start a project in one shared action
+row;tel remains normalized from company profile,no hardcoded contact. Existing
+tokens/type retained,56px minimum height,10px gap (8px at320),LTR number/RTL
+label. Removed conflicting old responsive contact placements;CSSrevision5.
+16 targeted Django tests passed (core.test_studio_home + public shell test),
+manage.py check0,diffcheck clean. ChromeFA390dark/EN320light/EN1280light:
+same-row/equal-height buttons,zero page/content horizontal overflow,keyboard
+focus visible. Screens:/tmp/rvion-footer-contact-20261012/. Viewport/theme
+restored;owned local test server stopped afterward. No full-suite rerun for
+this bounded template/CSS change. No push/deploy/production change authorized
+this turn;next release should include this local footer commit.
+
 ## Approved SEO publication release — 2026-10-12 — VERIFIED
 
 Owner approved deploy/publication of3records/5editions and stale-test correction.
