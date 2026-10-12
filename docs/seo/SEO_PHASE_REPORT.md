@@ -1,5 +1,49 @@
 # SEO phase report — Rvion
 
+## 2026-10-12 — SEO release plus font/assessment-title fixes — VERIFIED (production)
+
+Owner authorized deployment. Starting production source `319b7d7`; release
+commit `3994d6b` includes the four pending SEO commits and this bounded fix.
+The code change only: preload Vazirmatn regular/bold/black on Persian pages
+before theme CSS (the home-specific preload override/design is unchanged; the
+Persian article preload moved to the shared slot to avoid duplicates; English
+pages load none), and make the assessment-hub title use theme-aware text and
+contrast-safe orange tokens. No homepage layout/CSS/animation changed and no
+migration was added.
+
+Local verification: targeted font/contrast tests 2/2; complete
+`core.tests_seo_contract` 27/27; `./release-check.sh` passed with 1,245 tests,
+27 pre-existing conditional skips, question-bank audit 0 warnings, system
+check 0, migration drift none, and dependency check clean. Contrast calculated
+from the theme tokens: light primary 16.60:1/accent 6.01:1; dark primary
+16.05:1/accent 9.04:1. Local Chrome inspection showed Persian title contrast in
+both themes; production Chrome showed Persian/English light and English dark.
+Homepage layout/design was not changed. The cold-load CLS value was **not
+remeasured after this font-preload fix**; preload presence and live rendering
+are verified, but no
+new Lighthouse/PerformanceObserver metric or mobile-device claim is made.
+
+Deployment: pushed `319b7d7..3994d6b`; production was clean before update.
+Saved old-source bundle
+`/srv/arvion/backups/pre-seo-release-20261012-319b7d7.bundle` (verified),
+and PostgreSQL snapshot `/srv/arvion/backups/pre-release-20261012-153328.dump`
+(3.8 MB; `pg_restore --list` catalog verified). Official `ops/release.sh`
+completed at `3994d6b`, `health=ok`; no migrations to apply, service and Nginx
+active, clean server tree, and no application error entries after release.
+
+Live smoke: 11 URLs across FA/EN home, assessment hubs, custom-app service,
+blog lists, US cost/hiring and Raya articles all returned HTTP 200, one H1,
+self-canonical, and no Set-Cookie. FA pages emitted three font preloads; EN
+pages emitted zero. Assessment CSS `?v=7` returned 200 with the contrast token.
+Visual online screenshots were inspected at the available desktop viewport;
+the user browser's original light preference was restored after the dark-mode
+check. No full 83-URL recrawl, Lighthouse run, GSC request, or physical-mobile
+verification was performed in this release.
+
+Rollback: deploy prior source `319b7d7` using the operations runbook; restore
+the database only if a separate data incident requires it. No data migration
+or content/publication write occurred here.
+
 ## 2026-10-12 — completed local public SEO refresh / release boundary
 
 **Status:** implementation and local functional gate VERIFIED. Strict cold-load

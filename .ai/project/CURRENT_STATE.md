@@ -1,5 +1,25 @@
 # Rvion current state
 
+## 2026-10-12 — SEO release and remaining typography fixes — VERIFIED (production)
+
+Deployed `3994d6b` after local release gate passed (1,245 tests, 27 existing
+conditional skips; migration drift none). Previous production `319b7d7` was
+clean. Public FA pages now preload Vazirmatn before theme CSS; EN pages do not
+preload Persian fonts. Assessment title uses theme-aware primary/accent text
+tokens. Existing homepage design/animation was not modified. Contrast values
+from tokens: light 16.60:1 / 6.01:1; dark 16.05:1 / 9.04:1.
+
+Production release script passed, service/Nginx active, `/health/` OK, source
+tree clean, no migration applied. Rollback bundle:
+`/srv/arvion/backups/pre-seo-release-20261012-319b7d7.bundle`; DB snapshot:
+`/srv/arvion/backups/pre-release-20261012-153328.dump` (`pg_restore --list`
+verified). Online smoke: 11 representative FA/EN pages HTTP 200, one H1,
+self-canonical, no Set-Cookie; FA font preload 3, EN 0; assessment CSS v7 200.
+Local Chrome confirmed FA title contrast in both themes; production Chrome
+confirmed FA/EN light and EN dark desktop.
+Cold CLS was not remeasured after the preload fix; no fresh Lighthouse/mobile
+metric claimed. Details: `docs/seo/SEO_PHASE_REPORT.md`.
+
 ## Persian assessment-film narration — 2026-10-12 — VERIFIED (local)
 
 Root cause:filmVoice required an installed local fa voice;Chrome test host has
