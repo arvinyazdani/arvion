@@ -1,6 +1,6 @@
 # Rvion current state
 
-## 2026-10-13 — real-project demos and Ahanino fidelity — VERIFIED (local, pending release)
+## 2026-10-13 — real-project demos and Ahanino fidelity — VERIFIED / DEPLOYED
 
 The demo gallery now puts the two real-project references (Raya and Ahanino) first
 and removes them from category lists to avoid duplicates. Reworked the Ahanino B2B
@@ -12,8 +12,14 @@ suite: 6/6 passed. Full `release-check.sh`: 1,256 passed, 27 conditional skips;
 question-bank audit, Django check, migration drift, dependency/static checks, and
 assessment benchmark passed. Browser: FA gallery at 390x844, FA sample mobile,
 EN sample desktop; no horizontal overflow. No migration or source-repo edit.
-Deployment pending. Roll back by reverting the scoped code commit and deploying
-the prior release; no database rollback is needed.
+Commit `abe63e4` is deployed. Production gallery FA and Ahanino FA/EN routes
+return HTTP 200; CSS revisions 10/2 load. Production browser widths 390 and
+1280 report no horizontal overflow; the admin push dialog obscured the screenshot,
+so visual acceptance came from the local browser, while live DOM/layout were
+checked online. Release applied no migrations; service active and health OK.
+Pre-release PostgreSQL snapshot `/srv/arvion/backups/pre-release-20261013-172348.dump`
+passed `pg_restore --list`. Roll back code via the standard release process to
+`e293e30`; no database rollback is required.
 
 ## 2026-10-13 — Ahanino B2B marketplace demo — VERIFIED / DEPLOYED
 
