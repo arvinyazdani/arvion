@@ -6512,3 +6512,38 @@ address cold-font CLS/light-hub contrast in a separate scoped performance/UI
 change without reopening protected gallery/customer workflows. No automatic
 deployment or migration permitted. Temporary browser tabs closed/viewport reset;
 only this task's testserver processes on8201/8202 stopped after verification.
+
+# Active checkpoint — Raya desktop + mobile demo presentation
+
+Status: VERIFIED locally. The Raya demo now presents the interactive desktop
+workspace beside a clearly labeled compact mobile illustration on wide screens;
+on narrow screens the phone illustration comes first and the real interactive
+sample follows in its native responsive layout. FA/EN labels and sample-only
+fictional content are explicit. No source Raya product files or production data
+were changed. Visual browser check: wide desktop side-by-side and narrow mobile
+stacked, with no observed horizontal overflow. Targeted project tests: 3/3 pass;
+Django check and git diff --check pass. Changed: Raya scene markup/CSS, preview
+cache-busts, and focused test. Working tree has five files modified; no commit,
+push, or deploy. Temporary local preview ran from a disposable DB copy.
+Next: owner can review the local preview; deploy only if explicitly requested.
+
+# Active checkpoint — homepage and article next-step actions
+
+Status: VERIFIED locally; full release gate green. Refined the homepage closing
+CTA, the existing install-guide prompt/button, the article-library CTA, practical
+article actions, and contextual reading links in Persian and English. Existing
+routes and the install-guide behavior are preserved. No model, migration, PWA,
+or article-content change. Playwright browser checks at 390x844 and 1280x800:
+FA/EN home and article list returned 200, no horizontal overflow or page errors;
+install guide opened, 49px button height; article actions route to localized
+start/assessment paths. Screenshots are in /tmp/rvion-cta-*.png. Release gate:
+1260 tests passed (27 skipped), strict question-bank audit passed, collectstatic
+dry-run and 100-attempt benchmark passed; targeted checks, system check and
+diff check passed. The generated home shell adapter was regenerated from its
+canonical stylesheet after removing duplicate legacy install styles.
+
+Separate local Raya preview work remains uncommitted and excluded from this
+release: projects/{templates/projects/demo_full.html,templates/projects/demo_preview.html,
+templates/projects/demo_scenes/accounting.html,static/projects/css/raya-demo.css,
+tests.py}. Deployment is authorized for this CTA phase only; release and
+post-deploy browser verification still pending. No push or production migration.

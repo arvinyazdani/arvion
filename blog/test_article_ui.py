@@ -47,6 +47,18 @@ class ArticleListTests(TestCase):
             self.assertContains(response, 'href="' + href + '"')
         self.assertContains(response, 'method="get"')
 
+    def test_article_library_next_step_is_localized_and_keeps_both_destinations(self):
+        for language, heading, primary, secondary in (
+            ('fa', 'از خواندن، به انتخاب برسید.', 'شروع پروژه', 'دیدن آزمون‌ها'),
+            ('en', 'Turn what you’ve learned into a choice.', 'Start a project', 'Explore assessments'),
+        ):
+            with self.subTest(language=language):
+                response = self.client.get(f'/{language}/blog/')
+                self.assertContains(response, heading)
+                self.assertContains(response, primary)
+                self.assertContains(response, secondary)
+                self.assertContains(response, 'class="ar-next-step next-action-panel next-action-panel--journal"', html=False)
+
 
 class ArticleDetailTests(ArticleListTests):
     def test_body_unchanged_toc_and_reserved_cover(self):
@@ -91,6 +103,10 @@ class ArticleDetailTests(ArticleListTests):
         self.assertEqual([x['url'] for x in actions], [
             '/fa/assessments/', '/fa/projects/demos/', '/fa/crm/', '/fa/services/corporate-website-design/'])
         self.assertEqual([x['label'] for x in actions], ['آزمون', 'نمونه', 'محصول', 'خدمت'])
+        response = self.client.get('/fa/blog/choice/')
+        self.assertContains(response, 'class="next-action-panel next-action-panel--article"', html=False)
+        self.assertContains(response, 'aria-labelledby="article-next-step-title"', html=False)
+        self.assertContains(response, 'از مطالعه به یک قدم عملی')
 
     def test_neighbor_with_only_two_articles(self):
         peer = Post.objects.create(title_fa='مقاله دوم', slug_fa='second', body_fa='متن',

@@ -42,6 +42,23 @@ class CorePagesTests(TestCase):
         # The briefing explains scope, proctoring and the fee before the price.
         self.assertContains(response, 'href="/fa/assessments/english-placement-a1-c1/about/"', html=False)
 
+    def test_home_next_step_and_install_guide_are_clear_and_localized(self):
+        for language, heading, install_label, project_label, contact_label in (
+            ("fa", "ایده‌تان را به یک مسیر روشن تبدیل کنید.", "راهنمای نصب اپ", "شروع شخصی‌سازی", "درخواست تماس"),
+            ("en", "Turn your idea into a clear first step.", "App installation guide", "Start customising", "Request a call"),
+        ):
+            with self.subTest(language=language):
+                response = self.client.get(f"/{language}/")
+                html = response.content.decode()
+                self.assertContains(response, heading)
+                self.assertContains(response, install_label)
+                self.assertContains(response, project_label)
+                self.assertContains(response, contact_label)
+                self.assertContains(response, 'data-install-guide', html=False)
+                self.assertContains(response, "core/css/next-actions.css")
+                self.assertIn(f'href="/{language}/start/"', html)
+                self.assertIn(f'href="/{language}/contact/?service=digital-product-consulting"', html)
+
     def test_public_shell_groups_settings_and_keeps_legal_destinations(self):
         for language in ("fa", "en"):
             with self.subTest(language=language):

@@ -1,6 +1,7 @@
+{% load static %}
 {% if reading_posts %}
-<aside class="shell section" aria-labelledby="context-reading-title">
-  <h2 id="context-reading-title">{% if lang == 'fa' %}برای برنامه‌ریزی قدم بعدی{% else %}Plan your next step{% endif %}</h2>
-  <ul>{% for article in reading_posts %}<li><a class="website-text-link" href="{% if lang == 'fa' %}{% url 'blog:detail' article.slug_fa %}{% else %}{% url 'blog:detail' article.slug_en %}{% endif %}">{% if lang == 'fa' %}{{ article.title_fa }}{% else %}{{ article.title_en }}{% endif %} ↗</a></li>{% endfor %}</ul>
+<aside class="context-reading shell" aria-labelledby="context-reading-title">
+  <div><span class="next-action-kicker">{% if lang == 'fa' %}برای مطالعهٔ بیشتر{% else %}KEEP EXPLORING{% endif %}</span><h2 id="context-reading-title">{% if lang == 'fa' %}این راهنماها هم به تصمیم‌تان کمک می‌کنند.{% else %}More guides for your decision.{% endif %}</h2></div>
+  <ul class="context-reading-links">{% for article in reading_posts %}<li><a href="{% if lang == 'fa' %}{% url 'blog:detail' article.slug_fa %}{% else %}{% url 'blog:detail' article.slug_en %}{% endif %}"><span>{% if lang == 'fa' %}{{ article.title_fa }}{% else %}{{ article.title_en }}{% endif %}</span><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a></li>{% endfor %}</ul>
 </aside>
 {% endif %}
