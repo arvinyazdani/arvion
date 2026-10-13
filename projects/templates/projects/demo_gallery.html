@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{% if lang == 'fa' %}انتخاب و شخصی‌سازی دمو | آرویون{% else %}Choose and customise a demo | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}دموی وب‌سایت دلخواه‌تان را بدون ثبت‌نام انتخاب کنید، رنگ و سبک آن را تغییر دهید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Choose a website demo without signing in, customise its colour and style, and test mobile and desktop views.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=8"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=9"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=1">{% endblock %}
 {% block content %}
 <section class="demo-hero" aria-labelledby="demo-gallery-title">
   <div class="shell demo-hero-grid">
@@ -32,7 +32,7 @@
         {% for demo in category.items %}
           <article class="demo-card style-{{ demo.style_key }}" data-category="{{ demo.category }}">
             <a class="demo-card-main" href="{% url 'projects:demo_preview' demo.slug %}">
-              <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}</span></div>
+              <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if demo.category == 'b2b' %}{% if lang == 'fa' %}برند مرجع{% else %}Reference brand{% endif %}{% else %}{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}{% endif %}</span></div>
               {% include 'projects/demo_scenes/art.html' %}
               <div class="demo-card-copy"><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{{ demo.fit_label }}</strong></div>
             </a>
@@ -50,7 +50,7 @@
 
 <section class="demo-trust-strip">
   <div class="shell">
-    <div><strong>{% if lang == 'fa' %}نمایش صادقانه{% else %}Honest previews{% endif %}</strong><span>{% if lang == 'fa' %}برند و محتوا فرضی‌اند و ادعای نمونه‌کار واقعی ندارند.{% else %}Brands and content are fictional, with no false portfolio claims.{% endif %}</span></div>
+    <div><strong>{% if lang == 'fa' %}نمایش صادقانه{% else %}Honest previews{% endif %}</strong><span>{% if lang == 'fa' %}تعامل‌ها و اطلاعات نمونه نمایشی‌اند و به‌معنای بازار یا پیشنهاد زنده نیستند.{% else %}Interactions and sample details are illustrative, not live listings or offers.{% endif %}</span></div>
     <div><strong>{% if lang == 'fa' %}انتخاب بدون تعهد{% else %}Explore without commitment{% endif %}</strong><span>{% if lang == 'fa' %}تا پیش از ارسال فرم، چیزی برای آرویون ثبت نمی‌شود.{% else %}Nothing is sent to Rvion until you submit the form.{% endif %}</span></div>
     <div><strong>{% if lang == 'fa' %}شروع از یک نقطه روشن{% else %}Start from shared context{% endif %}</strong><span>{% if lang == 'fa' %}انتخاب شما ورودی گفت‌وگو است، نه وعدهٔ تحویل قطعی.{% else %}Your choices start the conversation; they are not a delivery promise.{% endif %}</span></div>
   </div>

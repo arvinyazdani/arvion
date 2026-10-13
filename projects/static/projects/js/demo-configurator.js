@@ -28,7 +28,7 @@
   const STYLE_THEME = {minimal: "warm", modern: "midnight", editorial: "midnight", luxury: "sage", bold: "plum", industrial: "midnight", sage: "sage", plum: "plum"};
   const ALLOWED_THEMES = new Set(["warm", "midnight", "sage", "plum", "gold", "custom"]);
   const ALLOWED_PERSONALITIES = new Set(["minimal", "modern", "editorial", "luxury", "bold", "industrial"]);
-  const ALLOWED_FEATURES = new Set(["payment", "booking", "catalog", "blog", "membership", "multilingual", "accounts", "transactions", "reports", "exports"]);
+  const ALLOWED_FEATURES = new Set(["payment", "booking", "catalog", "blog", "membership", "multilingual", "accounts", "transactions", "reports", "exports", "inquiries", "quotes"]);
 
   const validHex = (value) => /^#[0-9a-f]{6}$/i.test(value || "");
   const readJson = (value) => {

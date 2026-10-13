@@ -10,6 +10,7 @@ CATEGORY_LABELS_EN = {
     "portfolio": "Portfolio", "corporate": "Corporate website",
     "clinic": "Clinic", "education": "Education & webinar",
     "jewelry": "Jewellery boutique", "accounting": "Personal finance app",
+    "b2b": "B2B marketplace",
 }
 
 
@@ -22,6 +23,7 @@ CATEGORY_FEATURE_KEYS = {
     "education": ("membership", "payment", "blog", "multilingual"),
     "jewelry": ("payment", "catalog", "booking", "membership"),
     "accounting": ("accounts", "transactions", "reports", "exports"),
+    "b2b": ("catalog", "inquiries", "quotes", "membership"),
 }
 
 CATEGORY_FEATURE_LABELS = {
@@ -34,6 +36,7 @@ CATEGORY_FEATURE_LABELS = {
         "education": {"membership": "پنل هنرجو و دوره", "blog": "مقاله و محتوای آموزشی"},
         "jewelry": {"catalog": "کالکشن و جزئیات عیار", "booking": "مشاوره و سفارش سفارشی", "membership": "پیگیری سفارش"},
         "accounting": {"accounts": "چند حساب و مانده", "transactions": "ثبت دخل‌وخرج و انتقال", "reports": "گزارش‌های مالی", "exports": "خروجی قابل چاپ و PDF"},
+        "b2b": {"catalog": "کاتالوگ محصولات", "inquiries": "استعلام چندفروشنده", "quotes": "مقایسه پیشنهادها", "membership": "پنل خریدار و فروشنده"},
     },
     "en": {
         "ecommerce": {"catalog": "Products, categories and filters", "membership": "Customer club"},
@@ -44,6 +47,7 @@ CATEGORY_FEATURE_LABELS = {
         "education": {"membership": "Learner and course area", "blog": "Learning articles"},
         "jewelry": {"catalog": "Collections and material details", "booking": "Consultation and custom orders", "membership": "Order progress"},
         "accounting": {"accounts": "Accounts and balances", "transactions": "Income, expenses and transfers", "reports": "Financial reports", "exports": "Printable and PDF exports"},
+        "b2b": {"catalog": "Product catalogue", "inquiries": "Multi-supplier enquiries", "quotes": "Structured offer comparison", "membership": "Buyer and seller workspaces"},
     },
 }
 
@@ -90,6 +94,8 @@ def _category_features(lang, category):
         "transactions": "تراکنش‌ها" if fa else "Transactions",
         "reports": "گزارش‌ها" if fa else "Reports",
         "exports": "خروجی‌ها" if fa else "Exports",
+        "inquiries": "استعلام‌ها" if fa else "Enquiries",
+        "quotes": "پیشنهادها" if fa else "Offers",
     }
     lang_key = "fa" if fa else "en"
     labels = CATEGORY_FEATURE_LABELS.get(lang_key, {}).get(category, {})

@@ -1,5 +1,19 @@
 # Rvion current state
 
+## 2026-10-13 — Ahanino B2B marketplace demo — VERIFIED (local), awaiting release
+
+Added a bilingual B2B steel marketplace reference demo using Ahanino branding and
+the source project's documented buyer/supplier flow. Desktop and mobile mockups
+are presented together; the mobile page stacks them responsively. Listings,
+offers, and prices are explicitly illustrative, with no claim of a live system.
+Corrected gallery/footer language so the reference brand is not called fictional.
+Targeted suite: 80 tests passed. Full `release-check.sh`: 1,254 tests passed,
+27 existing conditional skips; question-bank audit, Django check, migration drift,
+static dry-run, dependency check, and assessment benchmark passed. Local browser:
+FA/EN at 390x844 and 1280x800; document width matched viewport, English sample
+contains no Persian-script text. No production change yet. Rollback: revert the
+release commit; migration 0010 is additive and seeds only the demo row.
+
 ## 2026-10-12 — SEO release and remaining typography fixes — VERIFIED (production)
 
 Deployed `3994d6b` after local release gate passed (1,245 tests, 27 existing

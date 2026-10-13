@@ -1,0 +1,9 @@
+<section class="sample-hero sample-hero-b2b">
+  <div class="sample-hero-copy">
+    <small><span data-demo-brand>{% if lang == 'fa' %}{{ demo.fictional_brand_fa }}{% else %}{{ demo.fictional_brand_en }}{% endif %}</span> · {% if lang == 'fa' %}پیش‌نمایش بازارگاه{% else %}MARKETPLACE PREVIEW{% endif %}</small>
+    {% if full_sample %}<h1>{% else %}<h2>{% endif %}{% if lang == 'fa' %}بازار آهن، برای تصمیم‌های روشن‌تر.{% else %}A clearer way to source steel.{% endif %}{% if full_sample %}</h1>{% else %}</h2>{% endif %}
+    <p>{% if lang == 'fa' %}کاتالوگ محصول، درخواست استعلام و مقایسهٔ پیشنهادها را در یک مسیر B2B ببینید. این نمونه تعاملی نیست و هیچ قیمت یا معاملهٔ زنده‌ای ندارد.{% else %}Explore a B2B flow for product discovery, quote requests and offer comparison. This illustrative sample has no live pricing or transactions.{% endif %}</p>
+    <a class="sample-main-action" href="#sample-content">{% if lang == 'fa' %}دیدن نمای دسکتاپ و موبایل{% else %}View desktop and mobile screens{% endif %}<span aria-hidden="true">↘</span></a>
+  </div>
+  {% include 'projects/demo_scenes/art.html' %}
+</section>

@@ -40,6 +40,13 @@ def demo_metadata(demo, lang, brand):
                   else [f'{brand_prefix}{name} design', f'{brand_prefix}{name}'])
         action = 'پیش‌نمایش رایا را ببینید و اپ متناسب با نیازتان را درخواست کنید.' if fa else 'Explore the Raya preview and plan a finance app for your needs.'
         descriptions = [f'{name}؛ {tagline}. {action}', f'{name}؛ {_part(demo.fit_label)}. {action}']
+    elif demo.category == 'b2b':
+        titles = [name]
+        descriptions = ([
+            f'{name}؛ جست‌وجوی محصول فولادی، ثبت استعلام و مقایسهٔ پیشنهاد را بررسی کنید. داده‌ها نمایشی‌اند و قیمت زنده‌ای ندارند.'
+        ] if fa else [
+            f'Explore {name}: browse steel listings, request quotes and compare offers. All content is illustrative; no live listings or prices.'
+        ])
     elif fa:
         category = re.sub(r'^وب[\s\u200c-]?سایت\s+', '', category)
         short = {'restaurant': 'رستوران', 'jewelry': 'طلافروشی',
