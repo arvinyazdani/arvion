@@ -6529,21 +6529,23 @@ Next: owner can review the local preview; deploy only if explicitly requested.
 
 # Active checkpoint — homepage and article next-step actions
 
-Status: VERIFIED locally; full release gate green. Refined the homepage closing
+Status: VERIFIED / DEPLOYED as `bfbcf04`. Refined the homepage closing
 CTA, the existing install-guide prompt/button, the article-library CTA, practical
 article actions, and contextual reading links in Persian and English. Existing
 routes and the install-guide behavior are preserved. No model, migration, PWA,
 or article-content change. Playwright browser checks at 390x844 and 1280x800:
-FA/EN home and article list returned 200, no horizontal overflow or page errors;
-install guide opened, 49px button height; article actions route to localized
-start/assessment paths. Screenshots are in /tmp/rvion-cta-*.png. Release gate:
+FA/EN home, article list and article details returned 200, no horizontal
+overflow or page errors; the versioned stylesheet loaded, install guide opened,
+and article actions resolved to localized destinations. Screenshots are in
+/tmp/rvion-cta-*.png and /tmp/rvion-live-*.png. Release gate:
 1260 tests passed (27 skipped), strict question-bank audit passed, collectstatic
 dry-run and 100-attempt benchmark passed; targeted checks, system check and
 diff check passed. The generated home shell adapter was regenerated from its
 canonical stylesheet after removing duplicate legacy install styles.
 
-Separate local Raya preview work remains uncommitted and excluded from this
+Production release on 2026-10-13: health OK; no migrations to apply; backup at
+`/srv/arvion/backups/pre-release-20261013-181058.dump`. No Git push. Separate
+local Raya preview work remains uncommitted and excluded from this
 release: projects/{templates/projects/demo_full.html,templates/projects/demo_preview.html,
 templates/projects/demo_scenes/accounting.html,static/projects/css/raya-demo.css,
-tests.py}. Deployment is authorized for this CTA phase only; release and
-post-deploy browser verification still pending. No push or production migration.
+tests.py}. These five product files are preserved as local uncommitted work.
