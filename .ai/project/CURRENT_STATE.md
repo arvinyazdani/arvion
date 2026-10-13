@@ -1,5 +1,20 @@
 # Rvion current state
 
+## 2026-10-13 — real-project demos and Ahanino fidelity — VERIFIED (local, pending release)
+
+The demo gallery now puts the two real-project references (Raya and Ahanino) first
+and removes them from category lists to avoid duplicates. Reworked the Ahanino B2B
+scene from the read-only source project's homepage/catalogue structure: market
+header, search/filter, product feed, distinct mobile recreation, and buyer quote
+comparison flow. No live prices or seller data are claimed. Updated legacy tests
+to assert the replacement structure and its current localized labels. Targeted
+suite: 6/6 passed. Full `release-check.sh`: 1,256 passed, 27 conditional skips;
+question-bank audit, Django check, migration drift, dependency/static checks, and
+assessment benchmark passed. Browser: FA gallery at 390x844, FA sample mobile,
+EN sample desktop; no horizontal overflow. No migration or source-repo edit.
+Deployment pending. Roll back by reverting the scoped code commit and deploying
+the prior release; no database rollback is needed.
+
 ## 2026-10-13 — Ahanino B2B marketplace demo — VERIFIED / DEPLOYED
 
 Added a bilingual B2B steel marketplace reference demo using Ahanino branding and

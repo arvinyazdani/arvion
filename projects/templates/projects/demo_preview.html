@@ -3,7 +3,7 @@
 {% block title %}{% demo_metadata demo lang brand_name as metadata %}{{ metadata.title }}{% endblock %}
 {% block meta_description %}{% demo_metadata demo lang brand_name as metadata %}{{ metadata.description }}{% endblock %}
 {% block body_class %}demo-designer-page{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=9"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4">{% if demo.category == 'accounting' %}<link rel="stylesheet" href="{% static 'projects/css/raya-demo.css' %}?v=5"><script src="{% static 'projects/js/raya-demo.js' %}?v=9" defer></script>{% elif demo.category == 'b2b' %}<link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=1">{% endif %}<script src="{% static 'projects/js/demo-configurator.js' %}?v=11" defer></script>
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=10"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4">{% if demo.category == 'accounting' %}<link rel="stylesheet" href="{% static 'projects/css/raya-demo.css' %}?v=5"><script src="{% static 'projects/js/raya-demo.js' %}?v=9" defer></script>{% elif demo.category == 'b2b' %}<link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=2">{% endif %}<script src="{% static 'projects/js/demo-configurator.js' %}?v=11" defer></script>
 {% if demo.category == 'ecommerce' %}{% include 'projects/demo_scenes/store_assets.html' %}{% else %}{% include 'projects/demo_scenes/sector_assets.html' %}{% endif %}
 {% endblock %}
 {% block content %}

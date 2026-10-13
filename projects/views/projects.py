@@ -173,15 +173,24 @@ class DemoGalleryView(LanguageViewMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         demos = [_decorate_demo(demo, self.lang) for demo in context["demos"]]
+        reference_slugs = ("raya-personal-finance", "ahanino-b2b-marketplace")
+        featured_demos = [demo for slug in reference_slugs for demo in demos if demo.slug == slug]
+        for demo in demos:
+            demo.is_reference_project = demo.slug in reference_slugs
+        featured_ids = {demo.pk for demo in featured_demos}
+        catalogue_demos = [demo for demo in demos if demo.pk not in featured_ids]
         categories = []
         for key, label_fa in DemoTemplate.CATEGORY_CHOICES:
-            items = [item for item in demos if item.category == key]
+            items = [item for item in catalogue_demos if item.category == key]
             if items:
                 categories.append({
                     "key": key, "title": label_fa if self.lang == "fa" else CATEGORY_LABELS_EN[key],
                     "items": items,
                 })
-        context.update(categories=categories, lang=self.lang, demo_count=len(demos), category_count=len(categories))
+        context.update(
+            categories=categories, featured_demos=featured_demos, lang=self.lang,
+            demo_count=len(demos), category_count=len({demo.category for demo in demos}),
+        )
         return context
 
 

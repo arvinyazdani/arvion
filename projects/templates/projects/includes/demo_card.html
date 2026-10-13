@@ -1,0 +1,13 @@
+{% load static %}
+<article class="demo-card style-{{ demo.style_key }}" data-category="{{ demo.category }}" data-demo-slug="{{ demo.slug }}">
+  <a class="demo-card-main" href="{% url 'projects:demo_preview' demo.slug %}">
+    <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if demo.is_reference_project %}{% if lang == 'fa' %}بر پایهٔ پروژهٔ مرجع{% else %}Based on source project{% endif %}{% else %}{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}{% endif %}</span></div>
+    {% include 'projects/demo_scenes/art.html' %}
+    <div class="demo-card-copy"><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{{ demo.fit_label }}</strong></div>
+  </a>
+  <div class="demo-card-details">
+    <div><span>{% if lang == 'fa' %}صفحات نمونه{% else %}Included screens{% endif %}</span><ul>{% for page in demo.page_labels|slice:':3' %}<li>{{ page }}</li>{% endfor %}</ul></div>
+    <div><span>{% if lang == 'fa' %}امکانات پایه{% else %}Starting features{% endif %}</span><div class="demo-feature-tags">{% for feature in demo.feature_labels %}<small>{{ feature }}</small>{% endfor %}</div></div>
+  </div>
+  <a class="demo-card-action" href="{% url 'projects:demo_preview' demo.slug %}">{% if lang == 'fa' %}بازکردن و شخصی‌سازی{% else %}Open and customise{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+</article>

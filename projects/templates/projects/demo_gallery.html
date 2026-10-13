@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{% if lang == 'fa' %}انتخاب و شخصی‌سازی دمو | آرویون{% else %}Choose and customise a demo | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}دموی وب‌سایت دلخواه‌تان را بدون ثبت‌نام انتخاب کنید، رنگ و سبک آن را تغییر دهید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Choose a website demo without signing in, customise its colour and style, and test mobile and desktop views.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=9"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=10"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=2">{% endblock %}
 {% block content %}
 <section class="demo-hero" aria-labelledby="demo-gallery-title">
   <div class="shell demo-hero-grid">
@@ -24,25 +24,18 @@
 </section>
 
 <section class="shell demo-categories" id="demo-options" aria-label="{% if lang == 'fa' %}فهرست دموها{% else %}Demo list{% endif %}">
-  <nav class="demo-category-jump" aria-label="{% if lang == 'fa' %}رفتن به موضوع نمونه{% else %}Jump to a business type{% endif %}">{% for category in categories %}<a href="#{{ category.key }}">{{ category.title }}</a>{% endfor %}</nav>
+  {% if featured_demos %}
+    <section class="demo-reference-projects" id="reference-projects" aria-labelledby="reference-projects-title">
+      <header class="demo-reference-heading"><div><span>{% if lang == 'fa' %}بر پایهٔ پروژه‌های واقعی{% else %}BUILT FROM REAL PROJECTS{% endif %}</span><h2 id="reference-projects-title">{% if lang == 'fa' %}نمونه‌هایی از دل پروژه‌های موجود{% else %}Samples grounded in existing projects{% endif %}</h2><p>{% if lang == 'fa' %}ساختار و مسیرهای هر نمونه از کد پروژهٔ مرجع گرفته شده؛ داده‌های نمایشی جای اطلاعات زنده را نمی‌گیرند.{% else %}Each sample follows its source project's code and flows; illustrative content is not live data.{% endif %}</p></div><a href="#demo-category-list">{% if lang == 'fa' %}دیدن بقیهٔ حوزه‌ها{% else %}Browse all other categories{% endif %} ↓</a></header>
+      <div class="demo-grid demo-reference-grid">{% for demo in featured_demos %}{% include 'projects/includes/demo_card.html' with demo=demo %}{% endfor %}</div>
+    </section>
+  {% endif %}
+  <nav class="demo-category-jump" id="demo-category-list" aria-label="{% if lang == 'fa' %}رفتن به موضوع نمونه{% else %}Jump to a business type{% endif %}">{% for category in categories %}<a href="#{{ category.key }}">{{ category.title }}</a>{% endfor %}</nav>
   {% for category in categories %}
     <section class="demo-category" id="{{ category.key }}">
       <header><span>{{ forloop.counter|stringformat:'02d' }}</span><div><h2>{{ category.title }}</h2><small>{{ category.items|length }} {% if lang == 'fa' %}مسیر قابل تست{% else %}testable directions{% endif %}</small></div></header>
       <div class="demo-grid">
-        {% for demo in category.items %}
-          <article class="demo-card style-{{ demo.style_key }}" data-category="{{ demo.category }}">
-            <a class="demo-card-main" href="{% url 'projects:demo_preview' demo.slug %}">
-              <div class="demo-card-brand"><i>{{ demo.fictional_brand_en|slice:':1' }}</i><b>{{ demo.fictional_brand_en }}</b><span>{% if demo.category == 'b2b' %}{% if lang == 'fa' %}برند مرجع{% else %}Reference brand{% endif %}{% else %}{% if lang == 'fa' %}برند فرضی{% else %}Fictional brand{% endif %}{% endif %}</span></div>
-              {% include 'projects/demo_scenes/art.html' %}
-              <div class="demo-card-copy"><small>{{ demo.category_label }}</small><h3>{% if lang == 'fa' %}{{ demo.title_fa }}{% else %}{{ demo.title_en }}{% endif %}</h3><p>{% if lang == 'fa' %}{{ demo.tagline_fa }}{% else %}{{ demo.tagline_en }}{% endif %}</p><strong>{{ demo.fit_label }}</strong></div>
-            </a>
-            <div class="demo-card-details">
-              <div><span>{% if lang == 'fa' %}صفحات نمونه{% else %}Included screens{% endif %}</span><ul>{% for page in demo.page_labels|slice:':3' %}<li>{{ page }}</li>{% endfor %}</ul></div>
-              <div><span>{% if lang == 'fa' %}امکانات پایه{% else %}Starting features{% endif %}</span><div class="demo-feature-tags">{% for feature in demo.feature_labels %}<small>{{ feature }}</small>{% endfor %}</div></div>
-            </div>
-            <a class="demo-card-action" href="{% url 'projects:demo_preview' demo.slug %}">{% if lang == 'fa' %}بازکردن و شخصی‌سازی{% else %}Open and customise{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
-          </article>
-        {% endfor %}
+        {% for demo in category.items %}{% include 'projects/includes/demo_card.html' with demo=demo %}{% endfor %}
       </div>
     </section>
   {% endfor %}

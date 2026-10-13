@@ -72,6 +72,41 @@ class ProjectTests(TestCase):
         self.assertContains(full, '<h1>', html=False)
         self.assertContains(full, 'id="sample-content"', html=False)
 
+    def test_reference_projects_are_featured_first_and_not_repeated_in_category_grid(self):
+        fa = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
+        self.assertEqual(fa.status_code, 200)
+        content = fa.content.decode()
+        raya_marker = 'data-demo-slug="raya-personal-finance"'
+        ahanino_marker = 'data-demo-slug="ahanino-b2b-marketplace"'
+        self.assertEqual(content.count(raya_marker), 1)
+        self.assertEqual(content.count(ahanino_marker), 1)
+        self.assertLess(content.index(raya_marker), content.index(ahanino_marker))
+        self.assertLess(content.index('id="reference-projects"'), content.index('id="demo-category-list"'))
+        self.assertContains(fa, "بر پایهٔ پروژه‌های واقعی")
+        self.assertContains(fa, "ساختار و مسیرهای هر نمونه از کد پروژهٔ مرجع گرفته شده")
+
+        en = self.client.get(reverse("projects:demo_gallery") + "?lang=en")
+        self.assertContains(en, "Samples grounded in existing projects")
+        self.assertContains(en, "Based on source project")
+
+    def test_ahanino_preview_tracks_source_market_home_not_generic_dashboard(self):
+        demo = DemoTemplate.objects.get(slug="ahanino-b2b-marketplace")
+        fa = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
+        self.assertEqual(fa.status_code, 200)
+        for marker in (
+            "مرجع شفاف قیمت بازار آهن", "جست‌وجو", "فیلترها", "محصول و فروشنده",
+            "آخرین به‌روزرسانی", "قیمت و واحد", "فهرست نمونهٔ محصولات",
+            "برای خریداران", "بازسازی مستقل از ساختار واقعی صفحهٔ اصلی",
+        ):
+            self.assertContains(fa, marker)
+        self.assertContains(fa, 'class="ahanino-market-hero"', html=False)
+        self.assertContains(fa, 'class="ahanino-phone-hero"', html=False)
+        self.assertNotContains(fa, "۲۸٬۶۰۰")
+        self.assertNotContains(fa, "فولاد تجارت تهران")
+        en = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=en")
+        self.assertContains(en, "A sample shaped around Ahanino’s actual homepage")
+        self.assertContains(en, "No live prices, listings, seller counts or stock")
+
     def test_invalid_custom_colour_is_rejected_without_creating_selection(self):
         demo = DemoTemplate.objects.create(
             slug="invalid-colour", category="portfolio", title_fa="تست", title_en="Test",
