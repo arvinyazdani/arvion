@@ -10,6 +10,24 @@ from projects.models import DemoTemplate
 
 
 class CostCalculatorPageTests(TestCase):
+    def test_website_band_is_named_custom_and_distinguished_from_brochure_site(self):
+        from core.cost_calculator_data import PRODUCTS
+        self.assertEqual(PRODUCTS["website"]["label"], ("وب‌سایت بازاریابی سفارشی", "Custom marketing website"))
+        self.assertEqual(PRODUCTS["website"]["range"], (10000, 25000, 50000))
+        for language, expected in (
+            ("fa", "سایت معرفی سادهٔ ۵ تا ۸ صفحه‌ای (۳ تا ۷٫۵ هزار دلار)"),
+            ("en", "simple 5–8 page brochure site ($3,000–$7,500)"),
+        ):
+            with self.subTest(language=language):
+                response = self.client.get(f"/{language}/tools/cost-calculator/")
+                self.assertEqual(response.status_code, 200)
+                html = response.content.decode()
+                self.assertIn("وب‌سایت بازاریابی سفارشی" if language == "fa" else "Custom marketing website", html)
+                self.assertIn(expected, html)
+                static_table = html.split("<noscript>", 1)[1].split("</noscript>", 1)[0]
+                self.assertIn("وب‌سایت بازاریابی سفارشی" if language == "fa" else "Custom marketing website", static_table)
+                self.assertIn("$10000 – $50000", static_table)
+
     def test_bilingual_pages_are_indexable_cookie_free_and_have_web_application_schema(self):
         for language in ("fa", "en"):
             with self.subTest(language=language):

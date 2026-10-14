@@ -8,7 +8,7 @@ not measured Rvion project pricing.
 DATA_VERSION = "2026-10-14"
 
 PRODUCTS = {
-    "website": {"label": ("سایت معرفی کسب‌وکار", "Business website"), "range": (10000, 25000, 50000), "weeks": (4, 8, 16), "source": "apptage_custom_marketing_website"},
+    "website": {"label": ("وب‌سایت بازاریابی سفارشی", "Custom marketing website"), "range": (10000, 25000, 50000), "weeks": (4, 8, 16), "source": "apptage_custom_marketing_website"},
     "ecommerce": {"label": ("فروشگاه اینترنتی", "E-commerce store"), "range": (10000, 30000, 100000), "weeks": (6, 12, 24), "source": "kelp_ecommerce_2026"},
     "crm": {"label": ("CRM اختصاصی", "Custom CRM"), "range": (24000, 112000, 360000), "weeks": (8, 16, 48), "source": "article11_crm"},
     "accounting": {"label": ("اپ حسابداری و فاکتور", "Accounting & invoicing app"), "range": (25000, 60000, 300000), "weeks": (8, 20, 48), "source": "article11_accounting_directional"},

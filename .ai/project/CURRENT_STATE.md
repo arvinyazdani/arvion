@@ -1,5 +1,16 @@
 # Rvion current state
 
+## 2026-10-14 — Calculator website-scope clarification — VERIFIED (local)
+
+The $10k–$50k website calculator range is now labeled “custom marketing website”
+in FA/EN, and the page explains that it is a different scope from the simple
+brochure/small-business website bands supplied by the owner. The static no-JS
+table uses the same explicit label; calculation values are unchanged. Targeted
+calculator suite: 12/12 passed; `manage.py check` and `git diff --check` clean.
+No migration, production data change, or Raya-file edit. Local implementation
+commit is included with this checkpoint. Next: harden anonymous shared-cache
+policy with authenticated/form regression tests.
+
 ## 2026-10-13 — real-project demos and Ahanino fidelity — VERIFIED / DEPLOYED
 
 The demo gallery now puts the two real-project references (Raya and Ahanino) first
