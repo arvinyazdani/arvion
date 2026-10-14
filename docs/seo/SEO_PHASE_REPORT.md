@@ -4186,6 +4186,11 @@ verification. Static route release URLs require one explicit post-release
 command, for example `manage.py submit_indexnow --url=https://rvionai.com/fa/tools/cost-calculator/ --url=https://rvionai.com/en/tools/cost-calculator/`;
 200/202 means accepted/pending validation, not indexed. No owner author name,
 role or sameAs profile was supplied, so no identity claim/profile was invented.
+Important: IndexNow's official participating-engine list currently names Bing,
+Naver, Seznam, Yandex and Yep, not Google; it is not a Google indexing
+mechanism. Google discovery remains via sitemap/crawl and the owner's separate
+Search Console request ([IndexNow participants](https://www.indexnow.org/searchengines),
+[Google indexing requirements](https://developers.google.com/search/docs/essentials/technical)).
 
 Sitemap change: static calculator editions were added. Post `published_at` was
 removed as `lastmod`: it is a publication date, not a truthful content-modified

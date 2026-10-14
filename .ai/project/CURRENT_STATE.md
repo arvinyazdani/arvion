@@ -6560,7 +6560,8 @@ articles. Added direct Raya/Ahanino preview links in shared contextual/footer
 navigation and live Raya link on its demo card. No homepage/studio structure or
 animation edit. Added public IndexNow key route, same-site HTTPS command, and
 production-default publication/update notifications for Posts and active
-DemoTemplates. Accurate article lastmod remains omitted because the model has
+DemoTemplates. IndexNow does not notify Google (official participant list
+excludes it); sitemap/GSC remain Google's path. Accurate article lastmod remains omitted because the model has
 no content-update timestamp; no migration/model added. Demo preview CSRF stays
 on because the configuration POST form requires it. Cache policy unchanged.
 
