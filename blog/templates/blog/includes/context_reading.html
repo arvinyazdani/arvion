@@ -1,7 +1,9 @@
 {% load static %}
-{% if reading_posts %}
+{% if reading_posts or show_cost_calculator %}
 <aside class="context-reading shell" aria-labelledby="context-reading-title">
   <div><span class="next-action-kicker">{% if lang == 'fa' %}برای مطالعهٔ بیشتر{% else %}KEEP EXPLORING{% endif %}</span><h2 id="context-reading-title">{% if lang == 'fa' %}این راهنماها هم به تصمیم‌تان کمک می‌کنند.{% else %}More guides for your decision.{% endif %}</h2></div>
   <ul class="context-reading-links">{% for article in reading_posts %}<li><a href="{% if lang == 'fa' %}{% url 'blog:detail' article.slug_fa %}{% else %}{% url 'blog:detail' article.slug_en %}{% endif %}"><span>{% if lang == 'fa' %}{{ article.title_fa }}{% else %}{{ article.title_en }}{% endif %}</span><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a></li>{% endfor %}</ul>
+  {% if show_cost_calculator %}<p><a class="website-text-link" href="{% url 'cost_calculator' %}">{% if lang == 'fa' %}محاسبه‌گر هزینهٔ سایت و وب‌اپلیکیشن{% else %}Web app development cost calculator{% endif %} ↗</a></p>{% endif %}
+  {% if show_reference_demos %}<p class="context-reading-demos">{% if lang == 'fa' %}نمونه‌های مرتبط: {% else %}Related product references: {% endif %}<a href="{% url 'projects:demo_preview' 'raya-personal-finance' %}">{% if lang == 'fa' %}اپ مالی رایا{% else %}Raya finance app{% endif %}</a> · <a href="{% url 'projects:demo_preview' 'ahanino-b2b-marketplace' %}">{% if lang == 'fa' %}پلتفرم B2B آهنینو{% else %}Ahanino B2B platform{% endif %}</a></p>{% endif %}
 </aside>
 {% endif %}

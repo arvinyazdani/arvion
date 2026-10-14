@@ -6549,3 +6549,34 @@ local Raya preview work remains uncommitted and excluded from this
 release: projects/{templates/projects/demo_full.html,templates/projects/demo_preview.html,
 templates/projects/demo_scenes/accounting.html,static/projects/css/raya-demo.css,
 tests.py}. These five product files are preserved as local uncommitted work.
+
+## 2026-10-14 — SEO growth: calculator, discovery links, IndexNow (LOCAL ONLY)
+
+Implemented bilingual `/fa/tools/cost-calculator/` and `/en/tools/cost-calculator/`,
+browser-only cost estimation and share URLs, no-JS reference table, existing
+contact-form prefill without creating a Lead on GET, metadata/schema/sitemap,
+and internal links from home text CTA, footer, services, CRM, demos and cost
+articles. Added direct Raya/Ahanino preview links in shared contextual/footer
+navigation and live Raya link on its demo card. No homepage/studio structure or
+animation edit. Added public IndexNow key route, same-site HTTPS command, and
+production-default publication/update notifications for Posts and active
+DemoTemplates. Accurate article lastmod remains omitted because the model has
+no content-update timestamp; no migration/model added. Demo preview CSRF stays
+on because the configuration POST form requires it. Cache policy unchanged.
+
+Tests: targeted 42/42; final full parallel suite 1,271 passed, 27 existing
+conditional skips; `check`, no-migration drift, JS syntax, diff check passed.
+Local calculator audit: FA 909 words / 146-char meta; EN 882 / 157. Production
+read-only latency: origin through local Nginx ~0.066–0.203s, while external
+TTFB ~2.3–5.2s for observed pages; Arvan reports `X-Cache: BYPASS`, `Vary:
+Cookie`, and 60s shared-cache directive. No cache/session change made. Production
+after-crawl, IndexNow send, GSC indexing, browser CLS/Lighthouse, and deploy are
+not done. Local 72-URL crawl is not comparable to production 87-URL baseline
+(local host canonical and old local content fixture differences). Details,
+source/range assumptions, URL link map and exact measurements:
+`docs/seo/SEO_PHASE_REPORT.md`, 2026-10-14 section.
+
+No push/deploy/migration or production content write. The five dirty Raya files
+from the previous local preview are preserved and excluded from staging. Local
+changes are committed locally only; production remains unchanged until a later
+separately authorized release.

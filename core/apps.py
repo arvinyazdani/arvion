@@ -8,3 +8,4 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         from . import admin_config  # noqa: F401
+        from . import indexnow_signals  # noqa: F401

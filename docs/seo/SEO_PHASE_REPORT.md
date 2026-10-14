@@ -4128,3 +4128,118 @@ no physical-device/audio verification or GitHubCI claim; prior local20-view
 browser evidence remains in the preceding phase. No Search Console submission
 or indexing claim. Remaining:owner/GSC monitoring and eventual external price
 updates;P1-3/P4-1 remainDEFERRED. No article deletion or customer-data change.
+
+## 2026-10-14 — bilingual cost-planning tool and crawl/discovery follow-up (LOCAL ONLY)
+
+Status: implementation and tests VERIFIED locally; production comparison,
+IndexNow submission and Search Console inspection NOT RUN because this task
+authorizes only a local commit (no push/deploy/migration). Home/studio layout,
+animation and stage structure were not changed; its existing closing CTA gets
+only a text link. The five pre-existing dirty Raya product files remain unstaged
+and untouched.
+
+New URLs: `/fa/tools/cost-calculator/` and `/en/tools/cost-calculator/`; both
+are in the localized sitemap, have self-canonical/hreflang, WebApplication and
+BreadcrumbList JSON-LD, 400+ words, a no-JS range table, and no Set-Cookie.
+Local rendered word count: FA 909 / EN 882; meta lengths 146 / 157. Inputs are
+computed in the browser; no storage/analytics write occurs. A GET with an
+estimate carries only allow-listed scope values to the existing contact form;
+it creates no Lead until that existing form is submitted. Estimate language
+states explicitly that the result is a market planning range, not a quote.
+
+Formula and source discipline (`core/cost_calculator_data.py`): product low /
+middle / high baselines in USD are business site 10/25/50k (Apptage vendor
+guide), ecommerce 10/30/100k (Kelp agency guide), CRM 24/112/360k, accounting
+25/60/300k, B2B 15/50/150k, marketplace 50/150/250k (owner-supplied article
+11 ranges; underlying data are vendor-published; accounting is labeled
+directional, not a verified US benchmark), and MVP 20/50/150k (Apptage). The
+calculator adds per-standard-integration 2/6/10k, ERP 10/20/30k, and mobile
+30/55/80k (article 11); applies 20/30/40% legal-scope uplift and 10/15/20%
+annual maintenance (article 11); and models +5% for each user role beyond two
+and +1.5 weeks/role, +1 week/standard integration, +3 weeks/ERP, +6 weeks for
+mobile and +2 weeks for legal scope as explicit planning assumptions, not
+market measurements. Freelancer factor 0.5 vs company 1.0 is the article 12
+midpoint hourly ratio (~$140.50/$280), explicitly a scenario heuristic and not
+evidence of project-cost differences. Sources are linked in the page:
+[Apptage](https://www.apptage.com/blogs/custom-web-development-cost/),
+[Kelp](https://www.kelp.agency/blog/how-much-does-an-ecommerce-website-cost/),
+and owner-provided articles 11 and 12. These are vendor/agency references,
+not an independent cost survey.
+
+Internal links: before, calculator and direct Raya/Ahanino demo links were
+absent from their new inbound paths. After, the calculator is linked from the
+existing home closeout text, footer, service list/details, CRM, gallery, and
+articles 11/12; direct localized links to both demo previews are available in
+the shared footer/contextual-reading block; the Raya demo card links to the live
+Raya product. The Raya article already links to `https://raya.rvionai.com`
+and its learning pages; that body was not edited. The reciprocal Raya-project
+link is owned by the separate Raya repository and was not changed here. The
+cost article 11 still has no GSC diagnosis available: the calculator adds a
+distinct interactive resource and contextual links, but this is not evidence
+that Google will index it.
+
+IndexNow: added public root key file, same-origin HTTPS management command and
+production-enabled-by-default post-save notifications for published/changed
+articles and active/changed demos. Requests run after transaction commit and
+accept only same-site URLs. Nothing was submitted to IndexNow during local
+verification. Static route release URLs require one explicit post-release
+command, for example `manage.py submit_indexnow --url=https://rvionai.com/fa/tools/cost-calculator/ --url=https://rvionai.com/en/tools/cost-calculator/`;
+200/202 means accepted/pending validation, not indexed. No owner author name,
+role or sameAs profile was supplied, so no identity claim/profile was invented.
+
+Sitemap change: static calculator editions were added. Post `published_at` was
+removed as `lastmod`: it is a publication date, not a truthful content-modified
+timestamp; article lastmod stays omitted until an accurate update timestamp is
+available (no model/migration added). Existing demo/exam `updated_at` values
+remain their lastmod source. This follows Google's guidance to use accurate
+lastmod only ([Google](https://developers.google.com/search/blog/2023/06/sitemaps-lastmod-ping)).
+
+Cookies/cache: a real demo preview includes a configuration POST form, and the
+CSRF-enforced test confirms the cookie is required; it remains enabled. The new
+calculator is cookieless when opened without query parameters. Public live
+headers still show `Vary: Cookie`, `Cache-Control: public, max-age=0,
+s-maxage=60`, `X-Cache: BYPASS` from ArvanCloud. No cookie/session/CDN policy
+was changed, preserving the prior deferred owner decision.
+
+Latency diagnosis (read-only, 2026-10-14): external VPN route samples gave
+demo gallery TTFB 2.282/2.982/5.224s (median 2.982s), Python/Django briefing
+2.327/2.543/2.842s (median 2.543s), and home 2.677/2.751s (two complete
+samples; total 4.15/4.23s). From the server, same HTTPS requests through local
+Nginx were 0.079/0.090/0.112s, 0.066/0.076/0.075s, and 0.145/0.183/0.203s;
+service/Nginx were active, load average 0.05/0.09/0.09, Gunicorn workers near
+0% CPU, one Postgres connection. This points to CDN/network/cache path rather
+than measured Django-origin processing on these samples; it does not isolate
+query-level cost. Arvan `X-Cache: BYPASS` plus `Vary: Cookie` is a concrete
+cache limitation; changing that policy remains outside this release. Timing is
+path-dependent and not a controlled global benchmark.
+
+SEO crawl: production baseline remains `/tmp/rvion-seo-before-20261014.json`
+(87 URLs, all 200; metadata/canonical/hreflang baseline as stated by owner).
+No production after-crawl was run because there was no deploy. A local sitemap
+crawl (`/tmp/rvion-seo-local-final-20261014.json`) found 72 URLs, zero non-200,
+no service page under 800 words and the calculator at 909/882 words. Its local
+host canonical mismatch is expected, and the local DB has older sample blog
+records with short metadata; it is not a comparable replacement for the
+87-URL production crawl. A second attempt mapping the production URL list to
+local returned 23 data-fixture 404s; not used as a production result. Thus the
+required comparable production before/after diff remains pending a later
+authorized release.
+
+Validation: targeted `core.tests_cost_calculator core.test_public_cache
+core.tests_seo_contract` 42/42; final full parallel suite 1,271 passed, 27
+existing conditional skips; `manage.py check` clean; `makemigrations --check
+--dry-run` no changes; JS syntax and `git diff --check` clean. Browser: EN
+desktop 1280 visually inspected; earlier same-build calculator pass confirmed
+FA mobile 390 stacking and live recalculation. Updated query sanitation was
+rechecked in browser (`utm_source` removed from share URL). No CLS/Lighthouse
+number claimed. English mobile and complete FA/EN x light/dark matrix not
+remeasured in this phase. No production write, DB migration or customer-data
+mutation.
+
+Rollback: revert the scoped local implementation commit; no DB/data rollback is
+needed. On a future release, revert code through the established release
+process and verify old calculator links disappear; no migrations or imported
+records exist. Owner actions still needed: provide author identity/profile
+links if desired, request indexing manually, and authorize a separate CDN-cache
+policy decision if reducing Arvan BYPASS is wanted. No indexing or traffic
+growth guarantee is made.

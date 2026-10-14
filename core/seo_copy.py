@@ -5,6 +5,7 @@ TITLES = {
     "home": (None, "Custom Django web apps & CRM development | Rvion"),
     "blog:list": ("مقاله‌های طراحی سایت، CRM و ارزیابی مهارت | آرویون", "Articles on web development, CRM & assessment | Rvion"),
     "assessments:list": ("آزمون ارزیابی مدرس زبان و پایتون و جنگو | آرویون", "English teacher & Python Django assessments | Rvion"),
+    "cost_calculator": ("محاسبه‌گر هزینه طراحی سایت و وب‌اپلیکیشن | آرویون", "Web App Development Cost Calculator | Rvion"),
 }
 
 DESCRIPTIONS = {
@@ -16,6 +17,7 @@ DESCRIPTIONS = {
     "projects:demo_gallery": (None, "Explore fictional website demos for stores, clinics, restaurants and other businesses. Choose a layout, customise its details and start a project brief."),
     "assessments:list": ("آزمون ارزیابی مدرس زبان انگلیسی و آزمون تخصصی پایتون و جنگو را بررسی کنید؛ با مهارت‌های سنجیده‌شده، پایش رفتار و گزارش نتیجه آشنا شوید.", "Explore English teacher assessment and Python Django skills tests. Read about question coverage, integrity monitoring and answer review before starting."),
     "leads:contact": ("برای طراحی سایت، ساخت وب‌اپلیکیشن یا CRM اختصاصی درخواست مشاوره ثبت کنید؛ نیاز، هدف و راه تماس را بنویسید تا دامنه پروژه بررسی شود.", "Tell Rvion about your website, custom Django web app or CRM project. Share your goals and contact details to request an initial scope discussion."),
+    "cost_calculator": ("هزینه ساخت وب‌اپلیکیشن، CRM یا فروشگاه را با ورودی‌های پروژه برآورد کنید؛ بازه، زمان و نگهداری سالانه را ببینید و برای بررسی دقیق‌تر درخواست دهید.", "Estimate a custom web app, CRM or ecommerce project using scope inputs. Explore cost, timing and annual maintenance ranges, then request a scoped discussion."),
     "service_terms": ("شرایط خدمات آرویون را پیش از سفارش سایت یا شرکت در آزمون بخوانید؛ درباره دامنه همکاری، پرداخت، تحویل و مسئولیت‌های دو طرف آگاه شوید.", None),
     "refund_policy": ("سیاست لغو سفارش و بازپرداخت آرویون را بررسی کنید؛ تفاوت خدمات پروژه‌ای و آزمون، شرایط رسیدگی و مسیر ثبت درخواست پشتیبانی را بخوانید.", None),
 }

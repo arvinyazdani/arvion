@@ -41,6 +41,7 @@ LABELS = {
     'clinic_orders:create': ('نیازسنجی کلینیک', 'Clinic discovery'),
     'assessments:terms': ('شرایط آزمون', 'Assessment terms'),
     'project_start': ('شروع پروژه', 'Start a project'),
+    'cost_calculator': ('محاسبه هزینه وب‌اپلیکیشن', 'Web app cost calculator'),
 }
 DETAILS = {
     'services:detail': ('service', 'services:list'),
@@ -109,7 +110,7 @@ def seo_documents(context):
         label = getattr(obj, 'title_' + language, '')
     else:
         label = LABELS[route][index]
-        parent = None
+        parent = 'services:list' if route == 'cost_calculator' else None
     if route != 'home':
         breadcrumbs.append({'name': LABELS['home'][index], 'url': origin + reverse('home')})
         if parent:
@@ -132,6 +133,15 @@ def seo_documents(context):
                       'serviceType': label, 'url': canonical, 'areaServed': 'IR',
                       'provider': {'@id': org_id}})
         page['mainEntity'] = {'@id': canonical + '#service'}
+    if route == 'cost_calculator':
+        app = {'@type': 'WebApplication', '@id': canonical + '#application',
+               'name': 'محاسبه‌گر هزینه ساخت وب‌اپلیکیشن' if language == 'fa' else 'Web App Development Cost Calculator',
+               'url': canonical, 'applicationCategory': 'BusinessApplication',
+               'operatingSystem': 'Web', 'inLanguage': language,
+               'description': 'ابزار تعاملی برآورد اولیه هزینه و زمان پروژه نرم‌افزاری.' if language == 'fa' else 'Interactive planning tool for software project cost and timeline ranges.',
+               'publisher': {'@id': org_id}}
+        graph.append(app)
+        page['mainEntity'] = {'@id': app['@id']}
     if route == 'blog:detail':
         post = context['post']
         article = {'@type': 'BlogPosting', '@id': canonical + '#article',

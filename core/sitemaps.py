@@ -24,6 +24,7 @@ class StaticSitemap(LocalizedSitemap):
         bilingual_names = (
             "home", "about", "company_info", "crm_product", "services:list",
             "projects:demo_gallery", "assessments:list", "leads:contact",
+            "cost_calculator",
             "privacy", "service_terms", "refund_policy",
         )
         # These two discovery wizards intentionally redirect English requests to
@@ -69,10 +70,6 @@ class PostSitemap(LocalizedSitemap):
         slug = post.slug_fa if language == "fa" else post.slug_en
         with translation.override(language):
             return reverse("blog:detail", args=[slug])
-
-    def lastmod(self, item):
-        return item[1].published_at
-
 
 class DemoSitemap(LocalizedSitemap):
     priority = 0.7

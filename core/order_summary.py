@@ -69,3 +69,42 @@ def lead_initial(request, initial, lang):
             initial["message"] = initial.get("message", "").replace(prefix, replacement, 1)
         initial["message"] = (initial.get("message", "") + "\n" + heading + "\n" + "\n".join(lines)).strip()
     return initial
+
+
+def calculator_initial(request, initial, lang):
+    """Carry only allow-listed, non-identifying estimate choices into a lead."""
+    if request.GET.get("estimate") != "1":
+        return initial
+    from core.cost_calculator_data import PRODUCTS, TEAM_FACTORS
+    product = PRODUCTS.get(request.GET.get("product", ""))
+    team = TEAM_FACTORS.get(request.GET.get("team", ""))
+    if not product or not team:
+        return initial
+    bounds = {"roles": (1, 20), "integrations": (0, 20), "erp": (0, 5), "mobile": (0, 1), "legal": (0, 1), "maintenance": (10, 20)}
+    values = {}
+    for name, (minimum, maximum) in bounds.items():
+        try:
+            values[name] = max(minimum, min(maximum, int(request.GET.get(name, "0"))))
+        except (TypeError, ValueError):
+            return initial
+    product_label = product["label"][0 if lang == "fa" else 1]
+    team_label = team["label"][0 if lang == "fa" else 1]
+    if lang == "fa":
+        lines = [f"محصول: {product_label}", f"نقش‌های کاربری: {values['roles']}",
+                 f"اتصال‌های معمولی: {values['integrations']}", f"اتصال ERP: {values['erp']}",
+                 f"اپ موبایل: {'بله' if values['mobile'] else 'خیر'}",
+                 f"الزامات حریم/حقوقی: {'بله' if values['legal'] else 'خیر'}",
+                 f"نوع تیم: {team_label}", f"فرض نگهداری سالانه: {values['maintenance']}%",
+                 "این‌ها انتخاب‌های اولیه از محاسبه‌گرند، نه قیمت یا تعهد پروژه."]
+        heading = "خلاصه انتخاب‌های محاسبه‌گر (پیش‌نویس):"
+    else:
+        lines = [f"Product: {product_label}", f"User roles: {values['roles']}",
+                 f"Standard integrations: {values['integrations']}", f"ERP integrations: {values['erp']}",
+                 f"Mobile app: {'Yes' if values['mobile'] else 'No'}",
+                 f"Privacy/legal scope: {'Yes' if values['legal'] else 'No'}",
+                 f"Team scenario: {team_label}", f"Annual maintenance assumption: {values['maintenance']}%",
+                 "These are initial calculator choices, not a project price or commitment."]
+        heading = "Cost calculator selections (draft):"
+    existing = initial.get("message", "").strip()
+    initial["message"] = (existing + ("\n\n" if existing else "") + heading + "\n" + "\n".join(lines)).strip()
+    return initial

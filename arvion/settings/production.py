@@ -5,6 +5,7 @@ import dj_database_url
 from .base import *  # noqa: F403
 
 ASSESSMENT_FREE_CHECKOUT = False
+INDEXNOW_ENABLED = os.getenv("INDEXNOW_ENABLED", "1") == "1"
 if CONTENT_SECURITY_POLICY and "upgrade-insecure-requests" not in CONTENT_SECURITY_POLICY:
     CONTENT_SECURITY_POLICY = f"{CONTENT_SECURITY_POLICY}; upgrade-insecure-requests"
 

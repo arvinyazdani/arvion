@@ -163,7 +163,9 @@ class LeadCreateView(LanguageViewMixin, FormView):
                 "Project goals and details: "
             )
         from core.order_summary import lead_initial
-        return lead_initial(self.request, initial, self.lang)
+        initial = lead_initial(self.request, initial, self.lang)
+        from core.order_summary import calculator_initial
+        return calculator_initial(self.request, initial, self.lang)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

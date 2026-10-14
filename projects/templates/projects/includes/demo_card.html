@@ -10,4 +10,5 @@
     <div><span>{% if lang == 'fa' %}امکانات پایه{% else %}Starting features{% endif %}</span><div class="demo-feature-tags">{% for feature in demo.feature_labels %}<small>{{ feature }}</small>{% endfor %}</div></div>
   </div>
   <a class="demo-card-action" href="{% url 'projects:demo_preview' demo.slug %}">{% if lang == 'fa' %}بازکردن و شخصی‌سازی{% else %}Open and customise{% endif %}<svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#arrow"></use></svg></a>
+  {% if demo.slug == 'raya-personal-finance' %}<p class="demo-card-reference"><a href="https://raya.rvionai.com/" target="_blank" rel="noopener noreferrer">{% if lang == 'fa' %}مشاهدهٔ محصول واقعی رایا{% else %}Visit the live Raya product{% endif %} ↗</a></p>{% endif %}
 </article>

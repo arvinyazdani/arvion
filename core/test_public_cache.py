@@ -12,7 +12,7 @@ class PublicCookiePolicyTests(TestCase):
     def test_read_only_public_pages_are_cookieless_and_vary_by_cookie(self):
         for language in ("fa", "en"):
             for path in ("", "about/", "company/", "privacy/", "service-terms/",
-                         "refund-policy/", "services/", "projects/demos/", "assessments/"):
+                         "refund-policy/", "services/", "projects/demos/", "assessments/", "tools/cost-calculator/"):
                 with self.subTest(language=language, path=path):
                     response = Client().get(f"/{language}/{path}")
                     self.assertEqual(response.status_code, 200)

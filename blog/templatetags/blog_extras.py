@@ -39,7 +39,17 @@ def context_reading(context):
         if current in (costs, hiring, "enterprise-crm-development-cost-stages", "custom-or-ready-made-crm", "corporate-website-cost-1405"):
             slugs = tuple(slug for slug in (costs, hiring) if slug != current)
     posts = list(translated_posts(Post.objects.published().filter(slug_fa__in=slugs), language)) if slugs else []
-    return {"reading_posts": posts, "lang": language}
+    calculator_routes = {"home", "core:home", "services:list", "services:detail", "crm_product",
+                         "projects:demo_gallery", "projects:demos"}
+    show_calculator = route in calculator_routes
+    if route == "blog:detail":
+        show_calculator = getattr(context.get("post"), "slug_fa", "") in (costs, hiring, "enterprise-crm-development-cost-stages")
+    show_reference_demos = route in calculator_routes
+    if route == "blog:detail":
+        show_reference_demos = getattr(context.get("post"), "slug_fa", "") in (
+            costs, hiring, raya, "enterprise-crm-development-cost-stages")
+    return {"reading_posts": posts, "lang": language, "show_cost_calculator": show_calculator,
+            "show_reference_demos": show_reference_demos}
 
 @register.filter
 def cover_url(post, language):

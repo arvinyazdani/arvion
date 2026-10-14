@@ -15,7 +15,7 @@ class PublicPageCachePolicyMiddleware:
         "home", "about", "company_info", "crm_product", "privacy",
         "service_terms", "refund_policy", "services:list", "services:detail",
         "projects:demo_gallery", "projects:demo_preview", "blog:list",
-        "blog:detail", "assessments:list", "assessments:briefing",
+        "blog:detail", "assessments:list", "assessments:briefing", "cost_calculator",
     }
 
     def __init__(self, get_response):

@@ -9,11 +9,13 @@ from django.urls import include, path
 from core.health import HealthCheckView
 from core.sitemaps import sitemaps
 from core.views import (
-    AboutView, CompanyInfoView, CRMProductView, HomeView, PrivacyView, ProjectStartView,
+    AboutView, CompanyInfoView, CRMProductView, CostCalculatorView, HomeView, PrivacyView, ProjectStartView,
     RefundPolicyView, ServiceTermsView,
 )
 from core.views.client_logging import report_js_error
 from core.views.pwa import offline, service_worker
+from core.indexnow import INDEXNOW_KEY
+from core.views.indexnow import indexnow_key_file
 
 handler403 = "core.views.errors.permission_denied"
 handler404 = "core.views.errors.page_not_found"
@@ -63,6 +65,7 @@ def legacy_admin_operations(request):
 
 
 urlpatterns = [
+    path(f"{INDEXNOW_KEY}.txt", indexnow_key_file, {"key": INDEXNOW_KEY}, name="indexnow_key"),
     path("", default_language, name="language_root"),
     path("health/", HealthCheckView.as_view(), name="health"),
     path("admin/operations/", legacy_admin_operations, name="admin_operations"),
@@ -86,6 +89,7 @@ urlpatterns += i18n_patterns(
     path("assessments/", include(("assessments.urls", "assessments"), namespace="assessments")),
     path("", HomeView.as_view(), name="home"),
     path("start/", ProjectStartView.as_view(), name="project_start"),
+    path("tools/cost-calculator/", CostCalculatorView.as_view(), name="cost_calculator"),
     path("about/", AboutView.as_view(), name="about"),
     path("company/", CompanyInfoView.as_view(), name="company_info"),
     path("crm/", CRMProductView.as_view(), name="crm_product"),
