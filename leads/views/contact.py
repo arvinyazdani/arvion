@@ -9,6 +9,8 @@ from django.core.mail import send_mail
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView, FormView
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
 from core.views.lang import LanguageViewMixin
 from leads.demo_handoff import handle_resolved_demo_selection, maybe_retry_pending_demo_selection
@@ -64,6 +66,7 @@ def _session_demo_selection(request):
     ).first()
 
 
+@method_decorator(never_cache, name="dispatch")
 class LeadCreateView(LanguageViewMixin, FormView):
     template_name = "leads/contact.html"
     form_class = LeadForm
@@ -359,6 +362,7 @@ class LeadCreateView(LanguageViewMixin, FormView):
         return f"{reverse('leads:thanks', kwargs={'code': self.lead.tracking_code})}?lang={self.lang}"
 
 
+@method_decorator(never_cache, name="dispatch")
 class LeadThanksView(LanguageViewMixin, DetailView):
     model = Lead
     template_name = "leads/thanks.html"

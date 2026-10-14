@@ -86,6 +86,8 @@ class PublicUserJourneyTests(TestCase):
         lead = Lead.objects.get()
         self.assertContains(response, lead.tracking_code)
         self.assertTemplateUsed(response, "leads/thanks.html")
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertIn("/contact/thanks/", response.redirect_chain[-1][0])
 
     @override_settings(ASSESSMENT_FREE_CHECKOUT=False, PAYMENT_GATEWAY="card_transfer")
     def test_customer_completes_english_assessment_from_home_to_result(self):
@@ -95,7 +97,7 @@ class PublicUserJourneyTests(TestCase):
         detail_url = reverse("assessments:detail", args=[exam.slug])
         purchase_url = reverse("assessments:create_order", args=[exam.slug])
         self.assertContains(home, briefing_url)
-        self.assertContains(self.client.get(briefing_url), "حساب بساز و قیمت را ببین")
+        self.assertContains(self.client.get(briefing_url), "ادامه به شرایط و قیمت آزمون")
         pricing_gate = self.client.get(detail_url)
         self.assertEqual(pricing_gate.status_code, 302)
         self.assertIn(reverse("accounts:register"), pricing_gate.url)

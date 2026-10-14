@@ -36,12 +36,14 @@ class ManagementDashboardTests(TestCase):
         self.client.force_login(user)
         self.assertEqual(self.client.get(self.url).status_code, 302)
 
-    def test_staff_sees_device_push_onboarding_across_public_web_app(self):
+    def test_staff_push_onboarding_is_private_and_absent_from_public_home(self):
         user = User.objects.create_user(username="staff-push", email="staff-push@example.com", password="safe-password", is_staff=True)
         self.client.force_login(user)
         response = self.client.get(reverse("home"))
-        self.assertContains(response, "core/js/staff-push.js")
-        self.assertContains(response, "RVION_STAFF_PUSH")
+        self.assertNotContains(response, "core/js/staff-push.js")
+        self.assertNotContains(response, "RVION_STAFF_PUSH")
+        private = self.client.get(self.url)
+        self.assertContains(private, "core/js/staff-push.js")
 
     def test_staff_only_sees_permitted_operational_data(self):
         user = User.objects.create_user(username="sales", email="sales@example.com", password="safe-password", is_staff=True)

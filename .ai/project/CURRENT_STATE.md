@@ -1,5 +1,118 @@
 # Rvion current state
 
+## 2026-10-14 — Fixed public shell — VERIFIED locally / NOT DEPLOYED
+
+Explicit reading-route contract in core/public_pages.py. Public header, mobile
+navigation and footer use one gated Account destination; no staff push/global
+manager context/CSRF or queued flash content is rendered there. Public messages
+are preserved for the next private page. Briefing CTA uses the same existing
+pricing gate for everyone; private registration/access enforcement stays intact.
+Contact create/thanks explicitly no-store; successful contact/CRM/clinic forms
+keep separate tracking pages. Data-free reads defer single-session cleanup until
+private access. Analytics retain existing-session metrics using detached session
+data and Django auth/hash validation, without changing the real response session.
+Superseded and invalid-hash sessions remain rejected at private endpoints.
+
+Tests: full final suite 1,282 run, 27 existing conditional skips, zero failures;
+focused follow-up 142/142 and extended cookie/form/traffic 50/50 OK. Seven new
+tests cover all explicitly public route names via bilingual sitemap fixtures
+and standalone documents, complete HTML identity across cookie variants,
+zero response cookies, private message/push/CSRF, auth rejection and metrics.
+Initial metric regression was fixed; seven stale public-navigation/push test
+expectations were updated while preserving private checks. Check 0 issues,
+makemigrations --check --dry-run no changes, diff check clean. Log:
+/tmp/rvion-public-shell-final-tests-20261014.log. No visual/JS claims.
+
+No Arvan/SSH/production access, TTL/cache-policy modification, push, deployment,
+permanent DB write/migration or protected Raya edit. Path-rule maximum edge TTL
+observed earlier: 30 days; no TTL selected here. Report:
+docs/seo/SEO_PHASE_REPORT.md, Fixed public shell implementation. Commit this
+scoped change locally; future cache activation/paths/TTL remain the owner's
+decision and the earlier origin-policy deployment gate remains closed.
+
+## 2026-10-14 — Public render and fixed-TTL audit — VERIFIED (read-only)
+
+Owner explicitly froze production cache settings. Three temporary diagnostic
+tests passed in disposable SQLite DBs: 30 localized public pages have different
+full HTML for anonymous/regular/staff, but identical main content. A render-only
+neutral user/message simulation gives identical full HTML on 30/30; no runtime
+change was applied. Staff management context generates CSRF on every examined
+page and even sitemap; anonymous flash messages also change public HTML.
+Six standalone document routes have identical payloads; sitemap staff-CSRF is
+an explicit exception. The Arvan interface offers path + fixed TTL (including
+1 minute) without Origin Cache Control; only the latter is visibly plan-locked.
+No rule was saved or setting changed. Exact controls, source lines, remediation
+proposal, safe/conditional/excluded routes and test evidence are appended to
+docs/seo/SEO_PHASE_REPORT.md. Test harness and JSON are in /tmp/rvion_public_render_audit_20261014.py
+and /tmp/rvion-public-render-audit-20261014.json. No production/SSH/deploy/purge,
+no permanent DB migration, no code edits; protected Raya changes preserved.
+Public-shell remediation and cache activation remain NOT_STARTED / BLOCKED
+respectively. Next action requires a new implementation decision; current task
+is report-only and complete.
+
+## 2026-10-14 — Arvan CDN browser inspection — VERIFIED / activation BLOCKED
+
+Owner authorized only rvionai.com CDN cache/page rules and subsequent origin
+cache-policy activation, in that order. Native Chrome access worked for the
+default-rule editor (rule 169915d4-5b1a-4452-afa9-e6ca889a0dda). Observed values:
+cache enabled; query-string-aware mode; 12-hour TTL; error cache off; custom
+cookie field empty; ignore Vary off; cache responses with Set-Cookie off.
+These are the editor's observed values, not an exported persisted configuration.
+No Save was clicked and no CDN/origin setting was changed. Cancellation was
+used to return to the list without saving.
+
+Follow-up: opening the rule list and caching controls in separate native Chrome
+tabs recovered usable panel content. The rule list contains only the default
+rule. The new-rule form has a URL pattern, weight and settings; no request-header
+or method matcher is exposed. Origin Cache Control is disabled and explicitly
+requires the Professional plan. The public v4 API schema also describes page
+rules by URL, and cache_cookie as a comma-separated list of cookie variables
+to consider in the cache, not an all-Cookie/Authorization bypass condition.
+Do not infer header bypass from that field or activate origin policy 3118da8.
+The allowlisted-path fallback alone does not demonstrate that a warmed anonymous
+response cannot be served to an authenticated request at the same URL.
+
+Global settings observed: query-string-aware caching; 12-hour TTL; non-2xx cache
+off; browser cache default; max object 128 MB; cache Set-Cookie disabled/locked
+behind Growth; development mode off; always-online on. No saved CDN rule or
+global setting was changed, no purge/deploy/migration/API credential was used,
+and no paid-plan upgrade was attempted. A temporary unsaved rule was inspected
+and abandoned; the owner's original editor tab was preserved separately.
+Evidence is the native accessibility output and rendered screenshots in the
+tool record. Follow-up PNG exports captured the panel's blank/delayed state,
+so they are not accepted as screenshots of the settings or plan restriction.
+Sources: https://www.arvancloud.ir/api-docs/cdn-4.0.yml (cache_cookie,
+cache_ignore_cc/page-rule schemas), https://docs.arvancloud.ir/fa/cdn/page-rules/.
+Read-only live GET of /fa/tools/cost-calculator/ returned 200, no Set-Cookie,
+Vary: Cookie, public max-age=0 s-maxage=60, X-Cache: BYPASS and
+server-timing total;dur=309 on 2026-10-14 16:03:56 UTC. No HIT/Age or latency
+improvement is claimed. Next: establish a supported all-Cookie/Authorization
+request-bypass mechanism with Arvan before changing production origin policy;
+an API key alone or upgrading Origin Cache Control does not prove that capability.
+Apply and verify bypass rules before any origin-policy activation. The five
+pre-existing Raya working-tree files remain untouched.
+
+## 2026-10-14 — Anonymous public-page CDN policy — VERIFIED locally / BLOCKED for production
+
+Public, cookieless HTML now receives `public, max-age=0, s-maxage=60,
+stale-while-revalidate=30`, an ETag, and no `Vary: Cookie`. Any request cookie,
+response cookie, authenticated user, query string, non-GET, or non-200 response
+is `private, no-store`. CSRF-bearing demo previews, contact/order/login, and
+active assessment paths remain uncached. Targeted cache/calculator/checkout/
+attempt tests: 21/21 passed. Full `release-check.sh`: 1,275 tests passed, 27
+existing conditional skips; strict question-bank audit, static collection and
+benchmark passed. Check, migration-drift check, shell syntax and diff checks
+are clean. Cache code commit: `3118da8`. No production config/data was changed.
+
+Production gate: Arvan must first bypass every request with a `Cookie` or
+`Authorization` header and must not cache `Set-Cookie` or non-public responses.
+Browser-panel automation was unavailable in this session, so this rule is not
+verified/applied; removing `Vary: Cookie` before that rule is active could leak
+authenticated output. Do not push/release the cache change until the owner
+applies the Arvan rule or access allows it to be verified. The code-only release
+flag in `ops/release.sh` skips migrations/role sync/assessment seeding and uses
+read-only `migrate --check`; production release remains blocked on the CDN gate.
+
 ## 2026-10-14 — Calculator website-scope clarification — VERIFIED (local)
 
 The $10k–$50k website calculator range is now labeled “custom marketing website”

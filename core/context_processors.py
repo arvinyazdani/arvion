@@ -4,6 +4,7 @@ from django.utils import translation
 from urllib.parse import quote
 
 from .models import CompanyProfile
+from .public_pages import is_public_content_request
 
 
 def seo_context(request):
@@ -45,7 +46,10 @@ def seo_context(request):
         "Rvion — Enterprise CRM, websites and intelligent platforms"
     )
     whatsapp_share_url = "https://wa.me/?text=" + quote(share_text + "\n" + canonical_url)
+    public_shell = is_public_content_request(request)
     return {
+        "public_shell": public_shell,
+        **({"messages": ()} if public_shell else {}),
         "canonical_url": canonical_url,
         "alternate_urls": {code: f"{settings.SITE_URL}{path}" for code, path in alternate_paths.items()},
         "language_switch_url": alternate_paths.get("en" if language == "fa" else "fa", alternate_paths['fa']),

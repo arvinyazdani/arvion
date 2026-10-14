@@ -190,7 +190,7 @@ class AssessmentCommerceTests(TestCase):
 
     def test_pricing_requires_an_account_after_the_public_briefing(self):
         briefing = self.client.get(reverse("assessments:briefing", args=[self.exam.slug]))
-        self.assertContains(briefing, "حساب بساز و قیمت را ببین")
+        self.assertContains(briefing, "ادامه به شرایط و قیمت آزمون")
         self.assertNotContains(briefing, str(self.exam.price_irr))
 
         response = self.client.get(reverse("assessments:detail", args=[self.exam.slug]))

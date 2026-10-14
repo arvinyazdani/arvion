@@ -1,7 +1,10 @@
 import hashlib
 import logging
+from importlib import import_module
+from types import SimpleNamespace
 
 from django.conf import settings
+from django.contrib.auth import get_user
 from django.db import DatabaseError, transaction
 from django.db.models import F
 from django.utils import timezone
@@ -9,6 +12,31 @@ from django.utils import timezone
 from .models import ActiveVisitor, DailyVisitor, TrafficDay
 
 logger = logging.getLogger(__name__)
+
+
+class _DetachedSessionData(dict):
+    """Auth validation may clear/rotate this copy, never the visitor's session."""
+
+    invalidated = False
+
+    def flush(self):
+        self.invalidated = True
+        self.clear()
+
+    def cycle_key(self):
+        pass
+
+
+def _public_tracking_identity(request):
+    key = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
+    if not key:
+        return None, False
+    store = import_module(settings.SESSION_ENGINE).SessionStore(session_key=key)
+    data = _DetachedSessionData(store.load())
+    # Use Django's normal backend/hash checks on an isolated in-memory copy.
+    # Loading an expired cookie must not repair/flush the real response session.
+    user = get_user(SimpleNamespace(session=data))
+    return (None if data.invalidated else store.session_key), user.is_authenticated
 
 
 class TrafficAnalyticsMiddleware:
@@ -72,7 +100,12 @@ class TrafficAnalyticsMiddleware:
             # Never create a visitor identifier solely for analytics. Anonymous
             # page views are aggregate counts; unique/online counts describe
             # only visitors who already have a workflow/authentication session.
-            session_key = request.session.session_key
+            from core.public_pages import is_public_content_request
+            if is_public_content_request(request):
+                session_key, is_authenticated = _public_tracking_identity(request)
+            else:
+                session_key = request.session.session_key
+                is_authenticated = request.user.is_authenticated
             now = timezone.now()
             today = timezone.localdate(now)
             with transaction.atomic():
@@ -86,7 +119,7 @@ class TrafficAnalyticsMiddleware:
                     TrafficDay.objects.filter(date=today).update(unique_visitors=F("unique_visitors") + 1)
                 ActiveVisitor.objects.update_or_create(
                     visitor_hash=digest,
-                    defaults={"last_seen": now, "path": request.path[:160], "is_authenticated": request.user.is_authenticated},
+                    defaults={"last_seen": now, "path": request.path[:160], "is_authenticated": is_authenticated},
                 )
         except DatabaseError:
             logger.warning("Traffic analytics write skipped because the database was unavailable", exc_info=True)

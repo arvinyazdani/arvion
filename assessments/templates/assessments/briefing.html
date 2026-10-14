@@ -53,7 +53,9 @@
     </article>
   </div>
   <div class="shell briefing-actions">
-    {% if request.user.is_authenticated %}
+    {% if public_shell %}
+    <a class="button primary" href="{{ pricing_url }}">{% if lang == 'fa' %}ادامه به شرایط و قیمت آزمون{% else %}Continue to assessment options and pricing{% endif %}</a>
+    {% elif request.user.is_authenticated %}
     <a class="button primary" href="{{ pricing_url }}">{% if lang == 'fa' %}مشاهده قیمت و ادامه پرداخت{% else %}See the price and continue to payment{% endif %}</a>
     {% else %}
     <a class="button primary" href="{{ register_for_pricing_url }}">{% if lang == 'fa' %}حساب بساز و قیمت را ببین{% else %}Create an account to view the price{% endif %}</a>

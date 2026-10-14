@@ -53,6 +53,11 @@ class SingleSessionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        from core.public_pages import is_public_content_request
+        # Reading a data-free public page must not log out/flush a session or
+        # consume its invalidation notice. Private endpoints still enforce it.
+        if is_public_content_request(request):
+            return self.get_response(request)
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated:
             self._enforce_current_session(request, user)

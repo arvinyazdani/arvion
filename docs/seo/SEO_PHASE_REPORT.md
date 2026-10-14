@@ -4253,3 +4253,349 @@ records exist. Owner actions still needed: provide author identity/profile
 links if desired, request indexing manually, and authorize a separate CDN-cache
 policy decision if reducing Arvan BYPASS is wanted. No indexing or traffic
 growth guarantee is made.
+# 2026-10-14 — Calculator release and anonymous CDN-cache gate (local; production BLOCKED)
+
+## Authorized scope and decision
+
+The owner authorized deployment of `89e9375`, `b05e6d1`, and `df42961`, plus
+the anonymous public-page cache/cookie policy. A local corrective commit,
+`86a329d`, clarifies that the calculator's $10,000–$50,000 band is for a
+custom marketing website; the referenced Apptage source describes custom
+marketing/business websites at that range. It is distinct from the owner's
+simple brochure/small-business bands ($3,000–$7,500 and $5,000–$20,000).
+The calculator labels and bilingual explanatory copy now make that scope
+explicit; numeric inputs and no-JS table are unchanged. Source:
+https://www.apptage.com/blogs/custom-web-development-cost/ .
+
+Production cache release is intentionally blocked pending a verified Arvan
+Cloud rule. The origin now sends public cacheable responses without
+`Vary: Cookie`; if CDN cache rules ignore request cookies, a cached anonymous
+response could be delivered to a signed-in user (or the reverse). Arvan panel
+access was unavailable from this session, so no CDN rule was assumed, edited,
+or tested. No push/deploy/IndexNow submission was performed.
+
+## Local implementation and tests
+
+`core.middleware.PublicPageCachePolicyMiddleware` makes anonymous, cookie-free,
+query-free allowlisted GET 200 HTML public for 60 seconds at shared caches with
+30-second stale-while-revalidate and ETag/conditional 304 support. Requests
+with any cookie, authenticated users, query strings, non-GET methods, errors,
+responses setting cookies, and private/no-cache responses are private/no-store.
+Contact/order/demo-preview/identity/management/active-assessment flows retain
+CSRF or private behavior. Tests cover FA/EN public routes, session and
+authenticated variants, 404, ETag, form CSRF, demo preview, checkout and an
+active exam journey. Targeted suite: 21 passed; `manage.py check`, migration
+drift check, release-script shell syntax and `git diff --check` passed. Full
+`release-check.sh`: 1,275 tests passed with 27 existing conditional skips;
+question-bank audit, static collection and benchmark passed.
+
+`ops/release.sh` gained the explicit `RVION_RELEASE_CODE_ONLY=1` mode required
+by this authorization. It runs read-only `migrate --check` and skips
+`migrate --noinput`, `setup_staff_roles`, and `seed_assessment_banks`; normal
+release behavior remains unchanged when unset. This prevents schema and
+application-data writes during the requested code-only release. Local release
+gate passed; production remains blocked on Arvan request-cookie/auth bypass.
+
+## Production evidence and remaining gate
+
+Before-change external TTFB medians (five requests per URL, seconds; test
+cookie was a fabricated invalid session id, not a real account):
+
+| URL | No cookie | Cookie |
+|---|---:|---:|
+| `/fa/` | 3.326 | 2.310 |
+| `/en/` | 2.316 | 2.516 |
+| `/fa/blog/custom-software-cost-us-2026-crm-accounting-b2b/` | 2.506 | 2.494 |
+| `/en/blog/custom-software-cost-us-2026-crm-accounting-b2b/` | 2.219 | 2.283 |
+| `/fa/projects/demos/` | 2.183 | 2.140 |
+| `/en/projects/demos/` | 2.120 | 2.123 |
+| `/fa/tools/cost-calculator/` (currently 404) | 3.100 | 2.124 |
+| `/en/tools/cost-calculator/` (currently 404) | 3.322 | 2.175 |
+
+An observed production homepage response had `Vary: Cookie`,
+`Cache-Control: public, max-age=0, s-maxage=60`, and `X-Cache: BYPASS`.
+The per-URL sampling script's header parser failed, so this table does not
+claim per-sample `X-Cache` or `Age`; there is no after measurement yet. The
+comparable production crawl baseline is `/tmp/rvion-seo-before-20261014.json`
+(87 URLs). No after crawl, IndexNow submission, or claim of HIT was made.
+
+### Required ArvanCloud rule before release
+
+In the `rvionai.com` CDN configuration, configure the highest-priority bypass
+for any request containing `Cookie` or `Authorization`, and for methods other
+than GET/HEAD. Do not cache responses containing `Set-Cookie` or whose origin
+`Cache-Control` is `private`/`no-store`; do not override origin cache headers
+or `Vary`. Bypass query-string requests and sensitive paths (contact, start,
+account, admin, management, order/payment, active attempt/result/support, and
+demo preview/configuration); only exact public demo gallery paths may remain
+eligible. Cache only origin `public` GET/HEAD 200 responses, honor `s-maxage`
+(60 seconds), and allow stale-while-revalidate (30 seconds). Purge existing
+cache after saving the policy.
+
+Verify before enabling this origin policy: first cookieless GET may MISS,
+second should HIT and show `Age`; any fabricated `sessionid` and any
+`Authorization` request must BYPASS; forms and sensitive routes must remain
+BYPASS/private. If Arvan cannot implement and demonstrate request-cookie
+bypass, retain the existing `Vary: Cookie` policy instead of deploying this
+cache change.
+
+## Release procedure, rollback, and status
+
+The production release is code-only: take and validate the pre-release
+PostgreSQL snapshot, run the official `ops/release.sh` with
+`RVION_RELEASE_CODE_ONLY=1`, verify health, static assets and routes, then
+submit IndexNow only for the changed calculator, article 11/12, demo and
+services URLs. Do not run migrations, role synchronization, assessment seeding
+or database imports. Revert the CDN rule to its saved previous state to roll
+back cache behavior. For code rollback, redeploy the previous production
+release using the established release process; no DB rollback is applicable.
+
+Status: price clarification and cache implementation VERIFIED locally;
+production push/deploy BLOCKED on Arvan cookie/auth bypass verification. The
+full local release gate passed. The protected local Raya working-tree files
+remain unstaged and excluded. Current `main` also contains `bfbcf04` (the earlier
+CTA change) and `b306369` (its documentation checkpoint), outside the current
+scope. Do not push `main` as-is; prepare a deployment ref containing only the
+specifically authorized commits and this task's necessary release commits
+after the Arvan gate is satisfied.
+
+## 2026-10-14 — Arvan panel capability inspection (activation BLOCKED)
+
+The owner's authenticated Chrome panel was used directly, restricted to
+rvionai.com cache settings and page rules. Separate tabs recovered the rule list
+and caching screen after delayed/stale panel rendering. The list contains one
+default rule, with no custom rules. The original owner editor tab was preserved.
+
+Observed previous values (no Save/Add/Purge action was submitted):
+
+| Setting | Observed value | Applied value |
+|---|---|---|
+| Cache mode | With query string | unchanged |
+| Default cache TTL | 12 hours | unchanged |
+| Non-2xx/error cache | off | unchanged |
+| Browser cache | default | unchanged |
+| Ignore Vary | off in default editor | unchanged |
+| Cache Set-Cookie responses | off; Growth upgrade shown globally | unchanged |
+| Custom cookie variables | empty in default editor | unchanged |
+| Maximum cached file | 128 MB | unchanged |
+| Development mode | off | unchanged |
+| Always online | on | unchanged |
+| Origin Cache Control | locked, Professional upgrade required | unchanged |
+
+The new page-rule form exposes URL pattern, weight and settings, without a
+request Cookie/Authorization/method condition. The official API schema
+(`https://www.arvancloud.ir/api-docs/cdn-4.0.yml`) defines `cache_cookie` as
+cookie variables to consider in cache (comma-separated); it does not establish
+a request-bypass mechanism. A URL allowlist alone cannot demonstrate isolation
+between a warm anonymous response and a signed-in request to the same URL.
+Thus neither the primary bypass rule nor the safe fallback acceptance gate was
+met; origin policy `3118da8` remains unactivated. A Professional upgrade only
+unlocks the displayed Origin Cache Control option; it has not been established
+that it also provides the requested all-Cookie/Authorization bypass.
+
+Read-only live GET `/fa/tools/cost-calculator/` at 16:03:56 UTC: 200, no
+Set-Cookie, `Vary: Cookie`, `Cache-Control: public, max-age=0, s-maxage=60`,
+`X-Cache: BYPASS`, `server-timing: total;dur=309`. No HIT/Age, cache activation,
+TTFB improvement, post-change crawl or leakage-test PASS is claimed. The 8x5
+before/after benchmark was not repeated because no policy was changed.
+
+Evidence: native accessibility output and rendered tool screenshots. Later
+saved PNGs captured blank/delayed rendering and are excluded as settings evidence.
+No DNS/SSL/WAF/Raya action,
+purchase, production code/config write, push, migration or customer-data write.
+Rollback: no saved setting changed, so no rollback is needed. Next requirement
+is an Arvan-supported and testable request-header bypass mechanism; obtaining
+an API key alone does not remove this capability gate.
+
+## 2026-10-14 — Read-only public-render / fixed-TTL audit — VERIFIED locally
+
+Owner decision: Arvan cache configuration stays unchanged. This phase only
+inspected code/panel controls and tested in disposable SQLite test databases.
+No request to the Rvion production application was made by this phase;
+Arvan panel access was read-only. No SSH/config/deploy/purge/import,
+no migration on a permanent database, and no runtime code was changed. Only
+this report and the current-state checkpoint were edited. Protected Raya edits
+remain untouched. No new repository test file was added.
+
+### 1. Anonymous versus signed-in output
+
+Current public HTML is NOT identity invariant. The audit covered 30 localized
+URLs (FA/EN home; service list and all five real seeded service slugs; blog list
+and one published bilingual fixture detail; calculator; about/company; three
+legal pages), requested as anonymous, ordinary signed-in and staff users:
+
+| Comparison | Identical full HTML | Identical main content |
+|---|---:|---:|
+| Anonymous vs ordinary user | 0/30 | 30/30 |
+| Anonymous vs staff | 0/30 | 30/30 |
+| Render-only neutral-shell simulation across all three identities | 30/30 | 30/30 |
+
+The neutral-shell simulation re-rendered the original templates with a copied
+request containing AnonymousUser, an anonymous `user` template value and an
+empty `messages` value. It changed no real request authentication, middleware,
+view, template, permission or response. This demonstrates the source of the
+HTML difference; it is not an implemented cache-ready public shell or proof
+that cookies/CSRF/message lifecycle are resolved.
+
+Exact personalisation points and proposed removal (not applied):
+
+| Location | Current behavior | Bounded future change |
+|---|---|---|
+| `core/templates/core/base.html:80-85` | Sign in/My account, destination and staff Management link vary | Public routes use a fixed Account link to account dashboard; its existing login gate handles anonymous users. Keep staff links in the private shell. |
+| `base.html:104` | Mobile tabbar changes for staff/authentication | Same fixed public Account action for everyone. |
+| `core/templates/core/includes/footer.html:20` | Account href changes login/dashboard | Fixed public Account href. |
+| `base.html:53` | Staff-only push globals, public VAPID key and staff-push.js | Load only inside the private management experience. VAPID public key is not a secret. |
+| `base.html:97` | Per-request flash messages appear above main | Public shell must not render or consume private flash messages; action flows should display them on private, uncached destinations. Do not silently discard them. |
+| `management_portal/context_processors.py:57-86` | Any staff-rendered template triggers get_token(), notification COUNT, permission-based navigation and user-specific context | Restrict operational context/CSRF setup to the private templates/routes that actually require it; audit account pages before narrowing so push/CSRF workflows remain intact. |
+
+Both `assessment_flags` and `seo_context` in `core/context_processors.py` supply
+company/settings/URL/language data, with no user-specific content observed.
+URL-prefixed `/fa/` and `/en/` pages have stable language without needing a new
+session; legacy language query/cookie/switch behavior still requires separate
+handling. `traffic/middleware.py` reads existing sessions for metrics but does
+not create an anonymous analytics session; no personal analytics value was
+found in these templates. Cache hits would bypass origin page-view counting,
+so future activation would also change the completeness of these metrics.
+
+A separate test proved that an anonymous `messages` cookie changes `/fa/about/`
+HTML. Therefore normalizing only logged-in header links is insufficient.
+Staff responses on all 30 pages set CSRF; anonymous and ordinary-user responses
+in this matrix did not. Staff notification context was present even on public
+pages. No account name/phone or private notification body was found rendered
+by the examined public-shell branches; login/role state is still different.
+
+The audited templates/views/context processors/URL configuration have no diff
+against local deployment reference `c276f08`. This is source-reference evidence,
+not a fresh verification of the current server commit or customer production
+data. Local cache middleware differs from that reference, so this audit makes
+no production-header/deployed-cache-policy claim.
+
+### 2. Fixed TTL in the present Arvan plan
+
+YES: the current interface offers a URL rule with fixed TTL independently of
+the locked Origin Cache Control option. Exact controls observed:
+`قوانین صفحات` → `قانون جدید` → `مسیر`, `وزن`,
+`تنظیمات` → `کش` → `مدت زمان اعتبار اطلاعات Cache شده`.
+The TTL list includes `۱ دقیقه`, `۳ دقیقه`, `۵ دقیقه`, `۱۲ ساعت`, and other
+durations from seconds to 30 days; the existing default editor shows 12 hours.
+Related controls: `کش صفحات خطا`, `نادیده‌گرفتن vary`,
+`Cache صفحات دارای set-cookie`, `متغییر دلخواه در کوکی`, and
+`مدت زمان Cache اطلاعات در مرورگر` (separate from edge TTL).
+`Origin Cache Control` is a separate Professional-locked setting. The basic
+fixed-TTL controls are visible without that lock. No new rule was saved or
+successful application tested, by owner instruction. This corrects any broad
+reading of the earlier blocker as “fixed-TTL caching itself needs Professional”.
+It does not establish arbitrary request-header/method bypass capability or
+that overriding origin directives would be safe. Reference:
+https://docs.arvancloud.ir/fa/cdn/page-rules/ and
+https://www.arvancloud.ir/api-docs/cdn-4.0.yml .
+
+### 3. Path classification for a future decision (nothing activated)
+
+| Class | Paths | Reason / constraint |
+|---|---|---|
+| Public, identity-independent payloads verified | `/robots.txt`; `/offline/`, `/offline/fa/`, `/offline/en/`; exact public IndexNow key `.txt` URL | Full response body identical across all three identities, no response cookies in these tests. Offline has a standalone template, not the shared personalized shell. |
+| Public static assets | Specific public versioned `/static/` CSS/JS/font/logo files | File content is not personalized. Prefer fingerprinted assets; this is a source/serving-model classification, not a new live asset-cache measurement. |
+| Same public payload, cookie side effect remains | `/sitemap.xml` | XML body identical, but staff response sets CSRF through the global management processor; do not force-cache Set-Cookie responses. |
+| Public HTML needing neutral-shell/message/CSRF work or proven identity bypass | `/{fa,en}/`; `services/` and the five service details; `blog/` and published details; `tools/cost-calculator/`; `about/`, `company/`, `privacy/`, `service-terms/`, `refund-policy/` | Current complete HTML differs by identity. Only clean query-free public variants would be candidates after remediation and tests. |
+| Additional public candidates NOT verified by this matrix | CRM product page, demo gallery, assessment list/briefings | Require their own identity/form/entitlement tests; do not infer safety from their public names or sitemap inclusion. |
+| Never shared-cache personalized/form responses | `/{fa,en}/account/*`, `/{fa,en}/management/*`, `/management/*`, `/admin/*`, `/contract/*`, contact/start/CRM-order/clinic-order forms and their continuation/thanks/draft endpoints | Authentication, messages, form tokens, drafts or customer/contract data. |
+| Never shared-cache assessment/payment workflows | `/{fa,en}/assessments/order/*`, `entitlement/*`, `attempt/*`, `result/*`, `certificate/*`, `support/*`, `*/buy/`, and the `/<slug>/` pricing/entitlement gate | Payments, grants, answers, integrity events, results, audio authorization or user-specific pricing/access decisions. |
+| Never apply broad cache rule | `/{fa,en}/projects/demos/<slug>/`, `.../full/`, `.../configure/`; arbitrary `/media/*`; `/health/`; `/service-worker.js`; `/log/js-error/` | Demo session/configuration/forms; potentially mixed private uploads; live health; service-worker update behavior; mutation endpoint. Explicitly public media objects could be audited separately. |
+
+Across all categories: no shared caching of non-GET/HEAD, error responses,
+Set-Cookie, private/no-store, or unreviewed query-string variants. Unprefixed
+`/` and language-switch redirects are not equivalent to the localized homepage
+and are not on this allowlist. These are intended policy boundaries, not a
+claim that the current Arvan plan enforces each one.
+
+### Tests / evidence / limitations
+
+Final command: `.venv/bin/python /tmp/rvion_public_render_audit_20261014.py`.
+Three targeted diagnostic tests passed, 0 skipped; system check 0 issues.
+90 primary HTTP render comparisons plus message and six standalone-route
+scenarios; JSON: `/tmp/rvion-public-render-audit-20261014.json`.
+The initial harness needed get_or_create because migrations seed service slugs,
+then an absent anonymous context key required membership checking. A real
+failed “all standalone responses cookieless” assertion exposed staff CSRF on
+sitemap; the final diagnostic explicitly verifies that observed exception.
+No application assertion was weakened and no production code was fixed.
+No full suite/browser visual matrix was run because no runtime/UI change was
+made. Panel inspection was read-only: no value, Save/Add/Purge or purchase.
+No rollback is needed. Proposed changes above remain NOT_STARTED.
+
+## 2026-10-14 — Fixed public shell implementation (LOCAL ONLY)
+
+Owner authorization: implement a stable public shell, keep messages/manager
+context/CSRF on private pages, preserve private form completion, add automated
+identity/cookie invariance tests, and commit locally only. No Arvan/production
+access or setting change occurred in this phase. No TTL/header/cache-policy
+setting, migration/model, article content or protected Raya file was edited.
+
+`core/public_pages.py` now names the explicit data-free GET/HEAD route set.
+Forms, demo preview/configuration, accounts, management, contracts, checkout,
+attempts and results are excluded. `seo_context` supplies `public_shell` and an
+empty template message sequence on these reading pages. Header/mobile/footer
+use one Account link to the existing gated account dashboard; staff links and
+staff-push globals/scripts remain on private pages only. Management context
+returns before evaluating staff or requesting CSRF on public content (including
+sitemap). The briefing's identity-dependent buttons also needed a uniform CTA:
+it now points everyone to the existing pricing/options gate; that gate still
+routes anonymous customers to registration and enforces account/access rules.
+
+Public rendering does not consume queued flash messages: a regression test
+confirms the same message appears later on the uncached login page. Existing
+contact and CRM/clinic successful submissions already redirect to separate
+tracking/thanks pages. Contact create and thanks now explicitly use never_cache;
+CRM/clinic already had it. The actual contact POST journey verifies the final
+destination is `/contact/thanks/...` and no-store.
+
+Single-session enforcement is deferred only on the explicitly data-free public
+read routes so stale-session cleanup cannot add Set-Cookie there. Private
+endpoints retain enforcement; tests cover superseded sessions and invalid auth
+hashes remaining unable to enter the account dashboard. Authentication or
+authorization was not replaced with an anonymous runtime request. Analytics
+initially regressed unique-visitor tracking when public reads were counted only
+in aggregate; the existing traffic test caught it. That implementation was
+replaced: an existing session is read via a detached store, and Django's normal
+backend/hash validation runs on an in-memory session copy whose flush/rotation
+cannot alter the visitor's actual session. Existing visitor counts/auth flags
+remain covered by the original traffic tests and a new authenticated-metrics
+regression. No new anonymous tracking cookie/session is created.
+
+New `core/test_public_shell.py` builds its matrix from all public sitemap URLs
+in the bilingual fixture, adds standalone public documents, and asserts that
+every named public route is covered. It compares complete response bytes for
+anonymous, ordinary/staff valid sessions, stale sessionid, signed messages, and
+staff+messages; all must return 200 without response cookies, private flash text,
+staff push content or management context. Additional tests protect message
+preservation, private CSRF/push, stale-session enforcement and contact completion.
+Existing navigation and briefing assertions were updated for the intended public
+CTA behavior, not skipped. Targeted cache/flow/accounts/traffic run: 115 tests,
+2 pre-existing skips, OK. Final full and extended-target results recorded below.
+
+The first full parallel run stopped on a regression and then hit the environment's
+missing traceback-pickling support (`TypeError: cannot pickle 'traceback' object`).
+The traffic regression was reproduced separately and fixed; full verification
+was repeated serially so failures could be reported normally. System check:
+0 issues; makemigrations --check --dry-run: no changes; diff check clean.
+
+Arvan information requested by owner: the longest selectable **edge TTL in a
+path rule is 30 days (`۳۰ روز`)**, based on the earlier read-only TTL dropdown
+inspection. Browser-cache duration is a separate control and is not this TTL.
+No panel was opened or modified for this implementation. TTL and future path
+activation remain the owner's later decision.
+
+Rollback: revert this local implementation commit (code/templates/tests and
+documentation only); no database/config/CDN rollback is needed. No push/deploy.
+
+Final verification: `.venv/bin/python manage.py test --parallel 4 --verbosity 1`
+ran **1,282 tests**, **27 existing conditional skips**, **0 failures**, 67.778s.
+Log: `/tmp/rvion-public-shell-final-tests-20261014.log`. The preceding serial
+run exposed seven old expectations for public staff navigation/push/login links;
+they were updated to the authorized fixed public shell, while equivalent
+private-page management/push assertions were retained. Their focused follow-up
+ran 142 tests, OK. The final extended cookie/form/traffic suite ran 50 tests,
+OK, including all seven new public-shell tests. System check, no-migration drift
+and diff checks pass. No JS/CSS changed, so no JS or visual-browser acceptance
+is claimed. Only a scoped local commit is authorized; no production/Arvan action.

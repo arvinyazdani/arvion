@@ -48,9 +48,13 @@ class PublicCookiePolicyTests(TestCase):
 
     def test_authenticated_public_page_cannot_enter_shared_cache(self):
         from django.contrib.auth import get_user_model
-        user = get_user_model().objects.create_user(username="cache-test", email="cache-test@example.invalid", password="test-only-pass")
+        anonymous_response = Client().get("/fa/")
+        user = get_user_model().objects.create_user(username="cache-test", email="cache-test@example.invalid", password="test-only-pass", is_staff=True)
         self.client.force_login(user)
         response = self.client.get("/fa/")
+        self.assertNotContains(response, 'class="nav-utility nav-management"', html=False)
+        self.assertEqual(response.content, anonymous_response.content)
+        self.assertFalse(response.cookies)
         self.assertIn("private", response["Cache-Control"])
         self.assertIn("no-store", response["Cache-Control"])
         self.assertNotIn("s-maxage", response["Cache-Control"])

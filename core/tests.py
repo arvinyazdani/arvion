@@ -97,8 +97,9 @@ class CorePagesTests(TestCase):
         staff_html = staff_response.content.decode()
         staff_mobile_nav = staff_html.split('<nav class="mobile-tabbar"', 1)[1].split("</nav>", 1)[0]
         self.assertEqual(staff_mobile_nav.count("<a "), 5)
-        self.assertIn("data-admin-shortcut", staff_mobile_nav)
-        self.assertNotIn('href="/fa/account/dashboard/"', staff_mobile_nav)
+        self.assertEqual(staff_mobile_nav, mobile_nav)
+        self.assertNotIn("data-admin-shortcut", staff_mobile_nav)
+        self.assertIn('href="/fa/account/dashboard/"', staff_mobile_nav)
 
     def test_staff_header_keeps_management_direct_and_account_in_preferences(self):
         staff = get_user_model().objects.create_user(
@@ -107,7 +108,7 @@ class CorePagesTests(TestCase):
         self.client.force_login(staff)
         for language, account_label in (("fa", "حساب من"), ("en", "My account")):
             with self.subTest(language=language):
-                html = self.client.get(f"/{language}/").content.decode()
+                html = self.client.get(f"/{language}/account/dashboard/").content.decode()
                 header = html.split('id="site-nav"', 1)[1].split("</nav>", 1)[0]
                 direct, preferences = header.split('<details class="nav-preferences">', 1)
                 self.assertIn(f'href="/{language}/management/"', direct)
@@ -127,7 +128,7 @@ class CorePagesTests(TestCase):
                     html = self.client.get(f"/{language}/").content.decode()
                     header = html.split('id="site-nav"', 1)[1].split("</nav>", 1)[0]
                     direct, preferences = header.split('<details class="nav-preferences">', 1)
-                    destination = "dashboard" if user else "login"
+                    destination = "dashboard"
                     self.assertIn(f'href="/{language}/account/{destination}/"', direct)
                     self.assertNotIn("nav-management", header)
                     self.assertNotIn("nav-account", preferences)

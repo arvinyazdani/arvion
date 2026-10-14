@@ -58,6 +58,9 @@ def _management_navigation(request, lang):
 
 
 def management_alerts(request):
+    from core.public_pages import is_public_content_request
+    if is_public_content_request(request):
+        return {}
     if not getattr(request, "user", None) or not request.user.is_authenticated or not request.user.is_staff:
         return {}
     get_token(request)  # Push subscription POST must work even on read-only dashboard pages.

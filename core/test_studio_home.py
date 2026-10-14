@@ -229,8 +229,8 @@ class StudioHomeTests(TestCase):
             self.assertIn('class="menu-project"', nav)
             self.assertIn('data-theme-toggle', nav)
             self.assertIn('data-sound-toggle="all"', nav)
-            self.assertIn(f'href="/{lang}/account/login/"', nav)
+            self.assertIn(f'href="/{lang}/account/dashboard/"', nav)
             footer = html.split('<footer', 1)[1]
             self.assertEqual(footer.count('<h2>'), 4)
             self.assertIn('data-theme-toggle', footer)
-            self.assertIn(f'href="/{lang}/account/login/"', footer)
+            self.assertIn(f'href="/{lang}/account/dashboard/"', footer)

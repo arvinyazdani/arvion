@@ -50,7 +50,9 @@
   <script src="{% static 'core/js/theme-toggle.js' %}?v=2" defer></script>
   <script src="{% static 'core/js/welcome-sound.js' %}?v=4" defer></script>
   <script src="{% static 'core/js/wizard-engine.js' %}?v=4" defer></script>
+  {% if not public_shell %}
   {% if request.user.is_staff %}<script>window.RVION_STAFF_PUSH=true;window.RVION_PUSH_SUBSCRIBE="{% url 'management_portal:push_subscribe' %}";window.RVION_VAPID_PUBLIC_KEY="{{ web_push_public_key|escapejs }}";</script><script src="{% static 'core/js/staff-push.js' %}?v=2" defer></script>{% endif %}
+  {% endif %}
   {% block extra_head %}{% endblock %}
   {% include 'core/includes/seo_graph.html' %}
 </head>
@@ -77,12 +79,18 @@
           <a href="{% order_entry %}?consult=1"{% if request.resolver_match.namespace == 'leads' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#message"></use></svg><span>{% if lang == 'fa' %}مشاوره{% else %}Consultation{% endif %}</span></a>
         </div>
         <div class="nav-utilities">
+          {% if public_shell %}
+          <a class="nav-utility nav-account" href="{% url 'accounts:dashboard' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if lang == 'fa' %}حساب کاربری{% else %}Account{% endif %}</span></a>
+          {% else %}
           {% if request.user.is_staff %}<a class="nav-utility nav-management" href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Management{% endif %}</span></a>{% endif %}
           {% if not request.user.is_staff %}<a class="nav-utility nav-account" href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if request.user.is_authenticated %}{% if lang == 'fa' %}حساب من{% else %}My account{% endif %}{% else %}{% if lang == 'fa' %}ورود{% else %}Sign in{% endif %}{% endif %}</span></a>{% endif %}
+          {% endif %}
           <details class="nav-preferences">
             <summary><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}تنظیمات{% else %}Settings{% endif %}</span></summary>
             <div class="nav-preferences-panel">
+          {% if not public_shell %}
           {% if request.user.is_staff %}<a class="nav-utility nav-account" href="{% url 'accounts:dashboard' %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if lang == 'fa' %}حساب من{% else %}My account{% endif %}</span></a>{% endif %}
+          {% endif %}
           <a class="nav-utility lang-link" href="{{ language_switch_url }}" hreflang="{% if lang == 'fa' %}en{% else %}fa{% endif %}" aria-label="{% if lang == 'fa' %}نمایش نسخه انگلیسی{% else %}View the Persian version{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#globe"></use></svg><span>{% if lang == 'fa' %}English{% else %}فارسی{% endif %}</span></a>
           <button class="theme-toggle" type="button" data-theme-toggle aria-label="{% if lang == 'fa' %}تغییر حالت روشن و تیره{% else %}Toggle light and dark mode{% endif %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#theme"></use></svg><span>{% if lang == 'fa' %}ظاهر{% else %}Theme{% endif %}</span></button><button class="theme-toggle sound-toggle" type="button" data-sound-toggle="all" aria-pressed="true" aria-label="{% if lang == 'fa' %}خاموش‌کردن صداهای برنامه{% else %}Turn app sounds off{% endif %}"><b aria-hidden="true">♪</b><span>{% if lang == 'fa' %}صدا{% else %}Sound{% endif %}</span><span data-sound-state="all"></span></button>
             </div>
@@ -101,7 +109,9 @@
     <a href="{% url 'services:list' %}"{% if request.resolver_match.namespace == 'services' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#services"></use></svg><span>{% if lang == 'fa' %}خدمات{% else %}Services{% endif %}</span></a>
     <a href="{% url 'projects:demo_gallery' %}"{% if request.resolver_match.namespace == 'projects' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#work"></use></svg><span>{% if lang == 'fa' %}نمونه‌ها{% else %}Samples{% endif %}</span></a>
     <a href="{% url 'project_start' %}"{% if request.resolver_match.url_name == 'project_start' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contact"></use></svg><span>{% if lang == 'fa' %}شروع پروژه{% else %}Start{% endif %}</span></a>
+    {% if public_shell %}<a href="{% url 'accounts:dashboard' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>{% else %}
     {% if request.user.is_staff %}<a data-admin-shortcut href="{% url 'management_portal:dashboard' %}"{% if request.resolver_match.namespace == 'management_portal' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#settings"></use></svg><span>{% if lang == 'fa' %}مدیریت{% else %}Manage{% endif %}</span></a>{% else %}<a href="{% if request.user.is_authenticated %}{% url 'accounts:dashboard' %}{% else %}{% url 'accounts:login' %}{% endif %}"{% if request.resolver_match.namespace == 'accounts' %} aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#account"></use></svg><span>{% if lang == 'fa' %}حساب{% else %}Account{% endif %}</span></a>{% endif %}
+    {% endif %}
   </nav>
   {% include 'core/includes/footer.html' %}
   <div class="install-dialog" id="install-dialog" data-install-dialog hidden>
