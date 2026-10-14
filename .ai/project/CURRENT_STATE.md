@@ -6566,6 +6566,8 @@ on because the configuration POST form requires it. Cache policy unchanged.
 
 Tests: targeted 42/42; final full parallel suite 1,271 passed, 27 existing
 conditional skips; `check`, no-migration drift, JS syntax, diff check passed.
+The existing local SQLite preview database still reports eight unapplied
+historical migrations (none applied in this task).
 Local calculator audit: FA 909 words / 146-char meta; EN 882 / 157. Production
 read-only latency: origin through local Nginx ~0.066–0.203s, while external
 TTFB ~2.3–5.2s for observed pages; Arvan reports `X-Cache: BYPASS`, `Vary:

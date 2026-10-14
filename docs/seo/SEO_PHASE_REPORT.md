@@ -4236,6 +4236,11 @@ number claimed. English mobile and complete FA/EN x light/dark matrix not
 remeasured in this phase. No production write, DB migration or customer-data
 mutation.
 
+Environment note: the existing local development SQLite database reported
+eight unapplied migrations from accounts/assessments/leads/management_portal/
+projects when the owned preview server started. They predate this change;
+none were applied. The isolated Django test databases completed the full suite.
+
 Rollback: revert the scoped local implementation commit; no DB/data rollback is
 needed. On a future release, revert code through the established release
 process and verify old calculator links disappear; no migrations or imported
