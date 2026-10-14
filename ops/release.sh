@@ -48,9 +48,16 @@ run_manage() {
 }
 
 run_manage check --deploy
-run_manage migrate --noinput
-run_manage setup_staff_roles
-run_manage seed_assessment_banks
+if [[ "${RVION_RELEASE_CODE_ONLY:-0}" == "1" ]]; then
+  # A code-only release must never mutate production schema or application data.
+  # --check is read-only and fails closed if any migration is pending.
+  run_manage migrate --check
+  echo "Code-only release: database migrations, staff-role sync, and assessment seeding skipped."
+else
+  run_manage migrate --noinput
+  run_manage setup_staff_roles
+  run_manage seed_assessment_banks
+fi
 run_manage collectstatic --noinput
 
 # Keep the active Nginx configuration in sync with the release, but never
