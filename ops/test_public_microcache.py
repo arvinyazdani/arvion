@@ -112,7 +112,8 @@ def main():
                 checks += 2
             assert request('/en/company/', {'Host': 'other.example'})[1] == 'BYPASS'
             checks += 1
-            for control in ('private, no-store', 'public, no-store', 'no-cache', 'max-age=60'):
+            for control in ('private, no-store', 'public, no-store', 'no-cache', 'max-age=60',
+                            'notpublic, max-age=60', 'x-public=true, max-age=60'):
                 mode['cache_control'] = control
                 assert request('/fa/company/')[1] == request('/fa/company/')[1] == 'MISS', control
                 checks += 2
