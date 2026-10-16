@@ -2,6 +2,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_slug
@@ -11,7 +12,7 @@ DIRECTORY = Path(__file__).parent / "international_drafts"
 
 @dataclass(frozen=True)
 class PairedDraft:
-    slug_fa: str
+    slug_fa: Optional[str]
     tags: tuple
     values: dict
 
@@ -29,17 +30,30 @@ def load_paired_drafts(directory=None):
             key, sep, raw = line.partition(":")
             if not sep or key in data:
                 raise ValueError(f"{path.name}: invalid metadata")
-            data[key] = json.loads(raw)
+            value = raw.strip()
+            if key == "pair" and value == "none":
+                data[key] = None
+            elif key == "status" and value == "draft-unreviewed":
+                data[key] = value
+            elif key == "lang" and value in {"fa", "en"}:
+                data[key] = value
+            else:
+                try:
+                    data[key] = json.loads(value)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"{path.name}: invalid metadata value for {key}") from exc
         language = data.get("lang")
         if language not in seen:
             raise ValueError(f"{path.name}: unsupported language")
         fields = {f"{key}_{language}" for key in ("slug", "title", "summary")}
         required = {"lang", "pair", "status", "tags", "target_keywords"} | fields
-        if set(data) not in (required, required | {"cta_url"}) or data["status"] != "draft-unreviewed":
+        if (not required <= set(data) or set(data) - required - {"cta_url", "note"}
+                or data["status"] != "draft-unreviewed"):
             raise ValueError(f"{path.name}: unsupported metadata/publication status")
         pair, slug = data["pair"], data[f"slug_{language}"]
         try:
-            validate_slug(pair)
+            if pair is not None:
+                validate_slug(pair)
             validate_slug(slug)
         except (ValidationError, TypeError) as exc:
             raise ValueError(f"{path.name}: invalid identity") from exc
@@ -55,7 +69,8 @@ def load_paired_drafts(directory=None):
                 not isinstance(value, str) or not value.strip() or len(value) > 100 for value in data[key]
             ) or len(data[key]) != len(set(data[key])):
                 raise ValueError(f"{path.name}: invalid {key}")
-        group = groups.setdefault(pair, {"languages": set(), "tags": [], "values": {}})
+        group_key = f"single:{path.name}" if pair is None else pair
+        group = groups.setdefault(group_key, {"pair": pair, "languages": set(), "tags": [], "values": {}})
         if language in group["languages"]:
             raise ValueError(f"{path.name}: repeated pair language")
         group["languages"].add(language)
@@ -66,7 +81,12 @@ def load_paired_drafts(directory=None):
         group["values"].update({key: data[key] for key in fields})
         group["values"][f"body_{language}"] = body
         seen[language].add(slug)
-    if not groups or any("fa" not in group["languages"] for group in groups.values()):
-        raise ValueError("Every pair requires a Persian edition; bundle must not be empty")
-    return [PairedDraft(group["values"]["slug_fa"], tuple(dict.fromkeys(group["tags"])), group["values"])
+    if not groups:
+        raise ValueError("Bundle must not be empty")
+    for group in groups.values():
+        if group["pair"] is not None and "fa" not in group["languages"]:
+            raise ValueError("Every paired article requires a Persian edition")
+        if group["pair"] is None and len(group["languages"]) != 1:
+            raise ValueError("A single-language article must have exactly one edition")
+    return [PairedDraft(group["values"].get("slug_fa"), tuple(dict.fromkeys(group["tags"])), group["values"])
             for group in groups.values()]

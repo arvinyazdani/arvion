@@ -6,7 +6,7 @@ summary_en: "Understand enterprise CRM development costs in USD, from workflows 
 ---
 Enterprise CRM cost is driven by the depth of workflows, permissions, integrations, data migration and operational requirements. A contact database and a multi-branch service platform are not comparable purchases. Before comparing prices, define the system and the work required to make it usable.
 
-This international edition uses US dollars. References were reviewed on October 12, 2026. The figures are external commercial benchmarks or clearly labelled planning calculations, not Rvion prices, guaranteed quotations or conversions from Iranian currency.
+This guide uses US dollars. References were reviewed on October 12, 2026. The figures are external commercial benchmarks or clearly labelled planning calculations, not Rvion prices or guaranteed quotations.
 
 ## What the international figures actually mean
 

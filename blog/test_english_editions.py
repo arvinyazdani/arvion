@@ -49,13 +49,20 @@ class EnglishEditionTests(TestCase):
         for item in self.editions:
             self.assertNotIn("/fa/", item["body_en"])
             self.assertNotIn("تومان", item["body_en"])
+            self.assertNotRegex(item["body_en"], r"(?i)\b(?:Iran|Iranian|Toman|Rial)\b|Persian guide|Persian edition")
             post = Post(body_en=item["body_en"])
             html = post.body_as_html_en()
             self.assertIn("<h2>", html)
             self.assertNotIn("<script", html)
             self.assertNotIn("<h1", html)
             for href in re.findall(r'href="(/en/[^"#]*)', html):
+                if href.startswith("/en/blog/"):
+                    continue  # Detail URL responses are checked with the imported bundle fixture.
                 resolve(href)
+        corporate_cost = next(item for item in self.editions if item["slug_en"] == "corporate-website-cost-2026")
+        self.assertIn("$25–$49 per hour", corporate_cost["body_en"])
+        self.assertIn("teams in varied global markets", corporate_cost["body_en"])
+        self.assertIn("/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/", corporate_cost["body_en"])
 
     def test_default_and_explicit_dry_runs_write_nothing(self):
         for args in ([], ["--dry-run"]):

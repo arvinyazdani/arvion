@@ -6,7 +6,7 @@ summary_en: "Build a fair English-teacher hiring process with language screening
 ---
 An English teacher's language accuracy and teaching ability are related but different. A fluent conversation does not establish that a candidate can explain an error, select an appropriate exercise or manage a lesson. A defensible hiring process combines structured screening, an interview and a teaching demonstration.
 
-This international edition adapts our Persian guide. It does not offer an accredited qualification or claim that an online score can determine teaching competence on its own.
+This guide does not offer an accredited qualification or claim that an online score can determine teaching competence on its own.
 
 ## What an interview can and cannot show
 

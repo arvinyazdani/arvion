@@ -6,7 +6,7 @@ summary_en: "Compare custom and ready-made CRM through workflow fit, data contro
 ---
 A ready-made CRM is usually the better starting point for a small team with a standard sales process and an urgent launch. Customisation or a custom build becomes worth investigating when important work cannot fit the product, integrations are missing or available deployment options cannot meet your data requirements.
 
-The decision is about fit and responsibility, not simply subscription price. This international edition uses USD references reviewed on October 12, 2026. They are not Rvion quotations or conversions of Iranian prices.
+The decision is about fit and responsibility, not simply subscription price. The USD references were reviewed on October 12, 2026; they are not Rvion quotations.
 
 ## What a CRM should connect
 

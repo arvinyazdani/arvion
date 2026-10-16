@@ -6,11 +6,11 @@ summary_en: "Compare business website budgets in USD, understand the scope behin
 ---
 A business website does not have a universal price. A small company profile and a multilingual customer portal are different projects, even if both are described as a corporate website. Compare the work included, not just the headline number.
 
-This international edition uses US dollars and global-market references rather than converting Iranian prices. Prices were reviewed on October 12, 2026. The planning examples below are not Rvion quotations, statistical market averages or promises of delivery.
+This guide uses US dollars and global-market references. Prices were reviewed on October 12, 2026. The planning examples below are not Rvion quotations, statistical market averages or promises of delivery.
 
 ## What is a sensible website budget?
 
-[Clutch's web development pricing guide](https://clutch.co/web-developers/pricing) reports commonly listed agency rates of $25–$49 per hour, with substantial regional variation. Using a rounded $25–$50 hourly assumption, the following are our illustrative scope-based calculations:
+[Clutch's web development pricing guide](https://clutch.co/web-developers/pricing) reports commonly listed agency rates of $25–$49 per hour, with substantial regional variation. These listings cover teams in varied global markets, so they are not a US-specific rate; for US website budgets, see our [website design cost guide for the US](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/). Using a rounded $25–$50 hourly assumption, the following are our illustrative scope-based calculations:
 
 - **Small, template-based company website:** 40–100 hours, approximately $1,000–$5,000. Assume a limited set of pages, supplied content and a standard contact form.
 - **Custom-designed business website:** 120–300 hours, approximately $3,000–$15,000. Assume bespoke page layouts, content management, responsive implementation and testing.

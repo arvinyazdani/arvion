@@ -8,7 +8,7 @@ tags: ["Pricing and cost","Web applications","Python and Django"]
 target_keywords: ["custom crm development cost","custom web application development cost","how much does it cost to build a web app","b2b marketplace development cost","accounting software development cost"]
 status: "draft-unreviewed"
 ---
-For US-project budgeting in 2026, this guide compares different kinds of estimates. Basic CRM figures of $24,000–$45,000 and standard CRM figures of $54,000–$112,000 are attributed vendor estimates, not market-wide statistics or Rvion quotes. The $25,000–$60,000 accounting/invoicing and $50,000–$150,000 custom B2B ordering ranges are provisional planning assumptions, not verified US-specific benchmarks. A real budget requires a defined scope and written quotes.
+For US-project budgeting in 2026, this guide compares different kinds of estimates. Basic CRM figures of $24,000–$45,000 and standard CRM figures of $54,000–$112,000 are attributed vendor estimates, not market-wide statistics or Rvion quotes. The $25,000–$60,000 accounting/invoicing and $50,000–$150,000 custom B2B ordering ranges are provisional planning assumptions, not verified US-specific benchmarks. A real budget requires a defined scope and written quotes. For a small business site rather than a custom application, see our [US website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/).
 
 ## The short version
 

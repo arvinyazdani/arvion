@@ -13,7 +13,7 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true", help="Report only; no database writes.")
         parser.add_argument("--update", action="store_true", help="Update existing UNPUBLISHED drafts only.")
         parser.add_argument("--bundle", choices=("original", "international"), default="original",
-                            help="Original eight Persian drafts or the new paired language bundle.")
+                            help="Original Persian drafts or the international article bundle, including single-language entries.")
 
     def handle(self, *args, **options):
         try:
@@ -29,10 +29,12 @@ class Command(BaseCommand):
                 queryset = Post.objects.all()
                 if not options["dry_run"]:
                     queryset = queryset.select_for_update()
-                post = queryset.filter(slug_fa=draft.slug_fa).first()
                 paired = options["bundle"] == "international"
                 values = dict(draft.values) if paired else {
                     key: getattr(draft, key) for key in ("title_fa", "summary_fa", "body_fa")}
+                identity_field = "slug_fa" if draft.slug_fa else "slug_en"
+                identity_value = draft.slug_fa or values.get("slug_en")
+                post = queryset.filter(**{identity_field: identity_value}).first()
                 if paired and values.get("slug_en"):
                     collision = Post.objects.filter(slug_en=values["slug_en"])
                     if post is not None:
@@ -57,7 +59,8 @@ class Command(BaseCommand):
                         post.tags.set(draft.tags)
                 counts[action] += 1
                 display_action = {"created": "create", "updated": "update", "skipped": "skip"}[action]
-                lines.append(f"{'Would ' + display_action if options['dry_run'] else action}: {draft.slug_fa}")
+                display_slug = draft.slug_fa or values.get("slug_en")
+                lines.append(f"{'Would ' + display_action if options['dry_run'] else action}: {display_slug}")
         for line in lines:
             self.stdout.write(line)
         self.stdout.write(

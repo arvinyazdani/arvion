@@ -6,7 +6,7 @@ summary_en: "Plan a clinic website with clear clinician profiles, reliable booki
 ---
 A clinic website should shorten the journey from finding an appropriate clinician to receiving an appointment confirmation. Make three things easy to establish: who provides care, where and when the clinic operates, and how a patient can book or speak to reception.
 
-This international edition adapts our Persian guide. Medical advertising and privacy requirements vary by jurisdiction; the Iranian rules discussed in the Persian edition are not universal rules. This article is planning guidance, not legal or medical advice.
+Medical advertising and privacy requirements vary by jurisdiction. This article is planning guidance, not legal or medical advice.
 
 ## Start with the patient's questions
 

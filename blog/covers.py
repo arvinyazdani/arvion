@@ -13,10 +13,37 @@ INTERNATIONAL_COVERS = {
         "دفتر هزینه، کیف پول و نمودار ماهانه برای ثبت هزینه و مدیریت مالی شخصی با رایا.", "")),
 }
 
+SINGLE_LANGUAGE_COVERS = {
+    "website-design-cost-us-2026-contract-sales-tax-ada": {
+        "prefix": "website-cost", "language": "en",
+        "alt": "A US business website mockup beside a contract checklist and cost planning chart.",
+    },
+    "website-design-contract-law-iran-1405": {
+        "prefix": "website-contract", "language": "fa",
+        "alt": "پیش‌نمایش سایت، چک‌لیست قرارداد و نشانه‌های مالکیت کد و هزینه‌های پروژه.",
+    },
+}
+
+
+def _cover_identity(post):
+    for slug in (post.slug_fa, post.slug_en):
+        if slug in INTERNATIONAL_COVERS:
+            return "paired", slug
+        if slug in SINGLE_LANGUAGE_COVERS:
+            return "single", slug
+    return None, None
+
 
 def cover_url(post, language):
-    item = INTERNATIONAL_COVERS.get(post.slug_fa)
     name = PurePosixPath(str(post.hero_image or "")).name
+    kind, slug = _cover_identity(post)
+    if kind == "single":
+        item = SINGLE_LANGUAGE_COVERS[slug]
+        expected = f"{item['prefix']}-{item['language']}-v1.jpg"
+        if name and name != expected:
+            return post.hero_image.url
+        return static(f"blog/covers/{expected}") if language == item["language"] else ""
+    item = INTERNATIONAL_COVERS.get(slug) if kind == "paired" else None
     # A manually chosen owner image always wins; no model/schema addition.
     if item and (not name or name.startswith(item[0] + "-fa-v1")):
         if language == "en" and item[0] == "raya":
@@ -61,7 +88,17 @@ COVER_ALTS = {
 
 
 def cover_alt(post, language):
-    item = INTERNATIONAL_COVERS.get(post.slug_fa)
+    kind, slug = _cover_identity(post)
+    if kind == "single":
+        item = SINGLE_LANGUAGE_COVERS[slug]
+        expected_url = static(f"blog/covers/{item['prefix']}-{item['language']}-v1.jpg")
+        if language == item["language"] and cover_url(post, language) == expected_url:
+            return item["alt"]
+        if language != item["language"]:
+            return ""
+        title = getattr(post, "title_" + language) or ""
+        return ("تصویر توضیحی برای " if language == "fa" else "Illustration for ") + title
+    item = INTERNATIONAL_COVERS.get(slug) if kind == "paired" else None
     if item and cover_url(post, language) == static(f"blog/covers/{item[0]}-{language}-v1.jpg"):
         return item[1][0 if language == "fa" else 1]
     filename = PurePosixPath(str(post.hero_image or "")).name

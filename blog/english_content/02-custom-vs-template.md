@@ -6,7 +6,7 @@ summary_en: "Choose between a template and custom website by comparing workflow 
 ---
 For a company profile, blog, portfolio, catalogue or standard shop, a well-implemented template is often the more sensible choice. It can launch sooner and cost less. Custom development becomes valuable when the website implements a distinctive business process, complex permissions or integrations that standard tools cannot support reliably.
 
-This is an international adaptation of our Persian guide. USD examples were reviewed on October 12, 2026; they are planning illustrations, not Rvion prices or currency conversions.
+USD examples were reviewed on October 12, 2026; they are planning illustrations, not Rvion prices or currency conversions.
 
 ## Define what custom actually means
 

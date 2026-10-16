@@ -5,9 +5,10 @@ from django.conf import settings
 from django.core.files import File
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Q
 from PIL import Image
 
-from blog.covers import COVER_ALTS, INTERNATIONAL_COVERS
+from blog.covers import COVER_ALTS, INTERNATIONAL_COVERS, SINGLE_LANGUAGE_COVERS
 from blog.models import Post
 
 
@@ -25,6 +26,8 @@ class Command(BaseCommand):
             directory = Path(settings.BASE_DIR) / "blog/static/blog/covers"
             assets = {slug: directory / (item[0] + "-fa-v1.jpg")
                       for slug, item in INTERNATIONAL_COVERS.items()}
+            assets.update({slug: directory / (item["prefix"] + "-" + item["language"] + "-v1.jpg")
+                           for slug, item in SINGLE_LANGUAGE_COVERS.items()})
             for item in INTERNATIONAL_COVERS.values():
                 if item[0] != "raya":
                     with Image.open(directory / (item[0] + "-en-v1.jpg")) as image:
@@ -43,7 +46,7 @@ class Command(BaseCommand):
         attached = skipped = 0
         for slug, path in assets.items():
             with transaction.atomic():
-                post = Post.objects.select_for_update().filter(slug_fa=slug).first()
+                post = Post.objects.select_for_update().filter(Q(slug_fa=slug) | Q(slug_en=slug)).first()
                 if post is None or post.hero_image:
                     skipped += 1
                     self.stdout.write("Skipped: " + slug + (" (missing article)" if post is None else " (already has image)"))
