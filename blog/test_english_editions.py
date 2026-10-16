@@ -60,8 +60,8 @@ class EnglishEditionTests(TestCase):
                     continue  # Detail URL responses are checked with the imported bundle fixture.
                 resolve(href)
         corporate_cost = next(item for item in self.editions if item["slug_en"] == "corporate-website-cost-2026")
-        self.assertIn("$25–$49 per hour", corporate_cost["body_en"])
-        self.assertIn("teams in varied global markets", corporate_cost["body_en"])
+        self.assertIn("$25–$49 per hour across a varied global set of providers", corporate_cost["body_en"])
+        self.assertIn("it is not a US-specific rate", corporate_cost["body_en"])
         self.assertIn("/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/", corporate_cost["body_en"])
 
     def test_default_and_explicit_dry_runs_write_nothing(self):

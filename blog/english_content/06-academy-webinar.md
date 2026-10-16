@@ -57,7 +57,7 @@ Give each course a stable URL, a distinctive title and useful descriptive conten
 
 ## Budget and measure the real journey
 
-These USD planning examples were reviewed on October 12, 2026. Our example of 120–300 hours at $25–$50 per hour gives $3,000–$15,000 for a content-led academy website. The hourly assumption is informed by [Clutch](https://clutch.co/web-developers/pricing); the workload and resulting band are our illustration, not a surveyed education-sector average or Rvion quotation. A custom LMS, subscriptions, integrations, video hosting, content and maintenance are separate scope items.
+These USD planning examples were reviewed on October 16, 2026. Clutch's current [US web-design guide](https://clutch.co/web-designers/pricing) lists $100–$149 per hour for US web-design companies. For an academy site involving 120–300 assumed agency hours, our arithmetic at that rate is $12,000–$44,700. The hours and total are our scope assumption, not a surveyed education-sector average or Rvion quotation. [Website Setup's 2026 guide](https://websitesetup.org/how-much-does-a-website-cost/) separately publishes $5,000–$15,000 for a full-service small-business agency site. See our [US website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/) for a separate market discussion. A custom LMS, subscriptions, integrations, video hosting, content and maintenance are separate scope items.
 
 Measure course-page visits, enrolment starts and completions, and where people stop. For webinars, examine registration, attendance, replay use and movement to a course. Use privacy-appropriate measurement and connect findings to a decision rather than collecting data without a purpose.
 

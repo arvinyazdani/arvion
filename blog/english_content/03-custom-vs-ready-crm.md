@@ -6,7 +6,7 @@ summary_en: "Compare custom and ready-made CRM through workflow fit, data contro
 ---
 A ready-made CRM is usually the better starting point for a small team with a standard sales process and an urgent launch. Customisation or a custom build becomes worth investigating when important work cannot fit the product, integrations are missing or available deployment options cannot meet your data requirements.
 
-The decision is about fit and responsibility, not simply subscription price. The USD references were reviewed on October 12, 2026; they are not Rvion quotations.
+The decision is about fit and responsibility, not simply subscription price. The USD references were reviewed on October 16, 2026; they are not Rvion quotations.
 
 ## What a CRM should connect
 
@@ -39,9 +39,9 @@ List accounting, messaging, telephony, website and inventory systems. For each, 
 
 ### 4. Users and ownership cost
 
-[Salesforce's public sales pricing](https://www.salesforce.com/sales/pricing/) currently spans $25–$550 per user per month for the paid editions shown. Billing commitments, features, add-ons and regional availability differ. For illustration, 20 users at $25–$100 monthly means $6,000–$24,000 yearly for licences alone; this is arithmetic, not a vendor quotation for your team.
+[Salesforce's official Sales pricing page](https://www.salesforce.com/sales/pricing/) lists paid editions from Starter Suite at $25 per user/month through Max at $550 per user/month; the intervening listed tiers are Pro Suite ($100), Core ($195) and Advanced ($395). The price range is unchanged in this review, though plan names now include Core and Max. Billing commitments, features, add-ons and regional availability differ. For illustration, 20 users at $25–$100 monthly means $6,000–$24,000 yearly for licences alone; this is arithmetic, not a vendor quotation for your team.
 
-For a new custom build, [Syndicode's vendor guide](https://syndicode.com/blog/how-to-build-a-crm/) gives a broad $50,000–$300,000 range. It sells development services, so treat that as a commercial estimate, not an independent market average. Configuration of an existing product is a different scope and may cost much less. Compare licensing, implementation, migration, internal staff time, hosting, maintenance and exit costs over the same period.
+For a new custom build, use one consistent planning reference: our [custom software cost breakdown](/en/blog/custom-software-cost-us-2026-crm-accounting-b2b/) aligns with the [cost calculator](/en/tools/cost-calculator/): basic CRM $24,000–$50,000, standard $54,000–$112,000 and enterprise $150,000–$360,000+. The basic upper bound is rounded from GMWARE's published $24,000–$45,000 estimate to allow for scope variation; these are planning bands, not a quote. [Syndicode's guide](https://syndicode.com/blog/how-to-build-a-crm/) is a vendor guide that currently gives $30,000–$100,000 for a basic CRM and over $150,000 for advanced systems. Its scope and commercial assumptions differ, so do not combine its figures with the shared planning bands. Configuration of an existing product is a different scope and may cost much less. Compare licensing, implementation, migration, internal staff time, hosting, maintenance and exit costs over the same period.
 
 ### 5. Time to value
 

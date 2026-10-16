@@ -8,6 +8,8 @@ A clinic website should shorten the journey from finding an appropriate clinicia
 
 Medical advertising and privacy requirements vary by jurisdiction. This article is planning guidance, not legal or medical advice.
 
+Technical and cost references were reviewed on October 16, 2026. Any cost calculation below is illustrative, not a Rvion quotation.
+
 ## Start with the patient's questions
 
 Ask reception to list recurring enquiries: which clinician is available, whether a service is offered, how to get there and what to bring. Patients may arrive through a name search, a service search, a map or a recommendation. Each route should reach useful information without navigating a complicated promotional experience.
@@ -68,6 +70,6 @@ Aim for [WCAG 2.2 AA](https://www.w3.org/WAI/WCAG22/quickref/): labelled forms, 
 
 Do not assume a medical website needs custom booking software. A small practice may be better served by a clear website and a suitable established booking provider. Multiple clinicians, variable durations, payments, specialised forms or internal integrations require a more detailed scope.
 
-As our illustrative planning calculation, 120–300 hours of website work at an assumed $25–$50 per hour produces $3,000–$15,000. The rate assumption is informed by [Clutch's agency pricing guide](https://clutch.co/web-developers/pricing), not a clinic-specific survey. This excludes clinical-system integration, legal review, content, subscriptions and ongoing operation; it is not a Rvion quotation. A healthcare application needs a separate estimate.
+As our illustrative US planning calculation, 120–300 assumed agency hours at Clutch's current US web-design rate of $100–$149 per hour produces $12,000–$44,700 by our arithmetic. The hours and total are our scope assumption, not a clinic-specific survey. [Website Setup's 2026 guide](https://websitesetup.org/how-much-does-a-website-cost/) separately publishes $5,000–$15,000 for a full-service small-business agency site, before healthcare-specific scope. See our [US website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/) for a separate discussion of the market baseline. This excludes clinical-system integration, legal review, content, subscriptions and ongoing operation; it is not a Rvion quotation. A healthcare application needs a separate estimate.
 
 Before launch, test conflicts, cancellations, absence, privacy, mobile forms and recovery. Use the [clinic requirements form](/en/clinic-order/) to organise the scope or explore [custom application development](/en/services/custom-web-application/) when an established tool is insufficient.

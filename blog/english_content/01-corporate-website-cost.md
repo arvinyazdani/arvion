@@ -6,15 +6,15 @@ summary_en: "Compare business website budgets in USD, understand the scope behin
 ---
 A business website does not have a universal price. A small company profile and a multilingual customer portal are different projects, even if both are described as a corporate website. Compare the work included, not just the headline number.
 
-This guide uses US dollars and global-market references. Prices were reviewed on October 12, 2026. The planning examples below are not Rvion quotations, statistical market averages or promises of delivery.
+This guide uses US dollars. Sources and calculations were reviewed on October 16, 2026. The planning examples below are not Rvion quotations, statistical market averages or promises of delivery.
 
 ## What is a sensible website budget?
 
-[Clutch's web development pricing guide](https://clutch.co/web-developers/pricing) reports commonly listed agency rates of $25–$49 per hour, with substantial regional variation. These listings cover teams in varied global markets, so they are not a US-specific rate; for US website budgets, see our [website design cost guide for the US](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/). Using a rounded $25–$50 hourly assumption, the following are our illustrative scope-based calculations:
+[Clutch's web-development guide](https://clutch.co/web-developers/pricing) reports $25–$49 per hour across a varied global set of providers; it is not a US-specific rate. Clutch's current [US web-design pricing guide](https://clutch.co/web-designers/pricing) lists $100–$149 per hour for web-design companies in the United States. [Website Setup's 2026 guide](https://websitesetup.org/how-much-does-a-website-cost/) separately publishes $2,000–$7,600 for a small freelancer-built site and $5,000–$15,000 for a full-service agency site; these are that vendor's estimates, not a rate survey. For a US-focused comparison of scope and costs, see our [website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/). Using Clutch's US agency rate as an explicit assumption, these are our arithmetic for larger scopes:
 
-- **Small, template-based company website:** 40–100 hours, approximately $1,000–$5,000. Assume a limited set of pages, supplied content and a standard contact form.
-- **Custom-designed business website:** 120–300 hours, approximately $3,000–$15,000. Assume bespoke page layouts, content management, responsive implementation and testing.
-- **Website with substantial application features:** 400–1,000 hours, approximately $10,000–$50,000. Accounts, permissions, booking or integrations can move the project beyond a brochure site.
+- **Small, template-based company website:** Website Setup's published estimate is about $2,000–$7,600 for 40–80 freelancer hours at $50–$95 per hour; its agency estimate is $5,000–$15,000. These are the source's published planning figures, not quotes.
+- **Custom-designed business website:** our arithmetic is 120–300 assumed hours × $100–$149 per hour = approximately $12,000–$44,700. The hours and resulting total are our scope calculation, not a published project average.
+- **Website with substantial application features:** our arithmetic is 400–1,000 assumed hours × $100–$149 per hour = approximately $40,000–$149,000. Accounts, permissions, booking or integrations can move the project beyond a brochure site; the hours are illustrative, not a survey.
 
 These bands overlap because scope matters more than the label. They exclude tax, third-party subscriptions, substantial content production and ongoing operation unless a proposal explicitly includes them. High-cost-market teams and demanding projects can exceed these bands. Ask suppliers to replace the assumed hours and rate with their own itemised estimate.
 
@@ -44,7 +44,7 @@ Technical SEO at launch and continuing content work are different services. Spec
 
 Ask for actual provider quotations for domain registration and renewal, hosting, backups, paid themes, plugins, email and support. Promotional first-year prices may differ from renewals. A free certificate can remove a certificate fee, but not the work of configuring and monitoring HTTPS.
 
-For maintenance, use a transparent workload example instead of a universal percentage: 4–12 hours per month at the assumed $25–$50 rate is approximately $100–$600 monthly, or $1,200–$7,200 yearly. This is our planning arithmetic, not a market tariff; infrastructure and major new features are additional. Define what those hours cover and who handles an outage.
+For maintenance, use a transparent workload example instead of a universal percentage: our arithmetic is 4–12 assumed hours per month × $100–$149 per hour, or approximately $400–$1,788 monthly ($4,800–$21,456 yearly). This is not a market tariff; infrastructure and major new features are additional. Define what those hours cover and who handles an outage.
 
 First-year ownership cost = build + content + third-party services + operation. A lower build price is not necessarily cheaper if essential items are missing.
 

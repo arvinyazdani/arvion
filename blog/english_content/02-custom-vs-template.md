@@ -6,7 +6,7 @@ summary_en: "Choose between a template and custom website by comparing workflow 
 ---
 For a company profile, blog, portfolio, catalogue or standard shop, a well-implemented template is often the more sensible choice. It can launch sooner and cost less. Custom development becomes valuable when the website implements a distinctive business process, complex permissions or integrations that standard tools cannot support reliably.
 
-USD examples were reviewed on October 12, 2026; they are planning illustrations, not Rvion prices or currency conversions.
+USD examples were reviewed on October 16, 2026; they are planning illustrations, not Rvion prices.
 
 ## Define what custom actually means
 
@@ -16,7 +16,7 @@ Ask what is being built. A recoloured theme is not the same deliverable as a cus
 
 ## Compare total cost in USD
 
-[Clutch](https://clutch.co/web-developers/pricing) lists common agency rates of $25–$49 per hour, with higher and lower regional rates. Our rounded $25–$50 planning assumption produces approximately $1,000–$5,000 for 40–100 hours of template implementation, versus $3,000–$15,000 for 120–300 hours of custom business-site work. Application-level features require a separate scope and can exceed both bands.
+[Clutch's web-development guide](https://clutch.co/web-developers/pricing) reports $25–$49 per hour across a varied set of global providers, not a US-specific rate. Clutch's current [US web-design guide](https://clutch.co/web-designers/pricing) lists $100–$149 per hour for US web-design companies. [Website Setup's 2026 guide](https://websitesetup.org/how-much-does-a-website-cost/) publishes $2,000–$7,600 for a small freelancer-built site and $5,000–$15,000 for a full-service agency site; these are vendor estimates, not a rate survey. See our [US website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/) for a separate market-focused discussion. Using Clutch's US agency rate, our arithmetic for a more customised business site is 120–300 assumed hours × $100–$149 = $12,000–$44,700. The hours and total are our scope calculation, not a measured category average. Application-level features require a separate scope and may cost more.
 
 These are calculations, not measured category averages. They assume supplied content and exclude tax, subscriptions and ongoing operation. Compare three-year ownership costs: implementation, renewals, hosting, support, editorial work and future changes. A cheap theme with numerous paid dependencies can become expensive; custom software also needs continuing developer time.
 

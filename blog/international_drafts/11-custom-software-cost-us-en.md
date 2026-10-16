@@ -8,13 +8,13 @@ tags: ["Pricing and cost","Web applications","Python and Django"]
 target_keywords: ["custom crm development cost","custom web application development cost","how much does it cost to build a web app","b2b marketplace development cost","accounting software development cost"]
 status: "draft-unreviewed"
 ---
-For US-project budgeting in 2026, this guide compares different kinds of estimates. Basic CRM figures of $24,000–$45,000 and standard CRM figures of $54,000–$112,000 are attributed vendor estimates, not market-wide statistics or Rvion quotes. The $25,000–$60,000 accounting/invoicing and $50,000–$150,000 custom B2B ordering ranges are provisional planning assumptions, not verified US-specific benchmarks. A real budget requires a defined scope and written quotes. For a small business site rather than a custom application, see our [US website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/).
+For US-project budgeting in 2026, this guide compares different kinds of estimates. Our shared CRM planning bands are $24,000–$50,000 for a basic build, $54,000–$112,000 for a standard build, and $150,000–$360,000 or more for enterprise scope. GMWARE publishes $24,000–$45,000 for basic, so our basic upper bound is a rounded planning allowance for scope variation rather than a direct quote from that source. These are vendor-informed planning bands, not market-wide statistics or Rvion quotes. The $25,000–$60,000 accounting/invoicing and $50,000–$150,000 custom B2B ordering ranges are provisional planning assumptions, not verified US-specific benchmarks. A real budget requires a defined scope and written quotes. For a small business site rather than a custom application, see our [US website design cost guide](/en/blog/website-design-cost-us-2026-contract-sales-tax-ada/).
 
 ## The short version
 
 | Product | Indicative planning range (USD) | Indicative timeline |
 |---|---|---|
-| Basic CRM (contacts, tasks, simple reports) | $24,000–$45,000 | 8–12 weeks |
+| Basic CRM (contacts, tasks, simple reports) | $24,000–$50,000 | 8–12 weeks |
 | Standard CRM (automation, integrations) | $54,000–$112,000 | 12–20 weeks |
 | Enterprise CRM (AI, deep integrations) | $150,000–$360,000+ | 20–40 weeks |
 | Small accounting / invoicing app | $25,000–$60,000 | 8–14 weeks |
@@ -61,7 +61,7 @@ Off-the-shelf CRMs and accounting tools charge per user per month and are the ri
 
 ## FAQ
 
-**How much does a custom CRM cost for a small business?** GMWARE's indicative basic-build range is $24,000–$45,000; adding automation and integrations moves it toward $54,000–$112,000.
+**How much does a custom CRM cost for a small business?** Our shared planning band is $24,000–$50,000 for a basic build; GMWARE publishes $24,000–$45,000, and the $50,000 upper planning bound allows for scope variation. Adding automation and integrations moves the planning band to $54,000–$112,000.
 
 **How much does it cost to build an invoicing app?** Our unverified planning assumption for a focused invoicing or accounting app is $25,000–$60,000 for a focused first version, plus yearly upkeep.
 
@@ -73,4 +73,4 @@ Off-the-shelf CRMs and accounting tools charge per user per month and are the ri
 
 Describe your project on [Start a project](/en/start/), see how we build [custom web apps and MVPs](/en/services/custom-web-application/) or our [CRM](/en/crm/), and [contact us](/en/contact/) for an estimate. Related: [Hiring a Django freelancer in the US](/en/blog/hire-django-freelancer-us-rates-2026/).
 
-*Sources checked 12 October 2026: the linked GMWARE, Hidden Brains and Yo!Kart guides are vendors' estimates, not an independent US pricing survey. Unverified accounting and ordering assumptions require a project-specific quote. Django's included tools are described in its [official overview](https://docs.djangoproject.com/en/4.2/intro/overview/).*
+*Sources checked October 16, 2026: the linked GMWARE, Hidden Brains and Yo!Kart guides are vendors' estimates, not an independent US pricing survey. Unverified accounting and ordering assumptions require a project-specific quote. Django's included tools are described in its [official overview](https://docs.djangoproject.com/en/4.2/intro/overview/).*
