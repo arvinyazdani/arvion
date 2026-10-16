@@ -4599,3 +4599,112 @@ ran 142 tests, OK. The final extended cookie/form/traffic suite ran 50 tests,
 OK, including all seven new public-shell tests. System check, no-migration drift
 and diff checks pass. No JS/CSS changed, so no JS or visual-browser acceptance
 is claimed. Only a scoped local commit is authorized; no production/Arvan action.
+## 2026-10-16 — Refresh seven published English cost articles (production)
+
+Owner approved updating **only `Post.body_en`** for the seven listed English
+slugs, with a pre-change backup and no migration. No Persian body or unrelated
+article field was intentionally edited. The code/content commit is
+`2e85766468c0290ca6db002147177f4f8e50588a` (`content: align English website and
+CRM cost guidance`); it changes six English edition files, the English-only
+international draft for article 11, and its focused regression test. The
+production release branch was `deploy/articles-20261016`, not `main`.
+
+### Production baseline and 55ea997
+
+Before release, production was healthy at `f4ed774`. The server release history
+records `2026-10-16T13:07:30+00:00 commit=f4ed774`, snapshot
+`/srv/arvion/backups/pre-release-20261016-130715.dump`, health `ok`. Commit
+`55ea997` was authored and committed by **Arvin Yazdani** on 2026-10-15; it
+tightened the Nginx check for an explicit public Cache-Control directive and
+added tests rejecting `notpublic`/`x-public=true` false positives. It was on
+the release lineage before `f4ed774`. The release history records commit and
+health, but not the human/operator who initiated that earlier release, so the
+deployment actor cannot be established from the available record.
+
+### Content changes (English body only)
+
+| Article | Previous English body guidance | New English body guidance |
+|---|---|---|
+| `academy-website-structure-webinar` | Small/custom site range derived from global $25–$50/hour rates: about $3,000–$15,000 | For 120–300 explicitly assumed agency hours, US Clutch web-design rate $100–$149/hour gives **our arithmetic: $12,000–$44,700**. Contrasts Website Setup's vendor estimate of $5,000–$15,000 for a full-service small-business site; links to US cost guide; review date Oct 16, 2026. |
+| `clinic-website-design-online-booking` | Same global-rate-derived custom site range, $3,000–$15,000 | Same explicitly scoped US arithmetic, **$12,000–$44,700**, distinguished from Website Setup's small-business estimate and excluding clinical integrations/legal/content scope; review date Oct 16, 2026. |
+| `custom-website-vs-template` | Template/small site $1,000–$5,000 and custom site $3,000–$15,000 using $25–$50/hour | Website Setup vendor estimates: freelancer-built small site **$2,000–$7,600**, full-service agency **$5,000–$15,000**; a more customised 120–300-hour agency scope is **our arithmetic: $12,000–$44,700**. Global Clutch rates explicitly labeled non-US-specific; links to US cost guide; review date Oct 16. |
+| `corporate-website-cost-2026` | Custom site $3,000–$15,000; application-feature site $10,000–$50,000; maintenance $1,200–$7,200/year, using broad global hourly rates | **Our arithmetic:** 120–300 hours → $12,000–$44,700; 400–1,000 hours for substantial application features → $40,000–$149,000; maintenance 4–12 hours/month → $400–$1,788/month or $4,800–$21,456/year. Hours are clearly assumptions, not published averages. Adds US cost-guide link and review date. |
+| `enterprise-crm-development-cost-stages` | Syndicode $50,000–$300,000 plus a conflicting 2,000–6,000 hours × $50–$100 = $100,000–$600,000 | One shared planning reference: **basic $24,000–$50,000; standard $54,000–$112,000; enterprise $150,000–$360,000+**. The $50,000 basic cap is labeled our rounded planning allowance above GMWARE's $24,000–$45,000. Current Syndicode $30,000–$100,000 basic / >$150,000 advanced is explicitly a distinct vendor guide, not combined with the shared bands. Adds calculator/article links and review date. |
+| `custom-or-ready-made-crm` | Conflicting vendor ranges and old Salesforce tier names | Uses the same three CRM planning bands and clarifies Syndicode's vendor-specific scope. Salesforce official page currently lists Starter $25, Pro $100, Core $195, Advanced $395, Max $550 per user/month; total listed paid range remains $25–$550, while names now include Core/Max. Existing 20-user license arithmetic is retained and labeled arithmetic. Adds calculator/article links and review date. |
+| `custom-software-cost-us-2026-crm-accounting-b2b` | Basic CRM $24,000–$45,000, not aligned with the calculator's shared upper planning allowance | Basic CRM **$24,000–$50,000**, with the rounded $50,000 upper planning bound explained; standard $54,000–$112,000 and enterprise $150,000–$360,000+ remain aligned. Table and FAQ now agree; links to US website cost guide. No other English draft or any Persian counterpart was changed. |
+
+### Source and link checks
+
+| Source / claim | Result |
+|---|---|
+| Website Setup, updated Nov 22, 2025: 40–80 hours; $2,000–$7,600 freelancer build; $5,000–$15,000 agency | **Confirmed on the cited page.** The page also cites $50–$95/hour through a linked ZipRecruiter salary page; that linked page now reports $45.12 average, so the article does not present the Website Setup hourly figure as an independent current rate survey. |
+| Clutch web development: $25–$49/hour | **Confirmed; global/mixed-provider guidance with location and expertise variation**, not a US rate. |
+| Clutch US web design: $100–$149/hour | **Confirmed on the current US web-design pricing page**; our project totals are explicitly labeled arithmetic from stated assumed hours, not market averages. |
+| GMWARE custom CRM | **Confirmed:** $24,000–$45,000 basic, $54,000–$112,000 standard, $150,000–$360,000+ enterprise and 10–20% annual maintenance. Our rounded $50,000 basic upper bound is labeled a planning allowance, not the source's figure. |
+| Syndicode custom CRM guide | **Changed:** current page says $30,000–$100,000 basic and over $150,000 advanced; it is labeled a vendor guide with differing scope assumptions. The old $50,000–$300,000 figure was removed. |
+| Salesforce official Sales pricing | **Changed in tier names/tiers, same overall price span:** current listed editions are Starter $25, Pro $100, Core $195, Advanced $395 and Max $550 per user/month. |
+| Other cited links in these seven bodies | Every external link was checked. Direct HTTP checks returned 200 except bot-protected pages returning 403 (Clutch, HHS, BigCommerce and Salesforce); those pages were opened and reviewed in a browser-backed fetch. A 403 is recorded as access protection, not as a dead link. |
+
+Production content link checks: the US website-cost article, the cost calculator,
+and the custom-software cost article each returned HTTP 200. The seven English
+article URLs all returned 200, appear in the live sitemap, and expose the new
+cost/review markers. Their rendered `#article-body` content contains none of
+`Iran`, `Iranian`, `Toman` or `Rial`. A whole-page scan does find “Iran” in the
+company's Organization JSON-LD address; that is site identity metadata, not an
+English article body and was outside the approved scope.
+
+### Backup, release, data boundary, and validation
+
+Before modifying production, `body_en` for exactly the seven target rows was
+saved to `/srv/arvion/backups/pre-en-article-cost-refresh-20261016.json` (mode
+0600; SHA-256 `043907547e375d87b6635df6edb2108ed7fa69521fd169c52f6c808eacfb0141`).
+The JSON is keyed by `slug_en` and stores only `slug_fa` and the prior `body_en`
+for identity checking and restoration. The production release additionally
+created snapshot `/srv/arvion/backups/pre-release-20261016-162842.dump` before
+code activation. Code was released by the official code-only release flow to
+`2e85766`; health was `ok`, and migrations, assessment seeding and staff-role
+sync were skipped. No migration was created or run.
+
+The bounded updater was run against the seven exact published `slug_en` values;
+it asserted their saved pre-change bodies matched the JSON, updated with a
+single-column `body_en` queryset update, then checked the seven new source
+bodies and that other concrete `Post` fields were unchanged. The command output
+was truncated by the execution interface, so the final report does not claim a
+separately captured SQL audit of all non-target rows. An attempted SSH
+re-verification from the current local session was rejected (`Permission denied
+(publickey)`); live HTML checks confirm the new copy is being served, but do not
+independently prove the contents of every unrelated database row. No evidence
+of an out-of-scope change was observed.
+
+| Check | Result |
+|---|---|
+| Focused edition/language tests after final copy edit | 20 passed. |
+| Full `release-check.sh` | Passed: 1,278 tests, 27 skips; strict question-bank audit, static collection, package/system checks and benchmark rollback check passed. |
+| `manage.py check` / migration drift | 0 issues; `makemigrations --check --dry-run`: no changes. |
+| Live pages / sitemap | Seven target URLs 200 and present in sitemap; no non-200 among the 91-URL crawl. Canonical, hreflang, H1, metadata and noindex aggregates remained clean. |
+| Before/after crawl | `/tmp/rvion-en-body-before-20261016.json` vs `/tmp/rvion-en-body-after-20261016.json`: the diff contains exactly the seven target English URLs, with word-count changes only. Crawl aggregate: 47 FA + 44 EN; no canonical/hreflang/H1/HTTP regression. The pre-existing 30 public Set-Cookie observations and slow-page samples remain outside this content change. |
+| Banned terms in rendered English article body | Zero across all seven. |
+| IndexNow | Direct IndexNow request returned HTTP 200 for exactly seven URLs listed below. |
+
+IndexNow submitted:
+
+- `https://rvionai.com/en/blog/academy-website-structure-webinar/`
+- `https://rvionai.com/en/blog/clinic-website-design-online-booking/`
+- `https://rvionai.com/en/blog/custom-website-vs-template/`
+- `https://rvionai.com/en/blog/corporate-website-cost-2026/`
+- `https://rvionai.com/en/blog/enterprise-crm-development-cost-stages/`
+- `https://rvionai.com/en/blog/custom-or-ready-made-crm/`
+- `https://rvionai.com/en/blog/custom-software-cost-us-2026-crm-accounting-b2b/`
+
+Rollback is limited to the seven `body_en` values; **do not restore the full
+database snapshot**. Using the saved JSON, load each `slug_en` key, require the
+live row's `slug_en` and `slug_fa` to match, and execute
+`Post.objects.filter(slug_en=slug, slug_fa=entry["slug_fa"]).update(body_en=entry["body_en"])`
+inside one transaction. Then verify exactly seven rows matched and compare
+their `body_en` hashes with the JSON. Code rollback, if separately needed, is
+the standard code-only release back to `f4ed774`; it is independent of the
+article-body restoration.
+
+This phase is complete within the approved scope. No push to `main`, migration,
+Persian-body update, other-article update, manual Search Console request, or
+Arvan/CDN policy change was performed.
