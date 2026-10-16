@@ -366,6 +366,68 @@ class WholeSitemapContractTests(TestCase):
                 if '/assessments/' in path:
                     self.assertNotIn('Course', str(graph))
 
+    def test_english_sitemap_schema_uses_us_scope_without_iranian_contact_data(self):
+        english_pages = 0
+        for url, path, response, head in self.pages():
+            if not path.startswith('/en/'):
+                continue
+            english_pages += 1
+            with self.subTest(url=url):
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(head.json_ld), 1)
+                graph = head.json_ld[0]['@graph']
+                organization = next(node for node in graph if node['@type'] == 'Organization')
+                self.assertNotIn('address', organization)
+                self.assertNotIn('telephone', organization)
+                self.assertEqual(organization.get('areaServed'), 'US')
+                for node in graph:
+                    self.assertNotEqual(node.get('areaServed'), 'IR')
+                    self.assertNotIn('PostalAddress', str(node))
+                    self.assertNotIn('addressCountry', node)
+                    self.assertNotIn('telephone', node)
+                    self.assertNotIn('IR', [value for value in node.values() if isinstance(value, str)])
+        self.assertGreater(english_pages, 0)
+
+    def test_persian_sitemap_schema_retains_organization_contact_exactly(self):
+        from core.models import CompanyProfile
+        from core.templatetags.seo import _schema_phone
+
+        company = CompanyProfile.objects.first()
+        persian_pages = 0
+        for url, path, response, head in self.pages():
+            if not path.startswith('/fa/'):
+                continue
+            persian_pages += 1
+            with self.subTest(url=url):
+                graph = head.json_ld[0]['@graph']
+                organization = next(node for node in graph if node['@type'] == 'Organization')
+                expected = {
+                    '@type': 'Organization',
+                    '@id': 'https://rvionai.com/#organization',
+                    'name': response.context['brand_name'],
+                    'alternateName': ['آرویون', 'Rvion'],
+                    'url': 'https://rvionai.com/',
+                    'logo': 'https://rvionai.com/static/core/icons/icon-512.png',
+                    'areaServed': 'IR',
+                }
+                if company:
+                    for key, value in (
+                        ('legalName', company.legal_name_fa),
+                        ('telephone', _schema_phone(company.phone)),
+                        ('identifier', company.national_id),
+                    ):
+                        if value:
+                            expected[key] = value
+                    if company.address_fa:
+                        expected['address'] = {
+                            '@type': 'PostalAddress', 'streetAddress': company.address_fa,
+                            'addressCountry': 'IR',
+                        }
+                        if company.postal_code:
+                            expected['address']['postalCode'] = company.postal_code
+                self.assertEqual(organization, expected)
+        self.assertGreater(persian_pages, 0)
+
     def test_schema_uses_profile_and_escapes_script_breakout(self):
         from core.models import CompanyProfile
         # The profile seeded by migrations is public company data, not customer PII.
@@ -377,7 +439,8 @@ class WholeSitemapContractTests(TestCase):
         response = self.client.get('/en/company/')
         head = HeadParser(response.content.decode())
         org = next(node for node in head.json_ld[0]['@graph'] if node['@type'] == 'Organization')
-        self.assertEqual(org['telephone'], company.phone)
+        self.assertNotIn('telephone', org)
+        self.assertNotIn('address', org)
         self.assertEqual(org['legalName'], company.legal_name_en)
         self.assertNotIn('</script><script>alert', response.content.decode())
         self.assertNotIn('sameAs', org)

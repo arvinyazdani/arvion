@@ -78,27 +78,32 @@ def seo_documents(context):
     canonical = context['canonical_url']
     brand = context['brand_name']
     org_id, site_id = origin + '/#organization', origin + '/#website'
+    service_area = 'US' if language == 'en' else 'IR'
     organization = {
         '@type': 'Organization', '@id': org_id, 'name': brand,
         'alternateName': ['آرویون', 'Rvion'], 'url': origin + '/',
         'logo': origin + static('core/icons/icon-512.png'),
-        'areaServed': 'IR',
+        'areaServed': service_area,
     }
     # No inferred legal/address values or social accounts when profile is absent.
     company = context.get('company')
     if company:
         for key, value in (
             ('legalName', getattr(company, 'legal_name_' + language)),
-            ('telephone', _schema_phone(company.phone)), ('identifier', company.national_id),
+            ('identifier', company.national_id),
         ):
             if value:
                 organization[key] = value
-        address = getattr(company, 'address_' + language)
-        if address:
-            organization['address'] = {'@type': 'PostalAddress', 'streetAddress': address,
-                                       'addressCountry': 'IR'}
-            if company.postal_code:
-                organization['address']['postalCode'] = company.postal_code
+        if language == 'fa':
+            telephone = _schema_phone(company.phone)
+            if telephone:
+                organization['telephone'] = telephone
+            address = company.address_fa
+            if address:
+                organization['address'] = {'@type': 'PostalAddress', 'streetAddress': address,
+                                           'addressCountry': 'IR'}
+                if company.postal_code:
+                    organization['address']['postalCode'] = company.postal_code
     graph = [organization, {
         '@type': 'WebSite', '@id': site_id, 'name': brand,
         'url': origin + '/', 'inLanguage': language, 'publisher': {'@id': org_id},
@@ -130,7 +135,7 @@ def seo_documents(context):
     graph.append(page)
     if route in {'services:detail', 'crm_product'}:
         graph.append({'@type': 'Service', '@id': canonical + '#service', 'name': label,
-                      'serviceType': label, 'url': canonical, 'areaServed': 'IR',
+                      'serviceType': label, 'url': canonical, 'areaServed': service_area,
                       'provider': {'@id': org_id}})
         page['mainEntity'] = {'@id': canonical + '#service'}
     if route == 'cost_calculator':
