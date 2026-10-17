@@ -49,7 +49,7 @@ class SearchCopyRenderingTests(TestCase):
         head = HeadParser(self.client.get('/en/').content.decode())
         org = next(item for item in head.json_ld[0]['@graph'] if item['@type'] == 'Organization')
         self.assertEqual(org['alternateName'], ['آرویون', 'Rvion'])
-        self.assertNotIn('sameAs', org)
+        self.assertEqual(org['sameAs'], ['https://www.instagram.com/rvionai/'])
 
     def test_five_services_have_useful_bilingual_guides_and_five_visible_faqs(self):
         services = Service.objects.filter(slug__in=SERVICE_TITLES)

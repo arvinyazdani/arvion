@@ -350,6 +350,9 @@ class WholeSitemapContractTests(TestCase):
                 self.assertEqual(len(ids), len(set(ids)))
                 self.assertEqual(sum(node['@type'] == 'Organization' for node in graph), 1)
                 self.assertEqual(sum(node['@type'] == 'WebSite' for node in graph), 1)
+                organization = next(node for node in graph if node['@type'] == 'Organization')
+                self.assertEqual(organization.get('sameAs'),
+                                 ['https://www.instagram.com/rvionai/'])
                 check_urls(graph)
                 self.assertNotIn('aggregateRating', str(graph))
                 self.assertNotIn('Offer', str(graph))
@@ -366,6 +369,46 @@ class WholeSitemapContractTests(TestCase):
                 if '/assessments/' in path:
                     self.assertNotIn('Course', str(graph))
 
+    def test_same_as_does_not_change_rendered_html_outside_json_ld(self):
+        from unittest.mock import patch
+
+        class VisibleCopy(HTMLParser):
+            def __init__(self, html):
+                self.parts = []
+                self.ignored_depth = 0
+                super().__init__(convert_charrefs=True)
+                self.feed(html)
+
+            def handle_starttag(self, tag, attrs):
+                if tag in {'script', 'style'}:
+                    self.ignored_depth += 1
+
+            def handle_endtag(self, tag):
+                if tag in {'script', 'style'} and self.ignored_depth:
+                    self.ignored_depth -= 1
+
+            def handle_data(self, data):
+                if not self.ignored_depth and data.strip():
+                    self.parts.append(data.strip())
+
+            def text(self):
+                return ' '.join(' '.join(self.parts).split())
+
+        for url, path, response, head in self.pages():
+            with self.subTest(url=url):
+                with patch('core.templatetags.seo.ORGANIZATION_SAME_AS', ()):
+                    previous = Client().get(path)
+                self.assertEqual(response.status_code, previous.status_code)
+                self.assertEqual(VisibleCopy(response.content.decode()).text(),
+                                 VisibleCopy(previous.content.decode()).text())
+                previous_graph = HeadParser(previous.content.decode()).json_ld[0]['@graph']
+                current_graph = head.json_ld[0]['@graph']
+                previous_org = next(node for node in previous_graph if node['@type'] == 'Organization')
+                current_org = next(node for node in current_graph if node['@type'] == 'Organization')
+                self.assertNotIn('sameAs', previous_org)
+                self.assertEqual(current_org.pop('sameAs'), ['https://www.instagram.com/rvionai/'])
+                self.assertEqual(current_graph, previous_graph)
+
     def test_english_sitemap_schema_uses_us_scope_without_iranian_contact_data(self):
         english_pages = 0
         for url, path, response, head in self.pages():
@@ -380,6 +423,8 @@ class WholeSitemapContractTests(TestCase):
                 self.assertNotIn('address', organization)
                 self.assertNotIn('telephone', organization)
                 self.assertEqual(organization.get('areaServed'), 'US')
+                self.assertEqual(organization.get('sameAs'),
+                                 ['https://www.instagram.com/rvionai/'])
                 for node in graph:
                     self.assertNotEqual(node.get('areaServed'), 'IR')
                     self.assertNotIn('PostalAddress', str(node))
@@ -409,6 +454,7 @@ class WholeSitemapContractTests(TestCase):
                     'url': 'https://rvionai.com/',
                     'logo': 'https://rvionai.com/static/core/icons/icon-512.png',
                     'areaServed': 'IR',
+                    'sameAs': ['https://www.instagram.com/rvionai/'],
                 }
                 if company:
                     for key, value in (
@@ -443,6 +489,14 @@ class WholeSitemapContractTests(TestCase):
         self.assertNotIn('address', org)
         self.assertEqual(org['legalName'], company.legal_name_en)
         self.assertNotIn('</script><script>alert', response.content.decode())
+        self.assertEqual(org.get('sameAs'), ['https://www.instagram.com/rvionai/'])
+
+    def test_organization_omits_same_as_when_verified_profile_list_is_empty(self):
+        from unittest.mock import patch
+        with patch('core.templatetags.seo.ORGANIZATION_SAME_AS', ()):
+            response = self.client.get('/fa/')
+        head = HeadParser(response.content.decode())
+        org = next(node for node in head.json_ld[0]['@graph'] if node['@type'] == 'Organization')
         self.assertNotIn('sameAs', org)
 
     def test_private_account_does_not_receive_public_schema(self):

@@ -9,6 +9,10 @@ from django.utils.safestring import mark_safe
 
 register = template.Library()
 
+# Only owner-verified public profiles belong here. Add future profiles here
+# after the owner supplies and confirms their canonical URLs.
+ORGANIZATION_SAME_AS = ('https://www.instagram.com/rvionai/',)
+
 
 @register.simple_tag(takes_context=True)
 def public_search_copy(context):
@@ -85,6 +89,8 @@ def seo_documents(context):
         'logo': origin + static('core/icons/icon-512.png'),
         'areaServed': service_area,
     }
+    if ORGANIZATION_SAME_AS:
+        organization['sameAs'] = list(ORGANIZATION_SAME_AS)
     # No inferred legal/address values or social accounts when profile is absent.
     company = context.get('company')
     if company:
