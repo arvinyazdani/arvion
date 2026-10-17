@@ -259,6 +259,13 @@ class AccountFlowTests(TestCase):
                 reverse("accounts:verify_phone") + "?lang=fa", {"action": "resend"}, follow=True,
             )
         self.assertContains(failed_resend, "ادامه با حساب موقت")
+        english_failure = self.client.get(reverse("accounts:verify_phone") + "?lang=en")
+        english_html = english_failure.content.decode()
+        self.assertEqual(english_failure.status_code, 200)
+        self.assertNotIn("09333021100", english_html)
+        self.assertNotIn("+98", english_html)
+        self.assertNotIn('href="tel:', english_html)
+        self.assertIn('href="/en/contact/">Contact Rvion</a>', english_html)
 
         response = self.client.post(
             reverse("accounts:verify_phone") + "?lang=fa", {"action": "continue_without_sms"}, follow=True,

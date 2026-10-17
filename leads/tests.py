@@ -41,6 +41,36 @@ class LeadTests(TestCase):
         self.assertContains(en_response, "RVION PROMISE")
         self.assertContains(en_response, ">01<", html=False)
 
+    def test_english_contact_submission_still_completes_without_exposing_company_phone(self):
+        from core.models import CompanyProfile
+        CompanyProfile.objects.filter(pk=1).update(
+            support_hours_en=(
+                "We review requests on business days. Messages sent outside business "
+                "hours are reviewed on the next business day."
+            )
+        )
+        payload = {
+            "name": "Alex Morgan", "business_name": "Example Studio", "email_or_telegram": "alex@example.com",
+            "phone": "", "request_type": "webapp", "service": "", "website_url": "",
+            "budget_range": "unsure", "timeline": "flexible", "preferred_contact": "email",
+            "message": "We need a custom application to manage our project workflow.",
+            "privacy_accept": "on", "website": "",
+        }
+        url = reverse("leads:contact") + "?lang=en"
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        html = page.content.decode()
+        self.assertNotIn("09333021100", html)
+        self.assertNotIn("+98", html)
+        self.assertNotIn('href="tel:', html)
+        self.assertIn('href="/en/start/">Start a project request</a>', html)
+        submitted = self.client.post(url, payload)
+        self.assertEqual(submitted.status_code, 302)
+        self.assertEqual(Lead.objects.count(), 1)
+        confirmation = self.client.get(submitted.url)
+        self.assertEqual(confirmation.status_code, 200)
+        self.assertIn("We review requests on business days.", confirmation.content.decode())
+
     def test_honeypot_rejects_bot(self):
         self.payload["website"] = "https://spam.example"
         response = self.client.post(self.url, self.payload)

@@ -18,7 +18,7 @@
       <div><dt>{% if lang == 'fa' %}شناسه ملی{% else %}National ID{% endif %}</dt><dd>{{ company.national_id }}</dd></div>
       <div><dt>{% if lang == 'fa' %}تاریخ ثبت و تأسیس{% else %}Registration date{% endif %}</dt><dd>{% if lang == 'fa' %}{{ company.established_date_fa }}{% else %}2026{% endif %}</dd></div>
       <div><dt>{% if lang == 'fa' %}مدیرعامل و صاحب امضا{% else %}CEO and authorized signatory{% endif %}</dt><dd>{% if lang == 'fa' %}{{ company.chief_executive_fa }}{% else %}{{ company.chief_executive_en }}{% endif %}</dd></div>
-      <div><dt>{% if lang == 'fa' %}تلفن{% else %}Phone{% endif %}</dt><dd><a class="legal-phone-link" href="tel:+989333021100">{{ company.phone }}</a></dd></div>
+      {% if lang == 'fa' %}<div><dt>تلفن</dt><dd><a class="legal-phone-link" href="tel:+989333021100">{{ company.phone }}</a></dd></div>{% else %}<div><dt>Contact</dt><dd><a href="{% url 'leads:contact' %}">Use the contact form to reach Rvion</a></dd></div>{% endif %}
       <div><dt>{% if lang == 'fa' %}نشانی{% else %}Address{% endif %}</dt><dd>{% if lang == 'fa' %}{{ company.address_fa }}{% else %}{{ company.address_en }}{% endif %}</dd></div>
       <div><dt>{% if lang == 'fa' %}کد پستی{% else %}Postal code{% endif %}</dt><dd>{{ company.postal_code }}</dd></div>
       <div><dt>{% if lang == 'fa' %}دامنه رسمی{% else %}Official domain{% endif %}</dt><dd>{{ company.domain }}</dd></div>

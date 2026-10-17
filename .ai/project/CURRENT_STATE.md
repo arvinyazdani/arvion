@@ -1,5 +1,36 @@
 # Rvion current state
 
+## 2026-10-17 — English contact details — VERIFIED locally / production pending
+
+Owner-authorized scope only: English template output no longer reveals the
+company phone or `tel:` link; English contact destinations use the internal
+contact/project forms. Persian phone output remains in its existing branch.
+English support copy is aligned to the approved next-business-day wording in
+home, contact, terms, and enquiry confirmation; no seed migration or model was
+changed. User-facing `Request a call` CTAs remain where they do not expose a
+number. Address/postal fields and customer phone fields are untouched.
+
+Before code edits, production was read-only checked at `a4b013e` with health OK,
+and `/srv/arvion/backups/pre-support-hours-en-20261017.json` was created and
+verified mode 0600 for only `CompanyProfile(pk=1).support_hours_en`; old-value
+SHA-256: `23589049e90bd643d7ad5d63bf7001e4c9f6e9ad9dc297b458935d7fd6bf6bb7`.
+Raw HTML hashes for all 91 production sitemap URLs are at
+`/tmp/rvion-public-html-before-20261017.json` (47 FA, 44 EN).
+
+Targeted checks: 7/7, then 5/5 after updating one stale home-phone test; the
+English SMS-resend failure route then passed 1/1 for the no-company-phone and
+internal-contact-link behavior.
+Final `release-check.sh`: 1,286 tests OK, 27 skips; strict question-bank audit
+passed (400 questions, 0 editorial warnings), static collection and 100-attempt
+benchmark passed (50.15/s, avg 19.9 ms, p95 30.9 ms, rollback=yes). Django
+check clean; no migration drift; source development DB hash unchanged
+(`8c047fc93819de00b5b0309681fda03ea807aa54ef208844bcb65a8303897cb0`).
+Log: `/tmp/rvion-en-phone-release-check-final-20261017.log`. No production
+write, deployment, IndexNow, push, or migration has happened yet. Next: local
+commit, code-only release, update only the backed-up English support-hours
+column, compare live English/Persian HTML, test contact flow, and submit
+IndexNow only for changed English URLs.
+
 ## 2026-10-14 — Fixed public shell — VERIFIED locally / NOT DEPLOYED
 
 Explicit reading-route contract in core/public_pages.py. Public header, mobile

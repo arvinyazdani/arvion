@@ -4708,3 +4708,58 @@ article-body restoration.
 This phase is complete within the approved scope. No push to `main`, migration,
 Persian-body update, other-article update, manual Search Console request, or
 Arvan/CDN policy change was performed.
+
+## 2026-10-17 — English phone removal and support-hours update (pre-release checkpoint)
+
+Status: local implementation VERIFIED; production release and the single-field
+production update are still pending. Production baseline was `a4b013e` on
+`deploy/articles-20261016`; `/health/` returned `{"status":"ok"}`. Read-only
+query found exactly one `CompanyProfile` row (`pk=1`) with
+`support_hours_en="Business days, 08:00–18:00 Tehran time"`.
+
+Before code changes, the old field was saved server-side to
+`/srv/arvion/backups/pre-support-hours-en-20261017.json`, owned by `arvion`,
+mode `0600`, exclusive-create; JSON was read back and verified. It contains
+only model, primary key, field name and old value. Old-value SHA-256:
+`23589049e90bd643d7ad5d63bf7001e4c9f6e9ad9dc297b458935d7fd6bf6bb7`.
+Production raw HTML baseline was captured for all 91 sitemap URLs (47 FA, 44
+EN) in `/tmp/rvion-public-html-before-20261017.json` before edits.
+
+Changed templates: English footer, company details, flow/order support links,
+contact page, SMS-failure help, homepage support copy, service terms and enquiry
+confirmation. The English company-phone action is replaced with an internal
+contact/start link. Persian branches remain unchanged; address/postal fields,
+stored phone, migration seed, manager/customer phone fields, and non-number
+`Request a call` CTAs are untouched. The production DB field has **not yet**
+been updated. No migration exists or has run.
+
+Evidence: targeted tests 7/7 passed, one stale test expecting a telephone link
+on English home was updated and the affected targeted set then passed 5/5; an
+additional English SMS-resend-failure privacy test passed 1/1.
+Final `release-check.sh` passed: 1,286 tests, 27 skips; strict question-bank
+audit 400 questions / zero editorial warnings; static collection; benchmark
+100 attempts at 50.15/s (19.9 ms average, 30.9 ms p95, transaction rollback
+verified). `manage.py check` clean; `makemigrations --check --dry-run` reports
+no changes; diff check clean. The source dev DB hash remains
+`8c047fc93819de00b5b0309681fda03ea807aa54ef208844bcb65a8303897cb0`.
+Full-gate log: `/tmp/rvion-en-phone-release-check-final-20261017.log`. The
+gate ran against a disposable copy; the worktree's original empty DB file was
+restored. The first full-gate attempt exposed one stale test still expecting
+the English homepage telephone link; that exact assertion was updated and the
+affected test rerun green. Its temporary log was removed after restoring the
+worktree fixtures; the failure itself was observed directly in the command
+output. The final-gate log contains only the green run.
+
+Next, still within the explicit approval: create a local commit, deploy it
+code-only with the official release script and its full DB snapshot, update
+only `core_companyprofile.support_hours_en` for `pk=1` using a bounded updater
+that verifies all other fields, recrawl and compare raw HTML (Persian hashes
+must be identical), validate English contact/terms/home and phone absence, then
+send IndexNow only for English URLs whose HTML changed. No push to `main`.
+
+Rollback plan: code back to production `a4b013e` using the official
+`RVION_RELEASE_CODE_ONLY=1` release path; do not restore the full DB snapshot
+for the data rollback. Restore only `support_hours_en` from the mode-0600 JSON
+after asserting `pk=1` and current field equals the approved new value, with a
+single-column queryset update and count exactly one. IndexNow URLs, live HTML
+diff and production commit/snapshot are to be appended after deployment.

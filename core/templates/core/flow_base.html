@@ -53,7 +53,7 @@
       </a>
       <div class="flow-header-actions">
         <span class="flow-security"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#shield"></use></svg> ارتباط امن</span>
-        <a class="flow-support" dir="ltr" href="tel:{{ company.phone }}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#support"></use></svg><span>{{ company.phone }}</span></a>
+        {% if lang == 'fa' %}<a class="flow-support" dir="ltr" href="tel:{{ company.phone }}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#support"></use></svg><span>{{ company.phone }}</span></a>{% else %}<a class="flow-support" href="{% url 'leads:contact' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#support"></use></svg><span>Contact Rvion</span></a>{% endif %}
         <a class="flow-exit" href="{% url 'home' %}"><span>خروج</span><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#close"></use></svg></a>
       </div>
     </div>

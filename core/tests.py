@@ -73,7 +73,12 @@ class CorePagesTests(TestCase):
                 footer = html.split('<footer class="site-footer studio-footer">', 1)[1].split("</footer>", 1)[0]
                 for destination in ("privacy", "service-terms", "refund-policy"):
                     self.assertIn(f'/{language}/{destination}/', footer)
-                self.assertIn('href="tel:+989333021100"', footer)
+                if language == "fa":
+                    self.assertIn('href="tel:+989333021100"', footer)
+                else:
+                    self.assertNotIn('href="tel:', footer)
+                    self.assertNotIn("09333021100", footer)
+                    self.assertIn('href="/en/contact/"', footer)
 
     def test_public_and_staff_mobile_navigation_always_has_five_destinations(self):
         response = self.client.get("/fa/")

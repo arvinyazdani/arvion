@@ -8,7 +8,7 @@
         <span>{% if lang == 'fa' %}بیایید درباره پروژه‌تان صحبت کنیم.{% else %}Let's talk about your project.{% endif %}</span>
         <div class="footer-actions">
           <a class="footer-primary-action" href="{% url 'project_start' %}">{% if lang == 'fa' %}شروع پروژه{% else %}Start a project{% endif %}<span aria-hidden="true">↗</span></a>
-          {% if footer_phone %}<a class="footer-phone" href="tel:{{ footer_phone }}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contact"></use></svg><span class="footer-phone-copy"><span>{% if lang == 'fa' %}تماس با ما{% else %}Call us{% endif %}</span><bdi dir="ltr">{{ company.phone }}</bdi></span></a>{% endif %}
+          {% if lang == 'fa' and footer_phone %}<a class="footer-phone" href="tel:{{ footer_phone }}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contact"></use></svg><span class="footer-phone-copy"><span>تماس با ما</span><bdi dir="ltr">{{ company.phone }}</bdi></span></a>{% elif lang != 'fa' %}<a class="footer-phone footer-contact-link" href="{% url 'leads:contact' %}"><svg class="ui-icon" aria-hidden="true"><use href="{% static 'core/icons/ui-sprite.svg' %}#contact"></use></svg><span class="footer-phone-copy"><span>Contact us</span><bdi>Send a request through our contact form</bdi></span></a>{% endif %}
         </div>
         {% if show_whatsapp_share %}<a class="whatsapp-share" href="{{ whatsapp_share_url }}" target="_blank" rel="noopener noreferrer">{% if lang == 'fa' %}اشتراک در واتساپ{% else %}Share on WhatsApp{% endif %}</a>{% endif %}
       </div>

@@ -111,8 +111,13 @@ class HomeClarityTests(TestCase):
             self.assertContains(details, getattr(company, f'legal_name_{lang}'))
             self.assertContains(details, getattr(company, f'address_{lang}'))
             self.assertContains(response, getattr(company, f'support_hours_{lang}'))
-            from core.templatetags.order_ui import order_phone
-            self.assertContains(response, f'href="tel:{order_phone(company.phone)}"')
+            if lang == 'fa':
+                from core.templatetags.order_ui import order_phone
+                self.assertContains(response, f'href="tel:{order_phone(company.phone)}"')
+            else:
+                self.assertNotContains(response, 'href="tel:')
+                self.assertNotContains(response, company.phone)
+                self.assertContains(response, 'href="/en/contact/?service=digital-product-consulting"')
         CompanyProfile.objects.all().delete()
         response = self.client.get('/en/')
         self.assertNotContains(response, 'id="identity-title"')

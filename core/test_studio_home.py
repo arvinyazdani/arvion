@@ -189,21 +189,28 @@ class StudioHomeTests(TestCase):
         self.assertNotIn('href="tel:', html)
         self.assertNotIn('Registered company', html)
 
-    def test_footer_groups_localized_call_button_with_project_action(self):
+    def test_footer_groups_persian_call_and_english_contact_with_project_action(self):
         company = CompanyProfile.objects.get()
         company.phone = '02112345678'
         company.save(update_fields=['phone'])
-        for lang, label in (('fa', 'تماس با ما'), ('en', 'Call us')):
+        for lang, label in (('fa', 'تماس با ما'), ('en', 'Contact us')):
             with self.subTest(lang=lang):
                 html = self.client.get(f'/{lang}/').content.decode().split('<footer', 1)[1]
                 actions = html.split('<div class="footer-actions">', 1)[1].split('</div>', 1)[0]
                 self.assertEqual(actions.count('<a '), 2)
                 self.assertIn(f'href="/{lang}/start/"', actions)
-                self.assertIn('class="footer-phone" href="tel:02112345678"', actions)
+                if lang == 'fa':
+                    self.assertIn('class="footer-phone" href="tel:02112345678"', actions)
+                    self.assertIn('<bdi dir="ltr">02112345678</bdi>', actions)
+                else:
+                    self.assertNotIn('tel:', actions)
+                    self.assertNotIn('02112345678', actions)
+                    self.assertIn('href="/en/contact/"', actions)
                 self.assertIn('#contact', actions)
                 self.assertIn('aria-hidden="true"', actions)
                 self.assertIn(label, actions)
-                self.assertIn('<bdi dir="ltr">', actions)
+                if lang == 'fa':
+                    self.assertIn('<bdi dir="ltr">', actions)
 
     def test_library_uses_published_article_cover_and_current_language_only(self):
         from blog.models import Post

@@ -141,3 +141,53 @@ class PublicShellTests(TestCase):
         private = self.client.get("/fa/account/dashboard/")
         self.assertEqual(private.status_code, 302)
         self.assertIn("/account/login/", private.url)
+
+
+class EnglishCompanyContactTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from core.tests_seo_contract import WholeSitemapContractTests
+        from core.models import CompanyProfile
+        WholeSitemapContractTests.setUpTestData.__func__(cls)
+        CompanyProfile.objects.filter(pk=1).update(
+            support_hours_en=(
+                "We review requests on business days. Messages sent outside business "
+                "hours are reviewed on the next business day."
+            )
+        )
+
+    def test_english_sitemap_pages_never_render_company_phone_or_tehran_hours(self):
+        from core.models import CompanyProfile
+
+        urls = ElementTree.fromstring(Client().get("/sitemap.xml").content)
+        paths = [
+            urlsplit(loc.text).path
+            for loc in urls.findall("{*}url/{*}loc")
+            if loc.text and urlsplit(loc.text).path.startswith("/en/")
+        ]
+        self.assertGreaterEqual(len(paths), 20)
+        for path in paths:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                html = response.content.decode()
+                for forbidden in ("09333021100", "+98", "Tehran time", 'href="tel:'):
+                    self.assertNotIn(forbidden, html)
+        company = CompanyProfile.objects.get(pk=1)
+        self.assertEqual(company.phone, "09333021100")
+
+    def test_persian_phone_and_contact_link_remain_unchanged(self):
+        response = self.client.get("/fa/")
+        html = response.content.decode()
+        self.assertIn('href="tel:+989333021100"', html)
+        self.assertIn("09333021100", html)
+
+    def test_contact_page_uses_internal_enquiry_cta_and_new_review_copy(self):
+        response = self.client.get("/en/contact/")
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertNotIn("09333021100", html)
+        self.assertNotIn("+98", html)
+        self.assertNotIn('href="tel:', html)
+        self.assertIn('href="/en/start/">Start a project request</a>', html)
+        self.assertIn("We review requests on business days.", html)
