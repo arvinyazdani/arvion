@@ -5,6 +5,7 @@ from django.urls import Resolver404, resolve
 PUBLIC_CONTENT_ROUTES = frozenset({
     "home", "about", "company_info", "crm_product", "privacy", "service_terms",
     "refund_policy", "services:list", "services:detail", "projects:demo_gallery",
+    "projects:kimia_medical_crm",
     "blog:list", "blog:detail", "assessments:list", "assessments:briefing",
     "cost_calculator", "sitemap", "robots", "indexnow_key",
     "offline", "offline_fa", "offline_en",

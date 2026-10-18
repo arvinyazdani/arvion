@@ -97,8 +97,10 @@ class SearchDiscoveryTests(TestCase):
 
         response = self.client.get(reverse("sitemap"))
 
-        self.assertContains(response, f"https://testserver/fa/projects/demos/{demo.slug}/")
-        self.assertContains(response, f"https://testserver/en/projects/demos/{demo.slug}/")
+        self.assertNotContains(response, f"https://testserver/fa/projects/demos/{demo.slug}/")
+        self.assertNotContains(response, f"https://testserver/en/projects/demos/{demo.slug}/")
+        self.assertContains(response, "https://testserver/fa/projects/demos/kimia-medical-crm/")
+        self.assertContains(response, "https://testserver/en/projects/demos/kimia-medical-crm/")
         self.assertNotContains(response, f"https://testserver/fa/projects/{project.slug}/")
         self.assertContains(response, f"https://testserver/fa/assessments/{exam.slug}/about/")
         self.assertContains(response, f"https://testserver/en/assessments/{exam.slug}/about/")

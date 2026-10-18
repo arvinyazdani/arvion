@@ -3,6 +3,11 @@ import uuid
 from django.db import models
 
 
+# Public portfolio and sitemap entries are limited to source-backed projects.
+# Other templates remain available for legacy links and internal QA.
+PUBLIC_DEMO_SLUGS = ("raya-personal-finance", "ahanino-b2b-marketplace")
+
+
 class DemoTemplate(models.Model):
     CATEGORY_CHOICES = (
         ("ecommerce", "فروشگاه اینترنتی"), ("restaurant", "رستوران و کافه"),

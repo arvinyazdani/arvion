@@ -2,20 +2,20 @@
 {% load static %}
 {% block title %}{% if lang == 'fa' %}انتخاب و شخصی‌سازی دمو | آرویون{% else %}Choose and customise a demo | Rvion{% endif %}{% endblock %}
 {% block meta_description %}{% if lang == 'fa' %}دموی وب‌سایت دلخواه‌تان را بدون ثبت‌نام انتخاب کنید، رنگ و سبک آن را تغییر دهید و نسخه موبایل و دسکتاپ را ببینید.{% else %}Choose a website demo without signing in, customise its colour and style, and test mobile and desktop views.{% endif %}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=10"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=2">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'projects/css/demo-gallery.css' %}?v=11"><link rel="stylesheet" href="{% static 'projects/css/demo-studio.css' %}?v=4"><link rel="stylesheet" href="{% static 'projects/css/ahanino-demo.css' %}?v=2"><link rel="stylesheet" href="{% static 'projects/css/kimia-showcase.css' %}?v=1">{% endblock %}
 {% block content %}
 <section class="demo-hero" aria-labelledby="demo-gallery-title">
   <div class="shell demo-hero-grid">
     <div>
       <span class="eyebrow">{% if lang == 'fa' %}انتخاب و شخصی‌سازی{% else %}CHOOSE & CUSTOMISE{% endif %}</span>
       <h1 id="demo-gallery-title">{% if lang == 'fa' %}قبل از سفارش، چیزی نزدیک به خواسته‌تان ببینید.{% else %}See something close to your idea before you enquire.{% endif %}</h1>
-      <p>{% if lang == 'fa' %}نیازی به آماده‌کردن محتوا یا ثبت‌نام ندارید. یک دمو را باز کنید، نام و رنگ دلخواه‌تان را روی آن بگذارید و تجربه موبایل و دسکتاپ را همان لحظه مقایسه کنید.{% else %}No brief, content or account is required. Open a demo, add your name and colour, then compare mobile and desktop instantly.{% endif %}</p>
-      <div class="demo-hero-actions"><a class="button" href="#demo-options">{% if lang == 'fa' %}انتخاب نمونه{% else %}Choose a demo{% endif %}</a><span>{% if lang == 'fa' %}{{ demo_count }} نمونه · {{ category_count }} حوزه · بدون ثبت‌نام{% else %}{{ demo_count }} demos · {{ category_count }} use cases · no sign-in{% endif %}</span></div>
+      <p>{% if lang == 'fa' %}نیازی به آماده‌کردن محتوا یا ثبت‌نام ندارید. رایا یا آهنینو را باز کنید و نام، رنگ و امکانات را تغییر دهید؛ نمونهٔ کیمیا هم نمایی از CRM خود آرویون را نشان می‌دهد.{% else %}No brief, content or account is required. Customise Raya or Ahanino, then explore Kimia as a showcase of Rvion’s own CRM product.{% endif %}</p>
+      <div class="demo-hero-actions"><a class="button" href="#demo-options">{% if lang == 'fa' %}دیدن پروژه‌های واقعی{% else %}Explore real projects{% endif %}</a><span>{% if lang == 'fa' %}{{ demo_count }} محصول و پروژهٔ مبتنی بر کد واقعی · بدون ثبت‌نام{% else %}{{ demo_count }} source-backed product and project samples · no sign-in{% endif %}</span></div>
     </div>
     <aside class="demo-how-card" aria-label="{% if lang == 'fa' %}روش استفاده{% else %}How it works{% endif %}">
       <strong>{% if lang == 'fa' %}سه قدم تا تصمیم روشن‌تر{% else %}Three steps to a clearer decision{% endif %}</strong>
       <ol>
-        <li><span>{% if lang == 'fa' %}۱{% else %}1{% endif %}</span><div><b>{% if lang == 'fa' %}یک کاربرد را انتخاب کنید{% else %}Choose a use case{% endif %}</b><small>{% if lang == 'fa' %}فروشگاه، شرکتی، کلینیک و بیشتر{% else %}Commerce, corporate, clinic and more{% endif %}</small></div></li>
+        <li><span>{% if lang == 'fa' %}۱{% else %}1{% endif %}</span><div><b>{% if lang == 'fa' %}یک محصول یا پروژه را ببینید{% else %}Explore a product or project{% endif %}</b><small>{% if lang == 'fa' %}رایا، آهنینو یا CRM کیمیا{% else %}Raya, Ahanino or Kimia CRM{% endif %}</small></div></li>
         <li><span>{% if lang == 'fa' %}۲{% else %}2{% endif %}</span><div><b>{% if lang == 'fa' %}همان‌جا تغییر دهید{% else %}Customise it live{% endif %}</b><small>{% if lang == 'fa' %}نام، رنگ، شخصیت و امکانات{% else %}Name, colour, personality and features{% endif %}</small></div></li>
         <li><span>{% if lang == 'fa' %}۳{% else %}3{% endif %}</span><div><b>{% if lang == 'fa' %}دموی کامل را تست کنید{% else %}Test the full demo{% endif %}</b><small>{% if lang == 'fa' %}موبایل، دسکتاپ و مسیر بازگشت{% else %}Mobile, desktop and a safe return path{% endif %}</small></div></li>
       </ol>
@@ -23,22 +23,18 @@
   </div>
 </section>
 
-<section class="shell demo-categories" id="demo-options" aria-label="{% if lang == 'fa' %}فهرست دموها{% else %}Demo list{% endif %}">
+<section class="shell demo-categories" id="demo-options" aria-label="{% if lang == 'fa' %}پروژه‌های واقعی و قابل شخصی‌سازی{% else %}Real, customisable projects{% endif %}">
   {% if featured_demos %}
     <section class="demo-reference-projects" id="reference-projects" aria-labelledby="reference-projects-title">
-      <header class="demo-reference-heading"><div><span>{% if lang == 'fa' %}بر پایهٔ پروژه‌های واقعی{% else %}BUILT FROM REAL PROJECTS{% endif %}</span><h2 id="reference-projects-title">{% if lang == 'fa' %}نمونه‌هایی از دل پروژه‌های موجود{% else %}Samples grounded in existing projects{% endif %}</h2><p>{% if lang == 'fa' %}ساختار و مسیرهای هر نمونه از کد پروژهٔ مرجع گرفته شده؛ داده‌های نمایشی جای اطلاعات زنده را نمی‌گیرند.{% else %}Each sample follows its source project's code and flows; illustrative content is not live data.{% endif %}</p></div><a href="#demo-category-list">{% if lang == 'fa' %}دیدن بقیهٔ حوزه‌ها{% else %}Browse all other categories{% endif %} ↓</a></header>
+      <header class="demo-reference-heading"><div><span>{% if lang == 'fa' %}محصول‌ها و پروژه‌های مبتنی بر کد واقعی{% else %}SOURCE-BACKED PRODUCTS & PROJECTS{% endif %}</span><h2 id="reference-projects-title">{% if lang == 'fa' %}محصول و پروژه را از نزدیک ببینید{% else %}Explore products and projects up close{% endif %}</h2><p>{% if lang == 'fa' %}رایا و آهنینو را شخصی‌سازی کنید؛ یا CRM کیمیا را در سناریوی نمایشی یک بازرگانی تجهیزات پزشکی ببینید. داده‌های این سناریو ساختگی‌اند.{% else %}Customise Raya or Ahanino, or explore Kimia CRM in an illustrative medical-equipment trading scenario. All scenario data is fictional.{% endif %}</p></div></header>
       <div class="demo-grid demo-reference-grid">{% for demo in featured_demos %}{% include 'projects/includes/demo_card.html' with demo=demo %}{% endfor %}</div>
+      <article class="kimia-gallery-card" aria-labelledby="kimia-gallery-title">
+        <div class="kimia-gallery-art" aria-hidden="true"><span class="kimia-mark">K</span><div class="kimia-mini-screen"><i></i><i></i><i></i><b></b><b></b><b></b></div><div class="kimia-mini-phone"><i></i><b></b><b></b></div></div>
+        <div class="kimia-gallery-copy"><span>{% if lang == 'fa' %}محصول CRM آرویون{% else %}RVION CRM PRODUCT{% endif %}</span><h3 id="kimia-gallery-title">{% if lang == 'fa' %}کیمیا؛ CRM یک بازرگانی تجهیزات پزشکی{% else %}Kimia: CRM for a medical-equipment distributor{% endif %}</h3><p>{% if lang == 'fa' %}از پیگیری سرنخ و پیش‌فاکتور تا موجودی سریالی، نصب، گارانتی و سرویس دستگاه‌ها؛ با نمای دسکتاپ و موبایل.{% else %}From lead and quote follow-up to serialized stock, installation, warranty and device service—with desktop and mobile views.{% endif %}</p><a class="kimia-gallery-link" href="{% url 'projects:kimia_medical_crm' %}">{% if lang == 'fa' %}دیدن نمونهٔ کیمیا{% else %}Explore the Kimia sample{% endif %} <span aria-hidden="true">↗</span></a></div>
+      </article>
     </section>
   {% endif %}
-  <nav class="demo-category-jump" id="demo-category-list" aria-label="{% if lang == 'fa' %}رفتن به موضوع نمونه{% else %}Jump to a business type{% endif %}">{% for category in categories %}<a href="#{{ category.key }}">{{ category.title }}</a>{% endfor %}</nav>
-  {% for category in categories %}
-    <section class="demo-category" id="{{ category.key }}">
-      <header><span>{{ forloop.counter|stringformat:'02d' }}</span><div><h2>{{ category.title }}</h2><small>{{ category.items|length }} {% if lang == 'fa' %}مسیر قابل تست{% else %}testable directions{% endif %}</small></div></header>
-      <div class="demo-grid">
-        {% for demo in category.items %}{% include 'projects/includes/demo_card.html' with demo=demo %}{% endfor %}
-      </div>
-    </section>
-  {% endfor %}
+  {% if not featured_demos %}<p class="demo-empty-state">{% if lang == 'fa' %}در حال حاضر نمونهٔ واقعی برای نمایش در دسترس نیست.{% else %}No real project previews are currently available.{% endif %}</p>{% endif %}
 </section>
 
 <section class="demo-trust-strip">

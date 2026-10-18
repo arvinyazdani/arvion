@@ -14,7 +14,7 @@ class PublicPageCachePolicyMiddleware:
     PUBLIC_ROUTES = {
         "home", "about", "company_info", "crm_product", "privacy",
         "service_terms", "refund_policy", "services:list", "services:detail",
-        "projects:demo_gallery", "projects:demo_preview", "blog:list",
+        "projects:demo_gallery", "projects:demo_preview", "projects:kimia_medical_crm", "blog:list",
         "blog:detail", "assessments:list", "assessments:briefing", "cost_calculator",
     }
 

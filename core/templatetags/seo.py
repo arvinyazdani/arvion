@@ -35,6 +35,7 @@ LABELS = {
     'crm_product': ('CRM سازمانی', 'Enterprise CRM'),
     'services:list': ('راهکارها', 'Solutions'),
     'projects:demo_gallery': ('نمونه‌ها', 'Samples'),
+    'projects:kimia_medical_crm': ('نمونهٔ CRM کیمیا', 'Kimia CRM sample'),
     'blog:list': ('مقاله‌ها', 'Articles'),
     'assessments:list': ('آزمون‌ها', 'Assessments'),
     'leads:contact': ('مشاوره و سفارش پروژه', 'Project enquiry'),

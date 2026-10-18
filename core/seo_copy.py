@@ -6,6 +6,7 @@ TITLES = {
     "blog:list": ("مقاله‌های طراحی سایت، CRM و ارزیابی مهارت | آرویون", "Articles on web development, CRM & assessment | Rvion"),
     "assessments:list": ("آزمون ارزیابی مدرس زبان و پایتون و جنگو | آرویون", "English teacher & Python Django assessments | Rvion"),
     "cost_calculator": ("محاسبه‌گر هزینه طراحی سایت و وب‌اپلیکیشن | آرویون", "Web App Development Cost Calculator | Rvion"),
+    "projects:kimia_medical_crm": ("نمونه CRM کیمیا برای بازرگانی تجهیزات پزشکی | آرویون", "Kimia CRM for Medical Equipment Trading | Rvion"),
 }
 
 DESCRIPTIONS = {
@@ -14,7 +15,8 @@ DESCRIPTIONS = {
     "company_info": ("اطلاعات رسمی شرکت آرویون، نام حقوقی، شماره ثبت، شناسه ملی و راه‌های تماس را بررسی کنید؛ پیش از سفارش پروژه، هویت طرف همکاری را بشناسید.", None),
     "crm_product": ("امکانات CRM اختصاصی آرویون برای مدیریت مشتری، فروش و عملیات را بررسی کنید؛ قابلیت‌های آماده را از توسعه پیشنهادی جدا ببینید و نیازسنجی را شروع کنید.", None),
     "services:list": ("خدمات طراحی سایت، ساخت وب‌اپلیکیشن با جنگو، مشاوره و پشتیبانی آرویون را مقایسه کنید؛ دامنه هر خدمت را ببینید و درخواست پروژه را آغاز کنید.", "Explore Rvion's website design, custom Django web apps, product consulting and maintenance services. Compare scopes and start your project enquiry."),
-    "projects:demo_gallery": (None, "Explore fictional website demos for stores, clinics, restaurants and other businesses. Choose a layout, customise its details and start a project brief."),
+    "projects:demo_gallery": ("نمونه‌های واقعی آرویون را ببینید: رایا و آهنینو را شخصی‌سازی کنید و CRM کیمیا را در سناریوی یک بازرگانی تجهیزات پزشکی از نزدیک بررسی کنید.", "Explore Rvion’s source-backed projects: customise Raya and Ahanino, then see Kimia CRM through a fictional medical-equipment distributor workflow."),
+    "projects:kimia_medical_crm": ("نمایی از CRM کیمیا برای پیگیری فروش، کالا و چرخه خدمات تجهیزات پزشکی؛ سناریوی یک بازرگانی فرضی را در موبایل و دسکتاپ ببینید.", "Explore Kimia CRM for sales, inventory and medical-equipment service workflows through a fictional distributor scenario on desktop and mobile."),
     "assessments:list": ("آزمون ارزیابی مدرس زبان انگلیسی و آزمون تخصصی پایتون و جنگو را بررسی کنید؛ با مهارت‌های سنجیده‌شده، پایش رفتار و گزارش نتیجه آشنا شوید.", "Explore English teacher assessment and Python Django skills tests. Read about question coverage, integrity monitoring and answer review before starting."),
     "leads:contact": ("برای طراحی سایت، ساخت وب‌اپلیکیشن یا CRM اختصاصی درخواست مشاوره ثبت کنید؛ نیاز، هدف و راه تماس را بنویسید تا دامنه پروژه بررسی شود.", "Tell Rvion about your website, custom Django web app or CRM project. Share your goals and contact details to request an initial scope discussion."),
     "cost_calculator": ("هزینه ساخت وب‌اپلیکیشن، CRM یا فروشگاه را با ورودی‌های پروژه برآورد کنید؛ بازه، زمان و نگهداری سالانه را ببینید و برای بررسی دقیق‌تر درخواست دهید.", "Estimate a custom web app, CRM or ecommerce project using scope inputs. Explore cost, timing and annual maintenance ranges, then request a scoped discussion."),

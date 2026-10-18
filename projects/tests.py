@@ -40,14 +40,16 @@ class ProjectTests(TestCase):
         self.project.save()
         self.assertEqual(self.client.get(self.project.get_absolute_url()).status_code, 404)
 
-    def test_gallery_shows_fictional_demos_and_configurator_creates_session_selection(self):
+    def test_gallery_hides_fictional_demos_but_configurator_remains_available(self):
         demo = DemoTemplate.objects.create(
             slug="demo-test", category="ecommerce", title_fa="دموی تست", title_en="Test demo",
             tagline_fa="نمونه فرضی", tagline_en="Fictional demo", fictional_brand_fa="برند فرضی",
             fictional_brand_en="TEST BRAND", style_key="minimal", default_features=["payment"],
         )
         gallery = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
-        self.assertContains(gallery, "دموی تست")
+        self.assertEqual(gallery.context["demo_count"], 3)
+        self.assertNotContains(gallery, 'data-demo-slug="demo-test"', html=False)
+        self.assertNotContains(gallery, "برند فرضی")
         self.assertContains(gallery, "بدون ثبت‌نام")
         self.assertContains(gallery, "بازکردن و شخصی‌سازی")
         preview = self.client.get(reverse("projects:demo_preview", args=[demo.slug]) + "?lang=fa")
@@ -72,7 +74,7 @@ class ProjectTests(TestCase):
         self.assertContains(full, '<h1>', html=False)
         self.assertContains(full, 'id="sample-content"', html=False)
 
-    def test_reference_projects_are_featured_first_and_not_repeated_in_category_grid(self):
+    def test_gallery_lists_only_source_backed_projects_and_kimia(self):
         fa = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
         self.assertEqual(fa.status_code, 200)
         content = fa.content.decode()
@@ -81,13 +83,35 @@ class ProjectTests(TestCase):
         self.assertEqual(content.count(raya_marker), 1)
         self.assertEqual(content.count(ahanino_marker), 1)
         self.assertLess(content.index(raya_marker), content.index(ahanino_marker))
-        self.assertLess(content.index('id="reference-projects"'), content.index('id="demo-category-list"'))
-        self.assertContains(fa, "بر پایهٔ پروژه‌های واقعی")
-        self.assertContains(fa, "ساختار و مسیرهای هر نمونه از کد پروژهٔ مرجع گرفته شده")
+        self.assertEqual(content.count('data-demo-slug='), 2)
+        self.assertIn('id="reference-projects"', content)
+        self.assertNotContains(fa, 'id="demo-category-list"', html=False)
+        self.assertContains(fa, "محصول‌ها و پروژه‌های مبتنی بر کد واقعی")
+        self.assertContains(fa, "داده‌های این سناریو ساختگی‌اند")
+        self.assertContains(fa, "CRM یک بازرگانی تجهیزات پزشکی")
+        self.assertContains(fa, reverse("projects:kimia_medical_crm"))
 
         en = self.client.get(reverse("projects:demo_gallery") + "?lang=en")
-        self.assertContains(en, "Samples grounded in existing projects")
+        self.assertContains(en, "SOURCE-BACKED PRODUCTS")
         self.assertContains(en, "Based on source project")
+        self.assertEqual(en.content.decode().count('data-demo-slug='), 2)
+        self.assertContains(en, "Kimia: CRM for a medical-equipment distributor")
+
+    def test_kimia_crm_showcase_is_localized_and_uses_only_planned_public_domain(self):
+        fa = self.client.get(reverse("projects:kimia_medical_crm") + "?lang=fa")
+        self.assertEqual(fa.status_code, 200)
+        self.assertContains(fa, "kimia.rvionai.com")
+        self.assertNotContains(fa, "nora.rvionai.com")
+        for marker in ("km-desktop-ui", "km-phone-frame", "نمای دسکتاپ", "نمای موبایل", "تمام نام‌ها، تعدادها، مراحل فروش و رکوردهای این صفحه ساختگی‌اند"):
+            self.assertContains(fa, marker)
+
+        en = self.client.get(reverse("projects:kimia_medical_crm") + "?lang=en")
+        self.assertEqual(en.status_code, 200)
+        for marker in ("kimia.rvionai.com", "Desktop view", "Mobile view", "fictional", "medical-equipment distributor"):
+            self.assertContains(en, marker)
+        self.assertNotContains(en, "nora.rvionai.com")
+        self.assertContains(en, 'rel="alternate" hreflang="fa"', html=False)
+        self.assertContains(en, 'rel="alternate" hreflang="en"', html=False)
 
     def test_ahanino_preview_tracks_source_market_home_not_generic_dashboard(self):
         demo = DemoTemplate.objects.get(slug="ahanino-b2b-marketplace")
@@ -195,7 +219,8 @@ class ProjectTests(TestCase):
         seeded_demo = DemoTemplate.objects.get(slug="sarvin-atelier")
         self.assertEqual(seeded_demo.category, "jewelry")
         gallery = self.client.get(reverse("projects:demo_gallery") + "?lang=fa")
-        self.assertContains(gallery, "گالری طلا و جواهر")
+        self.assertNotContains(gallery, "گالری طلا و جواهر")
+        self.assertNotContains(gallery, "SARVIN")
         demo = DemoTemplate.objects.create(
             slug="jewelry-order-flow", category="jewelry", title_fa="گالری جواهر تست",
             title_en="Test jewellery atelier", tagline_fa="یک انتخاب ماندگار",

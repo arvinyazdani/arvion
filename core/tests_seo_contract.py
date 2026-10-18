@@ -172,9 +172,13 @@ class WholeSitemapContractTests(TestCase):
     )['pages']
     TARGET_PATHS = frozenset(
         path for path in DEPLOYED_METADATA
-        if ('/projects/demos/' in path and not path.endswith('/projects/demos/'))
-        or ('/assessments/' in path and path.endswith('/about/'))
-    )
+        if (path.endswith('/projects/demos/raya-personal-finance/')
+            or path.endswith('/projects/demos/ahanino-b2b-marketplace/')
+            or ('/assessments/' in path and path.endswith('/about/')))
+    ) | frozenset({
+        '/fa/projects/demos/kimia-medical-crm/',
+        '/en/projects/demos/kimia-medical-crm/',
+    })
 
     @classmethod
     def setUpTestData(cls):
@@ -287,7 +291,7 @@ class WholeSitemapContractTests(TestCase):
         self.assertEqual(seen_targets, self.TARGET_PATHS)
 
     def test_every_non_authorized_live_page_metadata_is_byte_unchanged(self):
-        self.assertEqual(len(self.TARGET_PATHS), 26)
+        self.assertEqual(len(self.TARGET_PATHS), 6)
         # The audit's production sitemap has no fixture-only services/posts/demos.
         # Restrict this assertion to that exact deployed URL inventory, while the
         # other whole-sitemap contracts also exercise all synthetic fixtures.
@@ -304,7 +308,13 @@ class WholeSitemapContractTests(TestCase):
                     or DESCRIPTIONS.get(match.view_name, (None, None))[index]
                     or match.view_name == 'services:detail' and match.kwargs.get('slug') in SERVICE_TITLES):
                 authorized.add(path)
+        from projects.models.demo import PUBLIC_DEMO_SLUGS
         expected_paths = set(self.DEPLOYED_METADATA) - authorized
+        expected_paths = {
+            path for path in expected_paths
+            if '/projects/demos/' not in path
+            or path.rstrip('/').rsplit('/', 1)[-1] in PUBLIC_DEMO_SLUGS
+        }
         seen = set()
         for url, path, response, head in self.pages():
             if path not in expected_paths:

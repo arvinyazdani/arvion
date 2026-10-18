@@ -5,6 +5,7 @@ from django.utils import translation
 from blog.models import Post
 from blog.languages import available_post_languages, indexable_list_languages
 from projects.models import DemoTemplate
+from projects.models.demo import PUBLIC_DEMO_SLUGS
 from services.models import Service
 from assessments.models import Exam
 
@@ -23,7 +24,7 @@ class StaticSitemap(LocalizedSitemap):
     def items(self):
         bilingual_names = (
             "home", "about", "company_info", "crm_product", "services:list",
-            "projects:demo_gallery", "assessments:list", "leads:contact",
+            "projects:demo_gallery", "projects:kimia_medical_crm", "assessments:list", "leads:contact",
             "cost_calculator",
             "privacy", "service_terms", "refund_policy",
         )
@@ -76,7 +77,7 @@ class DemoSitemap(LocalizedSitemap):
     changefreq = "monthly"
 
     def items(self):
-        demos = DemoTemplate.objects.filter(is_active=True).only("slug", "updated_at")
+        demos = DemoTemplate.objects.filter(is_active=True, slug__in=PUBLIC_DEMO_SLUGS).only("slug", "updated_at")
         return [(language, demo) for language in self.languages() for demo in demos]
 
     def location(self, item):

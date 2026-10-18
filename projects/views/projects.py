@@ -9,10 +9,11 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views import View
-from django.views.generic import DetailView, ListView, RedirectView
+from django.views.generic import DetailView, ListView, RedirectView, TemplateView
 from projects.demo_labels import CATEGORY_LABELS_EN, demo_config_labels as _labels
 from projects.demo_briefs import brief_fields, story_sections
 from projects.models import DemoSelection, DemoTemplate
+from projects.models.demo import PUBLIC_DEMO_SLUGS
 from projects.models.projects import Project
 from core.views.lang import LanguageViewMixin
 
@@ -166,31 +167,32 @@ def _selection_session_key(request):
 class DemoGalleryView(LanguageViewMixin, ListView):
     template_name = "projects/demo_gallery.html"
     context_object_name = "demos"
+    reference_slugs = PUBLIC_DEMO_SLUGS
 
     def get_queryset(self):
-        return DemoTemplate.objects.filter(is_active=True)
+        return DemoTemplate.objects.filter(is_active=True, slug__in=self.reference_slugs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         demos = [_decorate_demo(demo, self.lang) for demo in context["demos"]]
-        reference_slugs = ("raya-personal-finance", "ahanino-b2b-marketplace")
-        featured_demos = [demo for slug in reference_slugs for demo in demos if demo.slug == slug]
+        featured_demos = [demo for slug in self.reference_slugs for demo in demos if demo.slug == slug]
         for demo in demos:
-            demo.is_reference_project = demo.slug in reference_slugs
-        featured_ids = {demo.pk for demo in featured_demos}
-        catalogue_demos = [demo for demo in demos if demo.pk not in featured_ids]
-        categories = []
-        for key, label_fa in DemoTemplate.CATEGORY_CHOICES:
-            items = [item for item in catalogue_demos if item.category == key]
-            if items:
-                categories.append({
-                    "key": key, "title": label_fa if self.lang == "fa" else CATEGORY_LABELS_EN[key],
-                    "items": items,
-                })
+            demo.is_reference_project = True
         context.update(
-            categories=categories, featured_demos=featured_demos, lang=self.lang,
-            demo_count=len(demos), category_count=len({demo.category for demo in demos}),
+            featured_demos=featured_demos, lang=self.lang,
+            demo_count=len(featured_demos) + 1,
         )
+        return context
+
+
+class KimiaMedicalCrmView(LanguageViewMixin, TemplateView):
+    """Public, data-free showcase for Rvion's CRM product."""
+
+    template_name = "projects/kimia_medical_crm.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["lang"] = self.lang
         return context
 
 
