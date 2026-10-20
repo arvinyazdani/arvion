@@ -23,10 +23,10 @@ class PairedDraftTests(TestCase):
         call_command("import_blog_drafts", "--bundle", "international", *args, stdout=output)
         return output.getvalue()
 
-    def test_five_records_seven_language_versions_metadata_and_tables(self):
+    def test_eight_records_thirteen_language_versions_metadata_and_tables(self):
         self.run_import()
-        self.assertEqual(Post.objects.count(), 5)
-        self.assertEqual(Post.objects.exclude(slug_en__isnull=True).count(), 3)
+        self.assertEqual(Post.objects.count(), 8)
+        self.assertEqual(Post.objects.exclude(slug_en__isnull=True).count(), 6)
         language_versions = 0
         for draft in load_paired_drafts():
             identity = {"slug_fa": draft.slug_fa} if draft.slug_fa else {"slug_en": draft.values["slug_en"]}
@@ -45,7 +45,7 @@ class PairedDraftTests(TestCase):
                     self.assertTrue(90 <= len(getattr(post, 'summary_' + language)) <= 155)
                 else:
                     self.assertFalse(getattr(post, 'slug_' + language))
-        self.assertEqual(language_versions, 7)
+        self.assertEqual(language_versions, 13)
 
     def test_dry_run_repeat_and_publication_guard(self):
         self.run_import('--dry-run')
@@ -120,7 +120,7 @@ class PairedDraftTests(TestCase):
     def test_cover_dimensions_weights_and_no_owner_image_override(self):
         from PIL import Image
         directory = Path(__file__).parent / 'static/blog/covers'
-        self.assertEqual(len(list(directory.glob('*.jpg'))), 7)
+        self.assertEqual(len(list(directory.glob('*.jpg'))), 13)
         for path in directory.glob('*.jpg'):
             with Image.open(path) as image:
                 self.assertEqual(image.size, (1200, 630))
@@ -139,7 +139,7 @@ class PairedDraftTests(TestCase):
             before = list(Post.objects.values_list('hero_image', flat=True))
             call_command('attach_article_covers', '--bundle', 'international', stdout=io.StringIO())
             self.assertEqual(before, list(Post.objects.values_list('hero_image', flat=True)))
-            self.assertEqual(len(list(Path(media).rglob('*.jpg'))), 5)
+            self.assertEqual(len(list(Path(media).rglob('*.jpg'))), 8)
 
     def test_published_fixture_links_and_sitemap_languages(self):
         from blog.test_import_drafts import BodyParser
@@ -153,7 +153,7 @@ class PairedDraftTests(TestCase):
                             is_published=True, published_at=timezone.now())
         Post.objects.update(is_published=True, published_at=timezone.now())
         entries = list(PostSitemap().items())
-        self.assertEqual(len(entries), 9)
+        self.assertEqual(len(entries), 15)
         titles, summaries = set(), set()
         for post in Post.objects.all():
             for language in ('fa', 'en'):

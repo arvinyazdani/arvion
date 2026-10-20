@@ -3,6 +3,15 @@ from pathlib import PurePosixPath
 from django.templatetags.static import static
 
 INTERNATIONAL_COVERS = {
+    "crm-needs-assessment-iran": ("crm-discovery-checklist", (
+        "نقشهٔ فرایند CRM با مسیرهای سرنخ، فروش و پشتیبانی؛ تصویر مفهومی چک‌لیست نیازسنجی.",
+        "A CRM workflow map connecting lead, sales and support paths for a discovery checklist.")),
+    "spreadsheet-to-crm-migration-iran": ("excel-to-crm-migration", (
+        "تبدیل جدول‌های پراکنده به نمای یکپارچهٔ ارتباط با مشتری؛ تصویر مفهومی مهاجرت داده.",
+        "Spreadsheet records flowing into a connected customer workspace to illustrate CRM migration.")),
+    "custom-software-acceptance-iran": ("software-acceptance-checklist", (
+        "تیم در حال بررسی گردش‌کار و فهرست تحویل نرم‌افزار؛ تصویر مفهومی معیار پذیرش.",
+        "A team reviews a workflow and delivery checklist for custom software acceptance.")),
     "custom-software-cost-us-2026-crm-accounting-b2b": ("software", (
         "گره‌های CRM، سند فاکتور و فروشگاه‌های B2B متصل؛ برنامه‌ریزی بودجه نرم‌افزار سفارشی.",
         "Connected CRM records, invoice and B2B storefronts illustrating custom software budgeting.")),
