@@ -17,6 +17,7 @@ from assessments.models import Exam
 from core.sitemaps import ExamSitemap, sitemaps
 from blog.models import Post
 from projects.models import DemoTemplate
+from projects.demo_policy import FEATURED_DEMO_SLUGS
 from services.models import Service
 from traffic.models import DailyVisitor, TrafficDay
 
@@ -559,7 +560,7 @@ class WholeSitemapContractTests(TestCase):
         self.assertRegex(css, r'\.assessment-hub-hero\{[^}]*color:var\(--text-primary\)')
         self.assertRegex(css, r'\.assessment-hub-grid h1 em\{color:var\(--color-brand-orange-text\)')
 
-    def test_contextual_links_have_matching_bilingual_indexable_targets(self):
+    def test_contextual_links_have_matching_bilingual_targets_and_expected_robots(self):
         service_targets = {
             'corporate-website-design': ['parsa-advisory', 'linea-studio'],
             'ecommerce-platform': ['nava-market', 'sarvin-atelier'],
@@ -594,7 +595,13 @@ class WholeSitemapContractTests(TestCase):
                         target = self.client.get(link, follow=False)
                         self.assertEqual(target.status_code, 200, link)
                         self.assertNotIn('Location', target.headers, link)
-                        self.assertNotIn('noindex', HeadParser(target.content.decode()).meta.get('robots', '').lower(), link)
+                        target_robots = HeadParser(target.content.decode()).meta.get('robots', '').lower()
+                        demo_path = link.split('/projects/demos/', 1)[-1].strip('/') if '/projects/demos/' in link else ''
+                        is_demo_preview = bool(demo_path) and '/' not in demo_path
+                        if is_demo_preview and demo_path not in FEATURED_DEMO_SLUGS:
+                            self.assertEqual(target_robots, 'noindex,follow', link)
+                        else:
+                            self.assertNotIn('noindex', target_robots, link)
                         self.assertNotIn('noindex', target.headers.get('X-Robots-Tag', '').lower(), link)
             self.assertEqual(structures[0], structures[1])
 

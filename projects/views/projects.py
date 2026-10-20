@@ -12,6 +12,7 @@ from django.views import View
 from django.views.generic import DetailView, ListView, RedirectView, TemplateView
 from projects.demo_labels import CATEGORY_LABELS_EN, demo_config_labels as _labels
 from projects.demo_briefs import brief_fields, story_sections
+from projects.demo_policy import is_featured_demo
 from projects.models import DemoSelection, DemoTemplate
 from projects.models.demo import PUBLIC_DEMO_SLUGS
 from projects.models.projects import Project
@@ -209,6 +210,7 @@ class DemoPreviewView(LanguageViewMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context.update(
         demo=_decorate_demo(context["demo"], self.lang), lang=self.lang, labels=_labels(self.lang, context["demo"].category),
+            demo_indexable=is_featured_demo(context["demo"].slug),
             # Minted server-side on every render so the one-shot idempotency
             # check in DemoConfigureView never depends on client JavaScript.
             submission_token=secrets.token_urlsafe(24),
